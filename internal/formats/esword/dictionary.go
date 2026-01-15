@@ -91,7 +91,9 @@ func (p *DictionaryParser) loadDetails() error {
 	row := p.db.QueryRow(`SELECT Title, Abbreviation, Information, Version FROM Details LIMIT 1`)
 
 	var d DictionaryDetails
-	if err := row.Scan(&d.Title, &d.Abbreviation, &d.Information, &d.Version); err != nil {
+	var title, abbrev, info sql.NullString
+	var version sql.NullInt64
+	if err := row.Scan(&title, &abbrev, &info, &version); err != nil {
 		if err == sql.ErrNoRows {
 			// No details table or empty
 			p.details = &DictionaryDetails{}
@@ -100,6 +102,10 @@ func (p *DictionaryParser) loadDetails() error {
 		return fmt.Errorf("reading details: %w", err)
 	}
 
+	d.Title = title.String
+	d.Abbreviation = abbrev.String
+	d.Information = info.String
+	d.Version = int(version.Int64)
 	p.details = &d
 	return nil
 }

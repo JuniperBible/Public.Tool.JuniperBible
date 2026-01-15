@@ -9,8 +9,9 @@ pkgs.mkShell {
     go-tools
     delve
 
-    # CGO dependencies (for legacy juniper build)
-    sqlite
+    # CGO dependencies (for SQLite-based plugins and legacy juniper build)
+    sqlite.dev  # Development headers for go-sqlite3
+    sqlite.out  # Runtime library
     pkg-config
     gcc
 
@@ -54,6 +55,23 @@ pkgs.mkShell {
 
     # Go module configuration
     export GOFLAGS="-mod=readonly"
+
+    # CGO configuration for go-sqlite3
+    # pkg-config handles the include/lib paths automatically
+    export CGO_CFLAGS="$(pkg-config --cflags sqlite3 2>/dev/null || true)"
+    export CGO_LDFLAGS="$(pkg-config --libs sqlite3 2>/dev/null || true)"
+
+    # Runtime library path for SQLite (needed for test binaries)
+    SQLITE_LIB_PATH="$(pkg-config --variable=libdir sqlite3 2>/dev/null || true)"
+    if [ -n "$SQLITE_LIB_PATH" ]; then
+      export LD_LIBRARY_PATH="$SQLITE_LIB_PATH:$LD_LIBRARY_PATH"
+    fi
+
+    # Clear Go build cache on first entry to pick up new CGO settings
+    if [ ! -f /tmp/.juniper-nix-cache-cleared ]; then
+      go clean -cache 2>/dev/null || true
+      touch /tmp/.juniper-nix-cache-cleared
+    fi
 
     echo ""
     echo "╔═══════════════════════════════════════════════════════════════╗"

@@ -139,6 +139,14 @@ func extractCorpus(zt *ZTextModule, conf *ConfFile) (*IRCorpus, *ExtractionStats
 					continue
 				}
 
+				// Skip verses that only contain structural markup (chapter/book markers)
+				// with no actual verse text. This handles versification differences where
+				// some verses exist in one versification but not another.
+				plainText := stripMarkup(rawText)
+				if plainText == "" {
+					continue
+				}
+
 				// Parse verse content (keeps raw + extracts structured data)
 				block := parseVerseContent(ref.String(), rawText, sequence)
 				sequence++
@@ -297,8 +305,9 @@ func parseTokensFromMarkup(text string) []*IRToken {
 
 // extractAttr extracts an attribute value from an XML tag.
 func extractAttr(tag, attr string) string {
-	// Look for attr="value" or attr='value'
-	patterns := []string{attr + `="`, attr + `='`}
+	// Look for attr="value" or attr='value' with proper word boundary
+	// Need to ensure we don't match "osisID" when looking for "sID"
+	patterns := []string{" " + attr + `="`, " " + attr + `='`}
 	for _, pattern := range patterns {
 		idx := strings.Index(tag, pattern)
 		if idx >= 0 {
@@ -554,4 +563,109 @@ func generateConfFromIR(corpus *IRCorpus) string {
 	}
 
 	return buf.String()
+}
+
+// ChapterMarker represents a chapter boundary marker found in OSIS/ThML markup.
+type ChapterMarker struct {
+	OsisID  string // e.g., "1Pet.5"
+	SID     string // Start ID (milestone start)
+	EID     string // End ID (milestone end)
+	IsStart bool   // true if this is a chapter start marker
+	IsEnd   bool   // true if this is a chapter end marker
+}
+
+// ParseChapterMarkers extracts chapter boundary markers from raw OSIS/ThML markup.
+// This is useful for detecting versification differences and chapter boundaries.
+func ParseChapterMarkers(rawMarkup string) []ChapterMarker {
+	var markers []ChapterMarker
+
+	// Parse <chapter osisID="..." sID="..." /> start markers
+	i := 0
+	for i < len(rawMarkup) {
+		chapterStart := strings.Index(rawMarkup[i:], "<chapter")
+		if chapterStart < 0 {
+			break
+		}
+		chapterStart += i
+
+		// Find end of tag
+		tagEnd := chapterStart
+		for tagEnd < len(rawMarkup) && rawMarkup[tagEnd] != '>' {
+			tagEnd++
+		}
+		if tagEnd >= len(rawMarkup) {
+			break
+		}
+
+		tagContent := rawMarkup[chapterStart : tagEnd+1]
+
+		marker := ChapterMarker{}
+
+		// Extract osisID
+		if osisID := extractAttr(tagContent, "osisID"); osisID != "" {
+			marker.OsisID = osisID
+		}
+
+		// Extract sID (start marker)
+		if sID := extractAttr(tagContent, "sID"); sID != "" {
+			marker.SID = sID
+			marker.IsStart = true
+		}
+
+		// Extract eID (end marker)
+		if eID := extractAttr(tagContent, "eID"); eID != "" {
+			marker.EID = eID
+			marker.IsEnd = true
+		}
+
+		// Only add if we got meaningful data
+		if marker.OsisID != "" || marker.SID != "" || marker.EID != "" {
+			markers = append(markers, marker)
+		}
+
+		i = tagEnd + 1
+	}
+
+	return markers
+}
+
+// IsChapterBoundaryOnly returns true if the raw markup contains only chapter
+// boundary markers and no actual verse text. This indicates a versification
+// difference where this verse doesn't exist in the source Bible.
+func IsChapterBoundaryOnly(rawMarkup string) bool {
+	markers := ParseChapterMarkers(rawMarkup)
+	if len(markers) == 0 {
+		return false
+	}
+
+	// Check if there's any text outside of tags
+	plainText := stripMarkup(rawMarkup)
+	return strings.TrimSpace(plainText) == ""
+}
+
+// DetectVersificationDifference analyzes raw markup to determine if a verse
+// doesn't exist in the source due to versification differences.
+// Returns a description of the difference if detected, empty string otherwise.
+func DetectVersificationDifference(rawMarkup string) string {
+	markers := ParseChapterMarkers(rawMarkup)
+	if len(markers) == 0 {
+		return ""
+	}
+
+	plainText := stripMarkup(rawMarkup)
+	if strings.TrimSpace(plainText) != "" {
+		return "" // Has actual text, not just a boundary
+	}
+
+	// Analyze the markers to explain the difference
+	for _, m := range markers {
+		if m.IsStart && m.OsisID != "" {
+			return fmt.Sprintf("versification: chapter %s begins here in source", m.OsisID)
+		}
+		if m.IsEnd && m.OsisID != "" {
+			return fmt.Sprintf("versification: chapter %s ends here in source", m.OsisID)
+		}
+	}
+
+	return "versification: structural marker only"
 }

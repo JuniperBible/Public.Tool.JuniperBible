@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1108,5 +1109,207 @@ echo '{"status":"ok","result":{"source":"external"}}'
 	}
 	if result["source"] != "external" {
 		t.Errorf("expected source 'external', got %v", result["source"])
+	}
+}
+
+// TestParseDetectResultMarshalError tests ParseDetectResult with data that can't be marshaled.
+func TestParseDetectResultMarshalError(t *testing.T) {
+	// Create a response with result that contains a value that can't be marshaled
+	resp := &IPCResponse{
+		Status: "ok",
+		Result: func() {}, // functions can't be marshaled to JSON
+	}
+
+	_, err := ParseDetectResult(resp)
+	if err == nil {
+		t.Error("expected error for unmarshalable result")
+	}
+}
+
+// TestParseIngestResultMarshalError tests ParseIngestResult with data that can't be marshaled.
+func TestParseIngestResultMarshalError(t *testing.T) {
+	resp := &IPCResponse{
+		Status: "ok",
+		Result: func() {}, // functions can't be marshaled to JSON
+	}
+
+	_, err := ParseIngestResult(resp)
+	if err == nil {
+		t.Error("expected error for unmarshalable result")
+	}
+}
+
+// TestParseEnumerateResultMarshalError tests ParseEnumerateResult with data that can't be marshaled.
+func TestParseEnumerateResultMarshalError(t *testing.T) {
+	resp := &IPCResponse{
+		Status: "ok",
+		Result: func() {}, // functions can't be marshaled to JSON
+	}
+
+	_, err := ParseEnumerateResult(resp)
+	if err == nil {
+		t.Error("expected error for unmarshalable result")
+	}
+}
+
+// TestParseEngineSpecResultMarshalError tests ParseEngineSpecResult with data that can't be marshaled.
+func TestParseEngineSpecResultMarshalError(t *testing.T) {
+	resp := &IPCResponse{
+		Status: "ok",
+		Result: func() {}, // functions can't be marshaled to JSON
+	}
+
+	_, err := ParseEngineSpecResult(resp)
+	if err == nil {
+		t.Error("expected error for unmarshalable result")
+	}
+}
+
+// TestParseExtractIRResultMarshalError tests ParseExtractIRResult with data that can't be marshaled.
+func TestParseExtractIRResultMarshalError(t *testing.T) {
+	resp := &IPCResponse{
+		Status: "ok",
+		Result: func() {}, // functions can't be marshaled to JSON
+	}
+
+	_, err := ParseExtractIRResult(resp)
+	if err == nil {
+		t.Error("expected error for unmarshalable result")
+	}
+}
+
+// TestParseEmitNativeResultMarshalError tests ParseEmitNativeResult with data that can't be marshaled.
+func TestParseEmitNativeResultMarshalError(t *testing.T) {
+	resp := &IPCResponse{
+		Status: "ok",
+		Result: func() {}, // functions can't be marshaled to JSON
+	}
+
+	_, err := ParseEmitNativeResult(resp)
+	if err == nil {
+		t.Error("expected error for unmarshalable result")
+	}
+}
+
+// mockFormatHandlerWithNotImplemented is a mock handler that returns "not implemented" errors.
+type mockFormatHandlerWithNotImplemented struct{}
+
+func (m *mockFormatHandlerWithNotImplemented) Detect(path string) (*DetectResult, error) {
+	return nil, fmt.Errorf("this feature requires external plugin")
+}
+
+func (m *mockFormatHandlerWithNotImplemented) Ingest(path, outputDir string) (*IngestResult, error) {
+	return nil, fmt.Errorf("this feature requires external plugin")
+}
+
+func (m *mockFormatHandlerWithNotImplemented) Enumerate(path string) (*EnumerateResult, error) {
+	return nil, fmt.Errorf("this feature requires external plugin")
+}
+
+func (m *mockFormatHandlerWithNotImplemented) ExtractIR(path, outputDir string) (*ExtractIRResult, error) {
+	return nil, fmt.Errorf("this feature requires external plugin")
+}
+
+func (m *mockFormatHandlerWithNotImplemented) EmitNative(irPath, outputDir string) (*EmitNativeResult, error) {
+	return nil, fmt.Errorf("this feature requires external plugin")
+}
+
+// TestExecutePluginWithTimeoutEmbeddedFallback tests embedded plugin fallback on "not implemented" errors.
+func TestExecutePluginWithTimeoutEmbeddedFallback(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "plugin-embedded-fallback-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create an external plugin that will be used as fallback
+	scriptContent := `#!/bin/sh
+read input
+echo '{"status":"ok","result":{"source":"fallback"}}'
+`
+	scriptPath := filepath.Join(tempDir, "format-embedded-fb")
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+		t.Fatalf("failed to write script: %v", err)
+	}
+
+	// Skip if sh is not available
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh not available")
+	}
+
+	// Register an embedded plugin that returns "not implemented" error
+	ClearEmbeddedRegistry()
+	defer ClearEmbeddedRegistry()
+
+	RegisterEmbeddedPlugin(&EmbeddedPlugin{
+		Manifest: &PluginManifest{
+			PluginID:   "format.embedded-fb",
+			Version:    "1.0.0",
+			Kind:       "format",
+			Entrypoint: "format-embedded-fb",
+		},
+		Format: &mockFormatHandlerWithNotImplemented{},
+	})
+
+	plugin := &Plugin{
+		Manifest: &PluginManifest{
+			PluginID:   "format.embedded-fb",
+			Version:    "1.0.0",
+			Kind:       "format",
+			Entrypoint: "format-embedded-fb",
+		},
+		Path: tempDir,
+	}
+
+	req := &IPCRequest{Command: "detect", Args: map[string]interface{}{"path": "/test"}}
+
+	// Execute - should try embedded first, get "not implemented", then fallback to external
+	resp, err := ExecutePluginWithTimeout(plugin, req, 5*time.Second)
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if resp.Status != "ok" {
+		t.Errorf("expected status 'ok', got %q", resp.Status)
+	}
+
+	// Verify the response came from external fallback
+	result, ok := resp.Result.(map[string]interface{})
+	if !ok {
+		t.Fatal("result is not a map")
+	}
+	if result["source"] != "fallback" {
+		t.Errorf("expected source 'fallback', got %v", result["source"])
+	}
+}
+
+// TestExecutePluginWithTimeoutNoEmbeddedNoExternal tests when both embedded and external are unavailable.
+func TestExecutePluginWithTimeoutNoEmbeddedNoExternal(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "plugin-noexternal-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a plugin with no embedded handler and no external binary
+	plugin := &Plugin{
+		Manifest: &PluginManifest{
+			PluginID:   "format.nohandler",
+			Version:    "1.0.0",
+			Kind:       "format",
+			Entrypoint: "nonexistent-binary",
+		},
+		Path: tempDir,
+	}
+
+	req := &IPCRequest{Command: "test"}
+
+	// Execute - should fail because no embedded and no external binary
+	_, err = ExecutePluginWithTimeout(plugin, req, 5*time.Second)
+	if err == nil {
+		t.Error("expected error when plugin is not available")
+	}
+	if !strings.Contains(err.Error(), "not available") {
+		t.Errorf("expected 'not available' error, got: %v", err)
 	}
 }

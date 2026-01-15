@@ -89,6 +89,25 @@ func TestIsOriginAllowed(t *testing.T) {
 			allowedOrigins: []string{"https://app1.example.com", "https://app2.example.com"},
 			expected:       false,
 		},
+		// SECURITY: Test for subdomain spoofing attack
+		{
+			name:           "Subdomain wildcard blocks attacker domain",
+			origin:         "https://attackerexample.com",
+			allowedOrigins: []string{"*.example.com"},
+			expected:       false,
+		},
+		{
+			name:           "Subdomain wildcard blocks spoofed domain",
+			origin:         "https://evilexample.com",
+			allowedOrigins: []string{"*.example.com"},
+			expected:       false,
+		},
+		{
+			name:           "Subdomain wildcard allows deep subdomain",
+			origin:         "https://sub.app.example.com",
+			allowedOrigins: []string{"*.example.com"},
+			expected:       true,
+		},
 	}
 
 	for _, tt := range tests {

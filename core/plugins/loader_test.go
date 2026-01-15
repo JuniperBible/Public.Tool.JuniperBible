@@ -1016,6 +1016,90 @@ func TestDiscoverPluginsInKindDirWithFiles(t *testing.T) {
 	}
 }
 
+// TestAddPlugin tests adding a plugin directly to the loader.
+func TestAddPlugin(t *testing.T) {
+	loader := NewLoader()
+
+	// Add a plugin directly
+	plugin := &Plugin{
+		Manifest: &PluginManifest{
+			PluginID:   "test.plugin",
+			Version:    "1.0.0",
+			Kind:       "format",
+			Entrypoint: "bin/plugin",
+		},
+		Path: "/some/path",
+	}
+
+	loader.AddPlugin(plugin)
+
+	// Verify plugin was added
+	retrieved, err := loader.GetPlugin("test.plugin")
+	if err != nil {
+		t.Fatalf("failed to retrieve added plugin: %v", err)
+	}
+
+	if retrieved.Manifest.PluginID != "test.plugin" {
+		t.Errorf("expected test.plugin, got %s", retrieved.Manifest.PluginID)
+	}
+}
+
+// TestLoadFromDirAlwaysIncompatiblePlugins tests that incompatible plugins are skipped with a warning.
+func TestLoadFromDirAlwaysIncompatiblePlugins(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "plugin-incompat-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	pluginsDir := filepath.Join(tempDir, "plugins")
+
+	// Create a plugin with a very high minimum host version requirement
+	// This should fail compatibility check
+	incompatDir := filepath.Join(pluginsDir, "format-incompat")
+	if err := os.MkdirAll(incompatDir, 0755); err != nil {
+		t.Fatalf("failed to create incompat dir: %v", err)
+	}
+	// Require host version 99.0.0 which will fail compatibility
+	incompatContent := `{"plugin_id": "format.incompat", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin", "min_host_version": "99.0.0"}`
+	if err := os.WriteFile(filepath.Join(incompatDir, "plugin.json"), []byte(incompatContent), 0644); err != nil {
+		t.Fatalf("failed to write incompat manifest: %v", err)
+	}
+
+	// Create a compatible plugin
+	compatDir := filepath.Join(pluginsDir, "format-compat")
+	if err := os.MkdirAll(compatDir, 0755); err != nil {
+		t.Fatalf("failed to create compat dir: %v", err)
+	}
+	compatContent := `{"plugin_id": "format.compat", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
+	if err := os.WriteFile(filepath.Join(compatDir, "plugin.json"), []byte(compatContent), 0644); err != nil {
+		t.Fatalf("failed to write compat manifest: %v", err)
+	}
+
+	loader := NewLoader()
+	err = loader.LoadFromDirAlways(pluginsDir)
+	if err != nil {
+		t.Fatalf("LoadFromDirAlways failed: %v", err)
+	}
+
+	// Should only have the compatible plugin
+	plugins := loader.ListPlugins()
+	if len(plugins) != 1 {
+		t.Errorf("expected 1 plugin (compatible only), got %d", len(plugins))
+	}
+
+	// Verify only the compatible plugin was loaded
+	_, err = loader.GetPlugin("format.compat")
+	if err != nil {
+		t.Error("expected format.compat to be loaded")
+	}
+
+	_, err = loader.GetPlugin("format.incompat")
+	if err == nil {
+		t.Error("expected format.incompat to NOT be loaded due to incompatibility")
+	}
+}
+
 // TestDiscoverPluginsKindDirReadError tests error handling when kind dir can't be read.
 func TestDiscoverPluginsKindDirReadError(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "plugin-kinderr-test-*")
@@ -1051,5 +1135,368 @@ func TestDiscoverPluginsKindDirReadError(t *testing.T) {
 	// Should have found the valid plugin despite the error in format dir
 	if len(plugins) != 1 {
 		t.Errorf("expected 1 plugin (valid), got %d", len(plugins))
+	}
+}
+
+// TestLoadFromDirExternalDisabled tests LoadFromDir when external plugins are disabled.
+func TestLoadFromDirExternalDisabled(t *testing.T) {
+	// Save original state
+	originalState := ExternalPluginsEnabled()
+	defer func() {
+		if originalState {
+			EnableExternalPlugins()
+		} else {
+			DisableExternalPlugins()
+		}
+	}()
+
+	// Disable external plugins
+	DisableExternalPlugins()
+
+	tempDir, err := os.MkdirTemp("", "plugin-disabled-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	pluginsDir := filepath.Join(tempDir, "plugins")
+	pluginDir := filepath.Join(pluginsDir, "format-test")
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		t.Fatalf("failed to create plugin dir: %v", err)
+	}
+	content := `{"plugin_id": "format.test", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
+	if err := os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write manifest: %v", err)
+	}
+
+	loader := NewLoader()
+
+	// LoadFromDir should return early when external plugins are disabled
+	err = loader.LoadFromDir(pluginsDir)
+	if err != nil {
+		t.Fatalf("LoadFromDir failed: %v", err)
+	}
+
+	// Plugin should NOT be loaded because external plugins are disabled
+	_, err = loader.GetPlugin("format.test")
+	if err == nil {
+		t.Error("expected plugin to NOT be loaded when external plugins are disabled")
+	}
+}
+
+// TestLoadFromDirExternalEnabled tests LoadFromDir when external plugins are enabled.
+func TestLoadFromDirExternalEnabled(t *testing.T) {
+	// Save original state
+	originalState := ExternalPluginsEnabled()
+	defer func() {
+		if originalState {
+			EnableExternalPlugins()
+		} else {
+			DisableExternalPlugins()
+		}
+	}()
+
+	// Enable external plugins
+	EnableExternalPlugins()
+
+	tempDir, err := os.MkdirTemp("", "plugin-enabled-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	pluginsDir := filepath.Join(tempDir, "plugins")
+	pluginDir := filepath.Join(pluginsDir, "format-test")
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		t.Fatalf("failed to create plugin dir: %v", err)
+	}
+	content := `{"plugin_id": "format.enabled", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
+	if err := os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write manifest: %v", err)
+	}
+
+	loader := NewLoader()
+
+	// LoadFromDir should load plugins when external plugins are enabled
+	err = loader.LoadFromDir(pluginsDir)
+	if err != nil {
+		t.Fatalf("LoadFromDir failed: %v", err)
+	}
+
+	// Plugin should be loaded
+	plugin, err := loader.GetPlugin("format.enabled")
+	if err != nil {
+		t.Errorf("expected plugin to be loaded: %v", err)
+	}
+	if plugin != nil && plugin.Manifest.PluginID != "format.enabled" {
+		t.Errorf("expected plugin ID 'format.enabled', got '%s'", plugin.Manifest.PluginID)
+	}
+}
+
+// TestLoadFromDirNonExistent tests LoadFromDir with a non-existent directory.
+// DiscoverPlugins returns empty list (not error) for non-existent directories.
+func TestLoadFromDirNonExistent(t *testing.T) {
+	// Save original state
+	originalState := ExternalPluginsEnabled()
+	defer func() {
+		if originalState {
+			EnableExternalPlugins()
+		} else {
+			DisableExternalPlugins()
+		}
+	}()
+
+	// Enable external plugins
+	EnableExternalPlugins()
+
+	loader := NewLoader()
+
+	// LoadFromDir with non-existent directory should return nil (empty list behavior)
+	err := loader.LoadFromDir("/nonexistent/path/plugins")
+	if err != nil {
+		t.Errorf("expected no error for non-existent directory, got: %v", err)
+	}
+
+	// Verify no plugins were loaded (except embedded ones)
+	all := loader.ListPlugins()
+	for _, p := range all {
+		if p.Path != "" && p.Manifest.PluginID == "nonexistent" {
+			t.Error("expected no plugins from non-existent directory")
+		}
+	}
+}
+
+// TestNewLoaderWithEmbeddedPlugins tests that NewLoader includes embedded plugins.
+func TestNewLoaderWithEmbeddedPlugins(t *testing.T) {
+	// Clear and register test embedded plugin
+	ClearEmbeddedRegistry()
+	defer ClearEmbeddedRegistry()
+
+	RegisterEmbeddedPlugin(&EmbeddedPlugin{
+		Manifest: &PluginManifest{
+			PluginID: "test.embedded.loader",
+			Version:  "1.0.0",
+			Kind:     "format",
+		},
+	})
+
+	// Create loader - should include embedded plugins
+	loader := NewLoader()
+
+	// Get embedded plugin from loader
+	plugin, err := loader.GetPlugin("test.embedded.loader")
+	if err != nil {
+		t.Errorf("expected embedded plugin to be in loader: %v", err)
+	}
+	if plugin != nil && plugin.Manifest.PluginID != "test.embedded.loader" {
+		t.Errorf("expected plugin ID 'test.embedded.loader', got '%s'", plugin.Manifest.PluginID)
+	}
+}
+
+// TestLoadFromDirIncompatiblePlugins tests LoadFromDir with incompatible plugins when external is enabled.
+func TestLoadFromDirIncompatiblePlugins(t *testing.T) {
+	// Save original state
+	originalState := ExternalPluginsEnabled()
+	defer func() {
+		if originalState {
+			EnableExternalPlugins()
+		} else {
+			DisableExternalPlugins()
+		}
+	}()
+
+	// Enable external plugins
+	EnableExternalPlugins()
+
+	tempDir, err := os.MkdirTemp("", "plugin-incompatible-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	pluginsDir := filepath.Join(tempDir, "plugins")
+
+	// Create a plugin with very high minimum host version
+	incompatDir := filepath.Join(pluginsDir, "format-incompat")
+	if err := os.MkdirAll(incompatDir, 0755); err != nil {
+		t.Fatalf("failed to create incompat dir: %v", err)
+	}
+	incompatContent := `{"plugin_id": "format.incompat2", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin", "min_host_version": "99.0.0"}`
+	if err := os.WriteFile(filepath.Join(incompatDir, "plugin.json"), []byte(incompatContent), 0644); err != nil {
+		t.Fatalf("failed to write incompat manifest: %v", err)
+	}
+
+	loader := NewLoader()
+	err = loader.LoadFromDir(pluginsDir)
+	if err != nil {
+		t.Fatalf("LoadFromDir failed: %v", err)
+	}
+
+	// Incompatible plugin should NOT be loaded
+	_, err = loader.GetPlugin("format.incompat2")
+	if err == nil {
+		t.Error("expected incompatible plugin to NOT be loaded")
+	}
+}
+
+// TestDiscoverPluginsAbsolutePathConversion tests that DiscoverPlugins converts to absolute paths.
+func TestDiscoverPluginsAbsolutePathConversion(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "plugin-abs-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	pluginsDir := filepath.Join(tempDir, "plugins")
+	pluginDir := filepath.Join(pluginsDir, "format-test")
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		t.Fatalf("failed to create plugin dir: %v", err)
+	}
+	content := `{"plugin_id": "format.abs-test", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
+	if err := os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write manifest: %v", err)
+	}
+
+	// Use a relative path (if we're in a different directory)
+	// Save current directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	// Change to temp directory and use relative path
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change directory: %v", err)
+	}
+
+	plugins, err := DiscoverPlugins("./plugins")
+	if err != nil {
+		t.Fatalf("DiscoverPlugins failed: %v", err)
+	}
+
+	if len(plugins) != 1 {
+		t.Fatalf("expected 1 plugin, got %d", len(plugins))
+	}
+
+	// Verify path was converted to absolute
+	if !filepath.IsAbs(plugins[0].Path) {
+		t.Errorf("expected absolute path, got %s", plugins[0].Path)
+	}
+}
+
+// TestDiscoverPluginsReadDirError tests DiscoverPlugins with I/O error on ReadDir.
+func TestDiscoverPluginsReadDirError(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "plugin-readerror-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a file instead of a directory
+	filePath := filepath.Join(tempDir, "notadirectory")
+	if err := os.WriteFile(filePath, []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	// Try to discover plugins from a file (not a directory)
+	_, err = DiscoverPlugins(filePath)
+	if err == nil {
+		t.Error("expected error when discovering from a file instead of directory")
+	}
+}
+
+// TestLoadFromDirDiscoverError tests LoadFromDir when DiscoverPlugins returns an error.
+func TestLoadFromDirDiscoverError(t *testing.T) {
+	// Save original state
+	originalState := ExternalPluginsEnabled()
+	defer func() {
+		if originalState {
+			EnableExternalPlugins()
+		} else {
+			DisableExternalPlugins()
+		}
+	}()
+
+	// Enable external plugins
+	EnableExternalPlugins()
+
+	tempDir, err := os.MkdirTemp("", "plugin-discover-error-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a file instead of directory to cause error
+	filePath := filepath.Join(tempDir, "notadirectory")
+	if err := os.WriteFile(filePath, []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	loader := NewLoader()
+	err = loader.LoadFromDir(filePath)
+	if err == nil {
+		t.Error("expected error from LoadFromDir when DiscoverPlugins fails")
+	}
+}
+
+// TestDiscoverPluginsMixedValidInvalid tests discovering plugins with a mix of valid and invalid plugins.
+func TestDiscoverPluginsMixedValidInvalid(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "plugin-mixed-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	pluginsDir := filepath.Join(tempDir, "plugins")
+
+	// Create a valid flat-structure plugin
+	validFlatDir := filepath.Join(pluginsDir, "format-valid-flat")
+	if err := os.MkdirAll(validFlatDir, 0755); err != nil {
+		t.Fatalf("failed to create valid flat dir: %v", err)
+	}
+	validContent := `{"plugin_id": "format.valid-flat", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
+	if err := os.WriteFile(filepath.Join(validFlatDir, "plugin.json"), []byte(validContent), 0644); err != nil {
+		t.Fatalf("failed to write valid manifest: %v", err)
+	}
+
+	// Create a valid nested plugin
+	formatDir := filepath.Join(pluginsDir, "format")
+	validNestedDir := filepath.Join(formatDir, "valid-nested")
+	if err := os.MkdirAll(validNestedDir, 0755); err != nil {
+		t.Fatalf("failed to create valid nested dir: %v", err)
+	}
+	validNestedContent := `{"plugin_id": "format.valid-nested", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
+	if err := os.WriteFile(filepath.Join(validNestedDir, "plugin.json"), []byte(validNestedContent), 0644); err != nil {
+		t.Fatalf("failed to write valid nested manifest: %v", err)
+	}
+
+	// Create an invalid nested plugin (no plugin.json)
+	invalidNestedDir := filepath.Join(formatDir, "invalid-nested")
+	if err := os.MkdirAll(invalidNestedDir, 0755); err != nil {
+		t.Fatalf("failed to create invalid nested dir: %v", err)
+	}
+
+	// Discover should return only valid plugins
+	plugins, err := DiscoverPlugins(pluginsDir)
+	if err != nil {
+		t.Fatalf("DiscoverPlugins failed: %v", err)
+	}
+
+	if len(plugins) != 2 {
+		t.Errorf("expected 2 valid plugins, got %d", len(plugins))
+	}
+
+	// Verify plugin IDs
+	ids := make(map[string]bool)
+	for _, p := range plugins {
+		ids[p.Manifest.PluginID] = true
+	}
+
+	if !ids["format.valid-flat"] {
+		t.Error("format.valid-flat plugin not found")
+	}
+	if !ids["format.valid-nested"] {
+		t.Error("format.valid-nested plugin not found")
 	}
 }

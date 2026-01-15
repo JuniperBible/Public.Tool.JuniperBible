@@ -88,13 +88,6 @@ type JSONVerse struct {
 	ID      string `json:"id"`
 }
 
-// LossReport describes any data loss during conversion.
-type LossReport struct {
-	SourceFormat string `json:"source_format"`
-	TargetFormat string `json:"target_format"`
-	LossClass    string `json:"loss_class"`
-}
-
 // Detect implements EmbeddedFormatHandler.Detect.
 func (h *Handler) Detect(path string) (*plugins.DetectResult, error) {
 	info, err := os.Stat(path)

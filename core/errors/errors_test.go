@@ -82,6 +82,15 @@ func TestValidationError(t *testing.T) {
 			}
 		})
 	}
+
+	// Test with underlying error separately
+	t.Run("with underlying error", func(t *testing.T) {
+		underlyingErr := fmt.Errorf("regex parse error")
+		err := &ValidationError{Field: "pattern", Message: "invalid regex", Err: underlyingErr}
+		if got := err.Unwrap(); got != underlyingErr {
+			t.Errorf("Unwrap() = %v, want %v", got, underlyingErr)
+		}
+	})
 }
 
 func TestPermissionError(t *testing.T) {
@@ -115,6 +124,15 @@ func TestPermissionError(t *testing.T) {
 			}
 		})
 	}
+
+	// Test with underlying error separately
+	t.Run("with underlying error", func(t *testing.T) {
+		underlyingErr := fmt.Errorf("access denied by OS")
+		err := &PermissionError{Operation: "write", Resource: "file", Reason: "no access", Err: underlyingErr}
+		if got := err.Unwrap(); got != underlyingErr {
+			t.Errorf("Unwrap() = %v, want %v", got, underlyingErr)
+		}
+	})
 }
 
 func TestIOError(t *testing.T) {
@@ -179,6 +197,15 @@ func TestParseError(t *testing.T) {
 			}
 		})
 	}
+
+	// Test with underlying error separately
+	t.Run("with underlying error", func(t *testing.T) {
+		underlyingErr := fmt.Errorf("json: unexpected token")
+		err := &ParseError{Format: "JSON", Path: "config.json", Message: "invalid syntax", Err: underlyingErr}
+		if got := err.Unwrap(); got != underlyingErr {
+			t.Errorf("Unwrap() = %v, want %v", got, underlyingErr)
+		}
+	})
 }
 
 func TestUnsupportedError(t *testing.T) {
@@ -212,6 +239,15 @@ func TestUnsupportedError(t *testing.T) {
 			}
 		})
 	}
+
+	// Test with underlying error separately
+	t.Run("with underlying error", func(t *testing.T) {
+		underlyingErr := fmt.Errorf("codec not compiled")
+		err := &UnsupportedError{Feature: "video codec", Reason: "h265 missing", Err: underlyingErr}
+		if got := err.Unwrap(); got != underlyingErr {
+			t.Errorf("Unwrap() = %v, want %v", got, underlyingErr)
+		}
+	})
 }
 
 func TestHelperFunctions(t *testing.T) {

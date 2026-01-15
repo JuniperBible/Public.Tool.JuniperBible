@@ -409,3 +409,42 @@ func TestSanitizeHTMLAttribute(t *testing.T) {
 		}
 	}
 }
+
+func TestSanitizeQueryParam(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{
+			input:    "normal value",
+			expected: "normal value",
+		},
+		{
+			input:    "  leading/trailing  ",
+			expected: "leading/trailing",
+		},
+		{
+			input:    "text\x00with\x00nulls",
+			expected: "textwithnulls",
+		},
+		{
+			input:    "<script>alert('xss')</script>",
+			expected: "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;",
+		},
+		{
+			input:    "text\x01with\x02control",
+			expected: "textwithcontrol",
+		},
+		{
+			input:    "text & special <chars>",
+			expected: "text &amp; special &lt;chars&gt;",
+		},
+	}
+
+	for _, tt := range tests {
+		result := SanitizeQueryParam(tt.input)
+		if result != tt.expected {
+			t.Errorf("SanitizeQueryParam(%q) = %q, want %q", tt.input, result, tt.expected)
+		}
+	}
+}

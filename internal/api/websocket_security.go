@@ -155,8 +155,9 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 		}
 
 		// Support wildcard subdomains: *.example.com
+		// SECURITY: Must check for ".domain" suffix to prevent attackerexample.com matching *.example.com
 		if strings.HasPrefix(allowed, "*.") {
-			domain := allowed[2:] // Remove "*."
+			domain := allowed[1:] // Remove "*" but keep the leading "." (becomes ".example.com")
 			if strings.HasSuffix(origin, domain) {
 				return true
 			}

@@ -155,3 +155,9 @@ func TestDriverTypeConsistency(t *testing.T) {
 		t.Errorf("unknown driver type: %s", driverType)
 	}
 }
+
+// Note: MustOpen panic path (lines 52-53) cannot be reliably tested.
+// SQLite's sql.Open uses lazy initialization - it almost never returns an error
+// from sql.Open() itself. Errors typically occur when actually using the connection.
+// The panic path exists for safety but is unreachable with a registered SQLite driver.
+// Coverage: 90.9% is the practical maximum for this package.

@@ -2,8 +2,11 @@
 package xml
 
 import (
+	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/antchfx/xmlquery"
 )
 
 // TestParseValidXML verifies parsing of well-formed XML.
@@ -900,5 +903,541 @@ func TestComplexXPathExpression(t *testing.T) {
 
 	if len(results) != 2 {
 		t.Errorf("XPath should return 2 fiction titles, got %d", len(results))
+	}
+}
+
+// TestFormatDocumentLevelComment verifies formatting of comments at document level.
+// Note: The xmlquery library may not preserve document-level comments.
+func TestFormatDocumentLevelComment(t *testing.T) {
+	// Comment before the root element
+	xmlData := `<?xml version="1.0"?><!-- Document comment --><root/>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	// The formatted output should still have the root element
+	if !strings.Contains(string(formatted), "<root") {
+		t.Error("Formatted XML should contain root element")
+	}
+}
+
+// TestFormatDocumentWithOnlyDeclaration verifies formatting minimal XML.
+func TestFormatDocumentWithOnlyDeclaration(t *testing.T) {
+	xmlData := `<?xml version="1.0" encoding="UTF-8"?><empty/>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	if !strings.Contains(string(formatted), "<?xml") {
+		t.Error("Formatted XML should preserve declaration")
+	}
+}
+
+// TestFormatTextOnlyDocument verifies formatting when there's text at document level.
+// Note: XML requires a root element, so pure text documents are invalid.
+// This tests handling of whitespace text nodes around elements.
+func TestFormatTextOnlyDocument(t *testing.T) {
+	// Whitespace around elements is common
+	xmlData := `<?xml version="1.0"?>
+<root>content</root>
+`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	if !strings.Contains(string(formatted), "content") {
+		t.Error("Formatted XML should preserve content")
+	}
+}
+
+// TestFormatNestedElementsWithErrors tests error handling in format.
+// The formatNode error paths are largely unreachable since bytes.Buffer
+// doesn't return errors from WriteString, but we test what we can.
+func TestFormatNestedElementsWithErrors(t *testing.T) {
+	// Deeply nested structure to exercise all formatNode paths
+	xmlData := `<?xml version="1.0"?>
+<root xmlns:ns="http://test.com">
+	<ns:parent attr="val">
+		<child>text</child>
+		<![CDATA[cdata content]]>
+	</ns:parent>
+</root>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "\t"})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	if !strings.Contains(string(formatted), "ns:parent") {
+		t.Error("Formatted XML should preserve namespaced elements")
+	}
+	if !strings.Contains(string(formatted), "<![CDATA[") {
+		t.Error("Formatted XML should preserve CDATA")
+	}
+}
+
+// TestDocumentRootOnlyTextNode verifies Root returns nil when document has only text nodes.
+// This tests the edge case where a parsed document has no element children at all.
+func TestDocumentRootOnlyTextNode(t *testing.T) {
+	// Create a document manually with only a text node (no elements)
+	// This is a synthetic test case to reach the "return nil" branch in Root()
+	doc := &Document{
+		root: &xmlquery.Node{
+			Type:       xmlquery.DocumentNode,
+			FirstChild: &xmlquery.Node{Type: xmlquery.TextNode, Data: "text"},
+		},
+	}
+
+	root := doc.Root()
+	if root != nil {
+		t.Error("Root should return nil when document has no element children")
+	}
+}
+
+// TestFormatDocumentLevelTextNode verifies formatting of document-level text nodes.
+// This tests the TextNode case in formatNode at document level.
+func TestFormatDocumentLevelTextNode(t *testing.T) {
+	// Test standalone text node formatting
+	xmlData := `<root>
+	content with spaces
+  </root>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	// The formatted output should preserve the content
+	if !strings.Contains(string(formatted), "content with spaces") {
+		t.Error("Formatted XML should preserve text content")
+	}
+}
+
+// TestFormatAttributeWithEmptyLocalName verifies formatting handles attributes with empty local names.
+// This tests the edge case where attr.Name.Local is empty.
+func TestFormatAttributeWithEmptyLocalName(t *testing.T) {
+	// Test with namespace-only attribute
+	xmlData := `<root xmlns="http://example.com"/>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	// The formatted output should contain the root element
+	if !strings.Contains(string(formatted), "<root") {
+		t.Error("Formatted XML should contain root element")
+	}
+}
+
+// TestXPathWithNamespaces verifies XPath with namespace support.
+func TestXPathWithNamespaces(t *testing.T) {
+	xmlData := `<root xmlns:ns="http://example.com">
+		<ns:item id="1">Value 1</ns:item>
+		<ns:item id="2">Value 2</ns:item>
+	</root>`
+
+	doc, err := Parse([]byte(xmlData))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Query for namespaced elements
+	results, err := doc.XPath("//*[local-name()='item']")
+	if err != nil {
+		t.Fatalf("XPath failed: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Errorf("XPath should return 2 results, got %d", len(results))
+	}
+}
+
+// TestXPathFirstWithNamespaces verifies XPathFirst with namespace support.
+func TestXPathFirstWithNamespaces(t *testing.T) {
+	xmlData := `<root xmlns:ns="http://example.com">
+		<ns:item id="1">Value 1</ns:item>
+		<ns:item id="2">Value 2</ns:item>
+	</root>`
+
+	doc, err := Parse([]byte(xmlData))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Query for first namespaced element
+	result, err := doc.XPathFirst("//*[local-name()='item' and @id='1']")
+	if err != nil {
+		t.Fatalf("XPathFirst failed: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("XPathFirst should return a result")
+	}
+
+	if result.Text() != "Value 1" {
+		t.Errorf("Text = %q, want %q", result.Text(), "Value 1")
+	}
+}
+
+// TestFormatComplexNestedStructure verifies formatting of deeply nested XML.
+func TestFormatComplexNestedStructure(t *testing.T) {
+	xmlData := `<?xml version="1.0"?>
+<root>
+	<level1>
+		<level2>
+			<level3 attr="value">
+				<level4>Deep content</level4>
+			</level3>
+		</level2>
+	</level1>
+</root>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	// Verify nested structure is preserved
+	if !strings.Contains(string(formatted), "level4") {
+		t.Error("Formatted XML should contain deeply nested elements")
+	}
+	if !strings.Contains(string(formatted), "Deep content") {
+		t.Error("Formatted XML should preserve deep content")
+	}
+}
+
+// TestFormatWithMultipleTextNodes verifies formatting of elements with multiple text nodes.
+func TestFormatWithMultipleTextNodes(t *testing.T) {
+	xmlData := `<root>Text 1<child1/>Text 2<child2/>Text 3</root>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	// Verify all children are formatted
+	if !strings.Contains(string(formatted), "child1") {
+		t.Error("Formatted XML should contain child1")
+	}
+	if !strings.Contains(string(formatted), "child2") {
+		t.Error("Formatted XML should contain child2")
+	}
+}
+
+// TestXPathWithComplexPredicate verifies XPath with complex predicates.
+func TestXPathWithComplexPredicate(t *testing.T) {
+	xmlData := `<library>
+		<section name="fiction">
+			<book price="10">Book A</book>
+			<book price="20">Book B</book>
+		</section>
+		<section name="nonfiction">
+			<book price="15">Book C</book>
+		</section>
+	</library>`
+
+	doc, err := Parse([]byte(xmlData))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Complex XPath with multiple predicates
+	results, err := doc.XPath("//section[@name='fiction']/book[@price='10']")
+	if err != nil {
+		t.Fatalf("XPath failed: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Errorf("XPath should return 1 result, got %d", len(results))
+	}
+
+	if results[0].Text() != "Book A" {
+		t.Errorf("Text = %q, want %q", results[0].Text(), "Book A")
+	}
+}
+
+// TestXPathWithAxes verifies XPath with different axes.
+func TestXPathWithAxes(t *testing.T) {
+	xmlData := `<root>
+		<parent>
+			<child>Child 1</child>
+			<child>Child 2</child>
+		</parent>
+	</root>`
+
+	doc, err := Parse([]byte(xmlData))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Use descendant axis
+	results, err := doc.XPath("//parent/descendant::child")
+	if err != nil {
+		t.Fatalf("XPath failed: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Errorf("XPath should return 2 results, got %d", len(results))
+	}
+}
+
+// TestFormatWithOnlyWhitespace verifies formatting handles whitespace-only content.
+func TestFormatWithOnlyWhitespace(t *testing.T) {
+	xmlData := `<root>
+
+
+		<child/>
+
+
+	</root>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	// Verify the child element is preserved
+	if !strings.Contains(string(formatted), "child") {
+		t.Error("Formatted XML should contain child element")
+	}
+}
+
+// TestXPathWithCount verifies XPath count function.
+func TestXPathWithCount(t *testing.T) {
+	xmlData := `<root>
+		<item>1</item>
+		<item>2</item>
+		<item>3</item>
+	</root>`
+
+	doc, err := Parse([]byte(xmlData))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Test with XPath function
+	results, err := doc.XPath("//item[position() <= 2]")
+	if err != nil {
+		t.Fatalf("XPath failed: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Errorf("XPath should return 2 results, got %d", len(results))
+	}
+}
+
+// TestFormatWithEncodingAttribute verifies encoding attribute in declaration.
+func TestFormatWithEncodingAttribute(t *testing.T) {
+	xmlData := `<?xml version="1.0" encoding="ISO-8859-1"?><root/>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	if !strings.Contains(string(formatted), "encoding=") {
+		t.Error("Formatted XML should preserve encoding attribute")
+	}
+}
+
+// TestFormatWithStandaloneAttribute verifies standalone attribute in declaration.
+func TestFormatWithStandaloneAttribute(t *testing.T) {
+	xmlData := `<?xml version="1.0" standalone="yes"?><root/>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	if !strings.Contains(string(formatted), "standalone=") {
+		t.Error("Formatted XML should preserve standalone attribute")
+	}
+}
+
+// TestFormatNodeWithStandaloneTextNode tests formatting a document-level text node.
+// This is a synthetic test to cover the TextNode case in formatNode.
+func TestFormatNodeWithStandaloneTextNode(t *testing.T) {
+	// Create a synthetic document structure with a standalone text node
+	// This tests the TextNode case in formatNode at depth 0
+	doc := &Document{
+		root: &xmlquery.Node{
+			Type: xmlquery.DocumentNode,
+			FirstChild: &xmlquery.Node{
+				Type: xmlquery.TextNode,
+				Data: "standalone text",
+			},
+		},
+	}
+
+	var buf []byte
+	var opts FormatOptions
+	opts.Indent = "  "
+
+	// Manually call formatNode to test the TextNode branch
+	var buffer bytes.Buffer
+	err := formatNode(&buffer, doc.root, 0, opts.Indent)
+	if err != nil {
+		t.Fatalf("formatNode failed: %v", err)
+	}
+
+	buf = buffer.Bytes()
+	// The text node formatting at document level should escape the text
+	output := string(buf)
+	if !strings.Contains(output, "standalone text") {
+		t.Errorf("Output should contain text content, got: %q", output)
+	}
+}
+
+// TestFormatNodeWithTextNodeAtRootLevel tests text node formatting at document level.
+func TestFormatNodeWithTextNodeAtRootLevel(t *testing.T) {
+	// Create a document with a text node sibling to element nodes
+	root := &xmlquery.Node{Type: xmlquery.DocumentNode}
+
+	// Add text node
+	textNode := &xmlquery.Node{
+		Type: xmlquery.TextNode,
+		Data: "  text content  ",
+	}
+
+	// Add element node
+	elementNode := &xmlquery.Node{
+		Type: xmlquery.ElementNode,
+		Data: "root",
+	}
+
+	root.FirstChild = textNode
+	textNode.NextSibling = elementNode
+
+	doc := &Document{root: root}
+
+	var buffer bytes.Buffer
+	err := formatNode(&buffer, doc.root, 0, "  ")
+	if err != nil {
+		t.Fatalf("formatNode failed: %v", err)
+	}
+
+	output := string(buffer.Bytes())
+	// Should contain both the text and the element
+	if !strings.Contains(output, "text content") {
+		t.Errorf("Output should contain text content, got: %q", output)
+	}
+	if !strings.Contains(output, "<root") {
+		t.Errorf("Output should contain root element, got: %q", output)
+	}
+}
+
+// TestXPathEdgeCases tests XPath with various edge cases.
+func TestXPathEdgeCases(t *testing.T) {
+	xmlData := `<root>
+		<a id="1"/>
+		<b id="2"/>
+		<c id="3"/>
+	</root>`
+
+	doc, err := Parse([]byte(xmlData))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Test various XPath expressions to exercise the code paths
+	testCases := []struct {
+		name  string
+		xpath string
+	}{
+		{"descendant-or-self", "//root/descendant-or-self::*"},
+		{"following-sibling", "//a/following-sibling::*"},
+		{"preceding-sibling", "//c/preceding-sibling::*"},
+		{"parent axis", "//a/parent::*"},
+		{"ancestor axis", "//a/ancestor::*"},
+		{"self axis", "//a/self::*"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := doc.XPath(tc.xpath)
+			if err != nil {
+				t.Errorf("XPath %q failed: %v", tc.xpath, err)
+			}
+		})
+	}
+}
+
+// TestXPathFirstEdgeCases tests XPathFirst with various edge cases.
+func TestXPathFirstEdgeCases(t *testing.T) {
+	xmlData := `<root>
+		<item priority="1">First</item>
+		<item priority="2">Second</item>
+		<item priority="3">Third</item>
+	</root>`
+
+	doc, err := Parse([]byte(xmlData))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Test various XPath expressions
+	testCases := []struct {
+		name  string
+		xpath string
+	}{
+		{"last() function", "//item[last()]"},
+		{"position() function", "//item[position()=1]"},
+		{"contains() function", "//item[contains(text(), 'First')]"},
+		{"starts-with() function", "//item[starts-with(text(), 'F')]"},
+		{"string-length() function", "//item[string-length(@priority)=1]"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := doc.XPathFirst(tc.xpath)
+			if err != nil {
+				t.Errorf("XPathFirst %q failed: %v", tc.xpath, err)
+			}
+		})
+	}
+}
+
+// TestFormatVeryDeeplyNested tests formatting with extremely deep nesting.
+func TestFormatVeryDeeplyNested(t *testing.T) {
+	// Create a deeply nested structure to exercise all recursion paths
+	xmlData := `<?xml version="1.0"?>
+<level1>
+	<level2>
+		<level3>
+			<level4>
+				<level5>
+					<level6>
+						<level7>
+							<level8>
+								<level9>
+									<level10>Deep content</level10>
+								</level9>
+							</level8>
+						</level7>
+					</level6>
+				</level5>
+			</level4>
+		</level3>
+	</level2>
+</level1>`
+
+	formatted, err := Format([]byte(xmlData), FormatOptions{Indent: "  "})
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+
+	// Verify deep nesting is preserved
+	if !strings.Contains(string(formatted), "level10") {
+		t.Error("Formatted XML should contain deeply nested element")
+	}
+	if !strings.Contains(string(formatted), "Deep content") {
+		t.Error("Formatted XML should preserve deep content")
 	}
 }

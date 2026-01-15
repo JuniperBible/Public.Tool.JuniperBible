@@ -1,3 +1,5 @@
+//go:build cgo
+
 // Plugin format-sqlite handles SQLite Bible database format.
 // Provides queryable database structure for programmatic access.
 //

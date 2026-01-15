@@ -43,6 +43,9 @@
 # Format plugins
 /plugins/format/*/format-*
 /plugins/format-*/format-*
+# CGO plugin test binaries (built during test runs)
+/plugins/format-sqlite/format-sqlite
+/plugins/format-esword/format-esword
 # Tool plugins
 /plugins/tool/*/tool-*
 /plugins/tool-*/tool-*

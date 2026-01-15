@@ -172,3 +172,81 @@ func TestCORSMiddlewareEmptyConfig(t *testing.T) {
 		t.Error("should not set credentials with wildcard origin")
 	}
 }
+
+func TestAbsPath(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"relative path", "test.txt"},
+		{"dot path", "./test.txt"},
+		{"parent path", "../test.txt"},
+		{"absolute path", "/tmp/test.txt"},
+		{"empty path", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := AbsPath(tt.path)
+			// AbsPath should return a non-empty string for valid paths
+			// or the original path on error
+			if tt.path != "" && result == "" {
+				t.Errorf("AbsPath(%q) returned empty string", tt.path)
+			}
+		})
+	}
+}
+
+func TestSecurityHeadersMiddleware(t *testing.T) {
+	handler := SecurityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	// Check all security headers are present
+	expectedHeaders := map[string]string{
+		"X-Content-Type-Options": "nosniff",
+		"X-Frame-Options":        "DENY",
+		"X-XSS-Protection":       "1; mode=block",
+		"Referrer-Policy":        "strict-origin-when-cross-origin",
+	}
+
+	for header, expectedValue := range expectedHeaders {
+		value := w.Header().Get(header)
+		if value != expectedValue {
+			t.Errorf("Expected header %s=%q, got %q", header, expectedValue, value)
+		}
+	}
+
+	// Check CSP is present
+	csp := w.Header().Get("Content-Security-Policy")
+	if csp == "" {
+		t.Error("Expected Content-Security-Policy header to be set")
+	}
+}
+
+func TestTimingMiddleware(t *testing.T) {
+	handlerCalled := false
+	handler := TimingMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if !handlerCalled {
+		t.Error("Expected inner handler to be called")
+	}
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+}

@@ -175,3 +175,83 @@ func TestCopyDir_DeepNesting(t *testing.T) {
 		t.Error("deep file not copied")
 	}
 }
+
+func TestCopyFile_InvalidDst(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create source file
+	srcPath := filepath.Join(tempDir, "src.txt")
+	if err := os.WriteFile(srcPath, []byte("test"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	// Create a file where we want to create a directory
+	blocker := filepath.Join(tempDir, "blocker")
+	if err := os.WriteFile(blocker, []byte("blocking"), 0644); err != nil {
+		t.Fatalf("failed to create blocker file: %v", err)
+	}
+
+	// Try to copy to path that requires blocker to be a directory
+	dstPath := filepath.Join(blocker, "dst.txt")
+	err := CopyFile(srcPath, dstPath)
+	if err == nil {
+		t.Error("expected error when destination directory can't be created")
+	}
+}
+
+func TestCopyDir_DestinationBlocked(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create source directory with content
+	srcDir := filepath.Join(tempDir, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create source dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	// Create a file where we want to create the destination directory
+	blocker := filepath.Join(tempDir, "blocker")
+	if err := os.WriteFile(blocker, []byte("blocking"), 0644); err != nil {
+		t.Fatalf("failed to create blocker file: %v", err)
+	}
+
+	// Try to copy to path that requires blocker to be a directory
+	err := CopyDir(srcDir, blocker)
+	if err == nil {
+		t.Error("expected error when destination directory can't be created")
+	}
+}
+
+func TestCopyDir_CopyFileError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create source directory with a subdirectory
+	srcDir := filepath.Join(tempDir, "src")
+	subDir := filepath.Join(srcDir, "subdir")
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		t.Fatalf("failed to create subdirectory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(subDir, "file.txt"), []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	// Create destination directory
+	dstDir := filepath.Join(tempDir, "dst")
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		t.Fatalf("failed to create dst dir: %v", err)
+	}
+
+	// Create a file that will block the subdirectory creation
+	dstSubDir := filepath.Join(dstDir, "subdir")
+	if err := os.WriteFile(dstSubDir, []byte("blocking"), 0644); err != nil {
+		t.Fatalf("failed to create blocker file: %v", err)
+	}
+
+	// This should fail because subdir can't be created
+	err := CopyDir(srcDir, dstDir)
+	if err == nil {
+		t.Error("expected error when subdirectory can't be created")
+	}
+}

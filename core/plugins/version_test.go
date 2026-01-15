@@ -454,6 +454,84 @@ func TestParseConstraintSet(t *testing.T) {
 	}
 }
 
+func TestConstraintString(t *testing.T) {
+	tests := []struct {
+		name       string
+		constraint *Constraint
+		want       string
+	}{
+		{
+			name:       "greater than or equal",
+			constraint: &Constraint{Operator: ">=", Version: &Version{Major: 1, Minor: 2, Patch: 3}},
+			want:       ">=1.2.3",
+		},
+		{
+			name:       "less than",
+			constraint: &Constraint{Operator: "<", Version: &Version{Major: 2, Minor: 0, Patch: 0}},
+			want:       "<2.0.0",
+		},
+		{
+			name:       "equal",
+			constraint: &Constraint{Operator: "=", Version: &Version{Major: 1, Minor: 0, Patch: 0}},
+			want:       "=1.0.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.constraint.String(); got != tt.want {
+				t.Errorf("Constraint.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConstraintSetString(t *testing.T) {
+	tests := []struct {
+		name        string
+		constraints string
+		want        string
+	}{
+		{
+			name:        "single constraint",
+			constraints: ">=1.0.0",
+			want:        ">=1.0.0",
+		},
+		{
+			name:        "multiple constraints",
+			constraints: ">=1.0.0,<2.0.0",
+			want:        ">=1.0.0,<2.0.0",
+		},
+		{
+			name:        "empty",
+			constraints: "",
+			want:        "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cs, err := ParseConstraintSet(tt.constraints)
+			if err != nil {
+				t.Fatalf("ParseConstraintSet() error = %v", err)
+			}
+			if got := cs.String(); got != tt.want {
+				t.Errorf("ConstraintSet.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConstraintCheckInvalidOperator(t *testing.T) {
+	// Test the default case in Constraint.Check() with an invalid operator
+	constraint := &Constraint{Operator: "invalid", Version: &Version{Major: 1, Minor: 0, Patch: 0}}
+	version := &Version{Major: 1, Minor: 0, Patch: 0}
+
+	if got := constraint.Check(version); got != false {
+		t.Errorf("Constraint.Check() with invalid operator = %v, want false", got)
+	}
+}
+
 func TestConstraintSetCheck(t *testing.T) {
 	tests := []struct {
 		name        string

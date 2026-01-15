@@ -100,8 +100,9 @@ func (p *CommentaryParser) loadDetails() error {
 	row := p.db.QueryRow(`SELECT Title, Abbreviation, Information, Version, RightToLeft FROM Details LIMIT 1`)
 
 	var d CommentaryDetails
-	var rtl int
-	if err := row.Scan(&d.Title, &d.Abbreviation, &d.Information, &d.Version, &rtl); err != nil {
+	var title, abbrev, info sql.NullString
+	var version, rtl sql.NullInt64
+	if err := row.Scan(&title, &abbrev, &info, &version, &rtl); err != nil {
 		if err == sql.ErrNoRows {
 			// No details table or empty
 			p.details = &CommentaryDetails{}
@@ -110,7 +111,11 @@ func (p *CommentaryParser) loadDetails() error {
 		return fmt.Errorf("reading details: %w", err)
 	}
 
-	d.RightToLeft = rtl != 0
+	d.Title = title.String
+	d.Abbreviation = abbrev.String
+	d.Information = info.String
+	d.Version = int(version.Int64)
+	d.RightToLeft = rtl.Int64 != 0
 	p.details = &d
 	return nil
 }

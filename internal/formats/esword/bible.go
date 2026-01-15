@@ -78,7 +78,7 @@ func (p *BibleParser) loadMetadata() error {
 		return nil
 	}
 
-	rows, err := p.db.Query("SELECT Description, Abbreviation, Information, Version, Font, RightToLeft FROM Details LIMIT 1")
+	rows, err := p.db.Query("SELECT Title, Abbreviation, Information, Version, Font, RightToLeft FROM Details LIMIT 1")
 	if err != nil {
 		// Table might have different columns
 		return nil

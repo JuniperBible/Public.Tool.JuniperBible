@@ -23,6 +23,105 @@ func TestNewNixExecutor(t *testing.T) {
 	}
 }
 
+// TestValidateIdentifier tests the identifier validation function.
+func TestValidateIdentifier(t *testing.T) {
+	tests := []struct {
+		name    string
+		id      string
+		idName  string
+		wantErr bool
+	}{
+		{"valid simple", "test", "id", false},
+		{"valid with hyphen", "test-plugin", "id", false},
+		{"valid with underscore", "test_plugin", "id", false},
+		{"valid with dot", "test.plugin", "id", false},
+		{"valid with number", "test123", "id", false},
+		{"valid complex", "test-plugin_v1.0", "id", false},
+		{"empty", "", "id", true},
+		{"shell injection semicolon", "test;rm -rf /", "id", true},
+		{"shell injection pipe", "test|cat /etc/passwd", "id", true},
+		{"shell injection backtick", "test`whoami`", "id", true},
+		{"shell injection dollar", "test$(whoami)", "id", true},
+		{"shell injection newline", "test\nrm -rf /", "id", true},
+		{"shell injection space", "test rm -rf", "id", true},
+		{"shell injection quote", "test'rm -rf", "id", true},
+		{"shell injection double quote", `test"rm -rf`, "id", true},
+		{"shell injection ampersand", "test&rm -rf", "id", true},
+		{"shell injection gt", "test>file", "id", true},
+		{"shell injection lt", "test<file", "id", true},
+		{"too long", strings.Repeat("a", 65), "id", true},
+		{"max length", strings.Repeat("a", 64), "id", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateIdentifier(tt.id, tt.idName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateIdentifier(%q) error = %v, wantErr %v", tt.id, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestExecuteRequestShellInjectionPrevention tests that shell injection is prevented.
+func TestExecuteRequestShellInjectionPrevention(t *testing.T) {
+	executor := NewNixExecutor("/tmp/flake")
+
+	tests := []struct {
+		name     string
+		pluginID string
+		profile  string
+		wantErr  string
+	}{
+		{
+			name:     "shell injection in plugin ID",
+			pluginID: "test;rm -rf /",
+			profile:  "valid",
+			wantErr:  "plugin ID contains invalid characters",
+		},
+		{
+			name:     "command substitution in plugin ID",
+			pluginID: "$(whoami)",
+			profile:  "valid",
+			wantErr:  "plugin ID contains invalid characters",
+		},
+		{
+			name:     "backtick in plugin ID",
+			pluginID: "`id`",
+			profile:  "valid",
+			wantErr:  "plugin ID contains invalid characters",
+		},
+		{
+			name:     "shell injection in profile",
+			pluginID: "valid",
+			profile:  "test|cat /etc/passwd",
+			wantErr:  "profile contains invalid characters",
+		},
+		{
+			name:     "empty plugin ID",
+			pluginID: "",
+			profile:  "valid",
+			wantErr:  "plugin ID cannot be empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := NewRequest(tt.pluginID, tt.profile)
+			_, err := executor.ExecuteRequest(context.Background(), req, []string{})
+
+			if err == nil {
+				t.Errorf("expected error containing %q, got nil", tt.wantErr)
+				return
+			}
+
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("expected error containing %q, got %q", tt.wantErr, err.Error())
+			}
+		})
+	}
+}
+
 func TestBuildToolCommand(t *testing.T) {
 	exec := NewNixExecutor("/path/to/flake")
 

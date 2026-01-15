@@ -266,7 +266,7 @@ func ecmToIR(ecm *ECMXML) map[string]interface{} {
 	}
 
 	// Convert apparatus entries to documents
-	var documents []map[string]interface{}
+	var documents []interface{}
 	for i, app := range ecm.Apparatus {
 		doc := map[string]interface{}{
 			"id":    fmt.Sprintf("apparatus-%d", i+1),
@@ -308,7 +308,7 @@ func ecmToIR(ecm *ECMXML) map[string]interface{} {
 		}
 		block["attributes"] = blockAttrs
 
-		doc["content_blocks"] = []map[string]interface{}{block}
+		doc["content_blocks"] = []interface{}{block}
 		documents = append(documents, doc)
 	}
 
@@ -316,8 +316,8 @@ func ecmToIR(ecm *ECMXML) map[string]interface{} {
 	return corpus
 }
 
-func variantsToJSON(variants []*Variant) []map[string]interface{} {
-	result := make([]map[string]interface{}, len(variants))
+func variantsToJSON(variants []*Variant) []interface{} {
+	result := make([]interface{}, len(variants))
 	for i, v := range variants {
 		result[i] = map[string]interface{}{
 			"id":        v.ID,
@@ -329,8 +329,8 @@ func variantsToJSON(variants []*Variant) []map[string]interface{} {
 	return result
 }
 
-func witnessesToJSON(witnesses []*Witness) []map[string]interface{} {
-	result := make([]map[string]interface{}, len(witnesses))
+func witnessesToJSON(witnesses []*Witness) []interface{} {
+	result := make([]interface{}, len(witnesses))
 	for i, w := range witnesses {
 		result[i] = map[string]interface{}{
 			"id":          w.ID,
@@ -343,8 +343,8 @@ func witnessesToJSON(witnesses []*Witness) []map[string]interface{} {
 	return result
 }
 
-func annotationsToJSON(annotations []*Annotation) []map[string]interface{} {
-	result := make([]map[string]interface{}, len(annotations))
+func annotationsToJSON(annotations []*Annotation) []interface{} {
+	result := make([]interface{}, len(annotations))
 	for i, a := range annotations {
 		result[i] = map[string]interface{}{
 			"type":  a.Type,
@@ -357,6 +357,7 @@ func annotationsToJSON(annotations []*Annotation) []map[string]interface{} {
 func irToECM(corpus map[string]interface{}) *ECMXML {
 	ecm := &ECMXML{}
 
+	// Handle both map[string]interface{} and map[string]string
 	if attrs, ok := corpus["attributes"].(map[string]interface{}); ok {
 		if book, ok := attrs["book"].(string); ok {
 			ecm.Book = book
@@ -367,6 +368,10 @@ func irToECM(corpus map[string]interface{}) *ECMXML {
 		if edition, ok := attrs["edition"].(string); ok {
 			ecm.Edition = edition
 		}
+	} else if attrs, ok := corpus["attributes"].(map[string]string); ok {
+		ecm.Book = attrs["book"]
+		ecm.Chapter = attrs["chapter"]
+		ecm.Edition = attrs["edition"]
 	}
 
 	title, _ := corpus["title"].(string)
@@ -389,6 +394,7 @@ func irToECM(corpus map[string]interface{}) *ECMXML {
 			if doc, ok := docIface.(map[string]interface{}); ok {
 				app := &Apparatus{}
 
+				// Handle both map[string]interface{} and map[string]string
 				if attrs, ok := doc["attributes"].(map[string]interface{}); ok {
 					if id, ok := attrs["apparatus_id"].(string); ok {
 						app.ID = id
@@ -399,6 +405,10 @@ func irToECM(corpus map[string]interface{}) *ECMXML {
 					if unit, ok := attrs["unit"].(string); ok {
 						app.Unit = unit
 					}
+				} else if attrs, ok := doc["attributes"].(map[string]string); ok {
+					app.ID = attrs["apparatus_id"]
+					app.Verse = attrs["verse"]
+					app.Unit = attrs["unit"]
 				}
 
 				if blocks, ok := doc["content_blocks"].([]interface{}); ok && len(blocks) > 0 {

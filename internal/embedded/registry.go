@@ -5,6 +5,7 @@ package embedded
 import (
 	// Import all embedded format plugins to trigger their init() registration
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/accordance"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/bibletime"
 	// Import all embedded tool plugins to trigger their init() registration
 	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/calibre"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/gobiblecreator"
@@ -18,6 +19,7 @@ import (
 	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/usfm2osis"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/dbl"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/dir"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/ecm"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/epub"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/esword"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/file"
@@ -30,7 +32,9 @@ import (
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/morphgnt"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/mybible"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/mysword"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/na28app"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/odf"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/olive"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/onlinebible"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/oshb"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/osis"

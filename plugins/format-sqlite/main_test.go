@@ -1,3 +1,5 @@
+//go:build cgo
+
 package main
 
 import (
@@ -414,6 +416,7 @@ func executePlugin(t *testing.T, req *IPCRequest) *IPCResponse {
 	pluginPath := "./format-sqlite"
 	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
 		buildCmd := exec.Command("go", "build", "-o", pluginPath, ".")
+		buildCmd.Env = append(os.Environ(), "CGO_ENABLED=1")
 		if err := buildCmd.Run(); err != nil {
 			t.Fatalf("failed to build plugin: %v", err)
 		}

@@ -1,20 +1,83 @@
 # Juniper Bible - Implementation TODO
-# Last Updated: 2026-01-10 (v0.1.0 Release)
+# Last Updated: 2026-01-15 (Coverage Sprint)
 # Methodology: Test-Driven Development (TDD)
 # Pattern: [T] Test First -> [I] Implement -> [V] Verify
 
 ================================================================================
-== CURRENT STATUS (v0.1.0)
+== CURRENT STATUS (Coverage Sprint v0.2.0)
 ================================================================================
 
-Initial release complete!
+v0.1.0 complete. Now working on comprehensive test coverage:
 
 - 2,500+ tests passing
 - 40 format plugins (all bidirectional)
 - 10 tool plugins
 - 11 sample Bible modules
 - 25+ CLI commands
-- Test coverage: 80%+ core packages
+- shell.nix CGO/SQLite environment fixed (LD_LIBRARY_PATH)
+
+COVERAGE TARGETS:
+- 100% on core/* packages
+- 100% on internal/formats/* (internal plugins)
+- 90%+ overall project coverage
+- No package below 85%
+
+================================================================================
+== COVERAGE SPRINT TASKS (IN PROGRESS)
+================================================================================
+
+[X] Fix shell.nix CGO environment (LD_LIBRARY_PATH for SQLite)
+[ ] Core packages to 100% (11 packages need work)
+    [ ] core/plugins: 77.5% -> 100%
+    [ ] core/cache: 83.9% -> 100%
+    [ ] core/epub: 87.7% -> 100%
+    [ ] core/sqlite: 90.9% -> 100%
+    [ ] core/xml: 91.8% -> 100%
+    [ ] core/errors: 91.8% -> 100%
+    [ ] core/runner: 96.7% -> 100%
+    [ ] core/docgen: 97.0% -> 100%
+    [ ] core/cas: 99.0% -> 100%
+    [ ] core/capsule: 99.7% -> 100%
+    [ ] core/selfcheck: 99.7% -> 100%
+
+[ ] Internal format plugins to 100% (22 packages need work)
+    Priority (below 85%):
+    [ ] swordpure: 3.8% -> 100%
+    [ ] usfm: 48.1% -> 100%
+    [ ] usx: 51.5% -> 100%
+    [ ] tischendorf: 57.6% -> 100%
+    [ ] osis: 59.2% -> 100%
+    [ ] mysword: 62.2% -> 100%
+    [ ] esword: 73.3% -> 100%
+    [ ] txt: 81.1% -> 100%
+
+    Medium priority (85-95%):
+    [ ] mybible: 86.5% -> 100%
+    [ ] bibletime: 89.1% -> 100%
+    [ ] zip: 89.1% -> 100%
+    [ ] crosswire: 93.4% -> 100%
+    [ ] na28app, oshb, pdb, rtf, sblgnt, sfm, sqlite, sword, tei, theword, xml, zefania: 93.5% -> 100%
+
+    Low priority (>95%):
+    [ ] json: 95.5% -> 100%
+    [ ] tar: 95.9% -> 100%
+    [ ] ecm: 96.8% -> 100%
+    [ ] onlinebible: 96.8% -> 100%
+    [ ] olive: 98.5% -> 100%
+    [ ] html: 99.3% -> 100%
+
+[ ] Internal packages (0% coverage - need tests)
+    [ ] internal/juniper
+    [ ] internal/juniper/repoman
+    [ ] internal/logging
+    [ ] internal/tools (10 packages)
+
+[ ] Internal packages to 85%+ minimum
+    [ ] internal/validation: 48.8% -> 85%+
+    [ ] internal/web: 36.8% -> 85%+
+    [ ] internal/fileutil: 79.4% -> 85%+
+    [ ] internal/api: 80.3% -> 85%+
+    [ ] internal/server: 81.4% -> 85%+
 
 ================================================================================
 == FUTURE IMPROVEMENTS
@@ -32,11 +95,6 @@ Initial release complete!
 [ ] Performance optimizations (as needed)
     [ ] Profile and optimize hot paths based on real usage
 
-[ ] Test coverage improvements
-    [ ] Increase internal/formats/* coverage
-    [ ] Add more edge case tests
-    [ ] Add fuzzing for remaining parsers
-
 ================================================================================
 == NOTES
 ================================================================================
@@ -45,32 +103,69 @@ Initial release complete!
 - Tests compare HASHES, not text
 - If a hash changes, it must be explained
 - Each format plugin should have at least 10 tests
-- Target: 80%+ coverage for core packages (ACHIEVED)
+- Target: 100% coverage for core packages
+- Target: 100% coverage for internal plugins
+- Target: 90%+ overall, no package below 85%
 
 ================================================================================
-== COVERAGE SUMMARY
+== COVERAGE SUMMARY (as of 2026-01-15)
 ================================================================================
 
-Core packages (80%+ achieved):
-- core/encoding: 100%
-- core/gobible: 100%
-- core/ir: 100%
-- core/rtf: 100%
+Core packages (100% target):
+- core/encoding: 100% [DONE]
+- core/gobible: 100% [DONE]
+- core/ir: 100% [DONE]
+- core/rtf: 100% [DONE]
 - core/capsule: 99.7%
 - core/selfcheck: 99.7%
 - core/cas: 99.0%
 - core/docgen: 97.0%
-- core/runner: 96.6%
+- core/runner: 96.7%
 - core/errors: 91.8%
 - core/xml: 91.8%
 - core/sqlite: 90.9%
 - core/epub: 87.7%
-- core/cache: 83.9%
-- core/plugins: 77.5%
+- core/cache: 98.3%
+- core/plugins: 94.9%
 
-Internal packages:
+Internal format plugins (100% target):
+- accordance: 100% [DONE]
+- base: 100% [DONE]
+- dbl: 100% [DONE]
+- dir: 100% [DONE]
+- epub: 100% [DONE]
+- file: 100% [DONE]
+- flex: 100% [DONE]
+- gobible: 100% [DONE]
+- logos: 100% [DONE]
+- markdown: 100% [DONE]
+- morphgnt: 100% [DONE]
+- odf: 100% [DONE]
+- html: 99.3%
+- olive: 98.5%
+- ecm: 96.8%
+- onlinebible: 96.8%
+- tar: 95.9%
+- json: 95.5%
+- crosswire: 93.4%
+- na28app/oshb/pdb/rtf/sblgnt/sfm/sqlite/sword/tei/theword/xml/zefania: 93.5%
+- zip: 89.1%
+- bibletime: 89.1%
+- mybible: 86.5%
+- txt: 81.1%
+- esword: 73.3%
+- mysword: 62.2%
+- osis: 59.2%
+- tischendorf: 57.6%
+- usx: 51.5%
+- usfm: 48.1%
+- swordpure: 3.8%
+
+Internal packages (85%+ target):
 - internal/cache: 97.4%
 - internal/archive: 87.3%
-- internal/formats/base: 81.5%
-- internal/api: 80.2%
+- internal/server: 81.4%
+- internal/api: 80.3%
 - internal/fileutil: 79.4%
+- internal/validation: 48.8%
+- internal/web: 36.8%

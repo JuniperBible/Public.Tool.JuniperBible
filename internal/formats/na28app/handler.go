@@ -48,6 +48,22 @@ func init() {
 
 // Detect implements EmbeddedFormatHandler.Detect.
 func (h *Handler) Detect(path string) (*plugins.DetectResult, error) {
+	// Check if file exists first
+	info, err := os.Stat(path)
+	if err != nil {
+		return &plugins.DetectResult{
+			Detected: false,
+			Reason:   fmt.Sprintf("cannot stat: %v", err),
+		}, nil
+	}
+
+	if info.IsDir() {
+		return &plugins.DetectResult{
+			Detected: false,
+			Reason:   "path is a directory",
+		}, nil
+	}
+
 	// Check file extension
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == ".na28" || ext == ".apparatus" || ext == ".app" {
@@ -85,20 +101,32 @@ func (h *Handler) Detect(path string) (*plugins.DetectResult, error) {
 
 func containsNA28Markers(content string) bool {
 	// Look for typical NA28 apparatus markers
+	// Use more specific markers to avoid false positives
 	markers := []string{
 		"<app>",
 		"<rdg",
 		"<wit>",
-		"txt",
-		"vid",
-		"*",
-		"א",
-		"ℵ",
-		"apparatus",
+		"א", // Hebrew Aleph (Sinaiticus)
+		"ℵ", // Alternative Aleph symbol
 	}
 
 	for _, marker := range markers {
 		if strings.Contains(content, marker) {
+			return true
+		}
+	}
+
+	// Check for apparatus-specific patterns (avoiding common words)
+	// Look for patterns like "txt " or " vid " with spaces to avoid false positives
+	apparatusPatterns := []string{
+		" txt ",
+		" vid ",
+		"*txt",
+		"*vid",
+	}
+
+	for _, pattern := range apparatusPatterns {
+		if strings.Contains(content, pattern) {
 			return true
 		}
 	}

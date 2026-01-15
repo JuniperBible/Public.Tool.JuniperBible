@@ -359,3 +359,143 @@ func Validate(c *Corpus) []error {
 func IsValid(c *Corpus) bool {
 	return len(Validate(c)) == 0
 }
+
+// EmptyTextResult describes a content block with empty text.
+type EmptyTextResult struct {
+	DocumentID     string
+	ContentBlockID string
+	RawMarkup      string // From Attributes["raw_markup"] if present
+	Reason         string
+	IsPurposeful   bool
+}
+
+// ValidateEmptyTextFields checks all content blocks for empty text fields and
+// determines if they are purposeful (structural markup only) or potential data corruption.
+// Returns a slice of results describing each empty text field found.
+func ValidateEmptyTextFields(c *Corpus) []EmptyTextResult {
+	var results []EmptyTextResult
+
+	for _, doc := range c.Documents {
+		for _, cb := range doc.ContentBlocks {
+			if cb.Text == "" {
+				result := EmptyTextResult{
+					DocumentID:     doc.ID,
+					ContentBlockID: cb.ID,
+				}
+
+				// Get raw markup from attributes if present
+				if cb.Attributes != nil {
+					if rawMarkup, ok := cb.Attributes["raw_markup"].(string); ok {
+						result.RawMarkup = rawMarkup
+					}
+				}
+
+				// Check if raw markup contains structural markers only
+				reason, isPurposeful := analyzeEmptyText(result.RawMarkup)
+				result.Reason = reason
+				result.IsPurposeful = isPurposeful
+
+				results = append(results, result)
+			}
+		}
+	}
+
+	return results
+}
+
+// analyzeEmptyText determines why a text field is empty and whether it's purposeful.
+// Returns a reason description and true if the empty text is expected/valid.
+func analyzeEmptyText(rawMarkup string) (reason string, isPurposeful bool) {
+	if rawMarkup == "" {
+		return "no raw markup present - possible data loss", false
+	}
+
+	// Check for common structural OSIS/ThML markers
+	hasChapterMarker := containsOSISMarker(rawMarkup, "chapter")
+	hasBookMarker := containsOSISMarker(rawMarkup, "div") && containsAttr(rawMarkup, "type=\"book\"")
+	hasSectionMarker := containsOSISMarker(rawMarkup, "div") && containsAttr(rawMarkup, "type=\"section\"")
+	hasMilestone := containsOSISMarker(rawMarkup, "milestone")
+
+	// If it's only structural markup, it's purposeful
+	if hasChapterMarker && !containsActualText(rawMarkup) {
+		return "chapter boundary marker (versification difference)", true
+	}
+	if hasBookMarker && !containsActualText(rawMarkup) {
+		return "book boundary marker", true
+	}
+	if hasSectionMarker && !containsActualText(rawMarkup) {
+		return "section boundary marker", true
+	}
+	if hasMilestone && !containsActualText(rawMarkup) {
+		return "milestone marker only", true
+	}
+
+	// If raw markup exists but produces empty text, check if it's just whitespace/markup
+	if !containsActualText(rawMarkup) {
+		return "markup-only content (no actual text)", true
+	}
+
+	// Raw markup has content but text is empty - possible stripping error
+	return "raw markup contains text but stripped result is empty - possible parsing error", false
+}
+
+// containsOSISMarker checks if markup contains an OSIS element.
+func containsOSISMarker(markup, element string) bool {
+	return contains(markup, "<"+element) || contains(markup, "</"+element)
+}
+
+// containsAttr checks if markup contains an attribute pattern.
+func containsAttr(markup, attr string) bool {
+	return contains(markup, attr)
+}
+
+// contains is a simple string contains helper.
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// containsActualText checks if markup contains text outside of tags.
+func containsActualText(markup string) bool {
+	inTag := false
+	hasText := false
+
+	for i := 0; i < len(markup); i++ {
+		c := markup[i]
+		if c == '<' {
+			inTag = true
+			continue
+		}
+		if c == '>' {
+			inTag = false
+			continue
+		}
+		if !inTag && c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+			hasText = true
+			break
+		}
+	}
+
+	return hasText
+}
+
+// ValidateNoUnexpectedEmptyText returns errors for any content blocks with empty text
+// that cannot be explained by structural markup. This is useful for catching data corruption.
+func ValidateNoUnexpectedEmptyText(c *Corpus) []error {
+	var errs []error
+
+	results := ValidateEmptyTextFields(c)
+	for _, r := range results {
+		if !r.IsPurposeful {
+			errs = append(errs, newValidationError(
+				fmt.Sprintf("document[%s].content_block[%s]", r.DocumentID, r.ContentBlockID),
+				fmt.Sprintf("unexpected empty text: %s", r.Reason)))
+		}
+	}
+
+	return errs
+}

@@ -416,13 +416,42 @@ make build-cgo
 
 ### Testing
 
-```bash
-make test
-make test-cgo
-make test-coverage
-make test-sqlite-divergence
-go test ./...
+Juniper Bible follows the **testing pyramid** approach:
+
 ```
+        /\           E2E / Runner (few, slow, high confidence)
+       /  \
+      /----\         Integration (some, medium speed)
+     /      \
+    /--------\       Unit tests (many, fast, coverage metrics)
+```
+
+| Layer | Purpose | Command |
+|-------|---------|---------|
+| **Unit** | Coverage, fast feedback | `go test ./...` |
+| **Integration** | Real tools, CLI commands | `go test ./tests/integration/...` |
+| **E2E** | Full workflows | `make integration` |
+
+```bash
+# Unit tests
+make test
+go test ./...
+
+# With coverage
+make test-coverage
+go test -cover ./...
+
+# Integration tests
+go test ./tests/integration/... -v
+
+# SQLite driver consistency
+make test-sqlite-divergence
+
+# CGO variant
+make test-cgo
+```
+
+See [docs/TESTING.md](docs/TESTING.md) for comprehensive testing documentation.
 
 ### Documentation
 

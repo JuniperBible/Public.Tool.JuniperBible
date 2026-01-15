@@ -601,3 +601,376 @@ func BenchmarkLRUCache_PutGet(b *testing.B) {
 		cache.Get(i)
 	}
 }
+
+// TestIRCache_ClearAndStats tests Clear and Stats methods on IRCache.
+func TestIRCache_ClearAndStats(t *testing.T) {
+	cache := NewDefaultIRCache()
+
+	corpus := &ir.Corpus{
+		ID:            "TEST",
+		Version:       "1.0.0",
+		ModuleType:    ir.ModuleBible,
+		Versification: "KJV",
+		Language:      "en",
+		Title:         "Test Bible",
+	}
+
+	// Add corpora
+	cache.Put("hash1", corpus)
+	cache.Put("hash2", corpus)
+	cache.Put("hash3", corpus)
+
+	// Test Stats
+	stats := cache.Stats()
+	if stats.Size != 3 {
+		t.Errorf("Stats.Size = %d; want 3", stats.Size)
+	}
+
+	// Test Clear
+	cache.Clear()
+
+	if len := cache.Len(); len != 0 {
+		t.Errorf("Len() after Clear = %d; want 0", len)
+	}
+
+	// Stats after clear should show 0 size
+	stats = cache.Stats()
+	if stats.Size != 0 {
+		t.Errorf("Stats.Size after Clear = %d; want 0", stats.Size)
+	}
+}
+
+// TestManifestCache_ClearAndStats tests Clear and Stats methods on ManifestCache.
+func TestManifestCache_ClearAndStats(t *testing.T) {
+	cache := NewDefaultManifestCache()
+
+	manifest := &capsule.Manifest{
+		CapsuleVersion: "1.0.0",
+		CreatedAt:      "2024-01-01T00:00:00Z",
+		Tool: capsule.ToolInfo{
+			Name:    "capsule",
+			Version: "1.0.0",
+		},
+	}
+
+	// Add manifests
+	cache.Put("key1", manifest)
+	cache.Put("key2", manifest)
+	cache.Put("key3", manifest)
+
+	// Test Stats
+	stats := cache.Stats()
+	if stats.Size != 3 {
+		t.Errorf("Stats.Size = %d; want 3", stats.Size)
+	}
+
+	// Test Clear
+	cache.Clear()
+
+	if len := cache.Len(); len != 0 {
+		t.Errorf("Len() after Clear = %d; want 0", len)
+	}
+
+	// Stats after clear should show 0 size
+	stats = cache.Stats()
+	if stats.Size != 0 {
+		t.Errorf("Stats.Size after Clear = %d; want 0", stats.Size)
+	}
+}
+
+// TestBoundedCache_RemoveClearLen tests Remove, Clear, and Len methods on BoundedCache.
+func TestBoundedCache_RemoveClearLen(t *testing.T) {
+	config := Config{
+		MaxSize: 100,
+		TTL:     0,
+	}
+
+	sizeFunc := func(s string) int64 {
+		return int64(len(s))
+	}
+
+	cache := NewBoundedCache[string, string](config, 1000, sizeFunc)
+
+	// Add entries
+	cache.Put("a", "hello")
+	cache.Put("b", "world")
+	cache.Put("c", "test")
+
+	// Test Len
+	if len := cache.Len(); len != 3 {
+		t.Errorf("Len() = %d; want 3", len)
+	}
+
+	// Test Remove
+	cache.Remove("b")
+	if _, ok := cache.Get("b"); ok {
+		t.Error("Get(b) should return false after Remove")
+	}
+	if len := cache.Len(); len != 2 {
+		t.Errorf("Len() after Remove = %d; want 2", len)
+	}
+
+	// Test Clear
+	cache.Clear()
+	if len := cache.Len(); len != 0 {
+		t.Errorf("Len() after Clear = %d; want 0", len)
+	}
+
+	// Verify all entries are gone
+	if _, ok := cache.Get("a"); ok {
+		t.Error("Get(a) should return false after Clear")
+	}
+	if _, ok := cache.Get("c"); ok {
+		t.Error("Get(c) should return false after Clear")
+	}
+
+	// Stats should show 0 bytes
+	stats := cache.Stats()
+	if stats.TotalBytes != 0 {
+		t.Errorf("Stats.TotalBytes after Clear = %d; want 0", stats.TotalBytes)
+	}
+}
+
+// TestNewLRUCache_NegativeMaxSize tests NewLRUCache with negative MaxSize.
+func TestNewLRUCache_NegativeMaxSize(t *testing.T) {
+	config := Config{
+		MaxSize: -1,
+		TTL:     0,
+	}
+	cache := NewLRUCache[string, int](config)
+
+	// Add many entries - should not evict (MaxSize normalized to 0 = unlimited)
+	for i := 0; i < 100; i++ {
+		cache.Put(fmt.Sprintf("key%d", i), i)
+	}
+
+	if len := cache.Len(); len != 100 {
+		t.Errorf("Len() = %d; want 100", len)
+	}
+}
+
+// TestEstimateCorpusBytesNil tests estimateCorpusBytes with nil.
+func TestEstimateCorpusBytesNil(t *testing.T) {
+	size := estimateCorpusBytes(nil)
+	// nil marshals to "null" which is 4 bytes, but let's just check it doesn't panic
+	if size < 0 {
+		t.Errorf("estimateCorpusBytes(nil) = %d; want >= 0", size)
+	}
+}
+
+// TestEstimateManifestBytesNil tests estimateManifestBytes with nil.
+func TestEstimateManifestBytesNil(t *testing.T) {
+	size := estimateManifestBytes(nil)
+	// nil marshals to "null" which is 4 bytes, but let's just check it doesn't panic
+	if size < 0 {
+		t.Errorf("estimateManifestBytes(nil) = %d; want >= 0", size)
+	}
+}
+
+// TestBoundedCache_RemoveNonexistent tests removing a key that doesn't exist.
+func TestBoundedCache_RemoveNonexistent(t *testing.T) {
+	config := Config{
+		MaxSize: 100,
+		TTL:     0,
+	}
+
+	sizeFunc := func(s string) int64 {
+		return int64(len(s))
+	}
+
+	cache := NewBoundedCache[string, string](config, 1000, sizeFunc)
+
+	// Add one entry
+	cache.Put("a", "hello")
+
+	// Remove non-existent key - should not panic
+	cache.Remove("nonexistent")
+
+	// Original entry should still exist
+	if _, ok := cache.Get("a"); !ok {
+		t.Error("Get(a) should return true after removing nonexistent key")
+	}
+}
+
+// TestLRUCache_UpdateWithTTL tests updating an entry with TTL.
+func TestLRUCache_UpdateWithTTL(t *testing.T) {
+	config := Config{
+		MaxSize: 10,
+		TTL:     time.Hour, // Long TTL so it won't expire during test
+	}
+	cache := NewLRUCache[string, int](config)
+
+	// Add entry
+	cache.Put("a", 1)
+
+	// Update entry (should refresh expiration time)
+	cache.Put("a", 2)
+
+	if v, ok := cache.Get("a"); !ok || v != 2 {
+		t.Errorf("Get(a) = %d, %v; want 2, true", v, ok)
+	}
+}
+
+// TestBoundedCache_ByteLimitEviction tests the eviction loop in BoundedCache.Put.
+func TestBoundedCache_ByteLimitEviction(t *testing.T) {
+	config := Config{
+		MaxSize: 100,
+		TTL:     0,
+	}
+
+	sizeFunc := func(s string) int64 {
+		return int64(len(s))
+	}
+
+	// Create cache with 50 byte limit
+	cache := NewBoundedCache[string, string](config, 50, sizeFunc)
+
+	// Add entries until we're near the limit
+	cache.Put("a", "1234567890") // 10 bytes
+	cache.Put("b", "1234567890") // 10 bytes
+	cache.Put("c", "1234567890") // 10 bytes
+	cache.Put("d", "1234567890") // 10 bytes
+
+	// At this point we have ~40 bytes
+	// Adding another entry should trigger the eviction loop
+	cache.Put("e", "12345678901234567890") // 20 bytes - would exceed 50 byte limit
+
+	// Cache should have evicted some entries to make room
+	// Total can't exceed maxBytes (50)
+	stats := cache.Stats()
+	if stats.Size < 1 {
+		t.Errorf("Stats.Size = %d; want > 0", stats.Size)
+	}
+}
+
+// TestEstimateCorpusBytesWithLargeData tests estimateCorpusBytes with larger data.
+func TestEstimateCorpusBytesWithLargeData(t *testing.T) {
+	// Create a corpus with more data to test a different code path
+	corpus := &ir.Corpus{
+		ID:            "TEST",
+		Version:       "1.0.0",
+		ModuleType:    ir.ModuleBible,
+		Versification: "KJV",
+		Language:      "en",
+		Title:         "Test Bible",
+		Description:   "A test bible with extra data",
+		Publisher:     "Test Publisher",
+		Rights:        "Public Domain",
+		SourceFormat:  "USFM",
+		Documents: []*ir.Document{
+			{
+				ID:    "Gen",
+				Title: "Genesis",
+				Order: 1,
+			},
+			{
+				ID:    "Exo",
+				Title: "Exodus",
+				Order: 2,
+			},
+		},
+	}
+
+	// Test that it returns a reasonable size
+	size := estimateCorpusBytes(corpus)
+	if size <= 0 {
+		t.Errorf("estimateCorpusBytes = %d; want > 0", size)
+	}
+}
+
+// TestEstimateManifestBytesWithLargeData tests estimateManifestBytes with larger data.
+func TestEstimateManifestBytesWithLargeData(t *testing.T) {
+	// Create a manifest with more data
+	manifest := &capsule.Manifest{
+		CapsuleVersion: "1.0.0",
+		CreatedAt:      "2024-01-01T00:00:00Z",
+		Tool: capsule.ToolInfo{
+			Name:    "capsule",
+			Version: "1.0.0",
+			Attributes: capsule.Attributes{
+				"key1": "value1",
+				"key2": "value2",
+			},
+		},
+		Blobs: capsule.BlobIndex{
+			BySHA256: map[string]*capsule.BlobRecord{
+				"abc123": {
+					SHA256:    "abc123",
+					SizeBytes: 1000,
+					Path:      "/path/to/blob",
+					MIME:      "application/json",
+				},
+			},
+		},
+	}
+
+	// Test that it returns a reasonable size
+	size := estimateManifestBytes(manifest)
+	if size <= 0 {
+		t.Errorf("estimateManifestBytes = %d; want > 0", size)
+	}
+}
+
+// TestLRUCache_RemoveNonexistent tests removing a non-existent key.
+func TestLRUCache_RemoveNonexistent(t *testing.T) {
+	config := Config{
+		MaxSize: 10,
+		TTL:     0,
+	}
+	cache := NewLRUCache[string, int](config)
+
+	cache.Put("a", 1)
+
+	// Remove non-existent key - should not panic
+	cache.Remove("nonexistent")
+
+	// Original entry should still exist
+	if v, ok := cache.Get("a"); !ok || v != 1 {
+		t.Errorf("Get(a) = %d, %v; want 1, true after removing nonexistent key", v, ok)
+	}
+}
+
+// TestEstimateCorpusBytes_MarshalError tests the error path when json.Marshal fails.
+func TestEstimateCorpusBytes_MarshalError(t *testing.T) {
+	// Save original function and restore after test
+	originalFunc := jsonMarshalFunc
+	defer func() { jsonMarshalFunc = originalFunc }()
+
+	// Override jsonMarshalFunc to return an error
+	jsonMarshalFunc = func(v interface{}) ([]byte, error) {
+		return nil, fmt.Errorf("simulated marshal error")
+	}
+
+	corpus := &ir.Corpus{
+		ID:      "TEST",
+		Version: "1.0.0",
+	}
+
+	// Should return 0 when marshal fails
+	size := estimateCorpusBytes(corpus)
+	if size != 0 {
+		t.Errorf("estimateCorpusBytes with marshal error = %d; want 0", size)
+	}
+}
+
+// TestEstimateManifestBytes_MarshalError tests the error path when json.Marshal fails.
+func TestEstimateManifestBytes_MarshalError(t *testing.T) {
+	// Save original function and restore after test
+	originalFunc := jsonMarshalFunc
+	defer func() { jsonMarshalFunc = originalFunc }()
+
+	// Override jsonMarshalFunc to return an error
+	jsonMarshalFunc = func(v interface{}) ([]byte, error) {
+		return nil, fmt.Errorf("simulated marshal error")
+	}
+
+	manifest := &capsule.Manifest{
+		CapsuleVersion: "1.0.0",
+	}
+
+	// Should return 0 when marshal fails
+	size := estimateManifestBytes(manifest)
+	if size != 0 {
+		t.Errorf("estimateManifestBytes with marshal error = %d; want 0", size)
+	}
+}

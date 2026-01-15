@@ -21,18 +21,17 @@ import (
 // This skips the expensive IR extraction step.
 var skipIRExtraction = false
 
-// cmdList implements the "list" command to list Bible modules.
-func cmdList() {
+// runListCmd is the core logic for the list command, testable with custom I/O.
+func runListCmd(args []string, stdout, stderr io.Writer) error {
 	// Determine SWORD path
 	swordPath := getDefaultSwordPath()
-	if len(os.Args) > 2 {
-		swordPath = os.Args[2]
+	if len(args) > 2 {
+		swordPath = args[2]
 	}
 
 	modules, err := ListModules(swordPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to list modules: %w", err)
 	}
 
 	// Filter to only Bible modules
@@ -44,13 +43,13 @@ func cmdList() {
 	}
 
 	if len(bibles) == 0 {
-		fmt.Printf("No Bible modules found in %s\n", swordPath)
-		return
+		fmt.Fprintf(stdout, "No Bible modules found in %s\n", swordPath)
+		return nil
 	}
 
-	fmt.Printf("Bible modules in %s:\n\n", swordPath)
-	fmt.Printf("%-15s %-8s %-40s\n", "MODULE", "LANG", "DESCRIPTION")
-	fmt.Printf("%-15s %-8s %-40s\n", "------", "----", "-----------")
+	fmt.Fprintf(stdout, "Bible modules in %s:\n\n", swordPath)
+	fmt.Fprintf(stdout, "%-15s %-8s %-40s\n", "MODULE", "LANG", "DESCRIPTION")
+	fmt.Fprintf(stdout, "%-15s %-8s %-40s\n", "------", "----", "-----------")
 	for _, m := range bibles {
 		desc := m.Description
 		if len(desc) > 40 {
@@ -60,33 +59,42 @@ func cmdList() {
 		if m.Encrypted {
 			encrypted = " [encrypted]"
 		}
-		fmt.Printf("%-15s %-8s %-40s%s\n", m.Name, m.Language, desc, encrypted)
+		fmt.Fprintf(stdout, "%-15s %-8s %-40s%s\n", m.Name, m.Language, desc, encrypted)
 	}
-	fmt.Printf("\nTotal: %d Bible modules\n", len(bibles))
+	fmt.Fprintf(stdout, "\nTotal: %d Bible modules\n", len(bibles))
+	return nil
 }
 
-// cmdIngest implements the "ingest" command to create capsules from modules.
-func cmdIngest() {
+// cmdList implements the "list" command to list Bible modules.
+func cmdList() {
+	if err := runListCmd(os.Args, os.Stdout, os.Stderr); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// runIngestCmd is the core logic for the ingest command, testable with custom I/O.
+func runIngestCmd(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	swordPath := getDefaultSwordPath()
 	outputDir := "capsules"
 	var selectedModules []string
 	ingestAll := false
 
 	// Parse arguments
-	for i := 2; i < len(os.Args); i++ {
-		arg := os.Args[i]
+	for i := 2; i < len(args); i++ {
+		arg := args[i]
 		switch {
 		case arg == "--all" || arg == "-a":
 			ingestAll = true
 		case arg == "--output" || arg == "-o":
-			if i+1 < len(os.Args) {
+			if i+1 < len(args) {
 				i++
-				outputDir = os.Args[i]
+				outputDir = args[i]
 			}
 		case arg == "--path" || arg == "-p":
-			if i+1 < len(os.Args) {
+			if i+1 < len(args) {
 				i++
-				swordPath = os.Args[i]
+				swordPath = args[i]
 			}
 		default:
 			selectedModules = append(selectedModules, arg)
@@ -96,8 +104,7 @@ func cmdIngest() {
 	// Get available modules
 	modules, err := ListModules(swordPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to list modules: %w", err)
 	}
 
 	// Filter to only Bible modules
@@ -109,8 +116,7 @@ func cmdIngest() {
 	}
 
 	if len(bibles) == 0 {
-		fmt.Fprintf(os.Stderr, "No Bible modules found in %s\n", swordPath)
-		os.Exit(1)
+		return fmt.Errorf("no Bible modules found in %s", swordPath)
 	}
 
 	// Determine which modules to ingest
@@ -127,28 +133,28 @@ func cmdIngest() {
 			if m, ok := moduleMap[name]; ok {
 				toIngest = append(toIngest, m)
 			} else {
-				fmt.Fprintf(os.Stderr, "Warning: module '%s' not found\n", name)
+				fmt.Fprintf(stderr, "Warning: module '%s' not found\n", name)
 			}
 		}
 	} else {
 		// Interactive selection
-		fmt.Println("Available Bible modules:")
+		fmt.Fprintln(stdout, "Available Bible modules:")
 		for i, m := range bibles {
 			encrypted := ""
 			if m.Encrypted {
 				encrypted = " [encrypted]"
 			}
-			fmt.Printf("  %2d. %-15s %s%s\n", i+1, m.Name, m.Description, encrypted)
+			fmt.Fprintf(stdout, "  %2d. %-15s %s%s\n", i+1, m.Name, m.Description, encrypted)
 		}
-		fmt.Println()
-		fmt.Println("Enter module numbers to ingest (comma-separated), 'all', or 'q' to quit:")
-		fmt.Print("> ")
+		fmt.Fprintln(stdout)
+		fmt.Fprintln(stdout, "Enter module numbers to ingest (comma-separated), 'all', or 'q' to quit:")
+		fmt.Fprint(stdout, "> ")
 
-		scanner := bufio.NewScanner(os.Stdin)
+		scanner := bufio.NewScanner(stdin)
 		if scanner.Scan() {
 			input := scanner.Text()
 			if input == "q" || input == "quit" {
-				return
+				return nil
 			}
 			if input == "all" {
 				toIngest = bibles
@@ -175,35 +181,43 @@ func cmdIngest() {
 	}
 
 	if len(toIngest) == 0 {
-		fmt.Println("No modules selected for ingestion.")
-		return
+		fmt.Fprintln(stdout, "No modules selected for ingestion.")
+		return nil
 	}
 
 	// Create output directory
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error creating output directory: %w", err)
 	}
 
 	// Ingest each module
-	fmt.Printf("\nIngesting %d module(s) to %s/\n\n", len(toIngest), outputDir)
+	fmt.Fprintf(stdout, "\nIngesting %d module(s) to %s/\n\n", len(toIngest), outputDir)
 	for _, m := range toIngest {
 		if m.Encrypted {
-			fmt.Printf("Skipping %s (encrypted modules not supported)\n", m.Name)
+			fmt.Fprintf(stdout, "Skipping %s (encrypted modules not supported)\n", m.Name)
 			continue
 		}
 		capsulePath := filepath.Join(outputDir, m.Name+".capsule.tar.xz")
-		fmt.Printf("Creating %s...\n", capsulePath)
+		fmt.Fprintf(stdout, "Creating %s...\n", capsulePath)
 		if err := createModuleCapsule(swordPath, m, capsulePath); err != nil {
-			fmt.Fprintf(os.Stderr, "  Error: %v\n", err)
+			fmt.Fprintf(stderr, "  Error: %v\n", err)
 			continue
 		}
 		info, _ := os.Stat(capsulePath)
 		if info != nil {
-			fmt.Printf("  Created: %s (%d bytes)\n", capsulePath, info.Size())
+			fmt.Fprintf(stdout, "  Created: %s (%d bytes)\n", capsulePath, info.Size())
 		}
 	}
-	fmt.Println("\nDone!")
+	fmt.Fprintln(stdout, "\nDone!")
+	return nil
+}
+
+// cmdIngest implements the "ingest" command to create capsules from modules.
+func cmdIngest() {
+	if err := runIngestCmd(os.Args, os.Stdin, os.Stdout, os.Stderr); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // getDefaultSwordPath returns the default SWORD installation path.

@@ -314,9 +314,13 @@ type ByteSizeEstimator interface {
 	EstimateBytes() int64
 }
 
+// jsonMarshalFunc is a variable that holds the JSON marshal function.
+// It can be overridden in tests to simulate marshal errors.
+var jsonMarshalFunc = json.Marshal
+
 // estimateCorpusBytes estimates the byte size of a corpus.
 func estimateCorpusBytes(corpus *ir.Corpus) int64 {
-	data, err := json.Marshal(corpus)
+	data, err := jsonMarshalFunc(corpus)
 	if err != nil {
 		return 0
 	}
@@ -325,7 +329,7 @@ func estimateCorpusBytes(corpus *ir.Corpus) int64 {
 
 // estimateManifestBytes estimates the byte size of a manifest.
 func estimateManifestBytes(manifest *capsule.Manifest) int64 {
-	data, err := json.Marshal(manifest)
+	data, err := jsonMarshalFunc(manifest)
 	if err != nil {
 		return 0
 	}

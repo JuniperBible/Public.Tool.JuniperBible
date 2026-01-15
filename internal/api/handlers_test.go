@@ -493,6 +493,48 @@ func TestCreateCapsuleHandlerWriteError(t *testing.T) {
 	t.Skip("Skipping write error test - requires special conditions like disk full")
 }
 
+func TestCreateCapsuleHandlerEmptyFilename(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "api-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	originalDir := ServerConfig.CapsulesDir
+	ServerConfig.CapsulesDir = tmpDir
+	defer func() { ServerConfig.CapsulesDir = originalDir }()
+
+	// Create multipart form with empty filename
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	part, err := writer.CreateFormFile("file", "")
+	if err != nil {
+		t.Fatalf("failed to create form file: %v", err)
+	}
+	part.Write([]byte("test content"))
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/capsules", &buf)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	handleCapsules(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", resp.StatusCode)
+	}
+
+	var apiResp APIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if apiResp.Error == nil {
+		t.Error("expected error for empty filename")
+	}
+}
+
 func TestHandleCapsuleByIDGet(t *testing.T) {
 	// Create temporary test directory
 	tmpDir, err := os.MkdirTemp("", "api-test-*")

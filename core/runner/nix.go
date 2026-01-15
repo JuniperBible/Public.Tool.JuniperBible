@@ -9,12 +9,32 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/FocuswithJustin/JuniperBible/core/cas"
 	"github.com/FocuswithJustin/JuniperBible/internal/fileutil"
 )
+
+// validIdentifierRegex validates plugin and profile identifiers.
+// Only allows alphanumeric, hyphen, underscore, and dot characters.
+var validIdentifierRegex = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+// validateIdentifier checks if a string is a safe identifier for shell use.
+// Returns an error if the identifier contains potentially dangerous characters.
+func validateIdentifier(id, name string) error {
+	if id == "" {
+		return fmt.Errorf("%s cannot be empty", name)
+	}
+	if len(id) > 64 {
+		return fmt.Errorf("%s too long (max 64 characters)", name)
+	}
+	if !validIdentifierRegex.MatchString(id) {
+		return fmt.Errorf("%s contains invalid characters (only alphanumeric, hyphen, underscore, dot allowed)", name)
+	}
+	return nil
+}
 
 // Injectable functions for testing.
 var (
@@ -41,6 +61,16 @@ func NewNixExecutor(flakePath string) *NixExecutor {
 
 // ExecuteRequest runs a tool request and returns the result with transcript.
 func (e *NixExecutor) ExecuteRequest(ctx context.Context, req *Request, inputPaths []string) (*ExecutionResult, error) {
+	// SECURITY: Validate plugin ID and profile to prevent shell injection
+	if err := validateIdentifier(req.PluginID, "plugin ID"); err != nil {
+		return nil, fmt.Errorf("invalid request: %w", err)
+	}
+	if req.Profile != "" {
+		if err := validateIdentifier(req.Profile, "profile"); err != nil {
+			return nil, fmt.Errorf("invalid request: %w", err)
+		}
+	}
+
 	// Create work directory
 	workDir, err := osMkdirTemp("", "capsule-run-*")
 	if err != nil {

@@ -334,9 +334,9 @@ func TestVulgateVersification(t *testing.T) {
 	if v.ID != VersVulgate {
 		t.Errorf("ID = %q, want Vulgate", v.ID)
 	}
-	// Should have same book count as KJV
-	if len(v.Books) != 66 {
-		t.Errorf("Vulgate has %d books, want 66", len(v.Books))
+	// Vulgate includes deuterocanonical books (73 total)
+	if len(v.Books) != 73 {
+		t.Errorf("Vulgate has %d books, want 73", len(v.Books))
 	}
 }
 

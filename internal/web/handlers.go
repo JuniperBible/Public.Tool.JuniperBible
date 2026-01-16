@@ -2001,7 +2001,11 @@ func parseLicenseText(content string) string {
 		return "Apache-2.0"
 	case strings.Contains(contentLower, "gnu general public license") && strings.Contains(contentLower, "version 3"):
 		return "GPL-3.0"
+	case strings.Contains(contentLower, "gpl-3") || strings.Contains(contentLower, "gplv3"):
+		return "GPL-3.0"
 	case strings.Contains(contentLower, "gnu general public license") && strings.Contains(contentLower, "version 2"):
+		return "GPL-2.0"
+	case strings.Contains(contentLower, "gpl-2") || strings.Contains(contentLower, "gplv2"):
 		return "GPL-2.0"
 	case strings.Contains(contentLower, "gnu lesser general public license"):
 		return "LGPL"
@@ -2019,7 +2023,7 @@ func parseLicenseText(content string) string {
 		return "ISC"
 	}
 
-	return ""
+	return "See LICENSE file"
 }
 
 func listToolPlugins() []PluginInfo {

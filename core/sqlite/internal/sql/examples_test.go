@@ -25,8 +25,8 @@ func ExampleMakeRecord() {
 	fmt.Printf("First byte (header size): %d\n", record[0])
 
 	// Output:
-	// Record size: 24 bytes
-	// First byte (header size): 6
+	// Record size: 27 bytes
+	// First byte (header size): 5
 }
 
 // ExampleParseRecord demonstrates decoding SQLite record format
@@ -84,7 +84,7 @@ func ExampleCompileInsert() {
 	fmt.Printf("Last opcode: %s\n", prog.Instructions[len(prog.Instructions)-1].OpCode)
 
 	// Output:
-	// Instructions: 9
+	// Instructions: 10
 	// Registers: 5
 	// First opcode: Init
 	// Last opcode: Halt
@@ -105,7 +105,7 @@ func ExampleProgram_Disassemble() {
 	fmt.Printf("Contains 'OpenWrite': %v\n", len(output) > 0)
 
 	// Output:
-	// Disassembly length: 502 characters
+	// Disassembly length: 721 characters
 	// Contains 'OpenWrite': true
 }
 
@@ -136,7 +136,7 @@ func ExampleCompileUpdate() {
 	fmt.Printf("Has WHERE clause: %v\n", stmt.Where != nil)
 
 	// Output:
-	// Instructions: 17
+	// Instructions: 20
 	// Has WHERE clause: true
 }
 
@@ -161,7 +161,7 @@ func ExampleCompileDelete() {
 	fmt.Printf("Table: %s\n", stmt.Table)
 
 	// Output:
-	// Instructions: 13
+	// Instructions: 15
 	// Table: users
 }
 

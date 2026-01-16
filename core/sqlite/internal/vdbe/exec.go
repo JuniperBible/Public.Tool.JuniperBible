@@ -849,41 +849,39 @@ func parseRecordColumn(data []byte, colIndex int, dst *Mem) error {
 	return parseSerialValue(data, offset, st, dst)
 }
 
-// getVarint reads a varint from buf starting at offset
+// getVarint reads a SQLite varint from buf starting at offset
+// SQLite uses 7-bit continuation encoding (MSB set = more bytes follow)
 func getVarint(buf []byte, offset int) (uint64, int) {
 	if offset >= len(buf) {
 		return 0, 0
 	}
 
-	b := buf[offset]
-	if b <= 240 {
-		return uint64(b), 1
-	}
-	if b <= 248 {
-		if offset+1 >= len(buf) {
-			return 0, 0
-		}
-		return 240 + 256*uint64(b-241) + uint64(buf[offset+1]), 2
-	}
-	if b == 249 {
-		if offset+2 >= len(buf) {
-			return 0, 0
-		}
-		return 2288 + 256*uint64(buf[offset+1]) + uint64(buf[offset+2]), 3
+	// Fast path for 1-byte case (most common)
+	if buf[offset] < 0x80 {
+		return uint64(buf[offset]), 1
 	}
 
-	// Standard varint decoding
+	// Fast path for 2-byte case
+	if offset+1 < len(buf) && buf[offset+1] < 0x80 {
+		return (uint64(buf[offset]&0x7f) << 7) | uint64(buf[offset+1]), 2
+	}
+
+	// General case - decode byte by byte
 	var v uint64
-	n := 0
-	for i := offset; i < len(buf) && n < 9; i++ {
-		b := buf[i]
-		v = (v << 7) | uint64(b&0x7f)
-		n++
-		if b&0x80 == 0 {
-			return v, n
+	for i := 0; i < 9 && offset+i < len(buf); i++ {
+		b := buf[offset+i]
+		if i < 8 {
+			v = (v << 7) | uint64(b&0x7f)
+			if b&0x80 == 0 {
+				return v, i + 1
+			}
+		} else {
+			// 9th byte uses all 8 bits
+			v = (v << 8) | uint64(b)
+			return v, 9
 		}
 	}
-	return v, n
+	return v, 0
 }
 
 // serialTypeLen returns the number of bytes required for a value with the given serial type
@@ -1226,34 +1224,35 @@ func encodeSimpleRecord(values []interface{}) []byte {
 	return record
 }
 
-// encodeVarint encodes a uint64 as a varint and returns the bytes
+// encodeVarint encodes a uint64 as a SQLite varint and returns the bytes
+// SQLite uses 7-bit continuation encoding (MSB set = more bytes follow)
 func encodeVarint(v uint64) []byte {
-	if v <= 240 {
+	if v <= 0x7f {
 		return []byte{byte(v)}
 	}
-	if v <= 2287 {
-		v -= 240
-		return []byte{byte(v/256 + 241), byte(v % 256)}
+	if v <= 0x3fff {
+		return []byte{byte((v >> 7) | 0x80), byte(v & 0x7f)}
 	}
-	if v <= 67823 {
-		v -= 2288
-		return []byte{249, byte(v / 256), byte(v % 256)}
+	if v <= 0x1fffff {
+		return []byte{byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
 	}
-
-	// Standard varint encoding for larger values
-	var buf []byte
-	for i := 0; i < 9; i++ {
-		b := byte(v & 0x7f)
-		v >>= 7
-		if v != 0 {
-			b |= 0x80
-		}
-		buf = append([]byte{b}, buf...) // Prepend
-		if v == 0 {
-			break
-		}
+	if v <= 0xfffffff {
+		return []byte{byte((v>>21)&0x7f | 0x80), byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
 	}
-	return buf
+	if v <= 0x7ffffffff {
+		return []byte{byte((v>>28)&0x7f | 0x80), byte((v>>21)&0x7f | 0x80), byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
+	}
+	if v <= 0x3ffffffffff {
+		return []byte{byte((v>>35)&0x7f | 0x80), byte((v>>28)&0x7f | 0x80), byte((v>>21)&0x7f | 0x80), byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
+	}
+	if v <= 0x1ffffffffffff {
+		return []byte{byte((v>>42)&0x7f | 0x80), byte((v>>35)&0x7f | 0x80), byte((v>>28)&0x7f | 0x80), byte((v>>21)&0x7f | 0x80), byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
+	}
+	if v <= 0xffffffffffffff {
+		return []byte{byte((v>>49)&0x7f | 0x80), byte((v>>42)&0x7f | 0x80), byte((v>>35)&0x7f | 0x80), byte((v>>28)&0x7f | 0x80), byte((v>>21)&0x7f | 0x80), byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
+	}
+	// 9 byte case - first 8 bytes hold 7 bits each, last byte holds 8 bits
+	return []byte{byte((v>>57)&0x7f | 0x80), byte((v>>50)&0x7f | 0x80), byte((v>>43)&0x7f | 0x80), byte((v>>36)&0x7f | 0x80), byte((v>>29)&0x7f | 0x80), byte((v>>22)&0x7f | 0x80), byte((v>>15)&0x7f | 0x80), byte((v>>8)&0x7f | 0x80), byte(v)}
 }
 
 // appendVarint appends a varint to a byte slice

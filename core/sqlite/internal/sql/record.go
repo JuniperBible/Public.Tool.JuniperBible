@@ -215,50 +215,42 @@ func MakeRecord(values []Value) ([]byte, error) {
 		return nil, errors.New("cannot create empty record")
 	}
 
-	// Calculate header size and serial types
+	// Calculate serial types and their sizes
 	serialTypes := make([]SerialType, len(values))
-	headerSize := 0
+	serialTypesSize := 0
 	bodySize := 0
-
-	// Start with the header size varint (we'll encode it later)
-	headerSize = 1 // Minimum for small header size
 
 	for i, val := range values {
 		st := SerialTypeFor(val)
 		serialTypes[i] = st
 
 		// Each serial type in header is a varint
-		if st < 128 {
-			headerSize += 1
-		} else {
-			// Worst case: 2 bytes for larger serial types
-			headerSize += 2
-		}
-
+		serialTypesSize += varintSize(uint64(st))
 		bodySize += SerialTypeLen(st)
 	}
 
+	// Calculate total header size (includes the header size varint itself)
+	// SQLite header size = size of header size varint + size of all serial type varints
+	// This is self-referential, so we iterate until stable
+	headerSize := serialTypesSize + 1 // Start with 1 byte for header size varint
+	for {
+		headerSizeVarintLen := varintSize(uint64(headerSize))
+		newHeaderSize := headerSizeVarintLen + serialTypesSize
+		if newHeaderSize == headerSize {
+			break
+		}
+		headerSize = newHeaderSize
+	}
+
 	// Build the record
-	buf := make([]byte, 0, headerSize+bodySize+10)
+	buf := make([]byte, 0, headerSize+bodySize)
 
 	// Write header size
 	buf = PutVarint(buf, uint64(headerSize))
-	headerStart := len(buf)
 
 	// Write serial types
 	for _, st := range serialTypes {
 		buf = PutVarint(buf, uint64(st))
-	}
-
-	// Adjust header size if our estimate was wrong
-	actualHeaderSize := len(buf) - headerStart
-	if actualHeaderSize != headerSize {
-		// Rewrite with correct header size
-		buf = buf[:0]
-		buf = PutVarint(buf, uint64(len(buf)+actualHeaderSize+1))
-		for _, st := range serialTypes {
-			buf = PutVarint(buf, uint64(st))
-		}
 	}
 
 	// Write body values
@@ -268,6 +260,35 @@ func MakeRecord(values []Value) ([]byte, error) {
 	}
 
 	return buf, nil
+}
+
+// varintSize returns the number of bytes needed to encode v as a varint
+func varintSize(v uint64) int {
+	if v <= 0x7f {
+		return 1
+	}
+	if v <= 0x3fff {
+		return 2
+	}
+	if v <= 0x1fffff {
+		return 3
+	}
+	if v <= 0xfffffff {
+		return 4
+	}
+	if v <= 0x7ffffffff {
+		return 5
+	}
+	if v <= 0x3ffffffffff {
+		return 6
+	}
+	if v <= 0x1ffffffffffff {
+		return 7
+	}
+	if v <= 0xffffffffffffff {
+		return 8
+	}
+	return 9
 }
 
 // appendValue appends a value to the buffer based on its serial type

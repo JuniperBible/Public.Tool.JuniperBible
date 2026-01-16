@@ -37,14 +37,11 @@ func putVarint64(p []byte, v uint64) int {
 
 	// Build varint in forward order
 	// Count how many 7-bit groups we need
-	n := 0
-	temp := v
-	for {
+	n := 1 // At least one byte needed
+	temp := v >> 7
+	for temp > 0 {
 		n++
 		temp >>= 7
-		if temp == 0 {
-			break
-		}
 	}
 
 	// Encode from most significant to least significant
@@ -115,95 +112,26 @@ func GetVarint(p []byte) (uint64, int) {
 		return uint64(a), 4
 	}
 
-	// 5-byte or larger
-	if len(p) < 3 {
-		return 0, 0
-	}
-	p = p[2:]
-	a = a << 14
-	a |= uint32(p[0])
-	// a: p0<<28 | p2<<14 | p4 (unmasked)
-
-	if a&0x80 == 0 {
-		// 5-byte case
-		b &= SLOT_2_0
-		a &= SLOT_4_2_0
-		b = b << 7
-		a |= b
-		return uint64(a), 5
-	}
-
-	// 6-byte or larger
-	if len(p) < 2 {
-		return 0, 0
-	}
-	b = b << 14
-	b |= uint32(p[1])
-	// b: p1<<28 | p3<<14 | p5 (unmasked)
-
-	if b&0x80 == 0 {
-		// 6-byte case
-		b &= SLOT_4_2_0
-		a &= SLOT_2_0
-		a = a << 7
-		b |= a
-		return uint64(b), 6
-	}
-
-	// 7-byte or larger
-	if len(p) < 3 {
-		return 0, 0
-	}
-	p = p[2:]
-	a = a << 14
-	a |= uint32(p[0])
-	// a: p2<<28 | p4<<14 | p6 (unmasked)
-
-	if a&0x80 == 0 {
-		// 7-byte case
-		a &= SLOT_4_2_0
-		b &= SLOT_2_0
-		b = b << 7
-		a |= b
-		return uint64(a), 7
-	}
-
-	// 8-byte or larger
-	if len(p) < 2 {
-		return 0, 0
-	}
-	b = b << 15
-	b |= uint32(p[1]) << 8
-	// b: p1<<29 | p3<<15 | p5<<8 (unmasked)
-
-	if len(p) < 3 {
-		return 0, 0
-	}
-	b |= uint32(p[2])
-	// b: p1<<29 | p3<<15 | p5<<8 | p7 (unmasked)
-
-	if b&0x80 == 0 {
-		// 8-byte case
-		b &= (0x1f << 24) | (0x7f << 16) | (0x7f << 8) | 0x7f
-		a &= SLOT_2_0
-		a = a << 8
-		a |= b
-		return uint64(a), 8
-	}
-
-	// 9-byte case: last byte uses all 8 bits (no continuation bit)
-	// Decode the first 8 bytes (each contributing 7 bits) and the 9th byte (8 bits)
+	// 5-byte or larger - use simple loop-based decoder
+	// For simplicity and correctness, decode byte-by-byte for remaining cases
 	var v uint64
-	v = uint64(orig[0]&0x7f) << 57
-	v |= uint64(orig[1]&0x7f) << 50
-	v |= uint64(orig[2]&0x7f) << 43
-	v |= uint64(orig[3]&0x7f) << 36
-	v |= uint64(orig[4]&0x7f) << 29
-	v |= uint64(orig[5]&0x7f) << 22
-	v |= uint64(orig[6]&0x7f) << 15
-	v |= uint64(orig[7]&0x7f) << 8
-	v |= uint64(orig[8]) // All 8 bits
-	return v, 9
+	n := 0
+	for i := 0; i < 9 && i < len(orig); i++ {
+		if i < 8 {
+			// First 8 bytes: 7 bits each with continuation bit
+			v = (v << 7) | uint64(orig[i]&0x7f)
+			n++
+			if orig[i]&0x80 == 0 {
+				// No continuation bit, this is the last byte
+				return v, n
+			}
+		} else {
+			// 9th byte: all 8 bits, no continuation bit
+			v = (v << 8) | uint64(orig[i])
+			return v, 9
+		}
+	}
+	return 0, 0 // Invalid varint
 }
 
 // GetVarint32 reads a 32-bit variable-length integer from p and returns

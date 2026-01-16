@@ -70,75 +70,72 @@ type Record struct {
 	Values []Value
 }
 
-// PutVarint encodes a uint64 as a varint and appends to buf
+// PutVarint encodes a uint64 as a SQLite varint and appends to buf
 // Returns the new buffer
+// SQLite varints use 7 bits per byte with continuation bit in high bit
 func PutVarint(buf []byte, v uint64) []byte {
-	if v <= 240 {
+	if v <= 0x7f {
 		return append(buf, byte(v))
 	}
-	if v <= 2287 {
-		return append(buf, byte((v-240)/256+241), byte((v-240)%256))
+	if v <= 0x3fff {
+		return append(buf, byte((v>>7)|0x80), byte(v&0x7f))
 	}
-	if v <= 67823 {
-		return append(buf, 249, byte((v-2288)/256), byte((v-2288)%256))
+	if v <= 0x1fffff {
+		return append(buf, byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
 	}
-
-	// For larger values, use standard varint encoding
-	var tmp [10]byte
-	n := 0
-	for {
-		tmp[n] = byte((v & 0x7f) | 0x80)
-		v >>= 7
-		n++
-		if v == 0 {
-			break
-		}
+	if v <= 0xfffffff {
+		return append(buf, byte((v>>21)&0x7f|0x80), byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
 	}
-	tmp[0] &= 0x7f // Clear continuation bit on last byte
-
-	// Reverse the bytes
-	for i := n - 1; i >= 0; i-- {
-		buf = append(buf, tmp[i])
+	if v <= 0x7ffffffff {
+		return append(buf, byte((v>>28)&0x7f|0x80), byte((v>>21)&0x7f|0x80), byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
 	}
-	return buf
+	if v <= 0x3ffffffffff {
+		return append(buf, byte((v>>35)&0x7f|0x80), byte((v>>28)&0x7f|0x80), byte((v>>21)&0x7f|0x80), byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
+	}
+	if v <= 0x1ffffffffffff {
+		return append(buf, byte((v>>42)&0x7f|0x80), byte((v>>35)&0x7f|0x80), byte((v>>28)&0x7f|0x80), byte((v>>21)&0x7f|0x80), byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
+	}
+	if v <= 0xffffffffffffff {
+		return append(buf, byte((v>>49)&0x7f|0x80), byte((v>>42)&0x7f|0x80), byte((v>>35)&0x7f|0x80), byte((v>>28)&0x7f|0x80), byte((v>>21)&0x7f|0x80), byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
+	}
+	// 9 byte case - first 8 bytes hold 7 bits each, last byte holds 8 bits
+	// Shifts: 57, 50, 43, 36, 29, 22, 15, 8, 0
+	return append(buf, byte((v>>57)&0x7f|0x80), byte((v>>50)&0x7f|0x80), byte((v>>43)&0x7f|0x80), byte((v>>36)&0x7f|0x80), byte((v>>29)&0x7f|0x80), byte((v>>22)&0x7f|0x80), byte((v>>15)&0x7f|0x80), byte((v>>8)&0x7f|0x80), byte(v))
 }
 
-// GetVarint reads a varint from buf starting at offset
+// GetVarint reads a SQLite varint from buf starting at offset
 // Returns the value and the number of bytes read
 func GetVarint(buf []byte, offset int) (uint64, int) {
 	if offset >= len(buf) {
 		return 0, 0
 	}
 
-	b := buf[offset]
-	if b <= 240 {
-		return uint64(b), 1
-	}
-	if b <= 248 {
-		if offset+1 >= len(buf) {
-			return 0, 0
-		}
-		return 240 + 256*uint64(b-241) + uint64(buf[offset+1]), 2
-	}
-	if b == 249 {
-		if offset+2 >= len(buf) {
-			return 0, 0
-		}
-		return 2288 + 256*uint64(buf[offset+1]) + uint64(buf[offset+2]), 3
+	// Fast path for 1-byte case
+	if buf[offset] < 0x80 {
+		return uint64(buf[offset]), 1
 	}
 
-	// Standard varint decoding
+	// Fast path for 2-byte case
+	if offset+1 < len(buf) && buf[offset+1] < 0x80 {
+		return (uint64(buf[offset]&0x7f) << 7) | uint64(buf[offset+1]), 2
+	}
+
+	// General case - decode byte by byte
 	var v uint64
-	n := 0
-	for i := offset; i < len(buf) && n < 9; i++ {
-		b := buf[i]
-		v = (v << 7) | uint64(b&0x7f)
-		n++
-		if b&0x80 == 0 {
-			return v, n
+	for i := 0; i < 9 && offset+i < len(buf); i++ {
+		b := buf[offset+i]
+		if i < 8 {
+			v = (v << 7) | uint64(b&0x7f)
+			if b&0x80 == 0 {
+				return v, i + 1
+			}
+		} else {
+			// 9th byte uses all 8 bits
+			v = (v << 8) | uint64(b)
+			return v, 9
 		}
 	}
-	return v, n
+	return v, 0
 }
 
 // SerialTypeFor determines the serial type for a value

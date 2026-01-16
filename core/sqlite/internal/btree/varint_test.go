@@ -17,7 +17,9 @@ func TestPutGetVarint(t *testing.T) {
 		{"2-byte max", 0x3fff, 2},
 		{"3-byte min", 0x4000, 3},
 		{"3-byte", 0x12345, 3},
-		{"4-byte", 0x123456, 4},
+		{"3-byte max", 0x1fffff, 3},
+		{"4-byte min", 0x200000, 4},
+		{"4-byte", 0x1234567, 4},
 		{"5-byte", 0x12345678, 5},
 		{"9-byte max", 0xffffffffffffffff, 9},
 	}

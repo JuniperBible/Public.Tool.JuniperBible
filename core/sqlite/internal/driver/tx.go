@@ -53,7 +53,10 @@ func (tx *Tx) Rollback() error {
 	defer tx.conn.mu.Unlock()
 
 	if !tx.conn.inTx {
-		return fmt.Errorf("no transaction in progress")
+		// Transaction not active - mark as closed and return success
+		// This handles the case where Rollback is called multiple times
+		tx.closed = true
+		return nil
 	}
 
 	// For read-only transactions, just end the read transaction

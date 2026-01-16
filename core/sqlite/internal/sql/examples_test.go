@@ -243,9 +243,10 @@ func ExampleValidateInsert() {
 	// Invalid INSERT has error: true
 }
 
-// ExamplePutVarint demonstrates varint encoding
+// ExamplePutVarint demonstrates varint encoding using SQLite format
+// SQLite uses 7-bit continuation encoding (MSB set = more bytes follow)
 func ExamplePutVarint() {
-	values := []uint64{0, 42, 240, 241, 2287, 2288, 67823, 1000000}
+	values := []uint64{0, 42, 127, 128, 16383, 16384, 1000000}
 
 	for _, v := range values {
 		buf := sql.PutVarint(nil, v)
@@ -258,11 +259,10 @@ func ExamplePutVarint() {
 	// Output:
 	// Value 0: 1 bytes, decoded=0, match=true
 	// Value 42: 1 bytes, decoded=42, match=true
-	// Value 240: 1 bytes, decoded=240, match=true
-	// Value 241: 2 bytes, decoded=241, match=true
-	// Value 2287: 2 bytes, decoded=2287, match=true
-	// Value 2288: 3 bytes, decoded=2288, match=true
-	// Value 67823: 3 bytes, decoded=67823, match=true
+	// Value 127: 1 bytes, decoded=127, match=true
+	// Value 128: 2 bytes, decoded=128, match=true
+	// Value 16383: 2 bytes, decoded=16383, match=true
+	// Value 16384: 3 bytes, decoded=16384, match=true
 	// Value 1000000: 3 bytes, decoded=1000000, match=true
 }
 

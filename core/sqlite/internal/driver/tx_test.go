@@ -190,14 +190,18 @@ func TestTransactionDoubleRollback(t *testing.T) {
 	dbFile := "test_double_rollback.db"
 	defer os.Remove(dbFile)
 
-	db, err := sql.Open("sqlite", dbFile)
+	// Test at driver level to verify double rollback is safe
+	d := &Driver{}
+	conn, err := d.Open(dbFile)
 	if err != nil {
-		t.Fatalf("failed to open database: %v", err)
+		t.Fatalf("failed to open connection: %v", err)
 	}
-	defer db.Close()
+	defer conn.Close()
+
+	c := conn.(*Conn)
 
 	// Begin transaction
-	tx, err := db.Begin()
+	tx, err := c.Begin()
 	if err != nil {
 		t.Fatalf("failed to begin transaction: %v", err)
 	}
@@ -208,6 +212,8 @@ func TestTransactionDoubleRollback(t *testing.T) {
 	}
 
 	// Second rollback should be safe (no error)
+	// Note: database/sql prevents this at a higher layer, but at the driver
+	// level we want to ensure idempotent rollback behavior
 	if err := tx.Rollback(); err != nil {
 		t.Errorf("second rollback should be safe: %v", err)
 	}
@@ -244,14 +250,18 @@ func TestTransactionRollbackAfterCommit(t *testing.T) {
 	dbFile := "test_rollback_after_commit.db"
 	defer os.Remove(dbFile)
 
-	db, err := sql.Open("sqlite", dbFile)
+	// Test at driver level to verify rollback after commit is safe
+	d := &Driver{}
+	conn, err := d.Open(dbFile)
 	if err != nil {
-		t.Fatalf("failed to open database: %v", err)
+		t.Fatalf("failed to open connection: %v", err)
 	}
-	defer db.Close()
+	defer conn.Close()
+
+	c := conn.(*Conn)
 
 	// Begin transaction
-	tx, err := db.Begin()
+	tx, err := c.Begin()
 	if err != nil {
 		t.Fatalf("failed to begin transaction: %v", err)
 	}
@@ -262,6 +272,8 @@ func TestTransactionRollbackAfterCommit(t *testing.T) {
 	}
 
 	// Try to rollback - should be safe (no error)
+	// Note: database/sql prevents this at a higher layer, but at the driver
+	// level we want to ensure idempotent rollback behavior
 	if err := tx.Rollback(); err != nil {
 		t.Errorf("rollback after commit should be safe: %v", err)
 	}

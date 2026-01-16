@@ -149,13 +149,8 @@ func (p *ZComParser) GetEntry(ref Ref) (*CommentaryEntry, error) {
 		return nil, fmt.Errorf("module not loaded")
 	}
 
-	// Determine which testament
-	bookIdx := BookIndex(ref.Book)
-	if bookIdx < 0 {
-		return nil, fmt.Errorf("unknown book: %s", ref.Book)
-	}
-
-	isNT := bookIdx >= 39 // Matthew onwards
+	// Determine which testament using book OSIS ID
+	isNT := ntBookSet[ref.Book]
 
 	var blocks []BlockEntry
 	var verses []VerseEntry

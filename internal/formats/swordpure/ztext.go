@@ -154,13 +154,8 @@ func readVerseIndex(path string) ([]VerseEntry, error) {
 
 // GetVerseText retrieves the text for a specific verse.
 func (m *ZTextModule) GetVerseText(ref *Ref) (string, error) {
-	// Determine which testament
-	bookIdx := BookIndex(ref.Book)
-	if bookIdx < 0 {
-		return "", fmt.Errorf("unknown book: %s", ref.Book)
-	}
-
-	isNT := bookIdx >= 39 // Matthew onwards
+	// Determine which testament using book OSIS ID
+	isNT := ntBookSet[ref.Book]
 
 	var blocks []BlockEntry
 	var verses []VerseEntry

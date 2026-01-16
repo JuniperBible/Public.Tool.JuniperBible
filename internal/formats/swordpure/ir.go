@@ -117,7 +117,7 @@ func extractCorpus(zt *ZTextModule, conf *ConfFile) (*IRCorpus, *ExtractionStats
 	// Extract all verses using versification
 	for bookIdx, book := range vers.Books {
 		// Skip books from missing testaments
-		isNT := bookIdx >= 39
+		isNT := ntBookSet[book.OSIS]
 		if isNT && !hasNT {
 			continue
 		}

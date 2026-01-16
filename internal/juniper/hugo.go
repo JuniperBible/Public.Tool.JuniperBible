@@ -17,6 +17,22 @@ import (
 	"github.com/FocuswithJustin/JuniperBible/internal/formats/swordpure"
 )
 
+// ntBooks contains all New Testament book OSIS IDs for quick lookup.
+var ntBooks = map[string]bool{
+	"Matt": true, "Mark": true, "Luke": true, "John": true,
+	"Acts": true, "Rom": true, "1Cor": true, "2Cor": true,
+	"Gal": true, "Eph": true, "Phil": true, "Col": true,
+	"1Thess": true, "2Thess": true, "1Tim": true, "2Tim": true,
+	"Titus": true, "Phlm": true, "Heb": true, "Jas": true,
+	"1Pet": true, "2Pet": true, "1John": true, "2John": true,
+	"3John": true, "Jude": true, "Rev": true,
+}
+
+// isNTBook returns true if the book OSIS ID is a New Testament book.
+func isNTBook(osis string) bool {
+	return ntBooks[osis]
+}
+
 // HugoConfig holds configuration for Hugo JSON generation.
 type HugoConfig struct {
 	Path    string   // SWORD installation path (default: ~/.sword)
@@ -290,7 +306,7 @@ func exportModuleToHugo(swordPath string, module *Module, weight int) (*HugoBibl
 	sem := make(chan struct{}, runtime.NumCPU())
 
 	for bookIdx, book := range vers.Books {
-		isNT := bookIdx >= 39
+		isNT := isNTBook(book.OSIS)
 		if isNT && !hasNT {
 			continue
 		}

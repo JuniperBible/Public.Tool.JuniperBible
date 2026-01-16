@@ -82,6 +82,16 @@ func (g *Generator) GenerateAll() error {
 func (g *Generator) LoadPlugins() ([]PluginManifest, error) {
 	var plugins []PluginManifest
 
+	// Check if plugin directory exists
+	if g.PluginDir != "" {
+		if _, err := os.Stat(g.PluginDir); err != nil {
+			if os.IsNotExist(err) {
+				return nil, fmt.Errorf("plugin directory does not exist: %s", g.PluginDir)
+			}
+			return nil, fmt.Errorf("cannot access plugin directory: %w", err)
+		}
+	}
+
 	// Walk format plugins
 	formatDir := filepath.Join(g.PluginDir, "format")
 	if entries, err := os.ReadDir(formatDir); err == nil {

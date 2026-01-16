@@ -200,3 +200,145 @@ func readTarGzFiles(t *testing.T, path string) []string {
 
 	return files
 }
+
+func TestCreateTarGz_InvalidDestination(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create source directory
+	srcDir := filepath.Join(tempDir, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create source dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("test"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	// Try to create archive in a location where we cannot write
+	// Use a file path as the parent directory (invalid)
+	invalidParent := filepath.Join(tempDir, "file.txt")
+	if err := os.WriteFile(invalidParent, []byte("test"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	dstPath := filepath.Join(invalidParent, "test.tar.gz")
+	err := CreateTarGz(srcDir, dstPath, "test", true)
+	if err == nil {
+		t.Error("expected error when creating archive with invalid parent")
+	}
+}
+
+func TestCreateTarGz_FileOpenError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create source directory with a file we can't open
+	srcDir := filepath.Join(tempDir, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create source dir: %v", err)
+	}
+
+	// Create a subdirectory with a file
+	subDir := filepath.Join(srcDir, "subdir")
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+	testFile := filepath.Join(subDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	// Make the file unreadable
+	if err := os.Chmod(testFile, 0000); err != nil {
+		t.Fatalf("failed to chmod file: %v", err)
+	}
+	defer os.Chmod(testFile, 0644) // cleanup
+
+	dstPath := filepath.Join(tempDir, "test.tar.gz")
+	err := CreateTarGz(srcDir, dstPath, "test", false)
+	if err == nil {
+		t.Error("expected error when archiving unreadable file")
+	}
+}
+
+func TestCreateTarGz_DeepNesting(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create source directory with deeply nested structure
+	srcDir := filepath.Join(tempDir, "src")
+	deepDir := filepath.Join(srcDir, "a", "b", "c", "d", "e")
+	if err := os.MkdirAll(deepDir, 0755); err != nil {
+		t.Fatalf("failed to create nested dir: %v", err)
+	}
+
+	// Create a file in the deep directory
+	if err := os.WriteFile(filepath.Join(deepDir, "deep.txt"), []byte("deep content"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	dstPath := filepath.Join(tempDir, "test.tar.gz")
+	if err := CreateTarGz(srcDir, dstPath, "test", false); err != nil {
+		t.Fatalf("CreateTarGz failed: %v", err)
+	}
+
+	// Verify the deep file is in the archive
+	files := readTarGzFiles(t, dstPath)
+	found := false
+	for _, f := range files {
+		if f == "test/a/b/c/d/e/deep.txt" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected deep file in archive, got: %v", files)
+	}
+}
+
+func TestCreateTarGz_WithMultipleFiles(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create source directory with multiple files and directories
+	srcDir := filepath.Join(tempDir, "src")
+	if err := os.MkdirAll(filepath.Join(srcDir, "dir1"), 0755); err != nil {
+		t.Fatalf("failed to create dir1: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(srcDir, "dir2"), 0755); err != nil {
+		t.Fatalf("failed to create dir2: %v", err)
+	}
+
+	// Create multiple files
+	files := []string{"file1.txt", "dir1/file2.txt", "dir2/file3.txt"}
+	for _, f := range files {
+		path := filepath.Join(srcDir, f)
+		if err := os.WriteFile(path, []byte("content of "+f), 0644); err != nil {
+			t.Fatalf("failed to create %s: %v", f, err)
+		}
+	}
+
+	dstPath := filepath.Join(tempDir, "test.tar.gz")
+	if err := CreateTarGz(srcDir, dstPath, "test", false); err != nil {
+		t.Fatalf("CreateTarGz failed: %v", err)
+	}
+
+	// Verify all files are in the archive
+	archiveFiles := readTarGzFiles(t, dstPath)
+	expectedFiles := []string{
+		"test/dir1/",
+		"test/dir1/file2.txt",
+		"test/dir2/",
+		"test/dir2/file3.txt",
+		"test/file1.txt",
+	}
+
+	for _, expected := range expectedFiles {
+		found := false
+		for _, actual := range archiveFiles {
+			if actual == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %s in archive, got: %v", expected, archiveFiles)
+		}
+	}
+}

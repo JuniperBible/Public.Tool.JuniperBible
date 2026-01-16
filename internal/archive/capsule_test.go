@@ -182,3 +182,24 @@ func TestReadIR(t *testing.T) {
 		t.Error("IR missing expected 'test' field")
 	}
 }
+
+func TestReadIR_NoIRFile(t *testing.T) {
+	dir := t.TempDir()
+	// Use CAS capsule which has no IR file
+	path := createTestTarXz(t, dir)
+
+	_, err := ReadIR(path)
+	if err == nil {
+		t.Error("ReadIR() expected error for capsule without IR file")
+	}
+}
+
+func TestReadIR_InvalidJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := createTestTarGzInvalidIR(t, dir)
+
+	_, err := ReadIR(path)
+	if err == nil {
+		t.Error("ReadIR() expected error for invalid JSON")
+	}
+}

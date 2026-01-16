@@ -255,3 +255,219 @@ func TestCopyDir_CopyFileError(t *testing.T) {
 		t.Error("expected error when subdirectory can't be created")
 	}
 }
+
+func TestCopyDir_ReadDirError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a directory
+	srcDir := filepath.Join(tempDir, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create source dir: %v", err)
+	}
+
+	// Add a file to make it non-empty
+	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	// Remove read permissions from the directory
+	if err := os.Chmod(srcDir, 0000); err != nil {
+		t.Fatalf("failed to chmod: %v", err)
+	}
+	defer os.Chmod(srcDir, 0755) // Restore permissions for cleanup
+
+	dstDir := filepath.Join(tempDir, "dst")
+	err := CopyDir(srcDir, dstDir)
+	if err == nil {
+		t.Error("expected error when reading directory without permissions")
+	}
+}
+
+func TestCopyFile_PermissionsPreserved(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a source file with specific permissions
+	srcPath := filepath.Join(tempDir, "src.txt")
+	if err := os.WriteFile(srcPath, []byte("content"), 0600); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	// Copy the file
+	dstPath := filepath.Join(tempDir, "dst.txt")
+	if err := CopyFile(srcPath, dstPath); err != nil {
+		t.Fatalf("CopyFile failed: %v", err)
+	}
+
+	// Verify permissions are preserved
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
+		t.Fatalf("failed to stat source: %v", err)
+	}
+	dstInfo, err := os.Stat(dstPath)
+	if err != nil {
+		t.Fatalf("failed to stat destination: %v", err)
+	}
+
+	if srcInfo.Mode() != dstInfo.Mode() {
+		t.Errorf("permissions not preserved: src=%v, dst=%v", srcInfo.Mode(), dstInfo.Mode())
+	}
+}
+
+func TestCopyFile_LargeFile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a larger source file to test io.Copy
+	srcPath := filepath.Join(tempDir, "large.txt")
+	largeContent := make([]byte, 1024*1024) // 1MB
+	for i := range largeContent {
+		largeContent[i] = byte(i % 256)
+	}
+	if err := os.WriteFile(srcPath, largeContent, 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	// Copy the file
+	dstPath := filepath.Join(tempDir, "large-dst.txt")
+	if err := CopyFile(srcPath, dstPath); err != nil {
+		t.Fatalf("CopyFile failed: %v", err)
+	}
+
+	// Verify content
+	dstContent, err := os.ReadFile(dstPath)
+	if err != nil {
+		t.Fatalf("failed to read destination: %v", err)
+	}
+
+	if len(dstContent) != len(largeContent) {
+		t.Errorf("size mismatch: got %d, want %d", len(dstContent), len(largeContent))
+	}
+
+	for i := range largeContent {
+		if dstContent[i] != largeContent[i] {
+			t.Errorf("content mismatch at byte %d: got %d, want %d", i, dstContent[i], largeContent[i])
+			break
+		}
+	}
+}
+
+func TestCopyFile_EmptyFile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create an empty source file
+	srcPath := filepath.Join(tempDir, "empty.txt")
+	if err := os.WriteFile(srcPath, []byte{}, 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	// Copy the file
+	dstPath := filepath.Join(tempDir, "empty-dst.txt")
+	if err := CopyFile(srcPath, dstPath); err != nil {
+		t.Fatalf("CopyFile failed: %v", err)
+	}
+
+	// Verify it's empty
+	dstContent, err := os.ReadFile(dstPath)
+	if err != nil {
+		t.Fatalf("failed to read destination: %v", err)
+	}
+
+	if len(dstContent) != 0 {
+		t.Errorf("expected empty file, got %d bytes", len(dstContent))
+	}
+}
+
+func TestCopyFile_SpecialDevice(t *testing.T) {
+	// Skip this test if /dev/null is not available (e.g., on Windows)
+	if _, err := os.Stat("/dev/null"); os.IsNotExist(err) {
+		t.Skip("Skipping test: /dev/null not available")
+	}
+
+	tempDir := t.TempDir()
+	dstPath := filepath.Join(tempDir, "null-copy.txt")
+
+	// Try to copy /dev/null - this should work but will create an empty file
+	if err := CopyFile("/dev/null", dstPath); err != nil {
+		// This might fail or succeed depending on the OS
+		// The important part is that we're exercising the code path
+		t.Logf("CopyFile from /dev/null result: %v", err)
+	}
+}
+
+func TestCopyFile_ExecutableBit(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a source file with executable permissions
+	srcPath := filepath.Join(tempDir, "executable.sh")
+	if err := os.WriteFile(srcPath, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	// Copy the file
+	dstPath := filepath.Join(tempDir, "executable-copy.sh")
+	if err := CopyFile(srcPath, dstPath); err != nil {
+		t.Fatalf("CopyFile failed: %v", err)
+	}
+
+	// Verify executable bit is preserved
+	dstInfo, err := os.Stat(dstPath)
+	if err != nil {
+		t.Fatalf("failed to stat destination: %v", err)
+	}
+
+	if dstInfo.Mode()&0111 == 0 {
+		t.Error("executable bit not preserved")
+	}
+}
+
+func TestCopyFile_OpenFileError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a source file
+	srcPath := filepath.Join(tempDir, "src.txt")
+	if err := os.WriteFile(srcPath, []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	// Create a directory where the destination file should be
+	dstPath := filepath.Join(tempDir, "dst.txt")
+	if err := os.Mkdir(dstPath, 0755); err != nil {
+		t.Fatalf("failed to create dst directory: %v", err)
+	}
+
+	// Try to copy to a path that's a directory (should fail to create file)
+	err := CopyFile(srcPath, dstPath)
+	if err == nil {
+		t.Error("expected error when destination is a directory")
+	}
+}
+
+func TestCopyDir_CopyFileInLoopError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create source directory with a file
+	srcDir := filepath.Join(tempDir, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create source dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	// Create destination directory
+	dstDir := filepath.Join(tempDir, "dst")
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		t.Fatalf("failed to create dst dir: %v", err)
+	}
+
+	// Create a directory where the destination file should be (will cause CopyFile to fail)
+	dstFilePath := filepath.Join(dstDir, "file.txt")
+	if err := os.Mkdir(dstFilePath, 0755); err != nil {
+		t.Fatalf("failed to create blocking directory: %v", err)
+	}
+
+	// This should fail because CopyFile can't overwrite a directory
+	err := CopyDir(srcDir, dstDir)
+	if err == nil {
+		t.Error("expected error when CopyFile fails in loop")
+	}
+}

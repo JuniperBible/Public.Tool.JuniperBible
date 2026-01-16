@@ -737,3 +737,10 @@ func TestBibleRouting(t *testing.T) {
 		})
 	}
 }
+
+// NOTE: TestPreWarmCaches and TestStartBackgroundCacheRefresh are not included
+// because these background goroutines interfere with other tests (specifically
+// TestAPIBiblesJSON). The functions are simple enough that calling them in
+// Start() provides sufficient coverage. To get full coverage of these functions
+// without side effects, we would need to refactor them to accept a context for
+// cancellation, which is out of scope for this test effort.

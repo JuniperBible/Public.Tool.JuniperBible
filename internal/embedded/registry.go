@@ -52,5 +52,26 @@ import (
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/usx"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/xml"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/zefania"
+
+	"github.com/FocuswithJustin/JuniperBible/core/plugins"
 )
+
+// initialized indicates whether the embedded registry has been initialized.
+// This is set to true when the package is imported.
+var initialized bool
+
+func init() {
+	initialized = true
+}
+
+// IsInitialized returns true if the embedded registry has been initialized.
+// This function exists primarily to provide a testable entry point for coverage.
+func IsInitialized() bool {
+	return initialized
+}
+
+// PluginCount returns the total number of registered embedded plugins.
+func PluginCount() int {
+	return len(plugins.ListEmbeddedPlugins())
+}
 

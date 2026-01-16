@@ -2098,3 +2098,90 @@ func TestGetCapsuleMetadata(t *testing.T) {
 		t.Error("recomputed metadata should match original")
 	}
 }
+
+func TestTrimArchiveSuffix(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"capsule.tar.gz", "test.capsule.tar.gz", "test"},
+		{"capsule.tar.xz", "test.capsule.tar.xz", "test"},
+		{"tar.gz", "test.tar.gz", "test"},
+		{"tar.xz", "test.tar.xz", "test"},
+		{"no suffix", "test", "test"},
+		{"partial match", "test.tar", "test.tar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := trimArchiveSuffix(tt.input)
+			if result != tt.expected {
+				t.Errorf("trimArchiveSuffix(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseLicenseText(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		expected string
+	}{
+		{
+			name:     "GPL-3.0",
+			text:     "This is licensed under the GNU General Public License, Version 3",
+			expected: "GPL-3.0",
+		},
+		{
+			name:     "GPL-2.0",
+			text:     "GNU General Public License Version 2",
+			expected: "GPL-2.0",
+		},
+		{
+			name:     "MIT",
+			text:     "MIT License\n\nCopyright (c) 2024",
+			expected: "MIT",
+		},
+		{
+			name:     "Apache-2.0",
+			text:     "Apache License\nVersion 2.0",
+			expected: "Apache-2.0",
+		},
+		{
+			name:     "Public Domain",
+			text:     "This work is in the Public Domain",
+			expected: "Public Domain",
+		},
+		{
+			name:     "GPL-3 shorthand",
+			text:     "Licensed under GPL-3",
+			expected: "GPL-3.0",
+		},
+		{
+			name:     "GPL-2 shorthand",
+			text:     "Licensed under GPL-2",
+			expected: "GPL-2.0",
+		},
+		{
+			name:     "Unknown license",
+			text:     "Some proprietary license",
+			expected: "See LICENSE file",
+		},
+		{
+			name:     "Empty text",
+			text:     "",
+			expected: "See LICENSE file",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseLicenseText(tt.text)
+			if result != tt.expected {
+				t.Errorf("parseLicenseText(%q) = %q, want %q", tt.text, result, tt.expected)
+			}
+		})
+	}
+}

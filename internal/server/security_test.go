@@ -201,12 +201,32 @@ func TestSanitizeURL(t *testing.T) {
 			expected: "./relative/path",
 		},
 		{
+			input:    "../relative/path",
+			expected: "../relative/path",
+		},
+		{
+			input:    "/path/with/javascript:inurl",
+			expected: "",
+		},
+		{
+			input:    "https://example.com/with/javascript:inurl",
+			expected: "",
+		},
+		{
 			input:    "file:///etc/passwd",
+			expected: "",
+		},
+		{
+			input:    "ftp://example.com",
 			expected: "",
 		},
 		{
 			input:    "",
 			expected: "",
+		},
+		{
+			input:    "  https://example.com  ",
+			expected: "https://example.com",
 		},
 	}
 

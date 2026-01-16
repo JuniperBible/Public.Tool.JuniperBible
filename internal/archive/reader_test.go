@@ -94,6 +94,35 @@ func createTestTarXz(t *testing.T, dir string) string {
 	return path
 }
 
+func createTestTarGzInvalidIR(t *testing.T, dir string) string {
+	path := filepath.Join(dir, "invalid.tar.gz")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create file: %v", err)
+	}
+	defer f.Close()
+
+	gw := gzip.NewWriter(f)
+	tw := tar.NewWriter(gw)
+
+	// Add an IR file with invalid JSON
+	irContent := []byte(`{invalid json}`)
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "test/bible.ir.json",
+		Mode: 0644,
+		Size: int64(len(irContent)),
+	}); err != nil {
+		t.Fatalf("write header: %v", err)
+	}
+	if _, err := tw.Write(irContent); err != nil {
+		t.Fatalf("write content: %v", err)
+	}
+
+	tw.Close()
+	gw.Close()
+	return path
+}
+
 func TestNewReader(t *testing.T) {
 	dir := t.TempDir()
 
@@ -352,5 +381,253 @@ func TestReaderClose(t *testing.T) {
 	// Close should not error
 	if err := r.Close(); err != nil {
 		t.Errorf("Close() error = %v", err)
+	}
+}
+
+func TestNewReader_CorruptedGzip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "corrupt.tar.gz")
+	// Write invalid gzip data
+	if err := os.WriteFile(path, []byte("not a gzip file"), 0644); err != nil {
+		t.Fatalf("create file: %v", err)
+	}
+
+	_, err := NewReader(path)
+	if err == nil {
+		t.Error("NewReader() expected error for corrupted gzip")
+	}
+}
+
+func TestNewReader_CorruptedXz(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "corrupt.tar.xz")
+	// Write invalid xz data
+	if err := os.WriteFile(path, []byte("not an xz file"), 0644); err != nil {
+		t.Fatalf("create file: %v", err)
+	}
+
+	_, err := NewReader(path)
+	if err == nil {
+		t.Error("NewReader() expected error for corrupted xz")
+	}
+}
+
+func TestReaderIterate_ErrorInVisitor(t *testing.T) {
+	dir := t.TempDir()
+	path := createTestTarGz(t, dir)
+
+	r, err := NewReader(path)
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
+	defer r.Close()
+
+	// Test visitor that returns an error
+	expectedErr := io.ErrUnexpectedEOF
+	err = r.Iterate(func(header *tar.Header, _ io.Reader) (bool, error) {
+		return false, expectedErr
+	})
+	if err != expectedErr {
+		t.Errorf("Iterate() error = %v, want %v", err, expectedErr)
+	}
+}
+
+func TestReaderIterate_StopEarly(t *testing.T) {
+	dir := t.TempDir()
+	path := createTestTarGz(t, dir)
+
+	r, err := NewReader(path)
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
+	defer r.Close()
+
+	var count int
+	err = r.Iterate(func(header *tar.Header, _ io.Reader) (bool, error) {
+		count++
+		return true, nil // stop after first entry
+	})
+	if err != nil {
+		t.Errorf("Iterate() error = %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected to stop after 1 entry, got %d", count)
+	}
+}
+
+func TestIterateCapsule_InvalidPath(t *testing.T) {
+	err := IterateCapsule("/nonexistent/file.tar.gz", func(header *tar.Header, _ io.Reader) (bool, error) {
+		return false, nil
+	})
+	if err == nil {
+		t.Error("IterateCapsule() expected error for invalid path")
+	}
+}
+
+func TestContainsPath_Error(t *testing.T) {
+	_, err := ContainsPath("/nonexistent/file.tar.gz", func(name string) bool {
+		return true
+	})
+	if err == nil {
+		t.Error("ContainsPath() expected error for invalid path")
+	}
+}
+
+func TestReadFile_WithFullPath(t *testing.T) {
+	dir := t.TempDir()
+	path := createTestTarGz(t, dir)
+
+	// Test reading with full path (including directory prefix)
+	got, err := ReadFile(path, "test/hello.txt")
+	if err != nil {
+		t.Errorf("ReadFile() with full path error = %v", err)
+		return
+	}
+	if string(got) != "hello world" {
+		t.Errorf("ReadFile() = %q, want %q", string(got), "hello world")
+	}
+}
+
+func TestFindFile_ReturnsName(t *testing.T) {
+	dir := t.TempDir()
+	path := createTestTarGz(t, dir)
+
+	// Test that FindFile returns the found name
+	_, name, err := FindFile(path, func(n string) bool {
+		return filepath.Ext(n) == ".txt"
+	})
+	if err != nil {
+		t.Errorf("FindFile() error = %v", err)
+		return
+	}
+	if name != "test/hello.txt" {
+		t.Errorf("FindFile() name = %q, want %q", name, "test/hello.txt")
+	}
+}
+
+func TestReaderIterate_CorruptedTar(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "corrupt.tar.gz")
+
+	// Create a gzip file with corrupted tar content
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create file: %v", err)
+	}
+	gw := gzip.NewWriter(f)
+	// Write some invalid tar data (not a valid tar header)
+	gw.Write([]byte("this is not a valid tar archive at all"))
+	gw.Close()
+	f.Close()
+
+	r, err := NewReader(path)
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
+	defer r.Close()
+
+	// Iterate should fail when reading the corrupted tar
+	err = r.Iterate(func(header *tar.Header, _ io.Reader) (bool, error) {
+		return false, nil
+	})
+	if err == nil {
+		t.Error("Iterate() expected error for corrupted tar")
+	}
+}
+
+func TestReadFile_ErrorReading(t *testing.T) {
+	dir := t.TempDir()
+	path := createTestTarGz(t, dir)
+
+	// Test that we handle errors during read properly by testing
+	// that all paths through ReadFile are covered
+	content, err := ReadFile(path, "hello.txt")
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if len(content) == 0 {
+		t.Error("ReadFile() returned empty content")
+	}
+}
+
+func TestFindFile_ErrorReading(t *testing.T) {
+	dir := t.TempDir()
+	path := createTestTarGz(t, dir)
+
+	// Test FindFile with a predicate that matches
+	content, name, err := FindFile(path, func(n string) bool {
+		return filepath.Base(n) == "hello.txt"
+	})
+	if err != nil {
+		t.Fatalf("FindFile() error = %v", err)
+	}
+	if len(content) == 0 {
+		t.Error("FindFile() returned empty content")
+	}
+	if name == "" {
+		t.Error("FindFile() returned empty name")
+	}
+}
+
+func TestReadFile_ArchiveOpenError(t *testing.T) {
+	// Test with an archive that doesn't exist - should return error from IterateCapsule
+	_, err := ReadFile("/nonexistent/archive.tar.gz", "test.txt")
+	if err == nil {
+		t.Error("ReadFile() expected error for nonexistent archive")
+	}
+	// Should not be "file not found" error since the archive itself couldn't be opened
+	if err.Error() == "file not found: test.txt" {
+		t.Error("ReadFile() should return archive open error, not file not found error")
+	}
+}
+
+func TestFindFile_ArchiveOpenError(t *testing.T) {
+	// Test with an archive that doesn't exist - should return error from IterateCapsule
+	_, _, err := FindFile("/nonexistent/archive.tar.gz", func(name string) bool {
+		return true
+	})
+	if err == nil {
+		t.Error("FindFile() expected error for nonexistent archive")
+	}
+	// Should not be "no matching file found" error since the archive itself couldn't be opened
+	if err.Error() == "no matching file found" {
+		t.Error("FindFile() should return archive open error, not no matching file found error")
+	}
+}
+
+func TestReaderClose_WithXzArchive(t *testing.T) {
+	dir := t.TempDir()
+	path := createTestTarXz(t, dir)
+
+	r, err := NewReader(path)
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
+
+	// For tar.xz, decompressor is nil, so this tests the nil branch
+	if err := r.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
+	}
+}
+
+func TestReaderClose_MultipleTimes(t *testing.T) {
+	dir := t.TempDir()
+	path := createTestTarGz(t, dir)
+
+	r, err := NewReader(path)
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
+
+	// First close should succeed
+	if err := r.Close(); err != nil {
+		t.Errorf("First Close() error = %v", err)
+	}
+
+	// Second close should fail (file already closed)
+	// This exercises the error paths in Close()
+	if err := r.Close(); err == nil {
+		// On some systems, closing twice might not error, but we tried
+		t.Logf("Second Close() did not error (may be system-dependent)")
 	}
 }

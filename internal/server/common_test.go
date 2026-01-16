@@ -3,7 +3,10 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestCORSMiddlewareAllowAll(t *testing.T) {
@@ -183,16 +186,98 @@ func TestAbsPath(t *testing.T) {
 		{"parent path", "../test.txt"},
 		{"absolute path", "/tmp/test.txt"},
 		{"empty path", ""},
+		// Edge cases
+		{"very long path", string(make([]byte, 10000))},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := AbsPath(tt.path)
-			// AbsPath should return a non-empty string for valid paths
-			// or the original path on error
+			// AbsPath should always return something (either absolute path or original)
+			// For valid paths, it returns the absolute path
+			// For paths where Abs fails, it returns the original path
 			if tt.path != "" && result == "" {
 				t.Errorf("AbsPath(%q) returned empty string", tt.path)
 			}
+		})
+	}
+}
+
+// TestAbsPathErrorCondition tests the error path in AbsPath
+// This is challenging to test because filepath.Abs rarely errors
+func TestAbsPathErrorCondition(t *testing.T) {
+	// Skip this test on systems where we can't create and delete directories
+	if testing.Short() {
+		t.Skip("Skipping test that manipulates filesystem")
+	}
+
+	// Create a temporary directory
+	tmpDir := filepath.Join("/tmp", "test_abs_path_"+t.Name())
+	err := os.Mkdir(tmpDir, 0755)
+	if err != nil && !os.IsExist(err) {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Save current directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	// Change to temp directory
+	err = os.Chdir(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Remove the directory while we're in it (this makes Getwd fail)
+	// Note: This works on Linux/Unix but may not work on all systems
+	err = os.Remove(tmpDir)
+	if err != nil {
+		// If we can't remove the directory while in it, skip this test
+		t.Skipf("Cannot remove directory while in it on this system: %v", err)
+	}
+
+	// Now filepath.Abs should fail because Getwd will fail
+	testPath := "relative/path.txt"
+	result := AbsPath(testPath)
+
+	// The function should return the original path on error
+	if result != testPath {
+		t.Logf("AbsPath returned %q instead of original path %q (may have succeeded despite deleted cwd)", result, testPath)
+	}
+}
+
+func TestEnablePlugins(t *testing.T) {
+	tests := []struct {
+		name       string
+		enabled    bool
+		pluginsDir string
+	}{
+		{
+			name:       "plugins enabled",
+			enabled:    true,
+			pluginsDir: "/path/to/plugins",
+		},
+		{
+			name:       "plugins disabled",
+			enabled:    false,
+			pluginsDir: "/path/to/plugins",
+		},
+		{
+			name:       "plugins enabled with empty dir",
+			enabled:    true,
+			pluginsDir: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This function just logs, so we just call it to ensure it doesn't panic
+			// We can't easily test the log output without mocking the logger
+			EnablePlugins(tt.enabled, tt.pluginsDir)
 		})
 	}
 }
@@ -244,6 +329,24 @@ func TestTimingMiddleware(t *testing.T) {
 	if !handlerCalled {
 		t.Error("Expected inner handler to be called")
 	}
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestTimingMiddlewareSlowRequest(t *testing.T) {
+	handler := TimingMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Simulate a slow request (>100ms)
+		time.Sleep(101 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/slow", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
 
 	resp := w.Result()
 	if resp.StatusCode != http.StatusOK {

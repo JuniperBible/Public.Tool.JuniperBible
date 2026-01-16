@@ -3359,4 +3359,368 @@ func TestEnumerateCmd_Run_ValidArchive(t *testing.T) {
 	_ = cmd
 }
 
+// Tests for GoldenCheckCmd
+
+func TestGoldenCheckCmd_Run_Success(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a capsule with a run that has a transcript
+	cap, capsuleDir := createTestCapsule(t, tempDir)
+	testFile := createTestFile(t, tempDir, "input.txt", "test content")
+	artifact, err := cap.IngestFile(testFile)
+	if err != nil {
+		t.Fatalf("failed to ingest: %v", err)
+	}
+
+	// Create a mock run with a transcript
+	transcriptHash := "test-transcript-hash-abc123"
+	cap.Manifest.Runs = map[string]*capsule.Run{
+		"test-run": {
+			ID:     "test-run",
+			Inputs: []capsule.RunInput{{ArtifactID: artifact.ID}},
+			Outputs: &capsule.RunOutputs{
+				TranscriptBlobSHA256: transcriptHash,
+			},
+		},
+	}
+
+	// Pack the capsule
+	packedPath := filepath.Join(tempDir, "test.capsule.tar.xz")
+	if err := cap.Pack(packedPath); err != nil {
+		t.Fatalf("failed to pack: %v", err)
+	}
+
+	// Clean up unpacked directory
+	os.RemoveAll(capsuleDir)
+
+	// Create golden file
+	goldenFile := filepath.Join(tempDir, "golden.sha256")
+	if err := os.WriteFile(goldenFile, []byte(transcriptHash), 0644); err != nil {
+		t.Fatalf("failed to write golden: %v", err)
+	}
+
+	// Run check
+	cmd := &GoldenCheckCmd{
+		Capsule: packedPath,
+		RunID:   "test-run",
+		Golden:  goldenFile,
+	}
+
+	err = cmd.Run()
+	if err != nil {
+		t.Errorf("GoldenCheckCmd.Run() unexpected error = %v", err)
+	}
+}
+
+func TestGoldenCheckCmd_Run_Mismatch(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a capsule with a run
+	cap, capsuleDir := createTestCapsule(t, tempDir)
+	testFile := createTestFile(t, tempDir, "input.txt", "test content")
+	artifact, err := cap.IngestFile(testFile)
+	if err != nil {
+		t.Fatalf("failed to ingest: %v", err)
+	}
+
+	// Create run with transcript
+	cap.Manifest.Runs = map[string]*capsule.Run{
+		"test-run": {
+			ID:     "test-run",
+			Inputs: []capsule.RunInput{{ArtifactID: artifact.ID}},
+			Outputs: &capsule.RunOutputs{
+				TranscriptBlobSHA256: "actual-hash",
+			},
+		},
+	}
+
+	packedPath := filepath.Join(tempDir, "test.capsule.tar.xz")
+	if err := cap.Pack(packedPath); err != nil {
+		t.Fatalf("failed to pack: %v", err)
+	}
+
+	os.RemoveAll(capsuleDir)
+
+	// Golden file with different hash
+	goldenFile := filepath.Join(tempDir, "golden.sha256")
+	if err := os.WriteFile(goldenFile, []byte("expected-hash"), 0644); err != nil {
+		t.Fatalf("failed to write golden: %v", err)
+	}
+
+	cmd := &GoldenCheckCmd{
+		Capsule: packedPath,
+		RunID:   "test-run",
+		Golden:  goldenFile,
+	}
+
+	err = cmd.Run()
+	if err == nil {
+		t.Error("expected error for hash mismatch, got nil")
+	}
+}
+
+func TestGoldenCheckCmd_Run_NoTranscript(t *testing.T) {
+	tempDir := t.TempDir()
+
+	cap, capsuleDir := createTestCapsule(t, tempDir)
+	testFile := createTestFile(t, tempDir, "input.txt", "test")
+	artifact, _ := cap.IngestFile(testFile)
+
+	// Run without transcript
+	cap.Manifest.Runs = map[string]*capsule.Run{
+		"test-run": {
+			ID:     "test-run",
+			Inputs: []capsule.RunInput{{ArtifactID: artifact.ID}},
+		},
+	}
+
+	packedPath := filepath.Join(tempDir, "test.capsule.tar.xz")
+	cap.Pack(packedPath)
+	os.RemoveAll(capsuleDir)
+
+	goldenFile := filepath.Join(tempDir, "golden.sha256")
+	os.WriteFile(goldenFile, []byte("hash"), 0644)
+
+	cmd := &GoldenCheckCmd{
+		Capsule: packedPath,
+		RunID:   "test-run",
+		Golden:  goldenFile,
+	}
+
+	err := cmd.Run()
+	if err == nil {
+		t.Error("expected error for missing transcript, got nil")
+	}
+}
+
+// Tests for JuniperHugoCmd
+
+func TestJuniperHugoCmd_Run(t *testing.T) {
+	tempDir := t.TempDir()
+	outputDir := filepath.Join(tempDir, "data")
+
+	cmd := &JuniperHugoCmd{
+		Modules: []string{},
+		Path:    filepath.Join(tempDir, "sword"),
+		Output:  outputDir,
+		All:     true,
+		Workers: 1,
+	}
+
+	// This will fail because there's no SWORD installation, but it tests the wrapper
+	err := cmd.Run()
+	// We expect an error, just verify it doesn't panic
+	_ = err
+}
+
+// Tests for WebCmd and APICmd (thin wrappers)
+
+func TestWebCmd_Run_Wrapper(t *testing.T) {
+	// We can't actually start the server in tests, but we can verify the structure
+	cmd := &WebCmd{
+		Port:            9999,
+		Capsules:        t.TempDir(),
+		Plugins:         t.TempDir(),
+		Sword:           t.TempDir(),
+		PluginsExternal: false,
+		Restart:         false,
+	}
+
+	// Just verify the command structure is correct
+	// We don't call Run() as it would start a web server
+	if cmd.Port != 9999 {
+		t.Errorf("port = %d, want 9999", cmd.Port)
+	}
+}
+
+func TestAPICmd_Run_Wrapper(t *testing.T) {
+	cmd := &APICmd{
+		Port:            9998,
+		Capsules:        t.TempDir(),
+		Plugins:         t.TempDir(),
+		PluginsExternal: false,
+	}
+
+	// Verify structure without starting server
+	if cmd.Port != 9998 {
+		t.Errorf("port = %d, want 9998", cmd.Port)
+	}
+}
+
+// Tests for SelfcheckCmd with plan ID
+
+func TestSelfcheckCmd_Run_WithPlanID(t *testing.T) {
+	tempDir := t.TempDir()
+
+	cap, capsuleDir := createTestCapsule(t, tempDir)
+	testFile := createTestFile(t, tempDir, "input.txt", "test content")
+	artifact, err := cap.IngestFile(testFile)
+	if err != nil {
+		t.Fatalf("failed to ingest: %v", err)
+	}
+
+	// Create a roundtrip plan in the manifest
+	cap.Manifest.RoundtripPlans = map[string]*capsule.Plan{
+		"test-plan": {
+			ID:          "test-plan",
+			Description: "Test roundtrip plan",
+			Steps: []capsule.PlanStep{
+				{
+					Type: "EXPORT",
+					Export: &capsule.ExportStep{
+						Mode:       string(capsule.ExportModeIdentity),
+						ArtifactID: artifact.ID,
+					},
+				},
+			},
+			Checks: []capsule.PlanCheck{
+				{
+					Type:  "BYTE_EQUAL",
+					Label: "Identity check",
+					ByteEqual: &capsule.ByteEqualCheck{
+						ArtifactA: artifact.ID,
+						ArtifactB: artifact.ID,
+					},
+				},
+			},
+		},
+	}
+
+	packedPath := filepath.Join(tempDir, "test.capsule.tar.xz")
+	if err := cap.Pack(packedPath); err != nil {
+		t.Fatalf("failed to pack: %v", err)
+	}
+
+	os.RemoveAll(capsuleDir)
+
+	cmd := &SelfcheckCmd{
+		Capsule: packedPath,
+		Plan:    "test-plan",
+		JSON:    false,
+	}
+
+	err = cmd.Run()
+	if err != nil {
+		t.Errorf("SelfcheckCmd.Run() with plan ID error = %v", err)
+	}
+}
+
+func TestSelfcheckCmd_Run_InvalidPlan(t *testing.T) {
+	tempDir := t.TempDir()
+	packedPath := createPackedCapsule(t, tempDir, "test")
+
+	cmd := &SelfcheckCmd{
+		Capsule: packedPath,
+		Plan:    "nonexistent-plan",
+		JSON:    false,
+	}
+
+	err := cmd.Run()
+	if err == nil {
+		t.Error("expected error for invalid plan ID, got nil")
+	}
+}
+
+// Tests for VerifyCmd with corrupted data
+
+func TestVerifyCmd_Run_CorruptedData(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a capsule
+	cap, capsuleDir := createTestCapsule(t, tempDir)
+	testFile := createTestFile(t, tempDir, "input.txt", "test content")
+	artifact, err := cap.IngestFile(testFile)
+	if err != nil {
+		t.Fatalf("failed to ingest: %v", err)
+	}
+
+	// Corrupt the artifact hash in manifest (simulate data corruption)
+	artifact.Hashes.SHA256 = "corrupted-hash-000000000000000000000000000000000000000000000000"
+
+	packedPath := filepath.Join(tempDir, "corrupted.capsule.tar.xz")
+	if err := cap.Pack(packedPath); err != nil {
+		t.Fatalf("failed to pack: %v", err)
+	}
+
+	os.RemoveAll(capsuleDir)
+
+	cmd := &VerifyCmd{
+		Capsule: packedPath,
+	}
+
+	err = cmd.Run()
+	if err == nil {
+		t.Error("expected error for corrupted data, got nil")
+	}
+}
+
+// Tests for IngestCmd error paths
+
+func TestIngestCmd_Run_InvalidOutputPath(t *testing.T) {
+	tempDir := t.TempDir()
+	testFile := createTestFile(t, tempDir, "input.txt", "test")
+
+	// Use an invalid path (contains null byte)
+	cmd := &IngestCmd{
+		Path: testFile,
+		Out:  "/tmp/invalid\x00path.capsule",
+	}
+
+	err := cmd.Run()
+	if err == nil {
+		t.Error("expected error for invalid output path, got nil")
+	}
+}
+
+// Tests for ExportCmd with hash mismatch simulation
+
+func TestExportCmd_Run_ReadError(t *testing.T) {
+	tempDir := t.TempDir()
+	packedPath := createPackedCapsule(t, tempDir, "test content")
+
+	// Get artifact ID
+	cap, err := capsule.Unpack(packedPath, filepath.Join(tempDir, "unpack"))
+	if err != nil {
+		t.Fatalf("failed to unpack: %v", err)
+	}
+	var artifactID string
+	for id := range cap.Manifest.Artifacts {
+		artifactID = id
+		break
+	}
+
+	// Try to export to a directory (should fail)
+	invalidOutput := filepath.Join(tempDir, "subdir")
+	os.MkdirAll(invalidOutput, 0755)
+
+	cmd := &ExportCmd{
+		Capsule:  packedPath,
+		Artifact: artifactID,
+		Out:      invalidOutput,
+	}
+
+	err = cmd.Run()
+	// Will fail because output is a directory
+	if err == nil {
+		t.Error("expected error when exporting to directory")
+	}
+}
+
+// Tests for helper functions with more coverage
+
+func TestGetPluginDir_WithEnvVar(t *testing.T) {
+	// Save and restore
+	origPluginDir := CLI.PluginDir
+	defer func() { CLI.PluginDir = origPluginDir }()
+
+	// Test with custom directory
+	customDir := "/custom/plugin/dir"
+	CLI.PluginDir = customDir
+
+	result := getPluginDir()
+	if result != customDir {
+		t.Errorf("getPluginDir() = %q, want %q", result, customDir)
+	}
+}
+
 

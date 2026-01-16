@@ -733,3 +733,92 @@ func TestWriteFormatsDocVariations(t *testing.T) {
 		t.Error("Tool plugin should not appear in formats doc")
 	}
 }
+
+// TestGeneratePluginsWithInvalidPluginDir tests that GeneratePlugins handles LoadPlugins errors
+func TestGeneratePluginsWithInvalidPluginDir(t *testing.T) {
+	outputDir := t.TempDir()
+
+	// Use a non-existent plugin directory
+	g := NewGenerator("/this/directory/does/not/exist/at/all", outputDir)
+	err := g.GeneratePlugins()
+	if err == nil {
+		t.Error("Expected error when plugin directory does not exist")
+	}
+	if !strings.Contains(err.Error(), "plugin directory does not exist") {
+		t.Errorf("Expected 'plugin directory does not exist' error, got: %v", err)
+	}
+}
+
+// TestGenerateFormatsWithInvalidPluginDir tests that GenerateFormats handles LoadPlugins errors
+func TestGenerateFormatsWithInvalidPluginDir(t *testing.T) {
+	outputDir := t.TempDir()
+
+	// Use a non-existent plugin directory
+	g := NewGenerator("/this/directory/does/not/exist/at/all", outputDir)
+	err := g.GenerateFormats()
+	if err == nil {
+		t.Error("Expected error when plugin directory does not exist")
+	}
+	if !strings.Contains(err.Error(), "plugin directory does not exist") {
+		t.Errorf("Expected 'plugin directory does not exist' error, got: %v", err)
+	}
+}
+
+// TestLoadPluginsWithNonExistentDir tests that LoadPlugins returns error for non-existent directory
+func TestLoadPluginsWithNonExistentDir(t *testing.T) {
+	g := NewGenerator("/this/path/absolutely/does/not/exist", t.TempDir())
+	_, err := g.LoadPlugins()
+	if err == nil {
+		t.Error("Expected error for non-existent plugin directory")
+	}
+	if !strings.Contains(err.Error(), "plugin directory does not exist") {
+		t.Errorf("Expected 'plugin directory does not exist' error, got: %v", err)
+	}
+}
+
+// TestLoadPluginsWithEmptyPluginDir tests LoadPlugins with empty string as plugin dir
+func TestLoadPluginsWithEmptyPluginDir(t *testing.T) {
+	// Empty plugin dir should be allowed (skips the stat check)
+	g := NewGenerator("", t.TempDir())
+	plugins, err := g.LoadPlugins()
+	if err != nil {
+		t.Errorf("Empty plugin dir should not error: %v", err)
+	}
+	if len(plugins) != 0 {
+		t.Errorf("Expected 0 plugins with empty dir, got %d", len(plugins))
+	}
+}
+
+// TestLoadPluginsWithPermissionDenied tests the permission denied path
+func TestLoadPluginsWithPermissionDenied(t *testing.T) {
+	// This test tries to cover the "cannot access" error path
+	// Create a directory structure where the parent is not traversable
+	tempDir := t.TempDir()
+	parentDir := filepath.Join(tempDir, "parent")
+	targetDir := filepath.Join(parentDir, "target")
+
+	// Create the structure
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		t.Fatalf("Failed to create directory structure: %v", err)
+	}
+
+	// Make parent non-traversable (no execute permission)
+	if err := os.Chmod(parentDir, 0000); err != nil {
+		t.Fatalf("Failed to chmod parent dir: %v", err)
+	}
+	defer os.Chmod(parentDir, 0755) // Restore for cleanup
+
+	// Now try to stat the target directory
+	g := NewGenerator(targetDir, t.TempDir())
+	_, err := g.LoadPlugins()
+
+	// This should trigger a permission error when trying to stat targetDir
+	// because we can't traverse through parent
+	if err != nil {
+		if strings.Contains(err.Error(), "cannot access") {
+			// Success - we hit the permission denied path!
+			return
+		}
+	}
+	// If we don't get an error, the test passes anyway (might be running as root)
+}

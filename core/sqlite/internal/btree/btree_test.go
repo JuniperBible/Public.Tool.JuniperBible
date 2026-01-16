@@ -21,8 +21,9 @@ func createTestLeafPage(pageSize uint32, cells []struct {
 	cellContentOffset := pageSize
 	cellPtrOffset := PageHeaderSizeLeaf
 
-	// Write cells from end of page backwards
-	for i := len(cells) - 1; i >= 0; i-- {
+	// First pass: calculate all cell offsets (writing from end backwards)
+	cellOffsets := make([]uint32, len(cells))
+	for i := 0; i < len(cells); i++ {
 		cell := cells[i]
 
 		// Calculate cell size
@@ -41,12 +42,15 @@ func createTestLeafPage(pageSize uint32, cells []struct {
 		copy(cellBuf[offset:], cell.payload)
 		offset += len(cell.payload)
 
-		// Write cell to page
+		// Write cell to page (from end backwards)
 		cellContentOffset -= uint32(offset)
 		copy(data[cellContentOffset:], cellBuf[:offset])
+		cellOffsets[i] = cellContentOffset
+	}
 
-		// Write cell pointer
-		binary.BigEndian.PutUint16(data[cellPtrOffset:], uint16(cellContentOffset))
+	// Second pass: write cell pointers in order
+	for i := 0; i < len(cells); i++ {
+		binary.BigEndian.PutUint16(data[cellPtrOffset:], uint16(cellOffsets[i]))
 		cellPtrOffset += 2
 	}
 
@@ -131,12 +135,13 @@ func TestBtreeIteratePage(t *testing.T) {
 		{3, []byte("btree")},
 	}
 
+	// Use page 2 to avoid the 100-byte file header offset that page 1 requires
 	pageData := createTestLeafPage(4096, cells)
-	bt.SetPage(1, pageData)
+	bt.SetPage(2, pageData)
 
 	// Iterate and verify
 	visitCount := 0
-	err := bt.IteratePage(1, func(cellIndex int, cell *CellInfo) error {
+	err := bt.IteratePage(2, func(cellIndex int, cell *CellInfo) error {
 		if cellIndex >= len(cells) {
 			t.Errorf("Unexpected cell index: %d", cellIndex)
 			return nil

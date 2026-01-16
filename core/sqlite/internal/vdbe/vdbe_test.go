@@ -491,6 +491,124 @@ func TestVdbeReset(t *testing.T) {
 	}
 }
 
+func TestResultRowHandling(t *testing.T) {
+	t.Run("SingleRowResult", func(t *testing.T) {
+		v := New()
+		v.AllocMemory(10)
+
+		// Program: r[1] = 42; r[2] = "hello"; ResultRow(r[1], r[2]); Halt
+		v.AddOp(OpInteger, 42, 1, 0)
+		v.AddOpWithP4Str(OpString8, 0, 2, 0, "hello") // P2=2 is the destination register
+		v.AddOp(OpResultRow, 1, 2, 0) // Output registers 1-2
+		v.AddOp(OpHalt, 0, 0, 0)
+
+		// First step should execute until ResultRow
+		hasMore, err := v.Step()
+		if err != nil {
+			t.Fatalf("Step failed: %v", err)
+		}
+
+		if !hasMore {
+			t.Error("Expected more steps after ResultRow")
+		}
+
+		if v.State != StateRowReady {
+			t.Errorf("Expected StateRowReady, got %v", v.State)
+		}
+
+		// Check that ResultRow is populated
+		if v.ResultRow == nil {
+			t.Fatal("ResultRow should be populated")
+		}
+
+		if len(v.ResultRow) != 2 {
+			t.Fatalf("Expected 2 columns, got %d", len(v.ResultRow))
+		}
+
+		if v.ResultRow[0].IntValue() != 42 {
+			t.Errorf("Expected first column to be 42, got %d", v.ResultRow[0].IntValue())
+		}
+
+		if v.ResultRow[1].StrValue() != "hello" {
+			t.Errorf("Expected second column to be 'hello', got '%s'", v.ResultRow[1].StrValue())
+		}
+
+		// Next step should clear ResultRow and halt
+		hasMore, err = v.Step()
+		if err != nil {
+			t.Fatalf("Second step failed: %v", err)
+		}
+
+		if hasMore {
+			t.Error("Expected no more steps after Halt")
+		}
+
+		if v.State != StateHalt {
+			t.Errorf("Expected StateHalt, got %v", v.State)
+		}
+	})
+
+	t.Run("MultipleRowResults", func(t *testing.T) {
+		v := New()
+		v.AllocMemory(10)
+
+		// Program that outputs 3 rows:
+		// r[1] = 1; ResultRow(r[1]); r[1] = 2; ResultRow(r[1]); r[1] = 3; ResultRow(r[1]); Halt
+		v.AddOp(OpInteger, 1, 1, 0)
+		v.AddOp(OpResultRow, 1, 1, 0)
+		v.AddOp(OpInteger, 2, 1, 0)
+		v.AddOp(OpResultRow, 1, 1, 0)
+		v.AddOp(OpInteger, 3, 1, 0)
+		v.AddOp(OpResultRow, 1, 1, 0)
+		v.AddOp(OpHalt, 0, 0, 0)
+
+		// First row
+		hasMore, err := v.Step()
+		if err != nil {
+			t.Fatalf("Step 1 failed: %v", err)
+		}
+		if !hasMore || v.State != StateRowReady {
+			t.Error("Expected StateRowReady after first ResultRow")
+		}
+		if v.ResultRow[0].IntValue() != 1 {
+			t.Errorf("Expected first row value 1, got %d", v.ResultRow[0].IntValue())
+		}
+
+		// Second row
+		hasMore, err = v.Step()
+		if err != nil {
+			t.Fatalf("Step 2 failed: %v", err)
+		}
+		if !hasMore || v.State != StateRowReady {
+			t.Error("Expected StateRowReady after second ResultRow")
+		}
+		if v.ResultRow[0].IntValue() != 2 {
+			t.Errorf("Expected second row value 2, got %d", v.ResultRow[0].IntValue())
+		}
+
+		// Third row
+		hasMore, err = v.Step()
+		if err != nil {
+			t.Fatalf("Step 3 failed: %v", err)
+		}
+		if !hasMore || v.State != StateRowReady {
+			t.Error("Expected StateRowReady after third ResultRow")
+		}
+		if v.ResultRow[0].IntValue() != 3 {
+			t.Errorf("Expected third row value 3, got %d", v.ResultRow[0].IntValue())
+		}
+
+		// Halt
+		hasMore, err = v.Step()
+		if err != nil {
+			t.Fatalf("Step 4 failed: %v", err)
+		}
+		if hasMore || v.State != StateHalt {
+			t.Error("Expected StateHalt after processing all rows")
+		}
+	})
+}
+
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) &&

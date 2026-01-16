@@ -76,6 +76,12 @@ func (p *DbPage) IsClean() bool {
 	return !p.IsDirty()
 }
 
+// GetPgno returns the page number.
+// This implements the DbPageInterface used by btree's PagerAdapter.
+func (p *DbPage) GetPgno() uint32 {
+	return uint32(p.Pgno)
+}
+
 // IsWriteable returns true if the page is journaled and ready to be modified.
 func (p *DbPage) IsWriteable() bool {
 	p.mu.RLock()

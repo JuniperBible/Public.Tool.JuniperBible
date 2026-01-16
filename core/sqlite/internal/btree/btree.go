@@ -4,12 +4,20 @@ import (
 	"fmt"
 )
 
+// PageProvider is an interface for page access (can be pager or in-memory)
+type PageProvider interface {
+	GetPageData(pgno uint32) ([]byte, error)
+	AllocatePageData() (uint32, []byte, error)
+	MarkDirty(pgno uint32) error
+}
+
 // Btree represents a B-tree database file
 type Btree struct {
-	PageSize     uint32      // Size of each page in bytes
-	UsableSize   uint32      // Usable bytes per page (pageSize - reserved)
-	ReservedSize uint32      // Reserved bytes at end of each page
+	PageSize     uint32            // Size of each page in bytes
+	UsableSize   uint32            // Usable bytes per page (pageSize - reserved)
+	ReservedSize uint32            // Reserved bytes at end of each page
 	Pages        map[uint32][]byte // In-memory page cache (pageNum -> page data)
+	Provider     PageProvider      // Optional page provider (pager integration)
 }
 
 // BtShared represents shared B-tree state (in SQLite, multiple Btree handles can share this)
@@ -40,9 +48,22 @@ func NewBtree(pageSize uint32) *Btree {
 
 // GetPage retrieves a page from the B-tree
 func (bt *Btree) GetPage(pageNum uint32) ([]byte, error) {
+	// Try in-memory cache first
 	if page, ok := bt.Pages[pageNum]; ok {
 		return page, nil
 	}
+
+	// If we have a provider, try to get from there
+	if bt.Provider != nil {
+		data, err := bt.Provider.GetPageData(pageNum)
+		if err != nil {
+			return nil, err
+		}
+		// Cache it
+		bt.Pages[pageNum] = data
+		return data, nil
+	}
+
 	return nil, fmt.Errorf("page %d not found", pageNum)
 }
 
@@ -52,6 +73,11 @@ func (bt *Btree) SetPage(pageNum uint32, data []byte) error {
 		return fmt.Errorf("page size mismatch: expected %d, got %d", bt.PageSize, len(data))
 	}
 	bt.Pages[pageNum] = data
+
+	// Mark as dirty if using a provider
+	if bt.Provider != nil {
+		bt.Provider.MarkDirty(pageNum)
+	}
 	return nil
 }
 
@@ -120,6 +146,16 @@ func (bt *Btree) String() string {
 
 // AllocatePage allocates a new page in the B-tree and returns its page number
 func (bt *Btree) AllocatePage() (uint32, error) {
+	// Use provider if available
+	if bt.Provider != nil {
+		pageNum, data, err := bt.Provider.AllocatePageData()
+		if err != nil {
+			return 0, err
+		}
+		bt.Pages[pageNum] = data
+		return pageNum, nil
+	}
+
 	// Find the next available page number
 	pageNum := uint32(1)
 	for {
@@ -148,27 +184,38 @@ func (bt *Btree) CreateTable() (rootPage uint32, err error) {
 		return 0, err
 	}
 
-	// Initialize the page as an empty leaf table page
-	pageData := bt.Pages[rootPage]
+	// Get the page data for initialization
+	pageData, err := bt.GetPage(rootPage)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get allocated page: %w", err)
+	}
 
-	// Set page type to leaf table
-	pageData[PageHeaderOffsetType] = PageTypeLeafTable
+	// Page 1 has a 100-byte database file header, so the page header starts at offset 100
+	// For all other pages, the page header starts at offset 0
+	headerOffset := 0
+	if rootPage == 1 {
+		headerOffset = FileHeaderSize
+	}
+
+	// Initialize the page as an empty leaf table page
+	// Set page type to leaf table (0x0D)
+	pageData[headerOffset+PageHeaderOffsetType] = PageTypeLeafTable
 
 	// Initialize header fields
-	// FirstFreeblock = 0
-	pageData[PageHeaderOffsetFreeblock] = 0
-	pageData[PageHeaderOffsetFreeblock+1] = 0
+	// FirstFreeblock = 0 (2 bytes)
+	pageData[headerOffset+PageHeaderOffsetFreeblock] = 0
+	pageData[headerOffset+PageHeaderOffsetFreeblock+1] = 0
 
-	// NumCells = 0
-	pageData[PageHeaderOffsetNumCells] = 0
-	pageData[PageHeaderOffsetNumCells+1] = 0
+	// NumCells = 0 (2 bytes)
+	pageData[headerOffset+PageHeaderOffsetNumCells] = 0
+	pageData[headerOffset+PageHeaderOffsetNumCells+1] = 0
 
-	// CellContentStart = 0 (meaning end of page)
-	pageData[PageHeaderOffsetCellStart] = 0
-	pageData[PageHeaderOffsetCellStart+1] = 0
+	// CellContentStart = 0 (2 bytes, 0 means end of page)
+	pageData[headerOffset+PageHeaderOffsetCellStart] = 0
+	pageData[headerOffset+PageHeaderOffsetCellStart+1] = 0
 
-	// FragmentedBytes = 0
-	pageData[PageHeaderOffsetFragmented] = 0
+	// FragmentedBytes = 0 (1 byte)
+	pageData[headerOffset+PageHeaderOffsetFragmented] = 0
 
 	return rootPage, nil
 }

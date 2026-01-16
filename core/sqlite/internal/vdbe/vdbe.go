@@ -8,10 +8,11 @@ import (
 type VdbeState uint8
 
 const (
-	StateInit  VdbeState = 0 // Prepared statement under construction
-	StateReady VdbeState = 1 // Ready to run but not yet started
-	StateRun   VdbeState = 2 // Run in progress
-	StateHalt  VdbeState = 3 // Finished, need reset or finalize
+	StateInit     VdbeState = 0 // Prepared statement under construction
+	StateReady    VdbeState = 1 // Ready to run but not yet started
+	StateRun      VdbeState = 2 // Run in progress
+	StateRowReady VdbeState = 3 // A result row is ready to be read
+	StateHalt     VdbeState = 4 // Finished, need reset or finalize
 )
 
 // Instruction represents a single VDBE instruction.
@@ -49,6 +50,7 @@ const (
 type Cursor struct {
 	CurType    CursorType  // Type of cursor
 	IsTable    bool        // True for rowid tables, false for indexes
+	Writable   bool        // True if cursor supports write operations
 	NullRow    bool        // True if pointing to a row with no data
 	SeekResult int         // Result of previous seek operation
 
@@ -160,6 +162,22 @@ func (v *VDBE) AddOpWithP4Str(opcode Opcode, p1, p2, p3 int, p4 string) int {
 	addr := v.AddOp(opcode, p1, p2, p3)
 	v.Program[addr].P4.Z = p4
 	v.Program[addr].P4Type = P4Static
+	return addr
+}
+
+// AddOpWithP4Real adds an instruction with a P4 real (float64) operand.
+func (v *VDBE) AddOpWithP4Real(opcode Opcode, p1, p2, p3 int, p4 float64) int {
+	addr := v.AddOp(opcode, p1, p2, p3)
+	v.Program[addr].P4.R = p4
+	v.Program[addr].P4Type = P4Real
+	return addr
+}
+
+// AddOpWithP4Blob adds an instruction with a P4 blob operand.
+func (v *VDBE) AddOpWithP4Blob(opcode Opcode, p1, p2, p3 int, p4 []byte) int {
+	addr := v.AddOp(opcode, p1, p2, p3)
+	v.Program[addr].P4.P = p4
+	v.Program[addr].P4Type = P4Dynamic
 	return addr
 }
 

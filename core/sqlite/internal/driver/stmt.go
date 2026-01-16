@@ -195,6 +195,8 @@ func (s *Stmt) compileSelect(vm *vdbe.VDBE, stmt *parser.SelectStmt, args []driv
 	rewindAddr := vm.AddOp(vdbe.OpRewind, 0, 0, 0)
 
 	// addr 3-N: Column ops - read each column into registers
+	// Calculate which columns are INTEGER PRIMARY KEY (rowid aliases)
+	// For such columns, use OpRowid instead of OpColumn
 	for i, col := range stmt.Columns {
 		// For now, assume simple column references
 		if ident, ok := col.Expr.(*parser.IdentExpr); ok {
@@ -202,8 +204,29 @@ func (s *Stmt) compileSelect(vm *vdbe.VDBE, stmt *parser.SelectStmt, args []driv
 			if colIdx == -1 {
 				return nil, fmt.Errorf("column not found: %s", ident.Name)
 			}
-			// OpColumn: read column colIdx from cursor 0 into register i
-			vm.AddOp(vdbe.OpColumn, 0, colIdx, i)
+
+			// Check if this column is INTEGER PRIMARY KEY (rowid alias)
+			columnDef := table.Columns[colIdx]
+			isRowidAlias := columnDef.PrimaryKey &&
+				(columnDef.Type == "INTEGER" || columnDef.Type == "INT")
+
+			if isRowidAlias {
+				// Use OpRowid to get the rowid value
+				vm.AddOp(vdbe.OpRowid, 0, i, 0)
+			} else {
+				// Calculate record index: subtract preceding INTEGER PRIMARY KEY columns
+				recordIdx := 0
+				for j := 0; j < colIdx; j++ {
+					prevCol := table.Columns[j]
+					isPrevRowid := prevCol.PrimaryKey &&
+						(prevCol.Type == "INTEGER" || prevCol.Type == "INT")
+					if !isPrevRowid {
+						recordIdx++
+					}
+				}
+				// OpColumn: read column recordIdx from cursor 0 into register i
+				vm.AddOp(vdbe.OpColumn, 0, recordIdx, i)
+			}
 		} else {
 			// For expressions, just put NULL for now
 			vm.AddOp(vdbe.OpNull, 0, 0, i)
@@ -247,11 +270,44 @@ func (s *Stmt) compileInsert(vm *vdbe.VDBE, stmt *parser.InsertStmt, args []driv
 		return nil, fmt.Errorf("INSERT requires VALUES clause")
 	}
 
+	// Map INSERT columns to table columns
+	// If no columns specified in INSERT, use table column order
+	insertColNames := stmt.Columns
+	if len(insertColNames) == 0 {
+		// Use all table columns in order
+		for _, col := range table.Columns {
+			insertColNames = append(insertColNames, col.Name)
+		}
+	}
+
+	// Find INTEGER PRIMARY KEY column (rowid alias) if any
+	rowidColIdx := -1 // index in INSERT column list
+	rowidTableIdx := -1
+	for i, name := range insertColNames {
+		tableColIdx := table.GetColumnIndex(name)
+		if tableColIdx >= 0 {
+			col := table.Columns[tableColIdx]
+			if col.PrimaryKey && (col.Type == "INTEGER" || col.Type == "INT") {
+				rowidColIdx = i
+				rowidTableIdx = tableColIdx
+				break
+			}
+		}
+	}
+
+	// Count non-rowid columns (these go into the record)
+	numRecordCols := numValues
+	if rowidColIdx >= 0 {
+		numRecordCols-- // One column is the rowid, not stored in record
+	}
+
 	// Allocate registers
-	// Register 0: new rowid
-	// Registers 1-N: column values
-	// Register N+1: record
-	vm.AllocMemory(numValues + 10)
+	// Register 1: rowid (use 1 not 0 because P3=0 has special meaning in OpInsert)
+	// Registers 2-(N+1): record column values (non-rowid columns only)
+	// Register N+2: record
+	rowidReg := 1
+	recordStartReg := 2 // First register for record values
+	vm.AllocMemory(numRecordCols + 10)
 	vm.AllocCursors(1)
 
 	// Generate bytecode
@@ -261,55 +317,97 @@ func (s *Stmt) compileInsert(vm *vdbe.VDBE, stmt *parser.InsertStmt, args []driv
 	// addr 1: OpenWrite - open cursor 0 for writing
 	vm.AddOp(vdbe.OpOpenWrite, 0, int(table.RootPage), len(table.Columns))
 
-	// addr 2: NewRowid - generate new rowid in register 0
-	vm.AddOp(vdbe.OpNewRowid, 0, 0, 0)
+	// Track parameter index for binding
+	paramIdx := 0
 
-	// addr 3-N: Load values into registers 1-N
-	// For now, support only literal values (not expressions)
-	for i, val := range stmt.Values[0] {
-		reg := i + 1
-		// Simplified: assume all values are literals
-		if lit, ok := val.(*parser.LiteralExpr); ok {
-			switch lit.Type {
-			case parser.LiteralInteger:
-				// Parse the integer value
-				var intVal int64
-				fmt.Sscanf(lit.Value, "%d", &intVal)
-				// Use OpInteger for values that fit in int, store result in P3
-				vm.AddOp(vdbe.OpInteger, int(intVal), 0, reg)
-			case parser.LiteralFloat:
-				// For now, store floats as strings (simplified)
-				vm.AddOpWithP4Str(vdbe.OpString8, 0, 0, reg, lit.Value)
-			case parser.LiteralString:
-				vm.AddOpWithP4Str(vdbe.OpString8, 0, 0, reg, lit.Value)
-			case parser.LiteralNull:
-				vm.AddOp(vdbe.OpNull, 0, 0, reg)
-			case parser.LiteralBlob:
-				// For now, store blobs as strings (simplified)
-				vm.AddOpWithP4Str(vdbe.OpString8, 0, 0, reg, lit.Value)
-			default:
-				vm.AddOp(vdbe.OpNull, 0, 0, reg)
-			}
-		} else {
-			// For non-literals, put NULL for now
-			vm.AddOp(vdbe.OpNull, 0, 0, reg)
-		}
+	// If rowid column is specified, load it into rowidReg
+	// Otherwise, generate a new rowid
+	if rowidColIdx >= 0 {
+		// Load the rowid value from the VALUES clause
+		val := stmt.Values[0][rowidColIdx]
+		s.compileValue(vm, val, rowidReg, args, &paramIdx)
+	} else {
+		// Generate new rowid into rowidReg
+		// OpNewRowid: P1=cursor, P3=destination register
+		vm.AddOp(vdbe.OpNewRowid, 0, 0, rowidReg)
 	}
 
-	// addr N+1: MakeRecord - create record from registers 1-N into register N+1
-	recordReg := numValues + 1
-	vm.AddOp(vdbe.OpMakeRecord, 1, numValues, recordReg)
+	// Load non-rowid columns into consecutive registers starting at recordStartReg
+	regIdx := recordStartReg
+	for i, val := range stmt.Values[0] {
+		if i == rowidColIdx {
+			// Skip rowid column - it's already handled
+			continue
+		}
+		s.compileValue(vm, val, regIdx, args, &paramIdx)
+		regIdx++
+	}
 
-	// addr N+2: Insert - insert record into cursor 0 with rowid from register 0
-	vm.AddOp(vdbe.OpInsert, 0, recordReg, 0)
+	// Suppress unused variable warning
+	_ = rowidTableIdx
 
-	// addr N+3: Close cursor
+	// MakeRecord - create record from registers recordStartReg to recordStartReg+numRecordCols-1
+	resultReg := recordStartReg + numRecordCols
+	vm.AddOp(vdbe.OpMakeRecord, recordStartReg, numRecordCols, resultReg)
+
+	// Insert - insert record into cursor 0 with rowid from rowidReg
+	vm.AddOp(vdbe.OpInsert, 0, resultReg, rowidReg)
+
+	// Close cursor
 	vm.AddOp(vdbe.OpClose, 0, 0, 0)
 
-	// addr N+4: Halt
+	// Halt
 	vm.AddOp(vdbe.OpHalt, 0, 0, 0)
 
 	return vm, nil
+}
+
+// compileValue compiles a value expression into bytecode that stores the result in reg.
+func (s *Stmt) compileValue(vm *vdbe.VDBE, val parser.Expression, reg int, args []driver.NamedValue, paramIdx *int) {
+	switch expr := val.(type) {
+	case *parser.LiteralExpr:
+		switch expr.Type {
+		case parser.LiteralInteger:
+			var intVal int64
+			fmt.Sscanf(expr.Value, "%d", &intVal)
+			vm.AddOp(vdbe.OpInteger, int(intVal), reg, 0)
+		case parser.LiteralFloat:
+			vm.AddOpWithP4Str(vdbe.OpString8, 0, reg, 0, expr.Value)
+		case parser.LiteralString:
+			vm.AddOpWithP4Str(vdbe.OpString8, 0, reg, 0, expr.Value)
+		case parser.LiteralNull:
+			vm.AddOp(vdbe.OpNull, 0, 0, reg)
+		case parser.LiteralBlob:
+			vm.AddOpWithP4Str(vdbe.OpString8, 0, reg, 0, expr.Value)
+		default:
+			vm.AddOp(vdbe.OpNull, 0, 0, reg)
+		}
+	case *parser.VariableExpr:
+		if *paramIdx < len(args) {
+			arg := args[*paramIdx]
+			*paramIdx++
+			switch v := arg.Value.(type) {
+			case nil:
+				vm.AddOp(vdbe.OpNull, 0, 0, reg)
+			case int:
+				vm.AddOp(vdbe.OpInteger, v, reg, 0)
+			case int64:
+				vm.AddOp(vdbe.OpInteger, int(v), reg, 0)
+			case float64:
+				vm.AddOpWithP4Real(vdbe.OpReal, 0, reg, 0, v)
+			case string:
+				vm.AddOpWithP4Str(vdbe.OpString8, 0, reg, 0, v)
+			case []byte:
+				vm.AddOpWithP4Blob(vdbe.OpBlob, len(v), reg, 0, v)
+			default:
+				vm.AddOpWithP4Str(vdbe.OpString8, 0, reg, 0, fmt.Sprintf("%v", v))
+			}
+		} else {
+			vm.AddOp(vdbe.OpNull, 0, 0, reg)
+		}
+	default:
+		vm.AddOp(vdbe.OpNull, 0, 0, reg)
+	}
 }
 
 // compileUpdate compiles an UPDATE statement.

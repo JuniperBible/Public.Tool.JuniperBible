@@ -200,13 +200,17 @@ func (c *Conn) removeStmt(stmt *Stmt) {
 }
 
 // openDatabase initializes the database connection by:
-// 1. Loading the schema from sqlite_master (page 1)
+// 1. Loading the schema from sqlite_master (page 1) if first connection
 // 2. Registering built-in functions
-func (c *Conn) openDatabase() error {
-	// Load schema from the database
-	c.schema = schema.NewSchema()
-	if err := c.schema.LoadFromMaster(c.btree); err != nil {
-		return fmt.Errorf("failed to load schema: %w", err)
+// The schemaLoaded parameter indicates if schema was already loaded by another connection.
+func (c *Conn) openDatabase(schemaLoaded bool) error {
+	// Load schema from the database only if this is the first connection
+	if !schemaLoaded {
+		if err := c.schema.LoadFromMaster(c.btree); err != nil {
+			// Schema loading may fail for new empty databases, which is OK
+			// The schema will be populated as tables are created
+			_ = err // Ignore error for now
+		}
 	}
 
 	// Register built-in SQL functions

@@ -51,9 +51,9 @@ func (r *Rows) Close() error {
 // 4. OpResultRow - Packages the columns into a result row
 // 5. OpNext - Advances the btree cursor to the next entry and loops
 //
-// Each call to Step() executes VDBE opcodes until either:
-// - OpResultRow is hit (returns true with row data)
-// - OpHalt is hit (returns false, signaling end of results)
+// Each call to Step() executes ONE VDBE opcode. We need to loop until:
+// - StateRowReady is reached (result row available)
+// - StateHalt is reached (no more rows)
 // - An error occurs
 func (r *Rows) Next(dest []driver.Value) error {
 	if r.closed {
@@ -67,21 +67,39 @@ func (r *Rows) Next(dest []driver.Value) error {
 	default:
 	}
 
-	// Step the VDBE to get the next row
-	// This executes opcodes that interact with btree cursors
-	hasMore, err := r.vdbe.Step()
-	if err != nil {
-		return err
-	}
+	// Step the VDBE until we get a row or halt
+	// Each Step() only executes ONE opcode, so we need to loop
+	for {
+		// Check context cancellation in the loop
+		select {
+		case <-r.ctx.Done():
+			return r.ctx.Err()
+		default:
+		}
 
-	if !hasMore {
-		return io.EOF
+		hasMore, err := r.vdbe.Step()
+		if err != nil {
+			return err
+		}
+
+		if !hasMore {
+			// VDBE halted - no more rows
+			return io.EOF
+		}
+
+		// Check if we reached a result row
+		if r.vdbe.State == vdbe.StateRowReady {
+			break
+		}
+
+		// Not ready yet, continue stepping
 	}
 
 	// Check if we have a result row
 	// ResultRow is populated by the OpResultRow opcode after OpColumn
 	// opcodes have read data from the btree cursor
 	if r.vdbe.ResultRow == nil {
+		// State is RowReady but no result row - unexpected, treat as EOF
 		return io.EOF
 	}
 

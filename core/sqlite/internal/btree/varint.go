@@ -35,19 +35,26 @@ func putVarint64(p []byte, v uint64) int {
 		return 9
 	}
 
-	// Build varint in reverse order
-	var buf [9]byte
+	// Build varint in forward order
+	// Count how many 7-bit groups we need
 	n := 0
-	for v != 0 {
-		buf[n] = byte((v & 0x7f) | 0x80)
-		v >>= 7
+	temp := v
+	for {
 		n++
+		temp >>= 7
+		if temp == 0 {
+			break
+		}
 	}
-	buf[0] &= 0x7f // Clear high bit of first byte (which becomes last)
 
-	// Reverse into output buffer
-	for i := 0; i < n; i++ {
-		p[i] = buf[n-1-i]
+	// Encode from most significant to least significant
+	for i := n - 1; i >= 0; i-- {
+		shift := uint(i * 7)
+		b := byte((v >> shift) & 0x7f)
+		if i > 0 {
+			b |= 0x80 // Set continuation bit for all except last byte
+		}
+		p[n-1-i] = b
 	}
 	return n
 }
@@ -69,6 +76,9 @@ func GetVarint(p []byte) (uint64, int) {
 	if len(p) < 2 {
 		return 0, 0
 	}
+
+	// Save original slice for 9-byte case
+	orig := p
 
 	const SLOT_2_0 = 0x001fc07f       // (0x7f<<14) | 0x7f
 	const SLOT_4_2_0 = 0xf01fc07f     // (0xf<<28) | (0x7f<<14) | 0x7f
@@ -181,21 +191,19 @@ func GetVarint(p []byte) (uint64, int) {
 		return uint64(a), 8
 	}
 
-	// 9-byte case
-	if len(p) < 4 {
-		return 0, 0
-	}
-	a = a << 15
-	a |= uint32(p[3]) << 8
-	a |= uint32(p[4])
-	// a: p0<<29 | p2<<15 | p4<<8 | p6 (unmasked)
-
-	a &= SLOT_2_0
-	b &= SLOT_4_2_0
-	b = b >> 3
-	s := a | b
-
-	return (uint64(s) << 32) | uint64(uint32(p[5])|uint32(p[6])<<8|uint32(p[7])<<16|uint32(p[8])<<24), 9
+	// 9-byte case: last byte uses all 8 bits (no continuation bit)
+	// Decode the first 8 bytes (each contributing 7 bits) and the 9th byte (8 bits)
+	var v uint64
+	v = uint64(orig[0]&0x7f) << 57
+	v |= uint64(orig[1]&0x7f) << 50
+	v |= uint64(orig[2]&0x7f) << 43
+	v |= uint64(orig[3]&0x7f) << 36
+	v |= uint64(orig[4]&0x7f) << 29
+	v |= uint64(orig[5]&0x7f) << 22
+	v |= uint64(orig[6]&0x7f) << 15
+	v |= uint64(orig[7]&0x7f) << 8
+	v |= uint64(orig[8]) // All 8 bits
+	return v, 9
 }
 
 // GetVarint32 reads a 32-bit variable-length integer from p and returns

@@ -213,7 +213,7 @@ func (p *BtreePage) InsertCell(idx int, cell []byte) error {
 
 	// Update header
 	p.Header.NumCells++
-	binary.BigEndian.PutUint16(p.Data[p.Header.CellPtrOffset-3:], p.Header.NumCells)
+	binary.BigEndian.PutUint16(p.Data[p.Header.CellPtrOffset-5:], p.Header.NumCells)
 
 	return nil
 }
@@ -242,7 +242,7 @@ func (p *BtreePage) DeleteCell(idx int) error {
 
 	// Update header
 	p.Header.NumCells--
-	binary.BigEndian.PutUint16(p.Data[p.Header.CellPtrOffset-3:], p.Header.NumCells)
+	binary.BigEndian.PutUint16(p.Data[p.Header.CellPtrOffset-5:], p.Header.NumCells)
 
 	// Note: The actual cell content is not removed here - it becomes fragmented space
 	// Call Defragment() to reclaim the space

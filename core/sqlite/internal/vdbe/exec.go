@@ -25,6 +25,12 @@ func (v *VDBE) Step() (bool, error) {
 		v.State = StateRun
 	}
 
+	// If a row is ready, clear it and continue execution
+	if v.State == StateRowReady {
+		v.ResultRow = nil
+		v.State = StateRun
+	}
+
 	// Check if we're at the end of the program
 	if v.PC >= len(v.Program) {
 		v.State = StateHalt
@@ -47,6 +53,11 @@ func (v *VDBE) Step() (bool, error) {
 	// Check if we halted
 	if v.State == StateHalt {
 		return false, nil
+	}
+
+	// Check if a row is ready - this pauses execution
+	if v.State == StateRowReady {
+		return true, nil
 	}
 
 	return true, nil
@@ -451,8 +462,37 @@ func (v *VDBE) execOpenRead(instr *Instruction) error {
 
 func (v *VDBE) execOpenWrite(instr *Instruction) error {
 	// Open cursor P1 for writing on root page P2
-	// For now, this is identical to OpenRead - write operations will be added later
-	return v.execOpenRead(instr)
+	// P1 = cursor number, P2 = root page, P3 = num columns
+	if v.Ctx == nil || v.Ctx.Btree == nil {
+		return fmt.Errorf("no btree context available")
+	}
+
+	bt, ok := v.Ctx.Btree.(*btree.Btree)
+	if !ok {
+		return fmt.Errorf("invalid btree context type")
+	}
+
+	// Allocate cursors if needed
+	if err := v.AllocCursors(instr.P1 + 1); err != nil {
+		return err
+	}
+
+	// Create btree cursor (same as read cursor - btree cursors support both read and write)
+	btCursor := btree.NewCursor(bt, uint32(instr.P2))
+
+	// Create VDBE cursor with writable flag set
+	cursor := &Cursor{
+		CurType:     CursorBTree,
+		IsTable:     true,
+		Writable:    true, // Mark as writable for write operations
+		RootPage:    uint32(instr.P2),
+		BtreeCursor: btCursor,
+		CachedCols:  make([][]byte, 0),
+		CacheStatus: 0,
+	}
+
+	v.Cursors[instr.P1] = cursor
+	return nil
 }
 
 func (v *VDBE) execClose(instr *Instruction) error {
@@ -979,7 +1019,8 @@ func parseSerialValue(data []byte, offset int, st uint64, mem *Mem) error {
 }
 
 func (v *VDBE) execResultRow(instr *Instruction) error {
-	// Output registers P1 through P1+P2-1 as a result row
+	// Copy values from registers P1..P1+P2-1 to ResultRow
+	// This makes a row of data available to the driver
 	v.ResultRow = make([]*Mem, instr.P2)
 	for i := 0; i < instr.P2; i++ {
 		mem, err := v.GetMem(instr.P1 + i)
@@ -991,8 +1032,10 @@ func (v *VDBE) execResultRow(instr *Instruction) error {
 		v.ResultRow[i].Copy(mem)
 	}
 
-	// Halt after producing result
-	v.State = StateHalt
+	// Set state to StateRowReady to pause execution and allow the driver to read this row
+	// The Run() loop will pause here, and the driver's Next() method can read ResultRow
+	// When Step() is called again, it will clear ResultRow and continue execution
+	v.State = StateRowReady
 	return nil
 }
 
@@ -1006,20 +1049,28 @@ func (v *VDBE) execNewRowid(instr *Instruction) error {
 		return err
 	}
 
-	// Generate new rowid
-	// For simplicity, just use an incrementing counter per cursor
-	if cursor.LastRowid == 0 {
-		cursor.LastRowid = 1
-	} else {
-		cursor.LastRowid++
+	// Get the btree to find max rowid
+	bt, ok := v.Ctx.Btree.(*btree.Btree)
+	if !ok {
+		return fmt.Errorf("invalid btree context type")
 	}
+
+	// Generate new rowid by finding the max rowid in the table
+	newRowid, err := bt.NewRowid(cursor.RootPage)
+	if err != nil {
+		// If table is empty, NewRowid returns an error, so start with 1
+		newRowid = 1
+	}
+
+	// Store the new rowid
+	cursor.LastRowid = newRowid
 
 	// Store the new rowid in register P3
 	mem, err := v.GetMem(instr.P3)
 	if err != nil {
 		return err
 	}
-	mem.SetInt(cursor.LastRowid)
+	mem.SetInt(newRowid)
 
 	return nil
 }
@@ -1073,29 +1124,194 @@ func memToInterface(m *Mem) interface{} {
 	return nil
 }
 
-// encodeSimpleRecord creates a simple record encoding for testing
-// A full implementation would use SQLite's record format
+// encodeSimpleRecord creates a SQLite record encoding
+// SQLite record format:
+// - Header size (varint)
+// - Serial type for each column (varint)
+// - Data for each column
 func encodeSimpleRecord(values []interface{}) []byte {
-	// Simple format: just store the number of values for now
-	// This is a placeholder - real implementation would serialize properly
-	return []byte{byte(len(values))}
+	if len(values) == 0 {
+		return []byte{0} // Empty record
+	}
+
+	// Build header and data separately
+	var header []byte
+	var data []byte
+
+	// Reserve space for header size (will update later)
+	header = append(header, 0)
+
+	// Process each value
+	for _, val := range values {
+		var serialType uint64
+		var valueData []byte
+
+		switch v := val.(type) {
+		case nil:
+			// NULL - serial type 0
+			serialType = 0
+
+		case int64:
+			// Integer - choose appropriate serial type based on value
+			if v == 0 {
+				serialType = 8 // 0 as special serial type
+			} else if v == 1 {
+				serialType = 9 // 1 as special serial type
+			} else if v >= -128 && v <= 127 {
+				serialType = 1 // INT8
+				valueData = []byte{byte(v)}
+			} else if v >= -32768 && v <= 32767 {
+				serialType = 2 // INT16
+				valueData = make([]byte, 2)
+				binary.BigEndian.PutUint16(valueData, uint16(v))
+			} else if v >= -8388608 && v <= 8388607 {
+				serialType = 3 // INT24
+				valueData = make([]byte, 3)
+				valueData[0] = byte(v >> 16)
+				valueData[1] = byte(v >> 8)
+				valueData[2] = byte(v)
+			} else if v >= -2147483648 && v <= 2147483647 {
+				serialType = 4 // INT32
+				valueData = make([]byte, 4)
+				binary.BigEndian.PutUint32(valueData, uint32(v))
+			} else {
+				serialType = 6 // INT64
+				valueData = make([]byte, 8)
+				binary.BigEndian.PutUint64(valueData, uint64(v))
+			}
+
+		case float64:
+			// REAL - serial type 7
+			serialType = 7
+			valueData = make([]byte, 8)
+			bits := math.Float64bits(v)
+			binary.BigEndian.PutUint64(valueData, bits)
+
+		case string:
+			// TEXT - serial type 2*len+13 (odd number)
+			valueData = []byte(v)
+			serialType = uint64(2*len(valueData) + 13)
+
+		case []byte:
+			// BLOB - serial type 2*len+12 (even number)
+			valueData = v
+			serialType = uint64(2*len(valueData) + 12)
+
+		default:
+			// Unsupported type - treat as NULL
+			serialType = 0
+		}
+
+		// Append serial type to header
+		header = appendVarint(header, serialType)
+
+		// Append value data to data section
+		data = append(data, valueData...)
+	}
+
+	// Calculate final header size
+	headerSize := len(header)
+
+	// Encode header size as varint
+	headerSizeVarint := encodeVarint(uint64(headerSize))
+
+	// Build final record: header size + serial types + data
+	record := make([]byte, 0, len(headerSizeVarint)+len(header)-1+len(data))
+	record = append(record, headerSizeVarint...)
+	record = append(record, header[1:]...) // Skip the placeholder byte
+	record = append(record, data...)
+
+	return record
+}
+
+// encodeVarint encodes a uint64 as a varint and returns the bytes
+func encodeVarint(v uint64) []byte {
+	if v <= 240 {
+		return []byte{byte(v)}
+	}
+	if v <= 2287 {
+		v -= 240
+		return []byte{byte(v/256 + 241), byte(v % 256)}
+	}
+	if v <= 67823 {
+		v -= 2288
+		return []byte{249, byte(v / 256), byte(v % 256)}
+	}
+
+	// Standard varint encoding for larger values
+	var buf []byte
+	for i := 0; i < 9; i++ {
+		b := byte(v & 0x7f)
+		v >>= 7
+		if v != 0 {
+			b |= 0x80
+		}
+		buf = append([]byte{b}, buf...) // Prepend
+		if v == 0 {
+			break
+		}
+	}
+	return buf
+}
+
+// appendVarint appends a varint to a byte slice
+func appendVarint(buf []byte, v uint64) []byte {
+	return append(buf, encodeVarint(v)...)
 }
 
 func (v *VDBE) execInsert(instr *Instruction) error {
 	// Insert record from register P2 into cursor P1
+	// P1 = cursor number
+	// P2 = register containing record data (blob)
+	// P3 = register containing rowid (or 0 to use cursor.LastRowid)
 	cursor, err := v.GetCursor(instr.P1)
 	if err != nil {
 		return err
 	}
 
+	// Verify cursor is writable
+	if !cursor.Writable {
+		return fmt.Errorf("cursor %d is not writable (opened with OpenRead instead of OpenWrite)", instr.P1)
+	}
+
+	// Get the btree cursor
+	btCursor, ok := cursor.BtreeCursor.(*btree.BtCursor)
+	if !ok || btCursor == nil {
+		return fmt.Errorf("invalid btree cursor for insert")
+	}
+
+	// Get the record data from register P2
 	data, err := v.GetMem(instr.P2)
 	if err != nil {
 		return err
 	}
 
-	// In real implementation, would insert into B-tree
-	_ = cursor
-	_ = data
+	if !data.IsBlob() {
+		return fmt.Errorf("insert data must be a blob")
+	}
+
+	payload := data.BlobValue()
+
+	// Get the rowid from register P3 (or use cursor.LastRowid if P3 is 0)
+	var rowid int64
+	if instr.P3 == 0 {
+		rowid = cursor.LastRowid
+	} else {
+		rowidMem, err := v.GetMem(instr.P3)
+		if err != nil {
+			return err
+		}
+		rowid = rowidMem.IntValue()
+	}
+
+	// Insert into the btree
+	err = btCursor.Insert(rowid, payload)
+	if err != nil {
+		return fmt.Errorf("btree insert failed: %w", err)
+	}
+
+	// Update cursor's LastRowid
+	cursor.LastRowid = rowid
 
 	v.NumChanges++
 	return nil
@@ -1108,9 +1324,27 @@ func (v *VDBE) execDelete(instr *Instruction) error {
 		return err
 	}
 
-	// In real implementation, would delete from B-tree
-	_ = cursor
+	// Verify cursor is writable
+	if !cursor.Writable {
+		return fmt.Errorf("cursor %d is not writable (opened with OpenRead instead of OpenWrite)", instr.P1)
+	}
 
+	// Get the btree cursor
+	btCursor, ok := cursor.BtreeCursor.(*btree.BtCursor)
+	if !ok || btCursor == nil {
+		return fmt.Errorf("invalid btree cursor for delete operation")
+	}
+
+	// Delete the current row from the btree
+	err = btCursor.Delete()
+	if err != nil {
+		return fmt.Errorf("failed to delete from btree: %w", err)
+	}
+
+	// Invalidate column cache since cursor state changed
+	v.IncrCacheCtr()
+
+	// Update change counter
 	v.NumChanges++
 	return nil
 }

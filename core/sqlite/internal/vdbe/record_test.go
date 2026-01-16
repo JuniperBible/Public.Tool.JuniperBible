@@ -145,7 +145,8 @@ func TestSerialTypes(t *testing.T) {
 		{"int8 positive", int64(100), 1},
 		{"int8 negative", int64(-100), 1},
 		{"int16", int64(1000), 2},
-		{"int32", int64(100000), 4},
+		{"int24", int64(100000), 3},    // 100000 fits in 24 bits
+		{"int32", int64(10000000), 4},  // 10000000 needs 32 bits
 		{"int64", int64(10000000000), 6},
 		{"float64", float64(3.14), 7},
 		{"text empty", "", 13},          // 13 + 2*0

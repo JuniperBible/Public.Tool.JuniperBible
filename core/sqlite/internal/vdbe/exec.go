@@ -8,8 +8,9 @@ import (
 	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/btree"
 )
 
-// Step executes one step of the VDBE program.
-// Returns true if there are more steps to execute, false if halted.
+// Step executes the VDBE program until a result row is ready or the program halts.
+// Returns true if a row is ready, false if halted.
+// This mirrors SQLite's sqlite3_step() behavior.
 func (v *VDBE) Step() (bool, error) {
 	// Check state
 	if v.State == StateHalt {
@@ -31,36 +32,37 @@ func (v *VDBE) Step() (bool, error) {
 		v.State = StateRun
 	}
 
-	// Check if we're at the end of the program
-	if v.PC >= len(v.Program) {
-		v.State = StateHalt
-		return false, nil
+	// Execute instructions until row ready or halt
+	for {
+		// Check if we're at the end of the program
+		if v.PC >= len(v.Program) {
+			v.State = StateHalt
+			return false, nil
+		}
+
+		// Get the current instruction
+		instr := v.Program[v.PC]
+		v.PC++
+		v.NumSteps++
+
+		// Execute the instruction
+		err := v.execInstruction(instr)
+		if err != nil {
+			v.SetError(err.Error())
+			v.State = StateHalt
+			return false, err
+		}
+
+		// Check if we halted
+		if v.State == StateHalt {
+			return false, nil
+		}
+
+		// Check if a row is ready - this pauses execution
+		if v.State == StateRowReady {
+			return true, nil
+		}
 	}
-
-	// Get the current instruction
-	instr := v.Program[v.PC]
-	v.PC++
-	v.NumSteps++
-
-	// Execute the instruction
-	err := v.execInstruction(instr)
-	if err != nil {
-		v.SetError(err.Error())
-		v.State = StateHalt
-		return false, err
-	}
-
-	// Check if we halted
-	if v.State == StateHalt {
-		return false, nil
-	}
-
-	// Check if a row is ready - this pauses execution
-	if v.State == StateRowReady {
-		return true, nil
-	}
-
-	return true, nil
 }
 
 // Run executes the entire VDBE program until completion.

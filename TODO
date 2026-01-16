@@ -96,6 +96,45 @@ COVERAGE TARGETS:
     [ ] Profile and optimize hot paths based on real usage
 
 ================================================================================
+== PURE GO SQLITE IMPLEMENTATION (IN PROGRESS)
+================================================================================
+
+Core functionality WORKING (as of 2026-01-16):
+[X] Pager layer - page read/write, caching, journal
+[X] B-tree layer - page parsing, cell operations, cursor navigation
+[X] VDBE layer - bytecode execution, Step() until ResultRow/Halt
+[X] Driver layer - database/sql compatibility
+[X] Varint encoding - correct SQLite 7-bit continuation format
+[X] Record encoding - serial types, column values
+[X] CREATE TABLE - compiles to VDBE, creates btree pages
+[X] INSERT - parameter binding, record creation, btree insertion
+[X] SELECT - cursor iteration, column extraction, result rows
+[X] Transaction support - BEGIN, COMMIT, ROLLBACK
+[X] Prepared statements - compilation, execution, reset
+
+Known limitations:
+[ ] Schema persistence - tables not saved to sqlite_master
+[ ] Read-only reopening - schema not loaded from file
+[ ] Index support - CREATE INDEX not implemented
+[ ] JOIN support - multi-table queries not implemented
+[ ] Subqueries - not implemented
+[ ] ORDER BY - sorter opcodes need integration
+[ ] UPDATE/DELETE - partially implemented
+
+Test status:
+- TestPagerIntegration: PASS (core INSERT/SELECT)
+- TestResultRowHandling: PASS (VDBE execution)
+- Varint tests: PASS (encoding/decoding)
+- Driver tests: Mixed (integration tests need more work)
+
+Next steps:
+[ ] Implement schema persistence (write/read sqlite_master)
+[ ] Add ORDER BY support using sorter cursor
+[ ] Complete UPDATE/DELETE implementation
+[ ] Add WHERE clause with index support
+[ ] Implement JOINs
+
+================================================================================
 == NOTES
 ================================================================================
 

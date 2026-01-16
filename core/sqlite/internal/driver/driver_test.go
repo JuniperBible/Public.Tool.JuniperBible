@@ -11,13 +11,13 @@ func TestDriverRegistration(t *testing.T) {
 	drivers := sql.Drivers()
 	found := false
 	for _, d := range drivers {
-		if d == "sqlite" {
+		if d == DriverName {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("sqlite driver not registered")
+		t.Errorf("%s driver not registered", DriverName)
 	}
 }
 
@@ -26,7 +26,7 @@ func TestOpenConnection(t *testing.T) {
 	dbFile := "test_open.db"
 	defer os.Remove(dbFile)
 
-	db, err := sql.Open("sqlite", dbFile)
+	db, err := sql.Open(DriverName, dbFile)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestPrepareStatement(t *testing.T) {
 	dbFile := "test_prepare.db"
 	defer os.Remove(dbFile)
 
-	db, err := sql.Open("sqlite", dbFile)
+	db, err := sql.Open(DriverName, dbFile)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestTransaction(t *testing.T) {
 	dbFile := "test_tx.db"
 	defer os.Remove(dbFile)
 
-	db, err := sql.Open("sqlite", dbFile)
+	db, err := sql.Open(DriverName, dbFile)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -93,14 +93,14 @@ func TestMultipleConnections(t *testing.T) {
 	defer os.Remove(dbFile)
 
 	// Open first connection
-	db1, err := sql.Open("sqlite", dbFile)
+	db1, err := sql.Open(DriverName, dbFile)
 	if err != nil {
 		t.Fatalf("failed to open first connection: %v", err)
 	}
 	defer db1.Close()
 
 	// Open second connection
-	db2, err := sql.Open("sqlite", dbFile)
+	db2, err := sql.Open(DriverName, dbFile)
 	if err != nil {
 		t.Fatalf("failed to open second connection: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestCloseConnection(t *testing.T) {
 	dbFile := "test_close.db"
 	defer os.Remove(dbFile)
 
-	db, err := sql.Open("sqlite", dbFile)
+	db, err := sql.Open(DriverName, dbFile)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}

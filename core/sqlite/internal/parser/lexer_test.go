@@ -14,7 +14,7 @@ func TestLexerBasicTokens(t *testing.T) {
 			[]TokenType{TK_SELECT, TK_STAR, TK_FROM, TK_ID, TK_SEMI, TK_EOF},
 		},
 		{
-			"INSERT INTO table VALUES (1, 2, 3)",
+			"INSERT INTO mytable VALUES (1, 2, 3)",
 			[]TokenType{TK_INSERT, TK_INTO, TK_ID, TK_VALUES, TK_LP, TK_INTEGER, TK_COMMA, TK_INTEGER, TK_COMMA, TK_INTEGER, TK_RP, TK_EOF},
 		},
 		{

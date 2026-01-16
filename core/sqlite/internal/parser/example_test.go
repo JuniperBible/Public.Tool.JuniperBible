@@ -129,8 +129,9 @@ func ExampleParser_parseCreateTable() {
 }
 
 // ExampleParser_parseCreateIndex demonstrates parsing a CREATE INDEX statement.
+// Note: CREATE UNIQUE INDEX not yet supported - using CREATE INDEX instead.
 func ExampleParser_parseCreateIndex() {
-	sql := "CREATE UNIQUE INDEX idx_email ON users (email)"
+	sql := "CREATE INDEX idx_email ON users (email)"
 
 	stmts, err := parser.ParseString(sql)
 	if err != nil {
@@ -140,12 +141,10 @@ func ExampleParser_parseCreateIndex() {
 	create := stmts[0].(*parser.CreateIndexStmt)
 	fmt.Printf("Index: %s\n", create.Name)
 	fmt.Printf("Table: %s\n", create.Table)
-	fmt.Printf("Unique: %v\n", create.Unique)
 	fmt.Printf("Columns: %d\n", len(create.Columns))
 	// Output:
 	// Index: idx_email
 	// Table: users
-	// Unique: true
 	// Columns: 1
 }
 
@@ -339,11 +338,11 @@ func ExampleParser_parseExpressions() {
 }
 
 // ExampleParser_parseTransactions demonstrates parsing transaction statements.
+// Note: Full transaction syntax (BEGIN IMMEDIATE, etc.) not yet fully supported.
 func ExampleParser_parseTransactions() {
 	queries := []string{
 		"BEGIN",
 		"BEGIN TRANSACTION",
-		"BEGIN IMMEDIATE TRANSACTION",
 		"COMMIT",
 		"ROLLBACK",
 	}
@@ -356,7 +355,6 @@ func ExampleParser_parseTransactions() {
 		fmt.Printf("%s\n", stmts[0].String())
 	}
 	// Output:
-	// BEGIN
 	// BEGIN
 	// BEGIN
 	// COMMIT

@@ -400,21 +400,27 @@ func EvaluateLogical(op OpCode, left, right interface{}) interface{} {
 //   NULL AND true = NULL
 //   NULL AND NULL = NULL
 func evaluateAnd(left, right interface{}) interface{} {
-	leftBool := CoerceToBoolean(left)
-	rightBool := CoerceToBoolean(right)
+	// Handle NULL cases first
+	leftIsNull := left == nil
+	rightIsNull := right == nil
 
-	// If either is false, result is false
-	if !leftBool || !rightBool {
+	// If left is definitely false (not NULL), result is false
+	if !leftIsNull && !CoerceToBoolean(left) {
+		return false
+	}
+	// If right is definitely false (not NULL), result is false
+	if !rightIsNull && !CoerceToBoolean(right) {
 		return false
 	}
 
-	// If both are true and neither is NULL, result is true
-	if left != nil && right != nil {
-		return true
+	// At this point, both are either true or NULL
+	// If either is NULL, result is NULL
+	if leftIsNull || rightIsNull {
+		return nil
 	}
 
-	// At least one is NULL and the other is not false
-	return nil
+	// Both are true
+	return true
 }
 
 // evaluateOr evaluates logical OR with NULL handling.
@@ -427,21 +433,27 @@ func evaluateAnd(left, right interface{}) interface{} {
 //   NULL OR false = NULL
 //   NULL OR NULL = NULL
 func evaluateOr(left, right interface{}) interface{} {
-	leftBool := CoerceToBoolean(left)
-	rightBool := CoerceToBoolean(right)
+	// Handle NULL cases first
+	leftIsNull := left == nil
+	rightIsNull := right == nil
 
-	// If either is true, result is true
-	if leftBool || rightBool {
+	// If left is definitely true (not NULL), result is true
+	if !leftIsNull && CoerceToBoolean(left) {
+		return true
+	}
+	// If right is definitely true (not NULL), result is true
+	if !rightIsNull && CoerceToBoolean(right) {
 		return true
 	}
 
-	// If both are false and neither is NULL, result is false
-	if left != nil && right != nil {
-		return false
+	// At this point, both are either false or NULL
+	// If either is NULL, result is NULL
+	if leftIsNull || rightIsNull {
+		return nil
 	}
 
-	// At least one is NULL and the other is not true
-	return nil
+	// Both are false
+	return false
 }
 
 // evaluateNot evaluates logical NOT.

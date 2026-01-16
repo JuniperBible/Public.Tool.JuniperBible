@@ -32,9 +32,13 @@ var sqliteDriver = &Driver{
 	dbs:   make(map[string]*dbState),
 }
 
+// DriverName is the registered name for this internal pure Go SQLite driver.
+// This is different from the main "sqlite" driver to avoid conflicts.
+const DriverName = "sqlite_internal"
+
 // init registers the driver with database/sql
 func init() {
-	sql.Register("sqlite", sqliteDriver)
+	sql.Register(DriverName, sqliteDriver)
 }
 
 // Open opens a connection to the database.

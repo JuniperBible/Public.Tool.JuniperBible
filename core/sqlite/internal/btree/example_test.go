@@ -63,6 +63,7 @@ func Example_createSimplePage() {
 	bt := btree.NewBtree(4096)
 
 	// Create a simple leaf table page with one cell
+	// Use page 2 since page 1 has a 100-byte file header
 	pageData := make([]byte, 4096)
 
 	// Page header
@@ -91,11 +92,11 @@ func Example_createSimplePage() {
 	// Cell content start
 	binary.BigEndian.PutUint16(pageData[5:], uint16(cellOffset))
 
-	// Store page in B-tree
-	bt.SetPage(1, pageData)
+	// Store page in B-tree (use page 2)
+	bt.SetPage(2, pageData)
 
 	// Parse and iterate
-	err := bt.IteratePage(1, func(cellIndex int, cell *btree.CellInfo) error {
+	err := bt.IteratePage(2, func(cellIndex int, cell *btree.CellInfo) error {
 		fmt.Printf("Cell %d: rowid=%d, payload=%q\n", cellIndex, cell.Key, string(cell.Payload))
 		return nil
 	})

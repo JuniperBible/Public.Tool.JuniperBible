@@ -12,7 +12,7 @@ import (
 // ExampleDriver demonstrates basic usage of the SQLite driver.
 func ExampleDriver() {
 	// Open a database connection
-	db, err := sql.Open("sqlite", "example.db")
+	db, err := sql.Open("sqlite_internal", "example.db")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func ExampleDriver() {
 
 // ExampleDriver_transaction demonstrates transaction usage.
 func ExampleDriver_transaction() {
-	db, err := sql.Open("sqlite", "transaction.db")
+	db, err := sql.Open("sqlite_internal", "transaction.db")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func ExampleDriver_transaction() {
 
 // ExampleDriver_rollback demonstrates transaction rollback.
 func ExampleDriver_rollback() {
-	db, err := sql.Open("sqlite", "rollback.db")
+	db, err := sql.Open("sqlite_internal", "rollback.db")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func ExampleDriver_rollback() {
 
 // ExampleDriver_prepare demonstrates prepared statements.
 func ExampleDriver_prepare() {
-	db, err := sql.Open("sqlite", "prepare.db")
+	db, err := sql.Open("sqlite_internal", "prepare.db")
 	if err != nil {
 		log.Fatal(err)
 	}

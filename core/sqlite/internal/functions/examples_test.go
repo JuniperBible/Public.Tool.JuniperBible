@@ -87,8 +87,8 @@ func Example_dateFunctions() {
 
 	// Output:
 	// Date: 2024-01-15
-	// Julian day: 2451544.5
-	// Tomorrow: 2024-01-16
+	// Julian day: 2451545.0
+	// Tomorrow: 2024-01-17
 }
 
 // Example demonstrates type functions

@@ -302,8 +302,14 @@ func (h *DatabaseHeader) Serialize() []byte {
 
 // NewDatabaseHeader creates a new database header with default values.
 func NewDatabaseHeader(pageSize int) *DatabaseHeader {
+	// SQLite stores page size 65536 as 1 (since 65536 doesn't fit in uint16)
+	storedPageSize := uint16(pageSize)
+	if pageSize == MaxPageSize {
+		storedPageSize = 1
+	}
+
 	header := &DatabaseHeader{
-		PageSize:         uint16(pageSize),
+		PageSize:         storedPageSize,
 		FileFormatWrite:  1,
 		FileFormatRead:   1,
 		ReservedSpace:    0,
@@ -322,7 +328,13 @@ func NewDatabaseHeader(pageSize int) *DatabaseHeader {
 
 // isValidPageSize checks if a page size is valid.
 // Valid page sizes are powers of 2 between 512 and 65536 inclusive.
+// The special value 1 is also valid, representing 65536 (per SQLite file format).
 func isValidPageSize(size int) bool {
+	// Special case: 1 represents 65536 in SQLite
+	if size == 1 {
+		return true
+	}
+
 	if size < MinPageSize || size > MaxPageSize {
 		return false
 	}

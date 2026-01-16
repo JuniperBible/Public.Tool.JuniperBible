@@ -26,12 +26,18 @@ func TestCreateTable(t *testing.T) {
 	}
 
 	// Verify it's a leaf table page
-	if pageData[0] != PageTypeLeafTable {
-		t.Errorf("Page type = 0x%02x, want 0x%02x", pageData[0], PageTypeLeafTable)
+	// For page 1, the page header starts at offset 100 (FileHeaderSize)
+	// For other pages, it starts at offset 0
+	headerOffset := 0
+	if rootPage == 1 {
+		headerOffset = FileHeaderSize
+	}
+	if pageData[headerOffset] != PageTypeLeafTable {
+		t.Errorf("Page type = 0x%02x, want 0x%02x", pageData[headerOffset], PageTypeLeafTable)
 	}
 
 	// Verify it has 0 cells
-	numCells := binary.BigEndian.Uint16(pageData[3:5])
+	numCells := binary.BigEndian.Uint16(pageData[headerOffset+3 : headerOffset+5])
 	if numCells != 0 {
 		t.Errorf("NumCells = %d, want 0", numCells)
 	}
@@ -194,13 +200,13 @@ func TestEncodeTableInteriorCell(t *testing.T) {
 }
 
 func TestBtreePageInsertCell(t *testing.T) {
-	// Create a page
+	// Create a page (use page 2 to avoid file header at offset 100)
 	pageData := make([]byte, 4096)
 	pageData[0] = PageTypeLeafTable // Leaf table page
 	binary.BigEndian.PutUint16(pageData[3:], 0) // NumCells = 0
 	binary.BigEndian.PutUint16(pageData[5:], 0) // CellContentStart = 0 (end of page)
 
-	btreePage, err := NewBtreePage(1, pageData, 4096)
+	btreePage, err := NewBtreePage(2, pageData, 4096)
 	if err != nil {
 		t.Fatalf("NewBtreePage() error = %v", err)
 	}
@@ -238,7 +244,7 @@ func TestBtreePageInsertCell(t *testing.T) {
 }
 
 func TestBtreePageDeleteCell(t *testing.T) {
-	// Create a page with one cell
+	// Create a page with one cell (use page 2 to avoid file header at offset 100)
 	pageData := make([]byte, 4096)
 	pageData[0] = PageTypeLeafTable
 	binary.BigEndian.PutUint16(pageData[3:], 1) // NumCells = 1
@@ -250,7 +256,7 @@ func TestBtreePageDeleteCell(t *testing.T) {
 	binary.BigEndian.PutUint16(pageData[5:], uint16(cellOffset)) // CellContentStart
 	binary.BigEndian.PutUint16(pageData[8:], uint16(cellOffset)) // Cell pointer
 
-	btreePage, err := NewBtreePage(1, pageData, 4096)
+	btreePage, err := NewBtreePage(2, pageData, 4096)
 	if err != nil {
 		t.Fatalf("NewBtreePage() error = %v", err)
 	}
@@ -268,7 +274,7 @@ func TestBtreePageDeleteCell(t *testing.T) {
 }
 
 func TestBtreePageDefragment(t *testing.T) {
-	// Create a page with fragmented space
+	// Create a page with fragmented space (use page 2 to avoid file header at offset 100)
 	pageData := make([]byte, 4096)
 	pageData[0] = PageTypeLeafTable
 	binary.BigEndian.PutUint16(pageData[3:], 2) // NumCells = 2
@@ -289,7 +295,7 @@ func TestBtreePageDefragment(t *testing.T) {
 	binary.BigEndian.PutUint16(pageData[8:], uint16(offset1)) // Cell 1 pointer
 	binary.BigEndian.PutUint16(pageData[10:], uint16(offset2)) // Cell 2 pointer
 
-	btreePage, err := NewBtreePage(1, pageData, 4096)
+	btreePage, err := NewBtreePage(2, pageData, 4096)
 	if err != nil {
 		t.Fatalf("NewBtreePage() error = %v", err)
 	}

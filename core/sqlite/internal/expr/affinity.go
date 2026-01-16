@@ -248,6 +248,8 @@ func ApplyAffinity(value interface{}, aff Affinity) interface{} {
 		switch v := value.(type) {
 		case string:
 			return v
+		case int:
+			return strconv.Itoa(v)
 		case int64:
 			return strconv.FormatInt(v, 10)
 		case float64:

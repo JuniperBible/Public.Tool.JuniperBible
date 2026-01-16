@@ -121,11 +121,14 @@ Known limitations:
 [ ] ORDER BY - sorter opcodes need integration
 [ ] UPDATE/DELETE - partially implemented
 
-Test status:
-- TestPagerIntegration: PASS (core INSERT/SELECT)
-- TestResultRowHandling: PASS (VDBE execution)
-- Varint tests: PASS (encoding/decoding)
-- Driver tests: Mixed (integration tests need more work)
+Test status (as of 2026-01-16):
+- TestPagerIntegration: PASS (core INSERT/SELECT with cursor)
+- TestResultRowHandling: PASS (VDBE execution loop)
+- Record tests: PASS (all encoding/decoding, including 1000-column)
+- Varint tests: PASS (7-bit continuation format)
+- sql package: PASS (all tests including examples)
+- vdbe package: PASS (all tests)
+- Driver tests: Mixed (integration tests need more features)
 
 Next steps:
 [ ] Implement schema persistence (write/read sqlite_master)

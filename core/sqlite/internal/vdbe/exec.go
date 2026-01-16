@@ -135,6 +135,10 @@ func (v *VDBE) execInstruction(instr *Instruction) error {
 		return v.execResultRow(instr)
 
 	// Data modification
+	case OpNewRowid:
+		return v.execNewRowid(instr)
+	case OpMakeRecord:
+		return v.execMakeRecord(instr)
 	case OpInsert:
 		return v.execInsert(instr)
 	case OpDelete:
@@ -993,6 +997,89 @@ func (v *VDBE) execResultRow(instr *Instruction) error {
 }
 
 // Data modification implementations
+
+func (v *VDBE) execNewRowid(instr *Instruction) error {
+	// Generate a new rowid for cursor P1, store in register P3
+	// P1 = cursor number, P3 = destination register
+	cursor, err := v.GetCursor(instr.P1)
+	if err != nil {
+		return err
+	}
+
+	// Generate new rowid
+	// For simplicity, just use an incrementing counter per cursor
+	if cursor.LastRowid == 0 {
+		cursor.LastRowid = 1
+	} else {
+		cursor.LastRowid++
+	}
+
+	// Store the new rowid in register P3
+	mem, err := v.GetMem(instr.P3)
+	if err != nil {
+		return err
+	}
+	mem.SetInt(cursor.LastRowid)
+
+	return nil
+}
+
+func (v *VDBE) execMakeRecord(instr *Instruction) error {
+	// Create a record from registers P1..P1+P2-1 and store in register P3
+	// P1 = first register, P2 = number of registers, P3 = destination
+	startReg := instr.P1
+	numFields := instr.P2
+	destReg := instr.P3
+
+	// Collect values from registers
+	values := make([]interface{}, numFields)
+	for i := 0; i < numFields; i++ {
+		mem, err := v.GetMem(startReg + i)
+		if err != nil {
+			values[i] = nil
+			continue
+		}
+		values[i] = memToInterface(mem)
+	}
+
+	// Create a simple record representation
+	// In a full implementation, this would encode according to SQLite record format
+	mem, err := v.GetMem(destReg)
+	if err != nil {
+		return err
+	}
+	mem.SetBlob(encodeSimpleRecord(values))
+
+	return nil
+}
+
+// memToInterface converts a Mem value to a Go interface{}
+func memToInterface(m *Mem) interface{} {
+	if m == nil || m.IsNull() {
+		return nil
+	}
+	if m.IsInt() {
+		return m.IntValue()
+	}
+	if m.IsReal() {
+		return m.RealValue()
+	}
+	if m.IsString() {
+		return m.StrValue()
+	}
+	if m.IsBlob() {
+		return m.BlobValue()
+	}
+	return nil
+}
+
+// encodeSimpleRecord creates a simple record encoding for testing
+// A full implementation would use SQLite's record format
+func encodeSimpleRecord(values []interface{}) []byte {
+	// Simple format: just store the number of values for now
+	// This is a placeholder - real implementation would serialize properly
+	return []byte{byte(len(values))}
+}
 
 func (v *VDBE) execInsert(instr *Instruction) error {
 	// Insert record from register P2 into cursor P1

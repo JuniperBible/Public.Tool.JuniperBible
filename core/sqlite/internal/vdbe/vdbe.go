@@ -67,6 +67,9 @@ type Cursor struct {
 
 	// For iterating
 	EOF        bool        // True if cursor is at end of file
+
+	// For rowid generation
+	LastRowid  int64       // Last rowid used by this cursor
 }
 
 // VDBEContext holds runtime context for VDBE execution

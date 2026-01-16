@@ -110,6 +110,12 @@ func (s *Stmt) compile(args []driver.NamedValue) (*vdbe.VDBE, error) {
 	// Create a new VDBE
 	vm := vdbe.New()
 
+	// Set the execution context with btree access
+	vm.Ctx = &vdbe.VDBEContext{
+		Btree:  s.conn.btree,
+		Schema: s.conn.schema,
+	}
+
 	// For now, this is a simplified compilation process
 	// In a real implementation, this would:
 	// 1. Use the planner to generate a query plan
@@ -269,7 +275,8 @@ func (s *Stmt) compileInsert(vm *vdbe.VDBE, stmt *parser.InsertStmt, args []driv
 				// Parse the integer value
 				var intVal int64
 				fmt.Sscanf(lit.Value, "%d", &intVal)
-				vm.AddOp(vdbe.OpInt64, int(intVal), 0, reg)
+				// Use OpInteger for values that fit in int, store result in P3
+				vm.AddOp(vdbe.OpInteger, int(intVal), 0, reg)
 			case parser.LiteralFloat:
 				// For now, store floats as strings (simplified)
 				vm.AddOpWithP4Str(vdbe.OpString8, 0, 0, reg, lit.Value)
@@ -360,21 +367,27 @@ func (s *Stmt) compileCreateTable(vm *vdbe.VDBE, stmt *parser.CreateTableStmt, a
 	vm.SetReadOnly(false)
 	vm.AllocMemory(10)
 
-	// In a real implementation, this would:
-	// 1. Allocate a new root page for the table
-	// 2. Add an entry to sqlite_master
-	// 3. Update the schema in memory
+	// Create the table in the schema
+	// This simplified implementation registers the table in memory
+	// A full implementation would also persist to sqlite_master
+	table, err := s.conn.schema.CreateTable(stmt)
+	if err != nil {
+		return nil, err
+	}
 
-	// For now, just add the table to the schema in memory
-	// This is a simplified implementation without persistence
+	// Allocate a root page for the table btree
+	if s.conn.btree != nil {
+		rootPage, err := s.conn.btree.CreateTable()
+		if err != nil {
+			return nil, fmt.Errorf("failed to allocate table root page: %w", err)
+		}
+		table.RootPage = rootPage
+	} else {
+		// For in-memory databases without btree, use a placeholder
+		table.RootPage = 2
+	}
 
 	vm.AddOp(vdbe.OpInit, 0, 0, 0)
-
-	// TODO: Generate bytecode to:
-	// - Insert into sqlite_master table
-	// - Allocate root page for new table
-	// - Update schema cookie
-
 	vm.AddOp(vdbe.OpHalt, 0, 0, 0)
 
 	return vm, nil

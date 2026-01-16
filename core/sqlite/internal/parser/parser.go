@@ -1751,7 +1751,7 @@ func (p *Parser) error(format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	fullMsg := fmt.Sprintf("parse error at line %d, col %d: %s", tok.Line, tok.Col, msg)
 	p.errors = append(p.errors, fullMsg)
-	return fmt.Errorf(fullMsg)
+	return fmt.Errorf("%s", fullMsg)
 }
 
 // ParseString is a convenience function to parse a SQL string.

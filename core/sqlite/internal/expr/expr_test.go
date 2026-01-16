@@ -208,7 +208,7 @@ func TestExprClone(t *testing.T) {
 	clone.Left = NewIntExpr(10)
 
 	// Verify original is unchanged
-	if original.Left.(*Expr).IntValue != 1 {
+	if original.Left.IntValue != 1 {
 		t.Error("Modifying clone affected original")
 	}
 }
@@ -315,7 +315,7 @@ func TestExprFlags(t *testing.T) {
 	}
 }
 
-func TestComplexExpression(t *testing.T) {
+func TestExprComplexExpression(t *testing.T) {
 	// Build: (a + b * c) > 10
 	expr := NewBinaryExpr(OpGt,
 		NewBinaryExpr(OpPlus,
@@ -343,7 +343,7 @@ func TestComplexExpression(t *testing.T) {
 	}
 }
 
-func TestCastExpression(t *testing.T) {
+func TestExprCastExpression(t *testing.T) {
 	expr := &Expr{
 		Op:    OpCast,
 		Token: "INTEGER",

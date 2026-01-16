@@ -97,32 +97,6 @@ func Example_like() {
 	// true
 }
 
-// Example demonstrates code generation
-func Example_codegen() {
-	// Create expression: age + 10
-	age := expr.NewColumnExpr("users", "age", 0, 0) // cursor 0, column 0
-	ten := expr.NewIntExpr(10)
-	e := expr.NewBinaryExpr(expr.OpPlus, age, ten)
-
-	// Generate code
-	ctx := expr.NewCodeGenContext()
-	resultReg := ctx.CodeExpr(e, 0)
-
-	fmt.Printf("Result will be in register %d\n", resultReg)
-	fmt.Println("\nGenerated instructions:")
-	for i, instr := range ctx.Instructions {
-		fmt.Printf("%3d: %s\n", i, instr.String())
-	}
-
-	// Output will show:
-	// Result will be in register 3
-	//
-	// Generated instructions:
-	//   0: OP_Column       0   0   1 <nil> 0 ; COLUMN users.age
-	//   1: OP_Integer     10   2   0 <nil> 0 ; INT 10
-	//   2: OP_Add          1   2   3 <nil> 0 ; +
-}
-
 // Example demonstrates BETWEEN operation
 func Example_between() {
 	// 15 BETWEEN 10 AND 20

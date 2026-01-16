@@ -2,6 +2,7 @@ package btree
 
 import (
 	"encoding/binary"
+	"fmt"
 	"testing"
 )
 

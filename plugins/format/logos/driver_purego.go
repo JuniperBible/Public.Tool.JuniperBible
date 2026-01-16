@@ -3,7 +3,7 @@
 package main
 
 import (
-	_ "modernc.org/sqlite" // Pure Go SQLite driver
+	"github.com/FocuswithJustin/JuniperBible/core/sqlite"
 )
 
-const sqliteDriver = "sqlite"
+var sqliteDriver = sqlite.DriverName()

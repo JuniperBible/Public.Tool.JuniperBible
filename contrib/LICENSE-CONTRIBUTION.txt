@@ -22,6 +22,13 @@ DIRECTORY STRUCTURE
 -------------------
 
 contrib/
+├── drivers/
+│   └── sqlite-cgo/       - MIT (mattn/go-sqlite3)
+│                           Optional CGO-based SQLite driver for performance.
+│                           Build with: -tags cgo_sqlite
+├── sqlite-external/      - MIT (mattn/go-sqlite3)
+│                           Alternative external SQLite driver documentation
+│                           and integration helpers.
 ├── tool/
 │   ├── sword-utils/      - GPL-2.0-or-later (The SWORD Project)
 │   ├── usfm2osis/        - GPL-3.0 (chrislit/usfm2osis)
@@ -49,7 +56,8 @@ to the Bible software ecosystem:
 - Christopher C. Little (usfm2osis)
 - John MacFarlane (pandoc)
 - Kovid Goyal (calibre)
-- D. Richard Hipp (SQLite)
+- D. Richard Hipp (SQLite - public domain)
+- Yasuhiro Matsumoto (mattn/go-sqlite3)
 - Daniel Veillard (libxml2)
 - Jolon Faichney (GoBible)
 - Zachary Smith and contributors (UnRTF)

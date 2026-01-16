@@ -15,8 +15,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // IPCRequest is the incoming JSON request.
@@ -200,7 +198,7 @@ func handleDetect(args map[string]interface{}) {
 
 	if !validExtensions[ext] {
 		// Check if it's SQLite with Logos structure
-		db, err := sql.Open("sqlite3", path+"?mode=ro")
+		db, err := sql.Open(sqliteDriver, path+"?mode=ro")
 		if err != nil {
 			respond(&DetectResult{
 				Detected: false,
@@ -343,7 +341,7 @@ func handleExtractIR(args map[string]interface{}) {
 	corpus.Attributes["_logos_raw"] = hex.EncodeToString(data)
 
 	// Try to extract content from SQLite database
-	db, err := sql.Open("sqlite3", path+"?mode=ro")
+	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
 	if err == nil {
 		defer db.Close()
 
@@ -493,7 +491,7 @@ func handleEmitNative(args map[string]interface{}) {
 
 	// Generate Logos-compatible SQLite from IR
 	// Create a minimal SQLite database
-	db, err := sql.Open("sqlite3", outputPath)
+	db, err := sql.Open(sqliteDriver, outputPath)
 	if err != nil {
 		respondError(fmt.Sprintf("failed to create database: %v", err))
 		return

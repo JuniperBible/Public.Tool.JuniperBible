@@ -1,5 +1,3 @@
-//go:build cgo
-
 package main
 
 import (
@@ -10,15 +8,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // createTestBible creates a minimal e-Sword .bblx database for testing.
 func createTestBible(t *testing.T, path string) {
 	t.Helper()
 
-	db, err := sql.Open("sqlite3", path)
+	db, err := sql.Open(sqliteDriver, path)
 	if err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
@@ -279,7 +275,7 @@ func TestESwordEmitNative(t *testing.T) {
 	}
 
 	// Verify the output is a valid SQLite database with expected data
-	db, err := sql.Open("sqlite3", outputPath+"?mode=ro")
+	db, err := sql.Open(sqliteDriver, outputPath+"?mode=ro")
 	if err != nil {
 		t.Fatalf("failed to open output database: %v", err)
 	}
@@ -346,13 +342,13 @@ func TestESwordRoundTrip(t *testing.T) {
 	outputPath := emitResult["output_path"].(string)
 
 	// Compare original and output databases (L1 - semantic comparison)
-	origDB, err := sql.Open("sqlite3", bblxPath+"?mode=ro")
+	origDB, err := sql.Open(sqliteDriver, bblxPath+"?mode=ro")
 	if err != nil {
 		t.Fatalf("failed to open original: %v", err)
 	}
 	defer origDB.Close()
 
-	outDB, err := sql.Open("sqlite3", outputPath+"?mode=ro")
+	outDB, err := sql.Open(sqliteDriver, outputPath+"?mode=ro")
 	if err != nil {
 		t.Fatalf("failed to open output: %v", err)
 	}

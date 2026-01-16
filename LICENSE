@@ -175,7 +175,7 @@
 
    END OF TERMS AND CONDITIONS
 
-   Copyright 2025 Justin M. Weeks
+   Copyright 2025 Justin Michael Weeks
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -188,3 +188,19 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+   ========================================================================
+
+   NOTICE: Third-Party Components
+
+   This project includes components based on SQLite source code.
+   SQLite is in the public domain.
+   See: https://sqlite.org/copyright.html
+
+   The SQLite implementation can be found in:
+   - core/sqlite/internal/*
+
+   SQLite blessing:
+      May you do good and not evil.
+      May you find forgiveness for yourself and forgive others.
+      May you share freely, never taking more than you give.

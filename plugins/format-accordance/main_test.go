@@ -8,15 +8,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // createTestAccordance creates a minimal Accordance-style SQLite file for testing.
 func createTestAccordance(t *testing.T, path string) {
 	t.Helper()
 
-	db, err := sql.Open("sqlite3", path)
+	db, err := sql.Open(sqliteDriver, path)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -262,7 +260,7 @@ func TestAccordanceEmitNative(t *testing.T) {
 	}
 
 	// Verify the output file is a valid SQLite database
-	db, err := sql.Open("sqlite3", accPath)
+	db, err := sql.Open(sqliteDriver, accPath)
 	if err != nil {
 		t.Fatalf("failed to open output database: %v", err)
 	}

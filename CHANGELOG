@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-01-15
+
+### Added
+- **Pure Go SQLite Database Engine** - Complete replacement for external SQLite dependencies
+  - Pager: Page cache, file I/O, journaling for ACID transactions
+  - B-tree: Storage engine with read/write operations
+  - Parser: Full SQL tokenizer and recursive descent parser
+  - VDBE: Virtual Database Engine with 146 opcodes
+  - Functions: 75+ built-in SQL functions (string, math, date/time, aggregates)
+  - Query Planner: Cost-based optimization
+  - Schema: sqlite_master table management
+  - Driver: database/sql compatible interface
+
+### Changed
+- Replaced `modernc.org/sqlite` with internal pure Go implementation
+- Moved optional CGO SQLite driver to `contrib/sqlite-external/`
+
+### Removed
+- External dependency on `modernc.org/sqlite` and its transitive dependencies
+- External dependency on `github.com/mattn/go-sqlite3` (moved to contrib/)
+
+### Technical Details
+- 85+ Go source files
+- 36,000+ lines of implementation code
+- Based on SQLite 3.51.2 reference implementation
+- Zero external dependencies for core functionality
+
 ## [0.1.0] - 2026-01-10
 
 ### Added

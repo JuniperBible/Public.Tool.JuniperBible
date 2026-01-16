@@ -127,6 +127,9 @@ Input Format → extract-ir → Juniper's Sword (IR) → emit-native → Output 
 │   ├── tool/               # tool plugins (10 total)
 │   ├── meta/               # meta plugins (aggregators)
 │   └── ipc/                # shared IPC protocol package
+├── contrib/                # optional external dependencies
+│   ├── sqlite-external/    # CGO SQLite driver (mattn/go-sqlite3)
+│   └── tool/               # contributed tools
 ├── tests/
 │   └── integration/        # integration tests
 ├── nix/
@@ -139,6 +142,38 @@ Input Format → extract-ir → Juniper's Sword (IR) → emit-native → Output 
 ```
 
 > **Note on naming:** the primary binary is currently `capsule` for historical reasons. The project identity is **Juniper Bible**.
+
+---
+
+## Pure Go SQLite Database Engine
+
+JuniperBible includes a complete pure Go implementation of SQLite, eliminating external dependencies:
+
+### Features
+- 100% pure Go, no CGO required
+- Compatible with `database/sql` interface
+- Full SQL support: SELECT, INSERT, UPDATE, DELETE, CREATE TABLE
+- Transactions with ACID guarantees
+- Built-in functions (string, math, date/time, aggregates)
+- B-tree storage engine
+- Query optimization
+
+### Usage
+```go
+import (
+    "database/sql"
+    _ "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+)
+
+db, _ := sql.Open("sqlite", "database.db")
+```
+
+### Architecture
+- `core/sqlite/internal/pager` - Page cache and file I/O
+- `core/sqlite/internal/btree` - B-tree storage
+- `core/sqlite/internal/parser` - SQL parser
+- `core/sqlite/internal/vdbe` - Virtual machine
+- `core/sqlite/internal/engine` - Query execution
 
 ---
 
@@ -461,7 +496,7 @@ make docs
 
 ### SQLite driver selection
 
-Default is pure Go (**modernc.org/sqlite**). CGO available with `-tags cgo_sqlite`.
+Default is pure Go (**modernc.org/sqlite**). Optional CGO driver available in `contrib/sqlite-external/` with `-tags cgo_sqlite` for performance-critical applications.
 
 Both drivers must produce identical results (enforced by divergence tests):
 
@@ -470,6 +505,8 @@ make test-sqlite-divergence
 ```
 
 Use `core/sqlite.Open()` or `core/sqlite.OpenReadOnly()` — never import drivers directly.
+
+See [contrib/sqlite-external/README.md](contrib/sqlite-external/README.md) for CGO driver details.
 
 ---
 

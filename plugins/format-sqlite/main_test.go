@@ -1,5 +1,3 @@
-//go:build cgo
-
 package main
 
 import (
@@ -10,15 +8,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // createTestDB creates a minimal Capsule SQLite Bible database for testing.
 func createTestDB(t *testing.T, path string) {
 	t.Helper()
 
-	db, err := sql.Open("sqlite3", path)
+	db, err := sql.Open(sqliteDriver, path)
 	if err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
@@ -261,7 +257,7 @@ func TestSQLiteEmitNative(t *testing.T) {
 	}
 
 	// Verify the output database
-	db, err := sql.Open("sqlite3", dbPath+"?mode=ro")
+	db, err := sql.Open(sqliteDriver, dbPath+"?mode=ro")
 	if err != nil {
 		t.Fatalf("failed to open output database: %v", err)
 	}
@@ -325,13 +321,13 @@ func TestSQLiteRoundTrip(t *testing.T) {
 	outputPath := emitResult["output_path"].(string)
 
 	// Compare verse content (L1 - semantic comparison)
-	origDB, err := sql.Open("sqlite3", dbPath+"?mode=ro")
+	origDB, err := sql.Open(sqliteDriver, dbPath+"?mode=ro")
 	if err != nil {
 		t.Fatalf("failed to open original: %v", err)
 	}
 	defer origDB.Close()
 
-	outDB, err := sql.Open("sqlite3", outputPath+"?mode=ro")
+	outDB, err := sql.Open(sqliteDriver, outputPath+"?mode=ro")
 	if err != nil {
 		t.Fatalf("failed to open output: %v", err)
 	}

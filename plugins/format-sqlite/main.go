@@ -1,5 +1,3 @@
-//go:build cgo
-
 // Plugin format-sqlite handles SQLite Bible database format.
 // Provides queryable database structure for programmatic access.
 //
@@ -17,8 +15,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // IPCRequest is the incoming JSON request.
@@ -220,7 +216,7 @@ func handleDetect(args map[string]interface{}) {
 	}
 
 	// Try to open as SQLite
-	db, err := sql.Open("sqlite3", path+"?mode=ro")
+	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
 	if err != nil {
 		respond(&DetectResult{
 			Detected: false,
@@ -301,7 +297,7 @@ func handleEnumerate(args map[string]interface{}) {
 		return
 	}
 
-	db, err := sql.Open("sqlite3", path+"?mode=ro")
+	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
 	if err != nil {
 		respondError(fmt.Sprintf("failed to open database: %v", err))
 		return
@@ -362,7 +358,7 @@ func handleExtractIR(args map[string]interface{}) {
 	}
 	sourceHash := sha256.Sum256(sourceData)
 
-	db, err := sql.Open("sqlite3", path+"?mode=ro")
+	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
 	if err != nil {
 		respondError(fmt.Sprintf("failed to open database: %v", err))
 		return
@@ -503,7 +499,7 @@ func handleEmitNative(args map[string]interface{}) {
 	outputPath := filepath.Join(outputDir, corpus.ID+".db")
 
 	// Create new SQLite database
-	db, err := sql.Open("sqlite3", outputPath)
+	db, err := sql.Open(sqliteDriver, outputPath)
 	if err != nil {
 		respondError(fmt.Sprintf("failed to create database: %v", err))
 		return

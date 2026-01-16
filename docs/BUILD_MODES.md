@@ -42,10 +42,13 @@ CGO_ENABLED=1 go test -tags cgo_sqlite ./...
 - **Reproducibility**: Deterministic builds
 - **CI/CD**: Simpler CI pipelines without CGO toolchains
 
-### CGO (Optional)
-- **Performance**: Native SQLite may be faster for large databases
+### CGO (Optional - in contrib/sqlite-external)
+- **Performance**: Native SQLite may be faster for large databases (2-5x)
 - **Compatibility**: Exact same behavior as system SQLite
 - **Features**: Access to SQLite extensions (if needed)
+- **Location**: Separated in `contrib/sqlite-external/` to clearly mark as optional external dependency
+
+See [contrib/sqlite-external/README.md](../contrib/sqlite-external/README.md) for detailed CGO driver documentation.
 
 ## Divergence Prevention
 

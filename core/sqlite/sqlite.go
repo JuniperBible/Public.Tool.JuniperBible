@@ -3,10 +3,15 @@
 //
 // Build modes:
 //   - Default (CGO_ENABLED=0): Uses pure Go modernc.org/sqlite
-//   - CGO mode (CGO_ENABLED=1 -tags cgo): Uses mattn/go-sqlite3
+//   - CGO mode (CGO_ENABLED=1 -tags cgo_sqlite): Uses mattn/go-sqlite3 via contrib/sqlite-external
 //
-// The driver name is always "sqlite" regardless of implementation.
+// The CGO driver is located in contrib/sqlite-external/ to clearly separate
+// optional external dependencies from core functionality.
+//
+// The driver name is always "sqlite" or "sqlite3" depending on the implementation.
 // Use Open() instead of sql.Open() to ensure the correct driver is used.
+//
+// See contrib/sqlite-external/README.md for CGO driver usage details.
 package sqlite
 
 import (

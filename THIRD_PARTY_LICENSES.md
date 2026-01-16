@@ -4,7 +4,27 @@ This file contains license information for all third-party dependencies used by
 Juniper Bible. These dependencies are distributed under their
 respective licenses as noted below.
 
-Last updated: 2026-01-10
+Last updated: 2026-01-15
+
+---
+
+## Internal SQLite Implementation (Public Domain)
+
+The `core/sqlite/internal/` directory contains a pure Go implementation of SQLite
+based on the SQLite 3.51.2 source code. SQLite is in the public domain.
+
+- **License**: Public Domain
+- **URL**: https://sqlite.org/copyright.html
+- **Location**: core/sqlite/internal/*
+- **Note**: This is a clean-room Go implementation based on the public domain
+  SQLite C source code. The original SQLite source code was authored by
+  D. Richard Hipp and is released into the public domain.
+
+The SQLite blessing applies:
+
+    May you do good and not evil.
+    May you find forgiveness for yourself and forgive others.
+    May you share freely, never taking more than you give.
 
 ---
 
@@ -39,6 +59,7 @@ Last updated: 2026-01-10
 ### github.com/mattn/go-sqlite3 (v1.14.33)
 - **License**: MIT
 - **URL**: https://github.com/mattn/go-sqlite3
+- **Location**: contrib/sqlite-external/
 - **Note**: Optional CGO SQLite driver (build with -tags cgo_sqlite)
 
 ### github.com/ulikunitz/xz (v0.5.15)
@@ -52,7 +73,10 @@ Last updated: 2026-01-10
 ### modernc.org/sqlite (v1.42.2)
 - **License**: BSD-3-Clause
 - **URL**: https://gitlab.com/cznic/sqlite
-- **Note**: Default pure Go SQLite driver
+- **Status**: OPTIONAL - No longer used by default
+- **Note**: Previously used as the pure Go SQLite driver. Replaced by internal
+  implementation in core/sqlite/internal/. May still be referenced in go.mod
+  for backwards compatibility testing.
 
 ---
 

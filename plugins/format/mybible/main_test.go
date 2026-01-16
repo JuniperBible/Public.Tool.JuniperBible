@@ -10,16 +10,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/FocuswithJustin/JuniperBible/core/sqlite"
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
-
-	_ "modernc.org/sqlite" // Pure Go SQLite driver (no CGO)
 )
 
 // createTestMyBible creates a minimal MyBible .SQLite3 database for testing.
 func createTestMyBible(t *testing.T, path string) {
 	t.Helper()
 
-	db, err := sql.Open("sqlite", path)
+	db, err := sql.Open(sqlite.DriverName(), path)
 	if err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
@@ -103,7 +102,7 @@ func TestMyBibleDetectInvalidExtension(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	dbPath := filepath.Join(tmpDir, "test.db")
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open(sqlite.DriverName(), dbPath)
 	if err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
@@ -138,7 +137,7 @@ func TestMyBibleDetectMissingVersesTable(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	dbPath := filepath.Join(tmpDir, "test.SQLite3")
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open(sqlite.DriverName(), dbPath)
 	if err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
@@ -466,7 +465,7 @@ func TestMyBibleEmitNative(t *testing.T) {
 	}
 
 	// Verify database content
-	db, err := sql.Open("sqlite", outputPath)
+	db, err := sql.Open(sqlite.DriverName(), outputPath)
 	if err != nil {
 		t.Fatalf("failed to open output database: %v", err)
 	}
@@ -626,10 +625,10 @@ func TestRoundTrip(t *testing.T) {
 	outputPath, _ := emitResult["output_path"].(string)
 
 	// Compare original and output
-	originalDB, _ := sql.Open("sqlite", originalPath)
+	originalDB, _ := sql.Open(sqlite.DriverName(), originalPath)
 	defer originalDB.Close()
 
-	outputDB, _ := sql.Open("sqlite", outputPath)
+	outputDB, _ := sql.Open(sqlite.DriverName(), outputPath)
 	defer outputDB.Close()
 
 	// Check verse count

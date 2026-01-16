@@ -9,16 +9,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/FocuswithJustin/JuniperBible/core/sqlite"
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
-
-	_ "modernc.org/sqlite" // Pure Go SQLite driver (no CGO)
 )
 
 // createTestAccordance creates a minimal Accordance-style SQLite file for testing.
 func createTestAccordance(t *testing.T, path string) {
 	t.Helper()
 
-	db, err := sql.Open("sqlite", path)
+	db, err := sql.Open(sqlite.DriverName(), path)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -264,7 +263,7 @@ func TestAccordanceEmitNative(t *testing.T) {
 	}
 
 	// Verify the output file is a valid SQLite database
-	db, err := sql.Open("sqlite", accPath)
+	db, err := sql.Open(sqlite.DriverName(), accPath)
 	if err != nil {
 		t.Fatalf("failed to open output database: %v", err)
 	}

@@ -9,9 +9,101 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/ulikunitz/xz"
 )
+
+// tocCache caches the list of file names in archives to avoid repeated decompression.
+// This is especially important for .tar.xz files which are slow to decompress.
+var tocCache struct {
+	sync.RWMutex
+	entries   map[string]*tocEntry
+	maxSize   int           // Maximum number of entries
+	ttl       time.Duration // Time-to-live for cache entries
+}
+
+type tocEntry struct {
+	files     []string  // List of file names in the archive
+	timestamp time.Time // When this entry was cached
+	modTime   time.Time // File modification time when cached
+}
+
+func init() {
+	tocCache.entries = make(map[string]*tocEntry)
+	tocCache.maxSize = 500 // Cache up to 500 archives
+	tocCache.ttl = 30 * time.Minute
+}
+
+// getTOC returns the cached table of contents for an archive, or nil if not cached.
+func getTOC(path string) []string {
+	tocCache.RLock()
+	entry, ok := tocCache.entries[path]
+	tocCache.RUnlock()
+
+	if !ok {
+		return nil
+	}
+
+	// Check TTL
+	if time.Since(entry.timestamp) > tocCache.ttl {
+		return nil
+	}
+
+	// Check if file was modified since caching
+	info, err := os.Stat(path)
+	if err != nil || !info.ModTime().Equal(entry.modTime) {
+		return nil
+	}
+
+	return entry.files
+}
+
+// setTOC caches the table of contents for an archive.
+func setTOC(path string, files []string) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return // Don't cache if we can't stat the file
+	}
+
+	tocCache.Lock()
+	defer tocCache.Unlock()
+
+	// Evict old entries if cache is full (simple LRU would be better, but this is good enough)
+	if len(tocCache.entries) >= tocCache.maxSize {
+		// Remove oldest 20% of entries
+		toRemove := tocCache.maxSize / 5
+		removed := 0
+		for k := range tocCache.entries {
+			delete(tocCache.entries, k)
+			removed++
+			if removed >= toRemove {
+				break
+			}
+		}
+	}
+
+	tocCache.entries[path] = &tocEntry{
+		files:     files,
+		timestamp: time.Now(),
+		modTime:   info.ModTime(),
+	}
+}
+
+// InvalidateTOC removes a specific archive from the TOC cache.
+func InvalidateTOC(path string) {
+	tocCache.Lock()
+	delete(tocCache.entries, path)
+	tocCache.Unlock()
+}
+
+// ClearTOCCache clears the entire TOC cache.
+func ClearTOCCache() {
+	tocCache.Lock()
+	tocCache.entries = make(map[string]*tocEntry)
+	tocCache.Unlock()
+}
 
 // Reader wraps a tar.Reader with automatic decompression handling.
 type Reader struct {

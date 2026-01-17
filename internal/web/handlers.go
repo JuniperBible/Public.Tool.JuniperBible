@@ -219,9 +219,11 @@ func preloadCapsuleMetadata() {
 	pool := NewWorkerPool[CapsuleInfo, metaResult](maxWorkers, len(capsules))
 	pool.Start(func(c CapsuleInfo) metaResult {
 		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
+		// Use ScanCapsuleFlags for single-pass archive scan (2x faster than separate calls)
+		flags, _ := archive.ScanCapsuleFlags(fullPath)
 		meta := CapsuleMetadata{
-			IsCAS: archive.IsCASCapsule(fullPath),
-			HasIR: archive.HasIR(fullPath),
+			IsCAS: flags.IsCAS,
+			HasIR: flags.HasIR,
 		}
 		return metaResult{path: fullPath, meta: meta}
 	})
@@ -255,10 +257,12 @@ func getCapsuleMetadata(capsulePath string) CapsuleMetadata {
 	capsuleMetadataCache.RUnlock()
 
 	// Compute metadata with semaphore to limit concurrent archive reads
+	// Use ScanCapsuleFlags for single-pass archive scan (2x faster than separate calls)
 	acquireArchiveSemaphore()
+	flags, _ := archive.ScanCapsuleFlags(capsulePath)
 	meta := CapsuleMetadata{
-		IsCAS: archive.IsCASCapsule(capsulePath),
-		HasIR: archive.HasIR(capsulePath),
+		IsCAS: flags.IsCAS,
+		HasIR: flags.HasIR,
 	}
 	releaseArchiveSemaphore()
 

@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/FocuswithJustin/JuniperBible/core/ir"
+	"github.com/FocuswithJustin/JuniperBible/internal/archive"
 )
 
 // sampleBibles lists the 11 sample Bible capsules available in contrib/sample-data/capsules/
@@ -127,10 +128,12 @@ func setupSampleDataTest(t *testing.T, bibles ...string) (string, func()) {
 	ServerConfig.CapsulesDir = tempDir
 	ServerConfig.PluginsDir = filepath.Join(tempDir, "plugins")
 
-	// Invalidate cache so it picks up the new capsules
+	// Clear all caches so they pick up the new capsules
 	invalidateBibleCache()
 	invalidateCorpusCache()
 	invalidateCapsuleMetadataCache()
+	invalidateCapsulesList()
+	archive.ClearTOCCache()
 
 	cleanup := func() {
 		ServerConfig.CapsulesDir = origCapsulesDir
@@ -267,11 +270,18 @@ func TestWithSampleData_BibleIndex(t *testing.T) {
 
 	handleBibleIndex(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	// When there are bibles present, /bible redirects to the first one
+	if w.Code != http.StatusFound {
+		t.Errorf("status = %d, want %d (redirect to first Bible)", w.Code, http.StatusFound)
 	}
 
-	// Check that bibles are listed
+	// Verify the redirect location points to a Bible
+	location := w.Header().Get("Location")
+	if !strings.Contains(location, "/bible/") {
+		t.Errorf("redirect location %q should contain /bible/", location)
+	}
+
+	// Check that bibles are loaded
 	bibles := getCachedBibles()
 	if len(bibles) == 0 {
 		t.Errorf("expected bibles to be listed, got 0")

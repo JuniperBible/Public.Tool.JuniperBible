@@ -11,7 +11,18 @@ import (
 	"testing"
 
 	"github.com/FocuswithJustin/JuniperBible/core/ir"
+	"github.com/FocuswithJustin/JuniperBible/internal/archive"
 )
+
+// clearAllCaches clears all web caches for clean tests.
+// This should be called at the start of tests that need a clean state.
+func clearAllCaches() {
+	invalidateBibleCache()
+	invalidateCapsulesList()
+	invalidateCapsuleMetadataCache()
+	invalidateCorpusCache()
+	archive.ClearTOCCache()
+}
 
 func setupBibleTemplates() {
 	// Add Bible Templates for testing
@@ -303,6 +314,11 @@ func TestHandleBibleIndex(t *testing.T) {
 	tempDir := t.TempDir()
 	ServerConfig.CapsulesDir = tempDir
 
+	// Add bible_empty.html template for testing
+	if Templates.Lookup("bible_empty.html") == nil {
+		template.Must(Templates.New("bible_empty.html").Parse(`<!DOCTYPE html><html><body>No Bibles installed</body></html>`))
+	}
+
 	tests := []struct {
 		name       string
 		path       string
@@ -311,21 +327,23 @@ func TestHandleBibleIndex(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:       "bible index with no capsules",
-			path:       "/bible",
-			setup:      func() { invalidateBibleCache() },
+			name: "bible index with no capsules",
+			path: "/bible",
+			setup: func() {
+				clearAllCaches()
+			},
 			wantStatus: http.StatusOK,
-			wantBody:   "Bible Index: 0 bibles",
+			wantBody:   "No Bibles installed",
 		},
 		{
-			name: "bible index with capsules",
+			name: "bible index with capsules redirects",
 			path: "/bible/",
 			setup: func() {
 				createTestBibleCapsule(t, tempDir, "KJV")
-				invalidateBibleCache()
+				clearAllCaches()
 			},
-			wantStatus: http.StatusOK,
-			wantBody:   "Bible Index: 1 bibles",
+			wantStatus: http.StatusFound, // 302 redirect to first Bible
+			wantBody:   "/bible/KJV/Gen/1",
 		},
 	}
 
@@ -413,8 +431,14 @@ func TestHandleAPIBibles(t *testing.T) {
 	tempDir := t.TempDir()
 	ServerConfig.CapsulesDir = tempDir
 
+	// Clear all caches for clean test
+	clearAllCaches()
+
 	// Create a test Bible capsule
 	createTestBibleCapsule(t, tempDir, "KJV")
+
+	// Clear caches so they pick up the new capsule
+	clearAllCaches()
 
 	tests := []struct {
 		name       string
@@ -492,8 +516,8 @@ func TestListBibles(t *testing.T) {
 	tempDir := t.TempDir()
 	ServerConfig.CapsulesDir = tempDir
 
-	// Clear cache for clean test
-	invalidateBibleCache()
+	// Clear all caches for clean test
+	clearAllCaches()
 
 	// Initially empty
 	bibles := getCachedBibles()
@@ -504,8 +528,8 @@ func TestListBibles(t *testing.T) {
 	// Create a Bible capsule
 	createTestBibleCapsule(t, tempDir, "KJV")
 
-	// Invalidate cache so it picks up the new capsule
-	invalidateBibleCache()
+	// Clear caches so they pick up the new capsule
+	clearAllCaches()
 
 	bibles = getCachedBibles()
 	if len(bibles) != 1 {

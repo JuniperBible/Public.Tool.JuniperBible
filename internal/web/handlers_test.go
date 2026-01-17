@@ -262,6 +262,9 @@ func TestListCapsules(t *testing.T) {
 	ServerConfig.CapsulesDir = tmpDir
 	defer func() { ServerConfig.CapsulesDir = originalDir }()
 
+	// Clear all caches for clean test
+	clearAllCaches()
+
 	capsules := listCapsules()
 
 	// Should find 2 capsules (not the txt file)
@@ -2001,6 +2004,9 @@ func TestCategorizeCapsules(t *testing.T) {
 	originalDir := ServerConfig.CapsulesDir
 	ServerConfig.CapsulesDir = tmpDir
 	defer func() { ServerConfig.CapsulesDir = originalDir }()
+
+	// Clear all caches for clean test
+	clearAllCaches()
 
 	// Create CAS capsule
 	casPath := filepath.Join(tmpDir, "cas.tar.gz")

@@ -28,9 +28,15 @@ func TestWebUIIntegration(t *testing.T) {
 		ServerConfig.PluginsDir = origPluginsDir
 	}()
 
+	// Clear all caches for clean test
+	clearAllCaches()
+
 	// Create test capsules
 	createTestBibleCapsule(t, tempDir, "KJV")
 	createTestBibleCapsule(t, tempDir, "NIV")
+
+	// Clear caches so they pick up the new capsules
+	clearAllCaches()
 
 	// Create a minimal plugins directory
 	os.MkdirAll(filepath.Join(ServerConfig.PluginsDir, "format", "sword"), 0755)
@@ -50,6 +56,8 @@ func TestWebUIIntegration(t *testing.T) {
 	mux.HandleFunc("/bible/search", handleBibleSearch)
 	mux.HandleFunc("/bible/", handleBibleIndex)
 	mux.HandleFunc("/bible", handleBibleIndex)
+	mux.HandleFunc("/library/bibles/", handleLibraryBibles)
+	mux.HandleFunc("/library/bibles", handleLibraryBibles)
 	mux.HandleFunc("/api/bibles/search", handleAPIBibleSearch)
 	mux.HandleFunc("/api/bibles/", handleAPIBibles)
 	mux.HandleFunc("/api/bibles", handleAPIBibles)
@@ -87,15 +95,15 @@ func TestWebUIIntegration(t *testing.T) {
 			wantContains: []string{"Convert"},
 		},
 		{
-			name:         "bible index lists bibles",
+			name:         "bible index redirects to first bible",
 			path:         "/bible",
 			method:       "GET",
-			wantStatus:   http.StatusOK,
-			wantContains: []string{"Bible"},
+			wantStatus:   http.StatusFound, // 302 redirect
+			wantContains: []string{"/bible/KJV"}, // Location header contains KJV
 		},
 		{
-			name:         "bible compare tab",
-			path:         "/bible?tab=compare",
+			name:         "bible compare tab is in library",
+			path:         "/library/bibles?tab=compare",
 			method:       "GET",
 			wantStatus:   http.StatusOK,
 			wantContains: []string{"tab-compare"},
@@ -147,6 +155,13 @@ func TestWebUIIntegration(t *testing.T) {
 		},
 	}
 
+	// Create a client that doesn't follow redirects for redirect tests
+	noRedirectClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req, err := http.NewRequest(tt.method, server.URL+tt.path, nil)
@@ -154,7 +169,13 @@ func TestWebUIIntegration(t *testing.T) {
 				t.Fatalf("create request: %v", err)
 			}
 
-			resp, err := http.DefaultClient.Do(req)
+			// Use noRedirectClient for redirect tests to check the actual redirect response
+			client := http.DefaultClient
+			if tt.wantStatus == http.StatusFound || tt.wantStatus == http.StatusMovedPermanently {
+				client = noRedirectClient
+			}
+
+			resp, err := client.Do(req)
 			if err != nil {
 				t.Fatalf("make request: %v", err)
 			}
@@ -163,6 +184,17 @@ func TestWebUIIntegration(t *testing.T) {
 			if resp.StatusCode != tt.wantStatus {
 				body, _ := io.ReadAll(resp.Body)
 				t.Errorf("status = %d, want %d\nbody: %s", resp.StatusCode, tt.wantStatus, string(body))
+				return
+			}
+
+			// For redirect responses, check Location header instead of body
+			if tt.wantStatus == http.StatusFound || tt.wantStatus == http.StatusMovedPermanently {
+				location := resp.Header.Get("Location")
+				for _, want := range tt.wantContains {
+					if !strings.Contains(location, want) {
+						t.Errorf("Location header %q should contain %q", location, want)
+					}
+				}
 				return
 			}
 
@@ -198,8 +230,14 @@ func TestAPIBiblesJSON(t *testing.T) {
 		ServerConfig.CapsulesDir = origCapsulesDir
 	}()
 
+	// Clear all caches for clean test
+	clearAllCaches()
+
 	// Create test Bible
 	createTestBibleCapsule(t, tempDir, "KJV")
+
+	// Clear caches so they pick up the new capsule
+	clearAllCaches()
 
 	// Test list bibles
 	req := httptest.NewRequest(http.MethodGet, "/api/bibles", nil)
@@ -322,6 +360,9 @@ func TestCapsuleListingIntegration(t *testing.T) {
 		ServerConfig.CapsulesDir = origCapsulesDir
 	}()
 
+	// Clear all caches for clean test
+	clearAllCaches()
+
 	// Initially empty
 	capsules := listCapsules()
 	if len(capsules) != 0 {
@@ -331,6 +372,9 @@ func TestCapsuleListingIntegration(t *testing.T) {
 	// Create a Bible capsule
 	createTestBibleCapsule(t, tempDir, "KJV")
 
+	// Clear caches so they pick up the new capsule
+	clearAllCaches()
+
 	capsules = listCapsules()
 	if len(capsules) != 1 {
 		t.Errorf("expected 1 capsule, got %d", len(capsules))
@@ -338,6 +382,9 @@ func TestCapsuleListingIntegration(t *testing.T) {
 
 	// Create another
 	createTestBibleCapsule(t, tempDir, "NIV")
+
+	// Clear caches so they pick up the new capsule
+	clearAllCaches()
 
 	capsules = listCapsules()
 	if len(capsules) != 2 {
@@ -388,13 +435,16 @@ func TestMultipleBiblesComparison(t *testing.T) {
 		ServerConfig.CapsulesDir = origCapsulesDir
 	}()
 
+	// Clear all caches for clean test
+	clearAllCaches()
+
 	// Create multiple Bible capsules
 	createTestBibleCapsule(t, tempDir, "KJV")
 	createTestBibleCapsule(t, tempDir, "NIV")
 	createTestBibleCapsule(t, tempDir, "ESV")
 
-	// Invalidate cache so it picks up the new capsules
-	invalidateBibleCache()
+	// Clear all caches so they pick up the new capsules
+	clearAllCaches()
 
 	bibles := getCachedBibles()
 	if len(bibles) != 3 {

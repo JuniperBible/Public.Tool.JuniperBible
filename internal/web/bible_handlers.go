@@ -1574,13 +1574,28 @@ func listBiblesUncached() []BibleInfo {
 		return nil
 	}
 
+	// Filter to only capsules that have IR files - this is the key optimization
+	// Without this, we'd try to read IR from 2000+ capsules when only ~14 have IR
+	var capsulesWithIR []CapsuleInfo
+	for _, c := range capsules {
+		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
+		meta := getCapsuleMetadata(fullPath)
+		if meta.HasIR {
+			capsulesWithIR = append(capsulesWithIR, c)
+		}
+	}
+
+	if len(capsulesWithIR) == 0 {
+		return nil
+	}
+
 	type result struct {
 		bible BibleInfo
 		ok    bool
 	}
 
-	// Create and start worker pool
-	pool := NewWorkerPool[CapsuleInfo, result](maxWorkers, len(capsules))
+	// Create and start worker pool - only processing capsules with IR
+	pool := NewWorkerPool[CapsuleInfo, result](maxWorkers, len(capsulesWithIR))
 	pool.Start(func(c CapsuleInfo) result {
 		capsuleID := archive.ExtractCapsuleID(c.Name)
 
@@ -1652,8 +1667,8 @@ func listBiblesUncached() []BibleInfo {
 		return result{bible: bible, ok: true}
 	})
 
-	// Submit jobs
-	for _, c := range capsules {
+	// Submit jobs - only capsules with IR
+	for _, c := range capsulesWithIR {
 		pool.Submit(c)
 	}
 	pool.Close()

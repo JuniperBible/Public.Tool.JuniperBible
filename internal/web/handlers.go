@@ -187,6 +187,23 @@ type CapsuleMetadata struct {
 	HasIR bool
 }
 
+// DiskCapsuleMetadata is the on-disk format for capsule metadata cache.
+type DiskCapsuleMetadata struct {
+	ModTime int64 // File modification time (Unix timestamp)
+	Size    int64 // File size in bytes
+	IsCAS   bool
+	HasIR   bool
+}
+
+// DiskMetadataCache is the full on-disk cache structure.
+type DiskMetadataCache struct {
+	Version  int                            `json:"version"`
+	Capsules map[string]DiskCapsuleMetadata `json:"capsules"` // key: filename (not full path)
+}
+
+const diskMetadataCacheVersion = 1
+const diskMetadataCacheFile = ".capsule-metadata.json"
+
 // capsuleMetadataCache caches capsule metadata to avoid re-reading files on every request.
 var capsuleMetadataCache struct {
 	sync.RWMutex
@@ -200,49 +217,155 @@ func init() {
 	capsuleMetadataCache.data = make(map[string]CapsuleMetadata)
 }
 
+// loadDiskMetadataCache loads the metadata cache from disk.
+func loadDiskMetadataCache() map[string]DiskCapsuleMetadata {
+	cacheFile := filepath.Join(ServerConfig.CapsulesDir, diskMetadataCacheFile)
+	data, err := os.ReadFile(cacheFile)
+	if err != nil {
+		return nil
+	}
+
+	var cache DiskMetadataCache
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return nil
+	}
+
+	if cache.Version != diskMetadataCacheVersion {
+		return nil
+	}
+
+	return cache.Capsules
+}
+
+// saveDiskMetadataCache saves the metadata cache to disk.
+func saveDiskMetadataCache(capsules map[string]DiskCapsuleMetadata) error {
+	cache := DiskMetadataCache{
+		Version:  diskMetadataCacheVersion,
+		Capsules: capsules,
+	}
+
+	data, err := json.MarshalIndent(cache, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	cacheFile := filepath.Join(ServerConfig.CapsulesDir, diskMetadataCacheFile)
+	return os.WriteFile(cacheFile, data, 0644)
+}
+
 // preloadCapsuleMetadata preloads metadata for all capsules in parallel.
+// Uses a disk cache to avoid scanning archives on subsequent startups.
 // This should be called during startup warmup.
-// Note: Does not use archiveSemaphore since worker pool already limits concurrency.
 func preloadCapsuleMetadata() {
 	capsules := listCapsules()
 	if len(capsules) == 0 {
 		return
 	}
 
-	type metaResult struct {
-		path string
-		meta CapsuleMetadata
+	// Load existing disk cache
+	diskCache := loadDiskMetadataCache()
+	if diskCache == nil {
+		diskCache = make(map[string]DiskCapsuleMetadata)
 	}
 
-	// Use worker pool to read metadata in parallel (32 workers)
-	// No additional semaphore needed - worker pool already limits concurrency
-	pool := NewWorkerPool[CapsuleInfo, metaResult](maxWorkers, len(capsules))
+	// Build a map of current capsule files for quick lookup
+	currentFiles := make(map[string]os.FileInfo)
+	for _, c := range capsules {
+		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
+		if info, err := os.Stat(fullPath); err == nil {
+			currentFiles[c.Name] = info
+		}
+	}
+
+	// Find capsules that need scanning (not in cache or modified)
+	var needsScan []CapsuleInfo
+	cacheHits := 0
+	for _, c := range capsules {
+		info := currentFiles[c.Name]
+		if info == nil {
+			continue
+		}
+
+		cached, ok := diskCache[c.Name]
+		if ok && cached.ModTime == info.ModTime().Unix() && cached.Size == info.Size() {
+			// Cache hit - use cached values
+			fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
+			capsuleMetadataCache.Lock()
+			capsuleMetadataCache.data[fullPath] = CapsuleMetadata{
+				IsCAS: cached.IsCAS,
+				HasIR: cached.HasIR,
+			}
+			capsuleMetadataCache.Unlock()
+			cacheHits++
+		} else {
+			// Cache miss - needs scanning
+			needsScan = append(needsScan, c)
+		}
+	}
+
+	log.Printf("[CACHE] Disk metadata cache: %d hits, %d need scanning", cacheHits, len(needsScan))
+
+	if len(needsScan) == 0 {
+		capsuleMetadataCache.Lock()
+		capsuleMetadataCache.timestamp = time.Now()
+		capsuleMetadataCache.Unlock()
+		log.Printf("[CACHE] All %d capsules loaded from disk cache", cacheHits)
+		return
+	}
+
+	// Scan capsules that need it
+	type metaResult struct {
+		name     string
+		path     string
+		meta     CapsuleMetadata
+		diskMeta DiskCapsuleMetadata
+	}
+
+	pool := NewWorkerPool[CapsuleInfo, metaResult](maxWorkers, len(needsScan))
 	pool.Start(func(c CapsuleInfo) metaResult {
 		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
-		// Use ScanCapsuleFlags for single-pass archive scan (2x faster than separate calls)
 		flags, _ := archive.ScanCapsuleFlags(fullPath)
 		meta := CapsuleMetadata{
 			IsCAS: flags.IsCAS,
 			HasIR: flags.HasIR,
 		}
-		return metaResult{path: fullPath, meta: meta}
+
+		info := currentFiles[c.Name]
+		diskMeta := DiskCapsuleMetadata{
+			ModTime: info.ModTime().Unix(),
+			Size:    info.Size(),
+			IsCAS:   flags.IsCAS,
+			HasIR:   flags.HasIR,
+		}
+
+		return metaResult{name: c.Name, path: fullPath, meta: meta, diskMeta: diskMeta}
 	})
 
-	// Submit all capsules
-	for _, c := range capsules {
+	for _, c := range needsScan {
 		pool.Submit(c)
 	}
 	pool.Close()
 
-	// Collect results into cache
-	capsuleMetadataCache.Lock()
+	// Collect results
 	for r := range pool.Results() {
+		capsuleMetadataCache.Lock()
 		capsuleMetadataCache.data[r.path] = r.meta
+		capsuleMetadataCache.Unlock()
+		diskCache[r.name] = r.diskMeta
 	}
+
+	capsuleMetadataCache.Lock()
 	capsuleMetadataCache.timestamp = time.Now()
 	capsuleMetadataCache.Unlock()
 
-	log.Printf("[CACHE] Preloaded metadata for %d capsules", len(capsules))
+	// Save updated disk cache
+	if err := saveDiskMetadataCache(diskCache); err != nil {
+		log.Printf("[CACHE] Failed to save disk metadata cache: %v", err)
+	} else {
+		log.Printf("[CACHE] Saved disk metadata cache with %d entries", len(diskCache))
+	}
+
+	log.Printf("[CACHE] Preloaded metadata: %d from cache, %d scanned", cacheHits, len(needsScan))
 }
 
 // getCapsuleMetadata returns cached metadata for a capsule or computes it if not cached.

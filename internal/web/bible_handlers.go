@@ -1624,12 +1624,22 @@ func listBiblesUncached() []BibleInfo {
 			CapsulePath:   c.Path,
 		}
 
-		// Check for Strong's numbers (only check first few documents to speed up)
-		maxDocsToCheck := 3
-		for i, doc := range corpus.Documents {
-			if i >= maxDocsToCheck {
-				break
-			}
+		// Check for Strong's numbers - sample 3 books from OT and 3 from NT
+		// OT typically has 39 books, NT starts at index 39
+		numDocs := len(corpus.Documents)
+		indicesToCheck := []int{}
+
+		// First 3 OT books (Genesis, Exodus, Leviticus)
+		for i := 0; i < 3 && i < numDocs; i++ {
+			indicesToCheck = append(indicesToCheck, i)
+		}
+		// First 3 NT books (Matthew, Mark, Luke) - NT starts at index 39
+		for i := 39; i < 42 && i < numDocs; i++ {
+			indicesToCheck = append(indicesToCheck, i)
+		}
+
+		for _, idx := range indicesToCheck {
+			doc := corpus.Documents[idx]
 			found := false
 			for _, cb := range doc.ContentBlocks {
 				for _, tok := range cb.Tokens {

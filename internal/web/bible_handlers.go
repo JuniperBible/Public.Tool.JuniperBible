@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/FocuswithJustin/JuniperBible/core/ir"
@@ -24,6 +25,59 @@ var (
 	// strongsSearchRegex matches Strong's number format (H1234 or G5678)
 	strongsSearchRegex = regexp.MustCompile(`^[HG]\d+$`)
 )
+
+// startupState tracks server startup progress for the splash screen.
+var startupState struct {
+	sync.RWMutex
+	ready    bool
+	message  string
+	detail   string
+	progress int // 0-100
+}
+
+// StartupStatus returns the current startup state for the splash screen.
+type StartupStatus struct {
+	Ready    bool   `json:"ready"`
+	Message  string `json:"message,omitempty"`
+	Detail   string `json:"detail,omitempty"`
+	Progress int    `json:"progress,omitempty"`
+}
+
+// GetStartupStatus returns the current startup status.
+func GetStartupStatus() StartupStatus {
+	startupState.RLock()
+	defer startupState.RUnlock()
+	return StartupStatus{
+		Ready:    startupState.ready,
+		Message:  startupState.message,
+		Detail:   startupState.detail,
+		Progress: startupState.progress,
+	}
+}
+
+// IsStartupReady returns true if the server has finished warming up.
+func IsStartupReady() bool {
+	startupState.RLock()
+	defer startupState.RUnlock()
+	return startupState.ready
+}
+
+func setStartupProgress(message, detail string, progress int) {
+	startupState.Lock()
+	startupState.message = message
+	startupState.detail = detail
+	startupState.progress = progress
+	startupState.Unlock()
+}
+
+func setStartupReady() {
+	startupState.Lock()
+	startupState.ready = true
+	startupState.message = "Ready"
+	startupState.detail = ""
+	startupState.progress = 100
+	startupState.Unlock()
+}
 
 // bibleCache caches Bible info to avoid re-parsing capsules on every request.
 var bibleCache struct {
@@ -202,12 +256,94 @@ func getCachedCorpus(capsuleID string) (*ir.Corpus, string, error) {
 
 // PreWarmCaches pre-populates caches on server startup.
 // This runs in a goroutine so it doesn't block server startup.
+// Progress is tracked via startupState for the splash screen.
 func PreWarmCaches() {
 	go func() {
-		log.Println("[CACHE] Pre-warming Bible cache...")
-		getCachedBibles()
-		log.Println("[CACHE] Pre-warm complete")
+		start := time.Now()
+		setStartupProgress("Initializing", "Starting cache warmup...", 0)
+		log.Println("[CACHE] Pre-warming caches...")
+
+		var wg sync.WaitGroup
+		var bibles []BibleInfo
+		var installed, installable []ManageableBible
+
+		// 1. Warm Bible list and manageable caches in parallel
+		setStartupProgress("Loading Bibles", "Scanning Bible library...", 10)
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+			bibles = getCachedBibles()
+			log.Printf("[CACHE] Bible list cache warmed: %d Bibles", len(bibles))
+		}()
+
+		go func() {
+			defer wg.Done()
+			installed, installable = getCachedManageableBibles()
+			log.Printf("[CACHE] Manageable Bibles cache warmed: %d installed, %d installable", len(installed), len(installable))
+		}()
+
+		wg.Wait()
+		setStartupProgress("Loading Bibles", fmt.Sprintf("Found %d installed Bibles", len(bibles)), 30)
+
+		// 2. Pre-load all installed Bible corpora in parallel with progress tracking
+		if len(bibles) > 0 {
+			log.Printf("[CACHE] Pre-loading %d Bible corpora...", len(bibles))
+			preloadCorporaWithProgress(bibles)
+		}
+
+		setStartupReady()
+		log.Printf("[CACHE] Pre-warm complete in %v", time.Since(start))
 	}()
+}
+
+// preloadCorpora loads all Bible corpora into cache in parallel (without progress tracking).
+func preloadCorpora(bibles []BibleInfo) {
+	preloadCorporaWithProgress(bibles)
+}
+
+// preloadCorporaWithProgress loads all Bible corpora into cache in parallel with startup progress tracking.
+func preloadCorporaWithProgress(bibles []BibleInfo) {
+	var wg sync.WaitGroup
+	// Use more workers for I/O-bound work (decompressing archives)
+	// Cap at 16 to avoid resource exhaustion
+	numWorkers := 16
+	sem := make(chan struct{}, numWorkers)
+	var loaded, failed int32
+	totalBibles := int32(len(bibles))
+
+	// Pre-calculate log interval (every 10% or so)
+	logInterval := int32((totalBibles + 9) / 10)
+	if logInterval < 1 {
+		logInterval = 1
+	}
+
+	for _, bible := range bibles {
+		wg.Add(1)
+		go func(b BibleInfo) {
+			defer wg.Done()
+			sem <- struct{}{}        // Acquire semaphore
+			defer func() { <-sem }() // Release semaphore
+
+			_, _, err := getCachedCorpus(b.ID)
+			if err != nil {
+				atomic.AddInt32(&failed, 1)
+				log.Printf("[CACHE] Failed to preload corpus for %s: %v", b.ID, err)
+			} else {
+				count := atomic.AddInt32(&loaded, 1)
+				// Update progress for splash screen (30% to 95% range)
+				progress := 30 + int((float64(count)/float64(totalBibles))*65)
+				setStartupProgress("Loading corpora", fmt.Sprintf("Loaded %d/%d Bibles", count, totalBibles), progress)
+
+				if count%logInterval == 0 || count == totalBibles {
+					log.Printf("[CACHE] Preloaded %d/%d corpora", count, totalBibles)
+				}
+			}
+		}(bible)
+	}
+
+	wg.Wait()
+	log.Printf("[CACHE] Corpus preload complete: %d loaded, %d failed", loaded, failed)
 }
 
 // StartBackgroundCacheRefresh starts a goroutine that refreshes caches
@@ -312,10 +448,10 @@ func (mb ManageableBible) HasTag(tag string) bool {
 func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 	capsules := listCapsules()
 
-	// Build a set of installed Bible IDs for quick lookup
-	installedIDs := make(map[string]bool)
+	// Build a map of installed Bible info for quick lookup (includes Language)
+	installedBibleInfo := make(map[string]BibleInfo)
 	for _, bible := range getCachedBibles() {
-		installedIDs[bible.ID] = true
+		installedBibleInfo[bible.ID] = bible
 	}
 
 	// Process capsules using cached metadata for performance
@@ -339,14 +475,25 @@ func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 			tags = append(tags, "identified")
 		}
 
+		// Get language from cached Bible info if available
+		var language string
+		var name string = capsuleID
+		if bibleInfo, ok := installedBibleInfo[capsuleID]; ok {
+			language = bibleInfo.Language
+			if bibleInfo.Title != "" {
+				name = bibleInfo.Title
+			}
+		}
+
 		mb := ManageableBible{
 			ID:          capsuleID,
-			Name:        capsuleID,
+			Name:        name,
 			Source:      "capsule",
 			SourcePath:  c.Path,
 			IsInstalled: hasIR,
 			Format:      c.Format,
 			Tags:        tags,
+			Language:    language,
 		}
 
 		if hasIR {
@@ -360,7 +507,7 @@ func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 	swordModules := listSWORDModules()
 	for _, sm := range swordModules {
 		// Check if already in installed list (by ID)
-		if installedIDs[sm.ID] {
+		if _, exists := installedBibleInfo[sm.ID]; exists {
 			continue
 		}
 		installable = append(installable, sm)
@@ -845,10 +992,10 @@ func handleLibraryBibles(w http.ResponseWriter, r *http.Request) {
 			manageTagFilter = "all"
 		}
 
-		// Get language filter parameter (default to "en" for better UX)
+		// Get language filter parameter (default to "all" to show everything)
 		manageLanguageFilter = r.URL.Query().Get("lang")
 		if manageLanguageFilter == "" {
-			manageLanguageFilter = "en"
+			manageLanguageFilter = "all"
 		}
 
 		// Filter by tag and language

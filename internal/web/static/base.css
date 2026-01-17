@@ -378,17 +378,27 @@ button.outline,
 button.secondary,
 .btn.outline,
 .btn.secondary,
+a[role="button"].outline,
+a[role="button"].secondary,
 [role="button"].outline,
 [role="button"].secondary {
   background-color: transparent;
   border-color: var(--color-chrome);
   color: var(--color-chrome);
+  text-decoration: none;
+}
+
+/* Ensure anchor buttons don't inherit link styles */
+a[role="button"] {
+  text-decoration: none;
 }
 
 button.outline:hover,
 button.secondary:hover,
 .btn.outline:hover,
 .btn.secondary:hover,
+a[role="button"].outline:hover,
+a[role="button"].secondary:hover,
 [role="button"].outline:hover,
 [role="button"].secondary:hover {
   background-color: var(--color-chrome);
@@ -1614,4 +1624,317 @@ dialog article {
 
 .error-acknowledge:hover {
   background: #a71d1d;
+}
+
+/* ===========================================
+   INSTALL QUEUE PANEL
+   =========================================== */
+.install-queue-panel {
+  background: var(--color-bg-alt, #f5f5f5);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.queue-header {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.queue-content {
+  font-size: 0.9rem;
+}
+
+.queue-current {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.queue-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: queue-spin 1s linear infinite;
+}
+
+@keyframes queue-spin {
+  to { transform: rotate(360deg); }
+}
+
+.queue-pending {
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.queue-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.queue-history-item {
+  font-size: 0.85rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.queue-history-item.success {
+  background: rgba(76, 175, 80, 0.15);
+  color: #2e7d32;
+}
+
+.queue-history-item.error {
+  background: rgba(198, 40, 40, 0.15);
+  color: #c62828;
+}
+
+.queue-history-more {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  padding: 0.2rem 0.5rem;
+}
+
+/* ===========================================
+   ASYNC TASK QUEUE UI
+   =========================================== */
+
+/* Floating panel */
+.task-queue-panel {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  max-width: 400px;
+  max-height: 300px;
+  background: rgba(245, 241, 232, 0.98);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: 1000;
+  display: none;
+  flex-direction: column;
+}
+
+.task-queue-panel.visible {
+  display: flex;
+  animation: task-panel-fadein 0.2s var(--ease-out);
+}
+
+@keyframes task-panel-fadein {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Panel header */
+.task-queue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-chrome);
+  color: var(--color-surface);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.task-queue-header button {
+  background: transparent;
+  border: none;
+  color: var(--color-surface);
+  cursor: pointer;
+  padding: var(--space-1);
+  font-size: var(--text-lg);
+  line-height: 1;
+  opacity: 0.8;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.task-queue-header button:hover {
+  opacity: 1;
+  background-color: transparent;
+}
+
+/* Panel sections */
+.task-queue-running,
+.task-queue-queued,
+.task-queue-history {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.task-queue-running {
+  background-color: var(--bg-card);
+}
+
+.task-queue-queued {
+  background-color: var(--bg-secondary);
+  max-height: 0;
+  overflow: hidden;
+  padding: 0;
+  transition: max-height 0.3s var(--ease-out), padding 0.3s var(--ease-out);
+}
+
+.task-queue-queued.expanded {
+  max-height: 200px;
+  padding: var(--space-3) var(--space-4);
+  overflow-y: auto;
+}
+
+.task-queue-history {
+  background-color: var(--bg-card);
+  max-height: 120px;
+  overflow-y: auto;
+  border-bottom: none;
+}
+
+/* Individual task items */
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  font-size: var(--text-sm);
+  animation: task-item-slidein 0.3s var(--ease-out);
+}
+
+@keyframes task-item-slidein {
+  from {
+    opacity: 0;
+    transform: translateX(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.task-item:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.task-item-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-item-name {
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-item-status {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+
+/* Task states */
+.task-item.running .task-item-icon::before {
+  content: '';
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: task-spin 1s linear infinite;
+}
+
+@keyframes task-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.task-item.queued {
+  opacity: 0.6;
+}
+
+.task-item.queued .task-item-icon::before {
+  content: '⏱';
+  font-size: 14px;
+}
+
+.task-item.completed .task-item-icon::before {
+  content: '✓';
+  font-size: 14px;
+  color: var(--success);
+  font-weight: bold;
+}
+
+.task-item.failed .task-item-icon::before {
+  content: '✗';
+  font-size: 14px;
+  color: var(--error);
+  font-weight: bold;
+}
+
+/* Progress bar */
+.task-progress {
+  width: 100%;
+  height: 3px;
+  background-color: var(--border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: var(--space-1);
+}
+
+.task-progress-fill {
+  height: 100%;
+  background-color: var(--primary);
+  border-radius: var(--radius-full);
+  transition: width 0.3s var(--ease-out);
+  animation: task-progress-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes task-progress-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .task-queue-panel {
+    bottom: 0.5rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    max-width: none;
+  }
 }

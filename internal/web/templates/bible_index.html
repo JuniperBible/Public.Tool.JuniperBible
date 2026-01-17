@@ -304,102 +304,35 @@
 <input type="hidden" id="search-query-data" data-query="{{.Query | html}}">
 <div id="bibles-data" style="display: none;" data-bibles='{{range $i, $b := .AllBibles}}{{if $i}},{{end}}{"id":"{{$b.ID}}","abbrev":"{{$b.Abbrev}}","title":"{{$b.Title}}"}{{end}}'></div>
 
-<!-- Loading Modal -->
-<div id="loading-modal" class="loading-modal">
-  <div class="loading-spinner">
-    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
-      <!-- Static triangle (logo background) -->
-      <polygon class="logo-triangle" points="12,2 22,20 2,20" stroke-width="1" stroke-linejoin="round" stroke="currentColor"/>
-      <!-- Center dot -->
-      <circle class="logo-center-dot" cx="12" cy="14" r="1.5" fill="currentColor"/>
-      <!-- Spinning arrows forming circle perimeter -->
-      <g class="spinner-arrows">
-        <!-- Two arrows chasing each other as the circle perimeter -->
-        <path d="M 12 9 A 5 5 0 0 1 16.33 16.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-        <polygon points="16.33,16.5 15.5,14.5 17.8,15.3" fill="currentColor"/>
-        <path d="M 12 19 A 5 5 0 0 1 7.67 11.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-        <polygon points="7.67,11.5 8.5,13.5 6.2,12.7" fill="currentColor"/>
-      </g>
-    </svg>
-  </div>
-  <p id="loading-message">Installing...</p>
-</div>
-
-<!-- Error Modal -->
-<div id="error-modal" class="error-modal">
-  <div class="error-modal-content">
-    <div class="error-modal-header">
-      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <circle cx="12" cy="16" r="1" fill="currentColor"/>
-      </svg>
-      <h3>Error</h3>
-    </div>
-    <p id="error-message"></p>
-    <button id="error-acknowledge-btn" class="error-acknowledge">OK</button>
-  </div>
-</div>
-
 <script src="/static/bible_index.js"></script>
 <script src="/static/bible-compare.js"></script>
-
+<script src="/static/task-queue.js"></script>
 <script>
-// Loading modal functions
-function showLoadingModal(message) {
-  const modal = document.getElementById('loading-modal');
-  const msgEl = document.getElementById('loading-message');
-  if (msgEl && message) msgEl.textContent = message;
-  if (modal) modal.classList.add('active');
-}
-
-function hideLoadingModal() {
-  const modal = document.getElementById('loading-modal');
-  if (modal) modal.classList.remove('active');
-}
-
-// Error modal functions
-function showErrorModal(message) {
-  const modal = document.getElementById('error-modal');
-  const msgEl = document.getElementById('error-message');
-  if (msgEl) msgEl.textContent = message;
-  if (modal) modal.classList.add('active');
-}
-
-function hideErrorModal() {
-  const modal = document.getElementById('error-modal');
-  if (modal) modal.classList.remove('active');
-  // Remove error from URL without reloading
-  const url = new URL(window.location);
-  url.searchParams.delete('error');
-  window.history.replaceState({}, '', url);
-}
-
-// Intercept install form submissions to show loading modal
 document.addEventListener('DOMContentLoaded', function() {
-  // Check for error parameter in URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const errorMsg = urlParams.get('error');
-  if (errorMsg) {
-    showErrorModal(errorMsg);
-  }
+  if (window.TaskQueue) {
+    // Intercept install forms
+    TaskQueue.interceptForms(
+      'form[action="/library/bibles/install"]',
+      'install',
+      function(form) {
+        var row = form.closest('tr');
+        return row ? row.querySelector('td:first-child').textContent : 'Bible';
+      }
+    );
 
-  // Set up error modal acknowledge button
-  const ackBtn = document.getElementById('error-acknowledge-btn');
-  if (ackBtn) {
-    ackBtn.addEventListener('click', hideErrorModal);
-  }
+    // Intercept delete forms
+    TaskQueue.interceptForms(
+      'form[action="/library/bibles/delete"]',
+      'delete',
+      function(form) {
+        var btn = form.querySelector('.delete-bible-btn');
+        return btn ? btn.dataset.bibleName : 'Bible';
+      }
+    );
 
-  // Find all install forms
-  const installForms = document.querySelectorAll('form[action="/library/bibles/install"]');
-  installForms.forEach(function(form) {
-    form.addEventListener('submit', function(e) {
-      // Get the Bible name from the row
-      const row = form.closest('tr');
-      const name = row ? row.querySelector('td:first-child').textContent : 'Bible';
-      showLoadingModal('Installing ' + name + '...');
-    });
-  });
+    // Start monitoring
+    TaskQueue.init();
+  }
 });
 </script>
 

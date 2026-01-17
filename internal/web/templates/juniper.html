@@ -623,5 +623,108 @@
 {{template "sword_filter_script" .}}
 
 <script src="/static/juniper.js"></script>
+<script src="/static/task-queue.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.TaskQueue) {
+    // Intercept generate IR forms (from Generate IR tab)
+    TaskQueue.interceptForms(
+      '#generate-form',
+      'convert',
+      function(form) {
+        var checkboxes = form.querySelectorAll('input[name="source"]:checked');
+        if (checkboxes.length === 1) {
+          var row = checkboxes[0].closest('tr');
+          if (row) {
+            var nameCell = row.querySelector('td:nth-child(2)');
+            return nameCell ? nameCell.textContent.trim() : 'Capsule';
+          }
+        } else if (checkboxes.length > 1) {
+          return checkboxes.length + ' Capsules';
+        }
+        return 'Capsule';
+      }
+    );
+
+    // Intercept export forms (from Export tab)
+    TaskQueue.interceptForms(
+      '#export-form',
+      'export',
+      function(form) {
+        var checkboxes = form.querySelectorAll('input[name="source"]:checked');
+        if (checkboxes.length === 1) {
+          var row = checkboxes[0].closest('tr');
+          if (row) {
+            var nameCell = row.querySelector('td:nth-child(2)');
+            return nameCell ? nameCell.textContent.trim() : 'Capsule';
+          }
+        } else if (checkboxes.length > 1) {
+          return checkboxes.length + ' Capsules';
+        }
+        return 'Capsule';
+      }
+    );
+
+    // Intercept delete capsule forms (from List tab)
+    TaskQueue.interceptForms(
+      '.delete-capsule-form',
+      'delete',
+      function(form) {
+        var nameInput = form.querySelector('.capsule-name');
+        return nameInput ? nameInput.value : 'Capsule';
+      }
+    );
+
+    // Intercept SWORD module ingest forms (from Installed tab)
+    // Note: We can't use a simple selector for these, so we find them manually
+    document.querySelectorAll('form').forEach(function(form) {
+      var actionInput = form.querySelector('input[name="action"][value="ingest"]');
+      if (actionInput) {
+        form.addEventListener('submit', async function(e) {
+          e.preventDefault();
+
+          var modulesInput = form.querySelector('input[name="modules"]');
+          var taskName = modulesInput ? modulesInput.value : 'Module';
+
+          var formData = new FormData(form);
+          var params = {};
+          for (var pair of formData.entries()) {
+            params[pair[0]] = pair[1];
+          }
+
+          var submitBtn = form.querySelector('button[type="submit"]');
+          var originalText = submitBtn ? submitBtn.textContent : '';
+
+          try {
+            if (submitBtn) {
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'Queued...';
+            }
+
+            await TaskQueue.submitTask('ingest', taskName, params);
+
+            form.reset();
+
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = originalText;
+            }
+          } catch (error) {
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = originalText;
+            }
+            console.error('Error submitting ingest task:', error);
+            alert('Error submitting task: ' + error.message);
+          }
+        });
+      }
+    });
+
+    // Start monitoring
+    TaskQueue.init();
+  }
+});
+</script>
 
 {{template "footer" .}}

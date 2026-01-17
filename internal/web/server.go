@@ -125,9 +125,10 @@ func Start(cfg Config) error {
 	PreWarmCaches()
 	StartBackgroundCacheRefresh()
 
-// Apply middleware chain: logging -> timing -> security headers with CSP
+	// Apply middleware chain: splash -> logging -> timing -> security headers with CSP
+	// Splash middleware serves the splash screen during startup warmup
 	cspConfig := server.WebUICSPConfig()
-	handler := logging.CombinedMiddleware(server.TimingMiddleware(server.SecurityHeadersWithCSP(cspConfig, mux)))
+	handler := SplashMiddleware(logging.CombinedMiddleware(server.TimingMiddleware(server.SecurityHeadersWithCSP(cspConfig, mux))))
 
 	// Start server with or without TLS
 	addr := fmt.Sprintf(":%d", ServerConfig.Port)
@@ -233,6 +234,14 @@ func setupRoutes() *http.ServeMux {
 	mux.HandleFunc("/library/bibles/delete", handleBibleDelete)
 	mux.HandleFunc("/library/bibles/", handleLibraryBibles)
 	mux.HandleFunc("/library/bibles", handleLibraryBibles)
+
+	// Task queue API
+	mux.HandleFunc("/api/tasks/add", handleTaskAdd)
+	mux.HandleFunc("/api/tasks/status", handleTaskStatus)
+	mux.HandleFunc("/api/tasks/clear", handleTaskClear)
+
+	// Startup status API (for splash screen)
+	mux.HandleFunc("/api/startup/status", handleStartupStatus)
 
 	// Bible API
 	mux.HandleFunc("/api/bibles/search", handleAPIBibleSearch)

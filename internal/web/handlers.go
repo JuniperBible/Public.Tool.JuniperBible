@@ -102,7 +102,7 @@ var capsulesListCache struct {
 }
 
 func init() {
-	capsulesListCache.ttl = 30 * time.Second // Short TTL since capsule list can change
+	capsulesListCache.ttl = 5 * time.Minute // Capsule list rarely changes during normal operation
 }
 
 // getCachedCapsulesList returns a cached list of capsules or rebuilds if expired.
@@ -141,7 +141,7 @@ func invalidateCapsulesListCache() {
 
 // archiveSemaphore limits concurrent archive operations to prevent resource exhaustion.
 // Reading compressed archives is I/O and CPU intensive, so we limit concurrency.
-var archiveSemaphore = make(chan struct{}, 8) // Allow up to 8 concurrent archive operations
+var archiveSemaphore = make(chan struct{}, 16) // Allow up to 16 concurrent archive operations
 
 // acquireArchiveSemaphore acquires a slot for archive operations.
 func acquireArchiveSemaphore() {
@@ -202,6 +202,7 @@ func init() {
 
 // preloadCapsuleMetadata preloads metadata for all capsules in parallel.
 // This should be called during startup warmup.
+// Note: Does not use archiveSemaphore since worker pool already limits concurrency.
 func preloadCapsuleMetadata() {
 	capsules := listCapsules()
 	if len(capsules) == 0 {
@@ -213,16 +214,15 @@ func preloadCapsuleMetadata() {
 		meta CapsuleMetadata
 	}
 
-	// Use worker pool to read metadata in parallel
+	// Use worker pool to read metadata in parallel (32 workers)
+	// No additional semaphore needed - worker pool already limits concurrency
 	pool := NewWorkerPool[CapsuleInfo, metaResult](maxWorkers, len(capsules))
 	pool.Start(func(c CapsuleInfo) metaResult {
 		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
-		acquireArchiveSemaphore()
 		meta := CapsuleMetadata{
 			IsCAS: archive.IsCASCapsule(fullPath),
 			HasIR: archive.HasIR(fullPath),
 		}
-		releaseArchiveSemaphore()
 		return metaResult{path: fullPath, meta: meta}
 	})
 

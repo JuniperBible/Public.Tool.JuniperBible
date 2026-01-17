@@ -138,55 +138,58 @@ func Start(cfg Config) error {
 	return http.ListenAndServe(addr, handler)
 }
 
-// templateFuncs returns the template helper functions.
-func templateFuncs() template.FuncMap {
-	return template.FuncMap{
-		"iterate": func(n int) []int {
-			result := make([]int, n)
-			for i := range result {
-				result[i] = i
-			}
-			return result
-		},
-		"add": func(a, b int) int {
-			return a + b
-		},
-		"subtract": func(a, b int) int {
-			return a - b
-		},
-		"truncate": func(s string, n int) string {
-			if len(s) <= n {
-				return s
-			}
-			return s[:n] + "..."
-		},
-		"escapeJS": func(s string) string {
-			s = strings.ReplaceAll(s, "\\", "\\\\")
-			s = strings.ReplaceAll(s, "'", "\\'")
-			s = strings.ReplaceAll(s, "\"", "\\\"")
-			s = strings.ReplaceAll(s, "\n", "\\n")
-			s = strings.ReplaceAll(s, "\r", "\\r")
-			s = strings.ReplaceAll(s, "<", "\\u003c")
-			s = strings.ReplaceAll(s, ">", "\\u003e")
+// cachedTemplateFuncs is initialized once at package load time.
+var cachedTemplateFuncs = template.FuncMap{
+	"iterate": func(n int) []int {
+		result := make([]int, n)
+		for i := range result {
+			result[i] = i
+		}
+		return result
+	},
+	"add": func(a, b int) int {
+		return a + b
+	},
+	"subtract": func(a, b int) int {
+		return a - b
+	},
+	"truncate": func(s string, n int) string {
+		if len(s) <= n {
 			return s
-		},
-		// dict creates a map from key-value pairs for passing to templates.
-		// Usage: {{template "name" dict "key1" val1 "key2" val2}}
-		"dict": func(values ...any) map[string]any {
-			if len(values)%2 != 0 {
-				return nil
+		}
+		return s[:n] + "..."
+	},
+	"escapeJS": func(s string) string {
+		s = strings.ReplaceAll(s, "\\", "\\\\")
+		s = strings.ReplaceAll(s, "'", "\\'")
+		s = strings.ReplaceAll(s, "\"", "\\\"")
+		s = strings.ReplaceAll(s, "\n", "\\n")
+		s = strings.ReplaceAll(s, "\r", "\\r")
+		s = strings.ReplaceAll(s, "<", "\\u003c")
+		s = strings.ReplaceAll(s, ">", "\\u003e")
+		return s
+	},
+	// dict creates a map from key-value pairs for passing to templates.
+	// Usage: {{template "name" dict "key1" val1 "key2" val2}}
+	"dict": func(values ...any) map[string]any {
+		if len(values)%2 != 0 {
+			return nil
+		}
+		m := make(map[string]any, len(values)/2)
+		for i := 0; i < len(values); i += 2 {
+			key, ok := values[i].(string)
+			if !ok {
+				continue
 			}
-			m := make(map[string]any, len(values)/2)
-			for i := 0; i < len(values); i += 2 {
-				key, ok := values[i].(string)
-				if !ok {
-					continue
-				}
-				m[key] = values[i+1]
-			}
-			return m
-		},
-	}
+			m[key] = values[i+1]
+		}
+		return m
+	},
+}
+
+// templateFuncs returns the cached template helper functions.
+func templateFuncs() template.FuncMap {
+	return cachedTemplateFuncs
 }
 
 // setupRoutes configures all HTTP routes.

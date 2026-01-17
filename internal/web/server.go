@@ -118,6 +118,9 @@ func Start(cfg Config) error {
 		"capsules_dir", server.AbsPath(ServerConfig.CapsulesDir),
 		"sword_dir", server.AbsPath(ServerConfig.SwordDir))
 
+	// Initialize static file cache (must be done before serving requests)
+	initStaticFileCache()
+
 	// Pre-warm caches in background and start background refresh
 	PreWarmCaches()
 	StartBackgroundCacheRefresh()

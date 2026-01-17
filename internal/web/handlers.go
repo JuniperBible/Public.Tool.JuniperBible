@@ -37,6 +37,121 @@ const (
 	maxWorkers = 32
 )
 
+// staticFileCache caches static file contents at startup to avoid re-reading on every request.
+var staticFileCache struct {
+	sync.RWMutex
+	files     map[string][]byte
+	etags     map[string]string
+	populated bool
+}
+
+// initStaticFileCache initializes the static file cache by reading all static files at startup.
+func initStaticFileCache() {
+	staticFileCache.Lock()
+	defer staticFileCache.Unlock()
+
+	if staticFileCache.populated {
+		return
+	}
+
+	staticFileCache.files = make(map[string][]byte)
+	staticFileCache.etags = make(map[string]string)
+
+	// List of static files to cache
+	staticFiles := []string{"base.css", "style.css", "app.js"}
+
+	for _, name := range staticFiles {
+		content, err := staticFS.ReadFile("static/" + name)
+		if err != nil {
+			continue
+		}
+		staticFileCache.files[name] = content
+		// Generate ETag from content hash (simple CRC-like approach)
+		staticFileCache.etags[name] = fmt.Sprintf("\"%x\"", len(content))
+	}
+
+	staticFileCache.populated = true
+}
+
+// getStaticFile returns cached static file content and ETag.
+func getStaticFile(name string) ([]byte, string, bool) {
+	staticFileCache.RLock()
+	defer staticFileCache.RUnlock()
+
+	if !staticFileCache.populated {
+		return nil, "", false
+	}
+
+	content, ok := staticFileCache.files[name]
+	if !ok {
+		return nil, "", false
+	}
+
+	etag := staticFileCache.etags[name]
+	return content, etag, true
+}
+
+// capsulesListCache caches the list of capsules to avoid directory walks on every request.
+var capsulesListCache struct {
+	sync.RWMutex
+	capsules  []CapsuleInfo
+	populated bool
+	timestamp time.Time
+	ttl       time.Duration
+}
+
+func init() {
+	capsulesListCache.ttl = 30 * time.Second // Short TTL since capsule list can change
+}
+
+// getCachedCapsulesList returns a cached list of capsules or rebuilds if expired.
+func getCachedCapsulesList() []CapsuleInfo {
+	capsulesListCache.RLock()
+	if capsulesListCache.populated && time.Since(capsulesListCache.timestamp) < capsulesListCache.ttl {
+		capsules := capsulesListCache.capsules
+		capsulesListCache.RUnlock()
+		return capsules
+	}
+	capsulesListCache.RUnlock()
+
+	// Rebuild cache
+	capsulesListCache.Lock()
+	defer capsulesListCache.Unlock()
+
+	// Double-check after acquiring write lock
+	if capsulesListCache.populated && time.Since(capsulesListCache.timestamp) < capsulesListCache.ttl {
+		return capsulesListCache.capsules
+	}
+
+	capsulesListCache.capsules = listCapsulesUncached()
+	capsulesListCache.populated = true
+	capsulesListCache.timestamp = time.Now()
+
+	return capsulesListCache.capsules
+}
+
+// invalidateCapsulesListCache forces a cache rebuild on next access.
+func invalidateCapsulesListCache() {
+	capsulesListCache.Lock()
+	capsulesListCache.populated = false
+	capsulesListCache.timestamp = time.Time{}
+	capsulesListCache.Unlock()
+}
+
+// archiveSemaphore limits concurrent archive operations to prevent resource exhaustion.
+// Reading compressed archives is I/O and CPU intensive, so we limit concurrency.
+var archiveSemaphore = make(chan struct{}, 8) // Allow up to 8 concurrent archive operations
+
+// acquireArchiveSemaphore acquires a slot for archive operations.
+func acquireArchiveSemaphore() {
+	archiveSemaphore <- struct{}{}
+}
+
+// releaseArchiveSemaphore releases a slot after archive operation completes.
+func releaseArchiveSemaphore() {
+	<-archiveSemaphore
+}
+
 // fileExtensionFormats maps file extensions to their format names.
 var fileExtensionFormats = map[string]string{
 	".xml":  "osis",
@@ -95,11 +210,13 @@ func getCapsuleMetadata(capsulePath string) CapsuleMetadata {
 	}
 	capsuleMetadataCache.RUnlock()
 
-	// Compute metadata
+	// Compute metadata with semaphore to limit concurrent archive reads
+	acquireArchiveSemaphore()
 	meta := CapsuleMetadata{
 		IsCAS: archive.IsCASCapsule(capsulePath),
 		HasIR: archive.HasIR(capsulePath),
 	}
+	releaseArchiveSemaphore()
 
 	// Cache it
 	capsuleMetadataCache.Lock()
@@ -557,8 +674,10 @@ func handleCapsuleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Invalidate Bible cache since a capsule was deleted
+	// Invalidate caches since a capsule was deleted
 	invalidateBibleCache()
+	invalidateCapsulesListCache()
+	invalidateCapsuleMetadataCache()
 
 	// Redirect back to capsules page
 	http.Redirect(w, r, "/capsules", http.StatusSeeOther)
@@ -1790,45 +1909,58 @@ func readCapsuleManifest(capsulePath string) *CapsuleManifest {
 }
 
 func handleStatic(w http.ResponseWriter, r *http.Request) {
-	// Serve static files from embedded filesystem
+	// Serve static files from cache (populated at startup)
 	path := strings.TrimPrefix(r.URL.Path, "/static/")
 
+	// Determine content type
+	var contentType string
 	switch path {
-	case "base.css":
-		content, err := staticFS.ReadFile("static/base.css")
-		if err != nil {
-			http.Error(w, "base.css not found", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "text/css")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
-		w.Write(content)
-	case "style.css":
-		content, err := staticFS.ReadFile("static/style.css")
-		if err != nil {
-			http.Error(w, "style.css not found", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "text/css")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
-		w.Write(content)
+	case "base.css", "style.css":
+		contentType = "text/css"
 	case "app.js":
-		content, err := staticFS.ReadFile("static/app.js")
-		if err != nil {
-			http.Error(w, "app.js not found", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/javascript")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
-		w.Write(content)
+		contentType = "application/javascript"
 	default:
 		http.NotFound(w, r)
+		return
 	}
+
+	// Try to get from cache first
+	content, etag, ok := getStaticFile(path)
+	if !ok {
+		// Fallback to direct read if cache not populated
+		var err error
+		content, err = staticFS.ReadFile("static/" + path)
+		if err != nil {
+			http.Error(w, path+" not found", http.StatusNotFound)
+			return
+		}
+	}
+
+	// Check If-None-Match for conditional request (304 Not Modified)
+	if etag != "" {
+		if match := r.Header.Get("If-None-Match"); match == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	if etag != "" {
+		w.Header().Set("ETag", etag)
+	}
+	w.Write(content)
 }
 
 // Helper functions
 
+// listCapsules returns a cached list of capsules (uses getCachedCapsulesList).
 func listCapsules() []CapsuleInfo {
+	return getCachedCapsulesList()
+}
+
+// listCapsulesUncached returns all capsules without caching.
+func listCapsulesUncached() []CapsuleInfo {
 	var capsules []CapsuleInfo
 
 	filepath.Walk(ServerConfig.CapsulesDir, func(path string, info os.FileInfo, err error) error {
@@ -2190,7 +2322,11 @@ func readArtifactContent(capsulePath, artifactID string) (string, string, error)
 }
 
 func readIRContent(capsulePath string) (map[string]interface{}, error) {
+	// Use semaphore to limit concurrent archive reads
+	acquireArchiveSemaphore()
 	ir, err := archive.ReadIR(capsulePath)
+	releaseArchiveSemaphore()
+
 	if err != nil {
 		return nil, fmt.Errorf("no IR file found in capsule")
 	}

@@ -15,7 +15,14 @@ import (
 	"time"
 
 	"github.com/FocuswithJustin/JuniperBible/core/ir"
-	"github.com/FocuswithJustin/JuniperBible/internal/archive"
+)
+
+// Pre-compiled regexes for performance (avoid recompilation on every request)
+var (
+	// chapterVerseRegex matches patterns like "BookID.chapter.verse" (e.g., "Gen.1.1")
+	chapterVerseRegex = regexp.MustCompile(`\.(\d+)\.(\d+)`)
+	// strongsSearchRegex matches Strong's number format (H1234 or G5678)
+	strongsSearchRegex = regexp.MustCompile(`^[HG]\d+$`)
 )
 
 // bibleCache caches Bible info to avoid re-parsing capsules on every request.
@@ -311,7 +318,7 @@ func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 		installedIDs[bible.ID] = true
 	}
 
-	// Process capsules
+	// Process capsules using cached metadata for performance
 	for _, c := range capsules {
 		capsuleID := strings.TrimSuffix(c.Name, ".capsule.tar.xz")
 		capsuleID = strings.TrimSuffix(capsuleID, ".tar.xz")
@@ -319,7 +326,9 @@ func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 		capsuleID = strings.TrimSuffix(capsuleID, ".tar")
 
 		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
-		hasIR := archive.HasIR(fullPath)
+		// Use getCapsuleMetadata for cached HasIR check (avoids re-reading archive)
+		meta := getCapsuleMetadata(fullPath)
+		hasIR := meta.HasIR
 
 		// Build tags for this capsule
 		tags := []string{"capsule"}
@@ -1505,9 +1514,8 @@ func searchBible(bibleID, query string, limit int) ([]SearchResult, int) {
 		queryLower = strings.ToLower(query)
 	}
 
-	// Check if it's a Strong's number search
-	strongsRe := regexp.MustCompile(`^[HG]\d+$`)
-	isStrongs := strongsRe.MatchString(strings.ToUpper(query))
+	// Check if it's a Strong's number search (use pre-compiled regex)
+	isStrongs := strongsSearchRegex.MatchString(strings.ToUpper(query))
 
 	for _, doc := range corpus.Documents {
 		for _, cb := range doc.ContentBlocks {
@@ -1573,10 +1581,9 @@ func parseIRToCorpus(irContent map[string]interface{}) *ir.Corpus {
 // countChapters counts the number of chapters in a document.
 func countChapters(doc *ir.Document) int {
 	chapters := make(map[int]bool)
-	re := regexp.MustCompile(`\.(\d+)\.`)
 
 	for _, cb := range doc.ContentBlocks {
-		matches := re.FindStringSubmatch(cb.ID)
+		matches := chapterVerseRegex.FindStringSubmatch(cb.ID)
 		if len(matches) >= 2 {
 			var ch int
 			fmt.Sscanf(matches[1], "%d", &ch)
@@ -1602,9 +1609,15 @@ func isNewTestament(bookID string) bool {
 }
 
 // parseContentBlockRef parses chapter and verse from a content block ID.
+// Uses pre-compiled regex and string prefix matching for better performance.
 func parseContentBlockRef(cbID, bookID string) (int, int) {
-	re := regexp.MustCompile(regexp.QuoteMeta(bookID) + `\.(\d+)\.(\d+)`)
-	matches := re.FindStringSubmatch(cbID)
+	// Fast path: check if cbID starts with bookID
+	if !strings.HasPrefix(cbID, bookID) {
+		return 1, 1
+	}
+	// Use pre-compiled regex on the suffix after bookID
+	suffix := cbID[len(bookID):]
+	matches := chapterVerseRegex.FindStringSubmatch(suffix)
 	if len(matches) >= 3 {
 		var chapter, verse int
 		fmt.Sscanf(matches[1], "%d", &chapter)

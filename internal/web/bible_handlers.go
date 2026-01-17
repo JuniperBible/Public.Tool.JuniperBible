@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -13,6 +16,7 @@ import (
 	"time"
 
 	"github.com/FocuswithJustin/JuniperBible/core/ir"
+	"github.com/FocuswithJustin/JuniperBible/internal/archive"
 )
 
 // bibleCache caches Bible info to avoid re-parsing capsules on every request.
@@ -38,10 +42,22 @@ type corpusCacheEntry struct {
 	timestamp time.Time
 }
 
+// manageableBiblesCache caches the installed/installable lists for the Manage tab.
+// This is expensive to compute since it calls archive.HasIR() and reads SWORD conf files.
+var manageableBiblesCache struct {
+	sync.RWMutex
+	installed   []ManageableBible
+	installable []ManageableBible
+	populated   bool
+	timestamp   time.Time
+	ttl         time.Duration
+}
+
 func init() {
 	bibleCache.ttl = 5 * time.Minute // Cache for 5 minutes
 	corpusCache.corpora = make(map[string]*corpusCacheEntry)
 	corpusCache.ttl = 10 * time.Minute // Cache corpora longer since they're expensive to load
+	manageableBiblesCache.ttl = 5 * time.Minute // Cache manageable bibles list
 }
 
 // getCachedBibles returns cached Bible list or rebuilds if expired.
@@ -85,6 +101,44 @@ func invalidateCorpusCache() {
 	corpusCache.Lock()
 	corpusCache.corpora = make(map[string]*corpusCacheEntry)
 	corpusCache.Unlock()
+}
+
+// invalidateManageableBiblesCache forces a cache rebuild on next access.
+func invalidateManageableBiblesCache() {
+	manageableBiblesCache.Lock()
+	manageableBiblesCache.populated = false
+	manageableBiblesCache.timestamp = time.Time{}
+	manageableBiblesCache.Unlock()
+}
+
+// getCachedManageableBibles returns cached manageable bibles lists or rebuilds if expired.
+func getCachedManageableBibles() (installed, installable []ManageableBible) {
+	manageableBiblesCache.RLock()
+	if manageableBiblesCache.populated && time.Since(manageableBiblesCache.timestamp) < manageableBiblesCache.ttl {
+		installed = manageableBiblesCache.installed
+		installable = manageableBiblesCache.installable
+		manageableBiblesCache.RUnlock()
+		return installed, installable
+	}
+	manageableBiblesCache.RUnlock()
+
+	// Rebuild cache
+	manageableBiblesCache.Lock()
+	defer manageableBiblesCache.Unlock()
+
+	// Double-check after acquiring write lock
+	if manageableBiblesCache.populated && time.Since(manageableBiblesCache.timestamp) < manageableBiblesCache.ttl {
+		return manageableBiblesCache.installed, manageableBiblesCache.installable
+	}
+
+	start := time.Now()
+	manageableBiblesCache.installed, manageableBiblesCache.installable = listManageableBiblesUncached()
+	manageableBiblesCache.populated = true
+	manageableBiblesCache.timestamp = time.Now()
+	log.Printf("[CACHE] Rebuilt manageable bibles cache: %d installed, %d installable in %v",
+		len(manageableBiblesCache.installed), len(manageableBiblesCache.installable), time.Since(start))
+
+	return manageableBiblesCache.installed, manageableBiblesCache.installable
 }
 
 // getCachedCorpus returns a cached corpus or loads it from disk.
@@ -224,6 +278,196 @@ type SearchResult struct {
 	Text      string `json:"text"`
 }
 
+// ManageableBible represents a Bible that can be installed or is already installed.
+type ManageableBible struct {
+	ID          string   // Capsule ID or SWORD module name
+	Name        string   // Display name
+	Source      string   // "capsule" or "sword"
+	SourcePath  string   // Path to capsule or SWORD module
+	IsInstalled bool     // Has IR generated
+	Format      string   // Detected format
+	Tags        []string // Tags for filtering (source, format, identified, etc.)
+	Language    string   // Language code (e.g., "en", "es", "de")
+}
+
+// HasTag checks if a ManageableBible has a specific tag.
+func (mb ManageableBible) HasTag(tag string) bool {
+	for _, t := range mb.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
+// listManageableBiblesUncached returns lists of installed and installable Bibles without caching.
+// Installed = capsules with IR
+// Installable = capsules without IR + SWORD modules from ~/.sword/
+func listManageableBiblesUncached() (installed, installable []ManageableBible) {
+	capsules := listCapsules()
+
+	// Build a set of installed Bible IDs for quick lookup
+	installedIDs := make(map[string]bool)
+	for _, bible := range getCachedBibles() {
+		installedIDs[bible.ID] = true
+	}
+
+	// Process capsules
+	for _, c := range capsules {
+		capsuleID := strings.TrimSuffix(c.Name, ".capsule.tar.xz")
+		capsuleID = strings.TrimSuffix(capsuleID, ".tar.xz")
+		capsuleID = strings.TrimSuffix(capsuleID, ".tar.gz")
+		capsuleID = strings.TrimSuffix(capsuleID, ".tar")
+
+		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
+		hasIR := archive.HasIR(fullPath)
+
+		// Build tags for this capsule
+		tags := []string{"capsule"}
+		if c.Format != "" {
+			tags = append(tags, c.Format)
+		}
+		if hasIR {
+			tags = append(tags, "identified")
+		}
+
+		mb := ManageableBible{
+			ID:          capsuleID,
+			Name:        capsuleID,
+			Source:      "capsule",
+			SourcePath:  c.Path,
+			IsInstalled: hasIR,
+			Format:      c.Format,
+			Tags:        tags,
+		}
+
+		if hasIR {
+			installed = append(installed, mb)
+		} else {
+			installable = append(installable, mb)
+		}
+	}
+
+	// List SWORD modules from ~/.sword/
+	swordModules := listSWORDModules()
+	for _, sm := range swordModules {
+		// Check if already in installed list (by ID)
+		if installedIDs[sm.ID] {
+			continue
+		}
+		installable = append(installable, sm)
+	}
+
+	// Sort both lists by name
+	sort.Slice(installed, func(i, j int) bool {
+		return installed[i].Name < installed[j].Name
+	})
+	sort.Slice(installable, func(i, j int) bool {
+		return installable[i].Name < installable[j].Name
+	})
+
+	return installed, installable
+}
+
+// listSWORDModules finds SWORD Bible modules in ~/.sword/
+// Uses the existing listSWORDModulesHelper and parseSWORDConf from handlers.go
+func listSWORDModules() []ManageableBible {
+	var modules []ManageableBible
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return modules
+	}
+
+	swordDir := filepath.Join(homeDir, ".sword")
+	modsDir := filepath.Join(swordDir, "mods.d")
+
+	// Check if mods.d directory exists
+	if _, err := os.Stat(modsDir); os.IsNotExist(err) {
+		return modules
+	}
+
+	// Read .conf files from mods.d
+	files, err := os.ReadDir(modsDir)
+	if err != nil {
+		return modules
+	}
+
+	for _, f := range files {
+		if f.IsDir() || !strings.HasSuffix(f.Name(), ".conf") {
+			continue
+		}
+
+		confPath := filepath.Join(modsDir, f.Name())
+		confContent, err := os.ReadFile(confPath)
+		if err != nil {
+			continue
+		}
+
+		// Use existing parseSWORDConf from handlers.go
+		module := parseSWORDConf(string(confContent), f.Name())
+
+		// Check if it's a Bible module by looking at the Category field
+		// SWORD modules with Category=Biblical Texts are Bibles
+		if module.ID != "" && module.Category == "Biblical Texts" {
+			name := module.Description
+			if name == "" {
+				name = module.ID
+			}
+			// SWORD modules are always "identified" (properly parsed conf file)
+			tags := []string{"sword", "identified"}
+
+			// Add versification-based tags
+			switch strings.ToLower(module.Versification) {
+			case "catholic", "catholic2", "vulg", "lxx":
+				tags = append(tags, "catholic")
+			case "kjv", "nrsv", "luther", "german", "leningrad":
+				tags = append(tags, "protestant")
+			case "orthodox", "synodal", "synodalprot":
+				tags = append(tags, "orthodox")
+			default:
+				// If no versification specified, default to protestant (most common)
+				if module.Versification == "" {
+					tags = append(tags, "protestant")
+				}
+			}
+
+			// Add feature-based tags
+			for _, feature := range module.Features {
+				switch strings.ToLower(feature) {
+				case "strongsnumbers":
+					tags = append(tags, "strongs")
+				case "images":
+					tags = append(tags, "images")
+				case "greekdef", "hebrewdef":
+					tags = append(tags, "definitions")
+				case "greekparse":
+					tags = append(tags, "parsing")
+				case "morphology":
+					tags = append(tags, "morphology")
+				case "footnotes":
+					tags = append(tags, "footnotes")
+				case "headings":
+					tags = append(tags, "headings")
+				}
+			}
+
+			modules = append(modules, ManageableBible{
+				ID:          module.ID,
+				Name:        name,
+				Source:      "sword",
+				SourcePath:  confPath,
+				IsInstalled: false,
+				Format:      "sword",
+				Tags:        tags,
+				Language:    module.Language,
+			})
+		}
+	}
+
+	return modules
+}
+
 // BibleIndexData is the data for the Bible index page.
 type BibleIndexData struct {
 	PageData
@@ -243,6 +487,20 @@ type BibleIndexData struct {
 	PerPage        int
 	TotalPages     int
 	PerPageOptions []int
+	// Manage tab
+	InstalledBibles       []ManageableBible
+	InstallableBibles     []ManageableBible
+	AllInstalledBibles    []ManageableBible // Unfiltered for counts
+	AllInstallableBibles  []ManageableBible // Unfiltered for counts
+	ManageTagFilter        string   // Selected tag filter (e.g., "sword", "capsule", "tar.gz", "identified")
+	ManageAvailableTags    []string // All unique tags available for filtering
+	ManageLanguageFilter   string   // Selected language filter
+	ManageAvailableLanguages []string // All unique languages available for filtering
+	InstalledPage         int
+	InstalledTotalPages   int
+	InstallablePage       int
+	InstallableTotalPages int
+	ManagePerPage         int
 }
 
 // BibleViewData is the data for viewing a single Bible.
@@ -263,12 +521,19 @@ type BookViewData struct {
 // ChapterViewData is the data for viewing a chapter.
 type ChapterViewData struct {
 	PageData
-	Bible   BibleInfo
-	Book    BookInfo
-	Chapter int
-	Verses  []VerseData
-	PrevURL string
-	NextURL string
+	Bible     BibleInfo
+	Book      BookInfo
+	Chapter   int
+	Verses    []VerseData
+	PrevURL   string
+	NextURL   string
+	AllBibles []BibleInfo // For Bible dropdown
+	AllBooks  []BookInfo  // For Book dropdown
+	Chapters  []int       // For Chapter dropdown
+	// For handling missing content
+	RequestedBook    string // Original book ID requested
+	RequestedChapter int    // Original chapter requested
+	NotFoundMessage  string // Message when content doesn't exist
 }
 
 // SearchData is the data for the search page.
@@ -281,7 +546,10 @@ type SearchData struct {
 	Total   int
 }
 
-// handleBibleIndex shows all available Bibles and handles search.
+// handleBibleIndex shows the Bible reader.
+// - If no capsules: show empty state
+// - If DRC.capsule exists: redirect to /bible/DRC/Gen/1
+// - For browsing multiple capsules: use /library/bibles/
 func handleBibleIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/bible" && r.URL.Path != "/bible/" {
 		// Route to specific Bible
@@ -289,6 +557,45 @@ func handleBibleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	allBibles := getCachedBibles()
+
+	// If no capsules, show empty state
+	if len(allBibles) == 0 {
+		data := BibleIndexData{
+			PageData: PageData{Title: "Bible"},
+			Bibles:   nil,
+		}
+		if err := Templates.ExecuteTemplate(w, "bible_empty.html", data); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Look for DRC capsule (case-insensitive)
+	for _, b := range allBibles {
+		if strings.EqualFold(b.ID, "DRC") {
+			// Redirect to DRC Genesis 1
+			http.Redirect(w, r, "/bible/DRC/Gen/1", http.StatusFound)
+			return
+		}
+	}
+
+	// No DRC found, redirect to first Bible's first book
+	// Get the first Bible's books to find the first chapter
+	if len(allBibles) > 0 {
+		bible, books, err := loadBibleWithBooks(allBibles[0].ID)
+		if err == nil && len(books) > 0 {
+			http.Redirect(w, r, fmt.Sprintf("/bible/%s/%s/1", bible.ID, books[0].ID), http.StatusFound)
+			return
+		}
+	}
+
+	// Fallback: redirect to library
+	http.Redirect(w, r, "/library/bibles/", http.StatusFound)
+}
+
+// handleLibraryBibles shows the Bible browsing/search/compare interface.
+func handleLibraryBibles(w http.ResponseWriter, r *http.Request) {
 	allBibles := getCachedBibles()
 
 	// Collect unique languages and features
@@ -394,28 +701,315 @@ func handleBibleIndex(w http.ResponseWriter, r *http.Request) {
 		paginatedBibles = allBibles
 	}
 
+	// Populate manage tab data only when needed
+	var installedBibles, installableBibles []ManageableBible
+	var allInstalledBibles, allInstallableBibles []ManageableBible
+	var manageTagFilter string
+	var manageAvailableTags []string
+	var installedPage, installedTotalPages, installablePage, installableTotalPages int
+	managePerPage := 10
+
+	var manageLanguageFilter string
+	var manageAvailableLanguages []string
+
+	if tab == "manage" {
+		allInstalledBibles, allInstallableBibles = getCachedManageableBibles()
+
+		// Collect all unique tags and languages from both lists
+		tagSet := make(map[string]bool)
+		langSet := make(map[string]bool)
+		for _, b := range allInstalledBibles {
+			for _, tag := range b.Tags {
+				tagSet[tag] = true
+			}
+			if b.Language != "" {
+				langSet[b.Language] = true
+			}
+		}
+		for _, b := range allInstallableBibles {
+			for _, tag := range b.Tags {
+				tagSet[tag] = true
+			}
+			if b.Language != "" {
+				langSet[b.Language] = true
+			}
+		}
+		for tag := range tagSet {
+			manageAvailableTags = append(manageAvailableTags, tag)
+		}
+		sort.Strings(manageAvailableTags)
+		for lang := range langSet {
+			manageAvailableLanguages = append(manageAvailableLanguages, lang)
+		}
+		sort.Strings(manageAvailableLanguages)
+
+		// Get tag filter parameter
+		manageTagFilter = r.URL.Query().Get("tag")
+		if manageTagFilter == "" {
+			manageTagFilter = "all"
+		}
+
+		// Get language filter parameter
+		manageLanguageFilter = r.URL.Query().Get("lang")
+		if manageLanguageFilter == "" {
+			manageLanguageFilter = "all"
+		}
+
+		// Filter by tag and language
+		var filteredInstalled, filteredInstallable []ManageableBible
+		for _, b := range allInstalledBibles {
+			tagMatch := manageTagFilter == "all" || b.HasTag(manageTagFilter)
+			langMatch := manageLanguageFilter == "all" || b.Language == manageLanguageFilter
+			if tagMatch && langMatch {
+				filteredInstalled = append(filteredInstalled, b)
+			}
+		}
+		for _, b := range allInstallableBibles {
+			tagMatch := manageTagFilter == "all" || b.HasTag(manageTagFilter)
+			langMatch := manageLanguageFilter == "all" || b.Language == manageLanguageFilter
+			if tagMatch && langMatch {
+				filteredInstallable = append(filteredInstallable, b)
+			}
+		}
+
+		// Pagination for installed
+		installedPage = 1
+		if ipStr := r.URL.Query().Get("ipage"); ipStr != "" {
+			fmt.Sscanf(ipStr, "%d", &installedPage)
+			if installedPage < 1 {
+				installedPage = 1
+			}
+		}
+		installedTotalPages = (len(filteredInstalled) + managePerPage - 1) / managePerPage
+		if installedTotalPages < 1 {
+			installedTotalPages = 1
+		}
+		if installedPage > installedTotalPages {
+			installedPage = installedTotalPages
+		}
+		iStart := (installedPage - 1) * managePerPage
+		iEnd := iStart + managePerPage
+		if iEnd > len(filteredInstalled) {
+			iEnd = len(filteredInstalled)
+		}
+		if iStart < len(filteredInstalled) {
+			installedBibles = filteredInstalled[iStart:iEnd]
+		}
+
+		// Pagination for installable
+		installablePage = 1
+		if upStr := r.URL.Query().Get("upage"); upStr != "" {
+			fmt.Sscanf(upStr, "%d", &installablePage)
+			if installablePage < 1 {
+				installablePage = 1
+			}
+		}
+		installableTotalPages = (len(filteredInstallable) + managePerPage - 1) / managePerPage
+		if installableTotalPages < 1 {
+			installableTotalPages = 1
+		}
+		if installablePage > installableTotalPages {
+			installablePage = installableTotalPages
+		}
+		uStart := (installablePage - 1) * managePerPage
+		uEnd := uStart + managePerPage
+		if uEnd > len(filteredInstallable) {
+			uEnd = len(filteredInstallable)
+		}
+		if uStart < len(filteredInstallable) {
+			installableBibles = filteredInstallable[uStart:uEnd]
+		}
+	}
+
 	data := BibleIndexData{
-		PageData:       PageData{Title: "Bible"},
-		Bibles:         paginatedBibles,
-		AllBibles:      allBibles,
-		Languages:      languages,
-		Features:       features,
-		Tab:            tab,
-		Query:          query,
-		BibleID:        bibleID,
-		CaseSensitive:  caseSensitive,
-		WholeWord:      wholeWord,
-		Results:        results,
-		Total:          total,
-		Page:           page,
-		PerPage:        perPage,
-		TotalPages:     totalPages,
-		PerPageOptions: perPageOptions,
+		PageData:              PageData{Title: "Bible"},
+		Bibles:                paginatedBibles,
+		AllBibles:             allBibles,
+		Languages:             languages,
+		Features:              features,
+		Tab:                   tab,
+		Query:                 query,
+		BibleID:               bibleID,
+		CaseSensitive:         caseSensitive,
+		WholeWord:             wholeWord,
+		Results:               results,
+		Total:                 total,
+		Page:                  page,
+		PerPage:               perPage,
+		TotalPages:            totalPages,
+		PerPageOptions:        perPageOptions,
+		InstalledBibles:       installedBibles,
+		InstallableBibles:     installableBibles,
+		AllInstalledBibles:    allInstalledBibles,
+		AllInstallableBibles:  allInstallableBibles,
+		ManageTagFilter:          manageTagFilter,
+		ManageAvailableTags:      manageAvailableTags,
+		ManageLanguageFilter:     manageLanguageFilter,
+		ManageAvailableLanguages: manageAvailableLanguages,
+		InstalledPage:            installedPage,
+		InstalledTotalPages:   installedTotalPages,
+		InstallablePage:       installablePage,
+		InstallableTotalPages: installableTotalPages,
+		ManagePerPage:         managePerPage,
 	}
 
 	if err := Templates.ExecuteTemplate(w, "bible_index.html", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// handleBibleInstall handles POST requests to install a Bible (generate IR).
+func handleBibleInstall(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	id := r.FormValue("id")
+	source := r.FormValue("source")
+	sourcePath := r.FormValue("path")
+
+	if id == "" || source == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+
+	var err error
+	switch source {
+	case "capsule":
+		err = installCapsuleBible(id, sourcePath)
+	case "sword":
+		err = installSWORDBible(id, sourcePath)
+	default:
+		http.Error(w, "Unknown source type", http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		log.Printf("[INSTALL] Failed to install %s: %v", id, err)
+		http.Redirect(w, r, "/library/bibles/?tab=manage&error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+
+	// Invalidate caches
+	invalidateBibleCache()
+	invalidateCorpusCache()
+	invalidateManageableBiblesCache()
+
+	log.Printf("[INSTALL] Successfully installed %s", id)
+	http.Redirect(w, r, "/library/bibles/?tab=manage", http.StatusSeeOther)
+}
+
+// handleBibleDelete handles POST requests to delete a Bible (remove IR).
+func handleBibleDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	id := r.FormValue("id")
+	source := r.FormValue("source")
+
+	if id == "" {
+		http.Error(w, "Missing Bible ID", http.StatusBadRequest)
+		return
+	}
+
+	var err error
+	switch source {
+	case "capsule":
+		err = deleteCapsuleBibleIR(id)
+	default:
+		http.Error(w, "Cannot delete non-capsule Bibles", http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		log.Printf("[DELETE] Failed to delete %s: %v", id, err)
+		http.Redirect(w, r, "/library/bibles/?tab=manage&error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+
+	// Invalidate caches
+	invalidateBibleCache()
+	invalidateCorpusCache()
+	invalidateManageableBiblesCache()
+
+	log.Printf("[DELETE] Successfully deleted IR for %s", id)
+	http.Redirect(w, r, "/library/bibles/?tab=manage", http.StatusSeeOther)
+}
+
+// installCapsuleBible generates IR for a capsule Bible.
+func installCapsuleBible(id, sourcePath string) error {
+	fullPath := filepath.Join(ServerConfig.CapsulesDir, sourcePath)
+
+	// Check if capsule exists
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		return fmt.Errorf("capsule not found: %s", sourcePath)
+	}
+
+	// Use the capsule CLI to generate IR: capsule format ir generate <path>
+	cmd := exec.Command("capsule", "format", "ir", "generate", fullPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("[INSTALL] CLI output: %s", string(output))
+		return fmt.Errorf("IR generation failed: %v", err)
+	}
+
+	log.Printf("[INSTALL] IR generation successful for %s", id)
+	return nil
+}
+
+// installSWORDBible converts a SWORD module to a capsule with IR.
+func installSWORDBible(id, confPath string) error {
+	// Use the capsule CLI to ingest SWORD module: capsule juniper ingest <module> -o <output>
+	cmd := exec.Command("capsule", "juniper", "ingest", id, "-o", ServerConfig.CapsulesDir)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("[INSTALL] CLI output: %s", string(output))
+		return fmt.Errorf("SWORD ingest failed: %v", err)
+	}
+
+	log.Printf("[INSTALL] SWORD module %s installed successfully", id)
+	return nil
+}
+
+// deleteCapsuleBibleIR removes the IR file from a capsule.
+func deleteCapsuleBibleIR(id string) error {
+	// Find the capsule
+	capsules := listCapsules()
+	var capsulePath string
+	for _, c := range capsules {
+		capsuleID := strings.TrimSuffix(c.Name, ".capsule.tar.xz")
+		capsuleID = strings.TrimSuffix(capsuleID, ".tar.xz")
+		capsuleID = strings.TrimSuffix(capsuleID, ".tar.gz")
+		capsuleID = strings.TrimSuffix(capsuleID, ".tar")
+		if strings.EqualFold(capsuleID, id) {
+			capsulePath = filepath.Join(ServerConfig.CapsulesDir, c.Path)
+			break
+		}
+	}
+
+	if capsulePath == "" {
+		return fmt.Errorf("capsule not found: %s", id)
+	}
+
+	// For now, return an error indicating this feature is not yet implemented
+	// In a full implementation, this would:
+	// 1. Open the capsule archive
+	// 2. Remove the .ir.json file
+	// 3. Rewrite the archive
+	return fmt.Errorf("IR deletion not yet implemented - the capsule format requires archive rewrite")
 }
 
 // handleBibleRouting routes requests to the appropriate handler.
@@ -496,11 +1090,10 @@ func handleBookView(w http.ResponseWriter, r *http.Request, capsuleID, bookID st
 
 // handleChapterView shows a chapter's verses.
 func handleChapterView(w http.ResponseWriter, r *http.Request, capsuleID, bookID, chapterStr string) {
-	var chapter int
-	fmt.Sscanf(chapterStr, "%d", &chapter)
-	if chapter < 1 {
-		http.Error(w, "Invalid chapter", http.StatusBadRequest)
-		return
+	var requestedChapter int
+	fmt.Sscanf(chapterStr, "%d", &requestedChapter)
+	if requestedChapter < 1 {
+		requestedChapter = 1
 	}
 
 	bible, books, err := loadBibleWithBooks(capsuleID)
@@ -509,6 +1102,10 @@ func handleChapterView(w http.ResponseWriter, r *http.Request, capsuleID, bookID
 		return
 	}
 
+	// Get all bibles for dropdown
+	allBibles := getCachedBibles()
+
+	// Find the requested book
 	var book *BookInfo
 	for _, b := range books {
 		if strings.EqualFold(b.ID, bookID) {
@@ -516,12 +1113,22 @@ func handleChapterView(w http.ResponseWriter, r *http.Request, capsuleID, bookID
 			break
 		}
 	}
+
+	var notFoundMessage string
+	chapter := requestedChapter
+
+	// Handle book not found - show first book with message
 	if book == nil {
-		http.Error(w, "Book not found", http.StatusNotFound)
-		return
+		notFoundMessage = fmt.Sprintf("The book \"%s\" does not exist in %s. Showing %s instead.", bookID, bible.Title, books[0].Name)
+		book = &books[0]
+		chapter = 1
+	} else if chapter > book.ChapterCount {
+		// Handle chapter out of range
+		notFoundMessage = fmt.Sprintf("Chapter %d does not exist in %s (max: %d). Showing chapter %d instead.", requestedChapter, book.Name, book.ChapterCount, book.ChapterCount)
+		chapter = book.ChapterCount
 	}
 
-	verses, err := loadChapterVerses(capsuleID, bookID, chapter)
+	verses, err := loadChapterVerses(capsuleID, book.ID, chapter)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load chapter: %v", err), http.StatusInternalServerError)
 		return
@@ -530,20 +1137,32 @@ func handleChapterView(w http.ResponseWriter, r *http.Request, capsuleID, bookID
 	// Build prev/next URLs
 	var prevURL, nextURL string
 	if chapter > 1 {
-		prevURL = fmt.Sprintf("/bible/%s/%s/%d", capsuleID, bookID, chapter-1)
+		prevURL = fmt.Sprintf("/bible/%s/%s/%d", capsuleID, book.ID, chapter-1)
 	}
 	if chapter < book.ChapterCount {
-		nextURL = fmt.Sprintf("/bible/%s/%s/%d", capsuleID, bookID, chapter+1)
+		nextURL = fmt.Sprintf("/bible/%s/%s/%d", capsuleID, book.ID, chapter+1)
+	}
+
+	// Build chapter list
+	chapters := make([]int, book.ChapterCount)
+	for i := 0; i < book.ChapterCount; i++ {
+		chapters[i] = i + 1
 	}
 
 	data := ChapterViewData{
-		PageData: PageData{Title: fmt.Sprintf("%s %d - %s", book.Name, chapter, bible.Title)},
-		Bible:    *bible,
-		Book:     *book,
-		Chapter:  chapter,
-		Verses:   verses,
-		PrevURL:  prevURL,
-		NextURL:  nextURL,
+		PageData:         PageData{Title: fmt.Sprintf("%s %d - %s", book.Name, chapter, bible.Title)},
+		Bible:            *bible,
+		Book:             *book,
+		Chapter:          chapter,
+		Verses:           verses,
+		PrevURL:          prevURL,
+		NextURL:          nextURL,
+		AllBibles:        allBibles,
+		AllBooks:         books,
+		Chapters:         chapters,
+		RequestedBook:    bookID,
+		RequestedChapter: requestedChapter,
+		NotFoundMessage:  notFoundMessage,
 	}
 
 	if err := Templates.ExecuteTemplate(w, "bible_chapter.html", data); err != nil {
@@ -551,10 +1170,10 @@ func handleChapterView(w http.ResponseWriter, r *http.Request, capsuleID, bookID
 	}
 }
 
-// handleBibleCompare redirects to /bible?tab=compare
+// handleBibleCompare redirects to /library/bibles/?tab=compare
 func handleBibleCompare(w http.ResponseWriter, r *http.Request) {
 	// Build redirect URL preserving query parameters
-	redirectURL := "/bible?tab=compare"
+	redirectURL := "/library/bibles/?tab=compare"
 	if ref := r.URL.Query().Get("ref"); ref != "" {
 		redirectURL += "&ref=" + ref
 	}

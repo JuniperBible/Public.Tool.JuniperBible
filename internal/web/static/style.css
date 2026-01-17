@@ -1,6 +1,6 @@
 /* ===========================================
-   Juniper Bible - Dark Theme & Theme Switcher
-   Extends base.css with dark mode support
+   Juniper Bible - Dark Theme
+   Matching juniperbible.org dark mode
    WCAG 2.1 AA compliant
    =========================================== */
 
@@ -8,17 +8,15 @@
    DARK MODE COLOR TOKENS
    =========================================== */
 :root {
-  /* Juniper Colors (dark theme) */
-  --juniper-900: #1a2e2f;
-  --juniper-800: #243d3f;
-  --juniper-700: #2d4a4c;
-  --juniper-600: #3a5c5e;
-
-  /* Purple Accent */
-  --purple-700: #7a00b0;
-  --purple-500: #a855f7;
-  --purple-400: #c084fc;
-  --purple-300: #d8b4fe;
+  /* Dark mode palette */
+  --dark-bg: #1a1918;
+  --dark-surface: #252321;
+  --dark-surface-dim: #2d2a26;
+  --dark-text: #f0ece3;
+  --dark-text-muted: #a09890;
+  --dark-border: #4a4540;
+  --dark-accent: #b08eb0;
+  --dark-accent-hover: #c0a0c0;
 
   /* Moleskin Cream (for bible text in dark mode) */
   --cream-200: #f8f4e3;
@@ -29,17 +27,25 @@
    DARK MODE THEME OVERRIDES
    =========================================== */
 [data-theme="dark"] {
-  --primary: var(--purple-500);
-  --primary-hover: var(--purple-400);
-  --primary-focus: rgba(168, 85, 247, 0.25);
+  --color-bg: var(--dark-bg);
+  --color-surface: var(--dark-surface);
+  --color-surface-dim: var(--dark-surface-dim);
+  --color-text: var(--dark-text);
+  --color-text-muted: var(--dark-text-muted);
+  --color-border: var(--dark-border);
+  --color-accent: var(--dark-accent);
+  --color-accent-hover: var(--dark-accent-hover);
 
-  --bg: var(--juniper-900);
-  --bg-secondary: var(--juniper-700);
-  --bg-card: var(--juniper-800);
-  --text: var(--gray-100);
-  --text-muted: var(--gray-400);
-  --border: var(--juniper-600);
-  --border-focus: var(--purple-500);
+  --bg: var(--dark-bg);
+  --bg-secondary: var(--dark-surface-dim);
+  --bg-card: var(--dark-surface);
+  --text: var(--dark-text);
+  --text-muted: var(--dark-text-muted);
+  --border: var(--dark-border);
+  --border-focus: var(--dark-accent);
+  --primary: var(--dark-accent);
+  --primary-hover: var(--dark-accent-hover);
+  --primary-focus: rgba(176, 142, 176, 0.25);
 
   /* Alert colors for dark mode */
   --error-bg: rgba(239, 68, 68, 0.1);
@@ -50,6 +56,49 @@
   --info-text: #7dd3fc;
   --warning-bg: rgba(245, 158, 11, 0.1);
   --warning-text: #fcd34d;
+
+  /* Shadows for dark mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Auto dark mode based on system preference */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: var(--dark-bg);
+    --color-surface: var(--dark-surface);
+    --color-surface-dim: var(--dark-surface-dim);
+    --color-text: var(--dark-text);
+    --color-text-muted: var(--dark-text-muted);
+    --color-border: var(--dark-border);
+    --color-accent: var(--dark-accent);
+    --color-accent-hover: var(--dark-accent-hover);
+
+    --bg: var(--dark-bg);
+    --bg-secondary: var(--dark-surface-dim);
+    --bg-card: var(--dark-surface);
+    --text: var(--dark-text);
+    --text-muted: var(--dark-text-muted);
+    --border: var(--dark-border);
+    --border-focus: var(--dark-accent);
+    --primary: var(--dark-accent);
+    --primary-hover: var(--dark-accent-hover);
+    --primary-focus: rgba(176, 142, 176, 0.25);
+
+    --error-bg: rgba(239, 68, 68, 0.1);
+    --error-text: #fca5a5;
+    --success-bg: rgba(34, 197, 94, 0.1);
+    --success-text: #86efac;
+    --info-bg: rgba(14, 165, 233, 0.1);
+    --info-text: #7dd3fc;
+    --warning-bg: rgba(245, 158, 11, 0.1);
+    --warning-text: #fcd34d;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+  }
 }
 
 /* ===========================================
@@ -64,27 +113,28 @@
    =========================================== */
 #theme-toggle {
   background: transparent;
-  border: 2px solid var(--border);
+  border: 2px solid var(--color-surface);
   border-radius: var(--radius-md);
   cursor: pointer;
-  padding: var(--space-sm);
+  padding: var(--space-2);
   margin: 0;
-  margin-left: var(--space-md);
+  margin-left: var(--space-4);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: var(--color-surface);
 }
 
 #theme-toggle:hover {
-  background-color: var(--primary);
-  border-color: var(--primary);
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
   color: var(--white);
 }
 
 #theme-toggle svg {
   width: 20px;
   height: 20px;
+  pointer-events: none;
 }
 
 [data-theme="dark"] #theme-toggle {
@@ -93,25 +143,25 @@
 }
 
 [data-theme="dark"] #theme-toggle:hover {
-  background-color: var(--purple-700);
-  border-color: var(--purple-700);
-  color: var(--white);
+  background-color: var(--dark-accent);
+  border-color: var(--dark-accent);
+  color: var(--dark-bg);
 }
 
 /* ===========================================
    DARK MODE - HEADER
    =========================================== */
 [data-theme="dark"] body > header {
-  background-color: var(--gray-900);
-  border-bottom-color: var(--juniper-800);
+  background-color: var(--dark-surface);
+  box-shadow: var(--shadow-md);
 }
 
 [data-theme="dark"] body > header h1 a {
-  color: var(--white);
+  color: var(--cream-200);
 }
 
 [data-theme="dark"] body > header h1 a:hover {
-  color: var(--purple-300);
+  color: var(--white);
 }
 
 [data-theme="dark"] body > header nav a {
@@ -128,36 +178,45 @@
    DARK MODE - BUTTONS
    =========================================== */
 [data-theme="dark"] button,
+[data-theme="dark"] .btn,
 [data-theme="dark"] [role="button"],
 [data-theme="dark"] input[type="submit"],
 [data-theme="dark"] input[type="button"] {
-  background-color: var(--white);
-  border-color: var(--white);
-  color: var(--gray-900);
+  background-color: var(--dark-surface);
+  border-color: var(--dark-accent);
+  color: var(--cream-200);
 }
 
 [data-theme="dark"] button:hover,
-[data-theme="dark"] [role="button"]:hover {
-  background-color: var(--gray-200);
-  border-color: var(--gray-200);
+[data-theme="dark"] .btn:hover,
+[data-theme="dark"] [role="button"]:hover,
+[data-theme="dark"] input[type="submit"]:hover,
+[data-theme="dark"] input[type="button"]:hover {
+  background-color: var(--dark-accent-hover);
+  border-color: var(--dark-accent-hover);
+  color: var(--dark-bg);
 }
 
 [data-theme="dark"] button.outline,
 [data-theme="dark"] button.secondary,
+[data-theme="dark"] .btn.outline,
+[data-theme="dark"] .btn.secondary,
 [data-theme="dark"] [role="button"].outline,
 [data-theme="dark"] [role="button"].secondary {
   background-color: transparent;
-  border-color: var(--purple-500);
-  color: var(--purple-300);
+  border-color: var(--dark-accent);
+  color: var(--dark-accent);
 }
 
 [data-theme="dark"] button.outline:hover,
 [data-theme="dark"] button.secondary:hover,
+[data-theme="dark"] .btn.outline:hover,
+[data-theme="dark"] .btn.secondary:hover,
 [data-theme="dark"] [role="button"].outline:hover,
 [data-theme="dark"] [role="button"].secondary:hover {
-  background-color: var(--white);
-  border-color: var(--white);
-  color: var(--gray-900);
+  background-color: var(--dark-accent);
+  border-color: var(--dark-accent);
+  color: var(--dark-bg);
 }
 
 /* ===========================================
@@ -165,13 +224,14 @@
    =========================================== */
 [data-theme="dark"] .tag,
 [data-theme="dark"] .chapter-chip {
-  background-color: var(--white);
-  color: var(--gray-900);
+  background-color: var(--dark-surface-dim);
+  color: var(--cream-200);
 }
 
 [data-theme="dark"] .tag:hover,
 [data-theme="dark"] .chapter-chip:hover {
-  background-color: var(--gray-200);
+  background-color: var(--dark-accent);
+  color: var(--dark-bg);
 }
 
 /* ===========================================
@@ -180,51 +240,88 @@
 [data-theme="dark"] input,
 [data-theme="dark"] select,
 [data-theme="dark"] textarea {
-  background-color: var(--white);
-  border-color: var(--gray-300);
-  color: var(--gray-900);
+  background-color: var(--dark-surface-dim);
+  border-color: var(--dark-border);
+  color: var(--dark-text);
 }
 
 [data-theme="dark"] input:focus,
 [data-theme="dark"] select:focus,
 [data-theme="dark"] textarea:focus {
-  border-color: var(--purple-500);
+  border-color: var(--dark-accent);
+  box-shadow: 0 0 0 3px var(--primary-focus);
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--dark-text-muted);
 }
 
 /* ===========================================
    DARK MODE - CARDS / ARTICLES
    =========================================== */
 [data-theme="dark"] article {
-  background-color: var(--juniper-800);
-  border-color: var(--juniper-600);
-  color: var(--gray-100);
+  background-color: var(--dark-surface);
+  border-color: var(--dark-border);
+  color: var(--dark-text);
 }
 
 [data-theme="dark"] article > header {
-  background-color: var(--juniper-700);
-  border-bottom-color: var(--juniper-600);
+  background-color: rgba(0, 0, 0, 0.2);
+  border-bottom-color: var(--dark-border);
+}
+
+[data-theme="dark"] article > header h2,
+[data-theme="dark"] article > header h3 {
+  color: var(--cream-200);
+}
+
+[data-theme="dark"] .michael-header h1 {
+  color: var(--cream-200);
+}
+
+[data-theme="dark"] .welcome-content {
+  color: var(--dark-text);
+}
+
+[data-theme="dark"] .welcome-content h2 {
+  color: var(--cream-200);
+  border-bottom-color: var(--dark-border);
+}
+
+[data-theme="dark"] .welcome-content li strong {
+  color: var(--dark-accent);
 }
 
 [data-theme="dark"] article > footer {
-  background-color: var(--juniper-700);
-  border-top-color: var(--juniper-600);
+  background-color: rgba(0, 0, 0, 0.2);
+  border-top-color: var(--dark-border);
+}
+
+[data-theme="dark"] article a {
+  color: var(--dark-accent);
+}
+
+[data-theme="dark"] article a:hover {
+  color: var(--dark-bg);
+  background-color: var(--dark-accent-hover);
 }
 
 /* ===========================================
    DARK MODE - TABLES
    =========================================== */
 [data-theme="dark"] th {
-  background-color: var(--juniper-700);
-  color: var(--gray-100);
+  background-color: var(--dark-surface-dim);
+  color: var(--cream-200);
 }
 
 [data-theme="dark"] th,
 [data-theme="dark"] td {
-  border-bottom-color: var(--juniper-600);
+  border-bottom-color: var(--dark-border);
 }
 
 [data-theme="dark"] tbody tr:hover {
-  background-color: var(--juniper-700);
+  background-color: var(--dark-surface-dim);
 }
 
 /* ===========================================
@@ -248,31 +345,47 @@
 }
 
 /* ===========================================
-   DARK MODE - CHAPTER NAV
+   DARK MODE - BIBLE NAV
    =========================================== */
+[data-theme="dark"] .bible-nav,
 [data-theme="dark"] .chapter-nav {
-  background-color: var(--gray-800);
+  background-color: var(--dark-surface-dim);
+  color: var(--cream-200);
+}
+
+[data-theme="dark"] .bible-nav select {
+  background-color: var(--dark-surface);
+  border-color: var(--dark-border);
+  color: var(--cream-200);
+}
+
+[data-theme="dark"] .chapter-nav a {
+  color: var(--cream-200);
+}
+
+[data-theme="dark"] .chapter-nav a:hover {
+  color: var(--dark-accent-hover);
 }
 
 [data-theme="dark"] .chapter-nav select {
-  background-color: var(--gray-700);
-  border-color: var(--gray-600);
-  color: var(--white);
+  background-color: var(--dark-surface-dim);
+  border-color: var(--dark-border);
+  color: var(--cream-200);
 }
 
 /* ===========================================
    DARK MODE - BREADCRUMBS
    =========================================== */
 [data-theme="dark"] nav[aria-label="breadcrumb"] a {
-  color: var(--purple-400);
+  color: var(--dark-accent);
 }
 
 [data-theme="dark"] nav[aria-label="breadcrumb"] a:hover {
-  color: var(--white);
+  color: var(--dark-accent-hover);
 }
 
 [data-theme="dark"] nav[aria-label="breadcrumb"] li:last-child {
-  color: var(--gray-400);
+  color: var(--dark-text-muted);
 }
 
 /* ===========================================
@@ -280,37 +393,46 @@
    =========================================== */
 [data-theme="dark"] .tab-nav,
 [data-theme="dark"] .tabs {
-  border-bottom-color: var(--juniper-600);
+  border-bottom-color: var(--dark-border);
 }
 
 [data-theme="dark"] .tab-nav a,
 [data-theme="dark"] .tabs .tab {
-  color: var(--gray-400);
+  color: var(--dark-text-muted);
 }
 
 [data-theme="dark"] .tab-nav a:hover,
 [data-theme="dark"] .tabs .tab:hover {
-  color: var(--gray-100);
+  color: var(--dark-text);
 }
 
 [data-theme="dark"] .tab-nav a.active,
 [data-theme="dark"] .tabs .tab.active {
-  color: var(--purple-400);
-  border-bottom-color: var(--purple-400);
+  color: var(--dark-accent);
+  border-bottom-color: var(--dark-accent);
 }
 
 [data-theme="dark"] .subtab-nav a {
-  background: var(--juniper-700);
-  color: var(--gray-100);
+  background: var(--dark-surface-dim);
+  color: var(--dark-text);
 }
 
 [data-theme="dark"] .subtab-nav a:hover {
-  background: var(--juniper-600);
+  background: var(--dark-accent);
+  color: var(--dark-bg);
 }
 
 [data-theme="dark"] .subtab-nav a.active {
-  background: var(--purple-500);
-  color: var(--white);
+  background: var(--dark-accent);
+  color: var(--dark-bg);
+}
+
+/* ===========================================
+   DARK MODE - PAGINATION
+   =========================================== */
+[data-theme="dark"] .pagination .page-current {
+  background: var(--dark-accent);
+  color: var(--dark-bg);
 }
 
 /* ===========================================
@@ -318,15 +440,14 @@
    =========================================== */
 [data-theme="dark"] pre,
 [data-theme="dark"] code {
-  background-color: var(--gray-800);
+  background-color: var(--dark-surface-dim);
 }
 
 /* ===========================================
    DARK MODE - FOOTER
    =========================================== */
 [data-theme="dark"] body > footer {
-  background-color: var(--gray-900);
-  border-top-color: var(--juniper-800);
+  background-color: var(--dark-surface);
   color: var(--cream-200);
 }
 
@@ -335,11 +456,11 @@
 }
 
 [data-theme="dark"] body > footer a:hover {
-  color: var(--white);
+  color: var(--dark-accent-hover);
 }
 
 /* ===========================================
-   DARK MODE - ALERTS (already use CSS vars)
+   DARK MODE - ALERTS
    =========================================== */
 [data-theme="dark"] .alert-error {
   background-color: var(--error-bg);
@@ -390,7 +511,7 @@
    DARK MODE - DIFF STYLES
    =========================================== */
 [data-theme="dark"] .diff-entry {
-  background: var(--juniper-700);
+  background: var(--dark-surface-dim);
 }
 
 [data-theme="dark"] .diff-entry .removed {
@@ -405,19 +526,19 @@
 
 [data-theme="dark"] .diff-entry .index,
 [data-theme="dark"] .diff-entry .missing {
-  color: var(--gray-400);
+  color: var(--dark-text-muted);
 }
 
 /* ===========================================
    DARK MODE - SEARCH RESULTS
    =========================================== */
 [data-theme="dark"] .result-item {
-  background: var(--juniper-800);
-  border: 1px solid var(--juniper-600);
+  background: var(--dark-surface);
+  border: 1px solid var(--dark-border);
 }
 
 [data-theme="dark"] .result-ref {
-  color: var(--purple-400);
+  color: var(--dark-accent);
 }
 
 [data-theme="dark"] .result-text mark {
@@ -429,24 +550,24 @@
    DARK MODE - COMPARE VIEW
    =========================================== */
 [data-theme="dark"] .translation-selector label {
-  border-color: var(--juniper-600);
+  border-color: var(--dark-border);
 }
 
 [data-theme="dark"] .verse-group {
-  background: var(--juniper-800);
-  border: 1px solid var(--juniper-600);
+  background: var(--dark-surface);
+  border: 1px solid var(--dark-border);
 }
 
 [data-theme="dark"] .verse-ref {
-  color: var(--purple-400);
+  color: var(--dark-accent);
 }
 
 [data-theme="dark"] .translation-row {
-  border-bottom-color: var(--juniper-600);
+  border-bottom-color: var(--dark-border);
 }
 
 [data-theme="dark"] .translation-abbrev {
-  color: var(--gray-400);
+  color: var(--dark-text-muted);
 }
 
 [data-theme="dark"] .highlight {
@@ -457,28 +578,28 @@
    DARK MODE - DIALOG
    =========================================== */
 [data-theme="dark"] dialog {
-  background-color: var(--juniper-800);
-  border-color: var(--juniper-600);
-  color: var(--gray-100);
+  background-color: var(--dark-surface);
+  border-color: var(--dark-border);
+  color: var(--dark-text);
 }
 
 /* ===========================================
    DARK MODE - MISC
    =========================================== */
 [data-theme="dark"] .empty-state {
-  color: var(--gray-400);
+  color: var(--dark-text-muted);
 }
 
 [data-theme="dark"] .meta {
-  color: var(--gray-400);
+  color: var(--dark-text-muted);
 }
 
 [data-theme="dark"] .search-help {
-  color: var(--gray-400);
+  color: var(--dark-text-muted);
 }
 
 [data-theme="dark"] .result-count {
-  color: var(--gray-400);
+  color: var(--dark-text-muted);
 }
 
 /* ===========================================
@@ -486,6 +607,6 @@
    =========================================== */
 @media (max-width: 768px) {
   #theme-toggle {
-    margin-left: var(--space-sm);
+    margin-left: var(--space-2);
   }
 }

@@ -1,12 +1,22 @@
 {{define "header"}}
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{.Title}} - Juniper Bible</title>
   <link rel="stylesheet" href="/static/base.css">
   <link rel="stylesheet" href="/static/style.css">
+  <script>
+    // Apply theme immediately to prevent flash
+    (function() {
+      var theme = localStorage.getItem('theme');
+      if (!theme) {
+        theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
   <script src="/static/app.js"></script>
 </head>
 <body>
@@ -17,8 +27,9 @@
       <div class="nav-group">
         <nav>
           <a href="/">Home</a>
-          <a href="/bible">Bible</a>
-          <a href="/juniper">Developer Tools</a>
+          <a href="/bible">Read</a>
+          <a href="/library/bibles/">Browse</a>
+          <a href="/juniper" id="settings-link" style="display:none;">Developer Tools</a>
         </nav>
         <button id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark/light mode">
           <svg id="sun-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

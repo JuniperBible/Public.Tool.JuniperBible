@@ -1,37 +1,87 @@
 {{template "header" .}}
 
-<nav aria-label="breadcrumb">
-  <ul>
-    <li><a href="/">Home</a></li>
-    <li><a href="/bible">Bible</a></li>
-    <li><a href="/bible/{{.Bible.ID}}">{{.Bible.Abbrev}}</a></li>
-    <li><a href="/bible/{{.Bible.ID}}/{{.Book.ID}}">{{.Book.Name}}</a></li>
-    <li>Chapter {{.Chapter}}</li>
-  </ul>
-</nav>
-
 <article>
-  <header>
-    <h2>{{.Book.Name}} {{.Chapter}}</h2>
-    <p class="meta">{{.Bible.Title}}</p>
+  <header class="michael-header">
+    <h1 class="font-hand">{{.Book.Name}} {{.Chapter}}</h1>
+    <div class="actions">
+      <span class="tag tag-primary font-hand">{{.Bible.Language}}</span>
+      <span class="tag tag-license font-hand">{{.Bible.Abbrev}}</span>
+    </div>
   </header>
 
-  {{template "chapterNav" .}}
-
-  <div class="bible-text">
-    {{range .Verses}}
-    <p class="verse" id="v{{.Number}}">
-      <span class="verse-num">{{.Number}}</span>
-      {{.Text}}
-    </p>
+  <section>
+    {{if .NotFoundMessage}}
+    <div class="alert-info" role="alert">
+      {{.NotFoundMessage}}
+    </div>
     {{end}}
-  </div>
 
-  {{template "chapterNavSimple" .}}
+    <!-- Bible Navigation -->
+    <nav class="bible-nav" aria-label="Bible navigation" data-bible="{{.Bible.ID}}" data-book="{{.Book.ID}}" data-chapter="{{.Chapter}}">
+      <div class="nav-row nav-selectors">
+        <select id="bible-select" class="font-hand" aria-label="Select Bible translation">
+          {{range .AllBibles}}
+          <option value="{{.ID}}" {{if eq $.Bible.ID .ID}}selected{{end}}>{{.Abbrev}} - {{.Title}}</option>
+          {{end}}
+        </select>
 
-  <div style="margin-top: 1rem;">
-    {{template "btnOutline" dict "label" "Compare this chapter" "href" (printf "/bible/compare?ref=%s.%d.1&bibles=%s" .Book.ID .Chapter .Bible.ID)}}
-  </div>
+        <select id="book-select" class="font-hand" aria-label="Select book">
+          {{range .AllBooks}}
+          <option value="{{.ID}}" data-chapters="{{.ChapterCount}}" {{if eq $.Book.ID .ID}}selected{{end}}>{{.Name}}</option>
+          {{end}}
+        </select>
+
+        <select id="chapter-select" class="font-hand" aria-label="Select chapter">
+          {{range .Chapters}}
+          <option value="{{.}}" {{if eq $.Chapter .}}selected{{end}}>Chapter {{.}}</option>
+          {{end}}
+        </select>
+      </div>
+
+      <div class="nav-row nav-buttons">
+        {{if .PrevURL}}
+        <a href="{{.PrevURL}}" role="button" class="outline font-hand" aria-label="Previous chapter">&larr; Prev</a>
+        {{else}}
+        <button disabled class="outline font-hand">&larr; Prev</button>
+        {{end}}
+
+        {{if .NextURL}}
+        <a href="{{.NextURL}}" role="button" class="outline font-hand" aria-label="Next chapter">Next &rarr;</a>
+        {{else}}
+        <button disabled class="outline font-hand">Next &rarr;</button>
+        {{end}}
+
+        {{if gt (len .AllBibles) 1}}
+        <a href="/library/bibles/" role="button" class="outline secondary font-hand" title="Browse all Bibles">Library</a>
+        {{end}}
+      </div>
+    </nav>
+
+    <!-- Bible Text -->
+    <div class="bible-text">
+      <p>
+        {{range .Verses}}
+        <span class="verse" id="v{{.Number}}" data-verse="{{.Number}}"><sup class="verse-num">{{.Number}}</sup> {{.Text}}</span>
+        {{end}}
+      </p>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bible-nav bottom-nav" aria-label="Chapter navigation">
+      <div class="nav-row nav-buttons">
+        {{if .PrevURL}}
+        <a href="{{.PrevURL}}" role="button" class="outline font-hand">&larr; Previous Chapter</a>
+        {{end}}
+
+        {{if .NextURL}}
+        <a href="{{.NextURL}}" role="button" class="outline font-hand">Next Chapter &rarr;</a>
+        {{end}}
+      </div>
+    </nav>
+  </section>
 </article>
+
+<!-- Bible reader navigation data for app.js -->
+<div id="bible-reader-data" data-prev-url="{{.PrevURL}}" data-next-url="{{.NextURL}}" style="display:none;"></div>
 
 {{template "footer" .}}

@@ -1,11 +1,35 @@
 {{template "header" .}}
 
-<div style="display: flex; align-items: center; justify-content: center; height: calc(100vh - 180px);">
-  <svg id="home-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="888" height="888" fill="none" stroke="#1a1a1a" style="background: transparent;">
-    <polygon points="12,2 22,20 2,20" stroke-width="1" stroke-linejoin="round"></polygon>
-    <circle cx="12" cy="14" r="5" stroke-width="1"></circle>
-    <circle cx="12" cy="14" r="1.5" fill="#1a1a1a" stroke="none"></circle>
-  </svg>
-</div>
+<article>
+  <header class="michael-header">
+    <h1 class="font-hand">
+      Juniper Bible
+    </h1>
+    <div class="actions">
+      <span class="tag tag-primary font-hand">Capsule Manager</span>
+      <span class="tag tag-license font-hand">Open Source</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="bible-text welcome-content home-content">
+      <div class="home-logo">
+        <svg id="home-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="none" stroke="currentColor" aria-label="Juniper Bible logo">
+          <polygon points="12,2 22,20 2,20" stroke-width="1" stroke-linejoin="round"/>
+          <circle cx="12" cy="14" r="5" stroke-width="1"/>
+          <circle cx="12" cy="14" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+
+      <nav class="quick-links home-nav">
+        <a href="/bible" role="button" class="font-hand">Read</a>
+        <a href="/library/bibles/" role="button" class="font-hand outline">Browse</a>
+      </nav>
+
+      <h2 class="font-hand">About</h2>
+      <p>Juniper Bible uses a capsule-based architecture for managing Bible translations. Each capsule contains the source files, metadata, and processing artifacts needed to convert between formats.</p>
+    </div>
+  </section>
+</article>
 
 {{template "footer" .}}

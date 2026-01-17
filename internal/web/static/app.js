@@ -11,7 +11,13 @@ class ThemeManager {
   }
 
   loadTheme() {
-    return localStorage.getItem('theme') || 'light';
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved;
+    // Respect system preference if no saved preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
   }
 
   saveTheme(theme) {
@@ -51,8 +57,9 @@ class SettingsManager {
   }
 
   toggle() {
-    this.saveVisibility(!this.visible);
-    return this.visible;
+    const newVisibility = !this.visible;
+    this.saveVisibility(newVisibility);
+    return newVisibility;
   }
 
   isVisible() {
@@ -70,8 +77,71 @@ class SettingsManager {
 window.themeManager = new ThemeManager();
 window.settingsManager = new SettingsManager();
 
+// Bible Reader Navigation
+class BibleReaderNav {
+  constructor() {
+    this.nav = document.querySelector('.bible-nav[data-bible]');
+    if (!this.nav) return;
+
+    this.bibleId = this.nav.dataset.bible;
+    this.bookId = this.nav.dataset.book;
+    this.chapter = parseInt(this.nav.dataset.chapter) || 1;
+
+    this.bibleSelect = document.getElementById('bible-select');
+    this.bookSelect = document.getElementById('book-select');
+    this.chapterSelect = document.getElementById('chapter-select');
+
+    this.initSelects();
+    this.initKeyboardNav();
+  }
+
+  initSelects() {
+    if (this.bibleSelect) {
+      this.bibleSelect.addEventListener('change', () => {
+        var val = this.bibleSelect.options[this.bibleSelect.selectedIndex].value;
+        window.location.href = '/bible/' + val + '/' + this.bookId + '/' + this.chapter;
+      });
+    }
+
+    if (this.bookSelect) {
+      this.bookSelect.addEventListener('change', () => {
+        var opt = this.bookSelect.options[this.bookSelect.selectedIndex];
+        var maxCh = parseInt(opt.dataset.chapters) || 1;
+        var ch = Math.min(this.chapter, maxCh);
+        window.location.href = '/bible/' + this.bibleId + '/' + opt.value + '/' + ch;
+      });
+    }
+
+    if (this.chapterSelect) {
+      this.chapterSelect.addEventListener('change', () => {
+        var val = this.chapterSelect.options[this.chapterSelect.selectedIndex].value;
+        window.location.href = '/bible/' + this.bibleId + '/' + this.bookId + '/' + val;
+      });
+    }
+  }
+
+  initKeyboardNav() {
+    var readerData = document.getElementById('bible-reader-data');
+    if (!readerData) return;
+
+    var prevUrl = readerData.dataset.prevUrl;
+    var nextUrl = readerData.dataset.nextUrl;
+
+    document.addEventListener('keydown', function(e) {
+      if (e.target.matches('input, select, textarea')) return;
+      if (e.key === 'ArrowLeft' && prevUrl) {
+        window.location.href = prevUrl;
+      } else if (e.key === 'ArrowRight' && nextUrl) {
+        window.location.href = nextUrl;
+      }
+    });
+  }
+}
+
 // Initialize theme toggle button (if present)
 document.addEventListener('DOMContentLoaded', function() {
+  // Initialize Bible Reader Navigation
+  new BibleReaderNav();
   const toggle = document.getElementById('theme-toggle');
   const sunIcon = document.getElementById('sun-icon');
   const moonIcon = document.getElementById('moon-icon');
@@ -96,21 +166,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Apply settings visibility
+  // Apply settings visibility (Developer Tools link)
   const settingsLink = document.getElementById('settings-link');
   if (settingsLink) {
-    window.settingsManager.applyToElement(settingsLink);
+    settingsLink.style.display = window.settingsManager.isVisible() ? '' : 'none';
   }
 
-  // Home page logo easter egg
-  const logo = document.getElementById('home-logo');
-  if (logo) {
+  // Easter egg: click theme toggle 11 times within 20 seconds to show/hide Developer Tools
+  if (toggle) {
     let clickTimes = [];
 
-    function handleLogoActivation() {
+    function handleEasterEgg() {
       const now = Date.now();
       clickTimes.push(now);
-      clickTimes = clickTimes.filter(t => now - t < 22000);
+      clickTimes = clickTimes.filter(t => now - t < 20000);
 
       if (clickTimes.length >= 11) {
         const newVisibility = window.settingsManager.toggle();
@@ -121,13 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    logo.addEventListener('click', handleLogoActivation);
-    logo.addEventListener('keydown', function(event) {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        handleLogoActivation();
-      }
-    });
+    toggle.addEventListener('click', handleEasterEgg);
   }
 
   // Search result highlighting

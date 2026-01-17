@@ -1790,12 +1790,11 @@ func readCapsuleManifest(capsulePath string) *CapsuleManifest {
 }
 
 func handleStatic(w http.ResponseWriter, r *http.Request) {
-	// Serve static CSS files from embedded filesystem
+	// Serve static files from embedded filesystem
 	path := strings.TrimPrefix(r.URL.Path, "/static/")
 
 	switch path {
 	case "base.css":
-		// Serve base.css (light theme) from embedded static directory
 		content, err := staticFS.ReadFile("static/base.css")
 		if err != nil {
 			http.Error(w, "base.css not found", http.StatusNotFound)
@@ -1805,13 +1804,21 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 		w.Write(content)
 	case "style.css":
-		// Serve custom styles from embedded static directory
 		content, err := staticFS.ReadFile("static/style.css")
 		if err != nil {
 			http.Error(w, "style.css not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "text/css")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Write(content)
+	case "app.js":
+		content, err := staticFS.ReadFile("static/app.js")
+		if err != nil {
+			http.Error(w, "app.js not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 		w.Write(content)
 	default:
@@ -3607,15 +3614,17 @@ type SWORDData struct {
 
 // SWORDModule describes a SWORD module.
 type SWORDModule struct {
-	ID          string
-	ConfFile    string // Original .conf filename (preserves case)
-	Description string
-	Language    string
-	Version     string
-	Category    string
-	Copyright   string
-	License     string
-	DataPath    string
+	ID            string
+	ConfFile      string // Original .conf filename (preserves case)
+	Description   string
+	Language      string
+	Version       string
+	Category      string
+	Copyright     string
+	License       string
+	DataPath      string
+	Versification string   // KJV, NRSV, Catholic, Vulg, LXX, Orthodox, etc.
+	Features      []string // StrongsNumbers, Images, GreekDef, HebrewDef, etc.
 }
 
 // handleSWORDBrowser redirects to /juniper.
@@ -3705,6 +3714,24 @@ func parseSWORDConf(conf, filename string) SWORDModule {
 				module.License = value
 			case "datapath":
 				module.DataPath = value
+			case "versification":
+				module.Versification = value
+			case "feature":
+				module.Features = append(module.Features, value)
+			case "globaloptionffilter":
+				// GlobalOptionFilter can indicate features like StrongsNumbers
+				if strings.Contains(strings.ToLower(value), "strongs") {
+					module.Features = append(module.Features, "StrongsNumbers")
+				}
+				if strings.Contains(strings.ToLower(value), "morph") {
+					module.Features = append(module.Features, "Morphology")
+				}
+				if strings.Contains(strings.ToLower(value), "footnotes") {
+					module.Features = append(module.Features, "Footnotes")
+				}
+				if strings.Contains(strings.ToLower(value), "headings") {
+					module.Features = append(module.Features, "Headings")
+				}
 			}
 		}
 	}

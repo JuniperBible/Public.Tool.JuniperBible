@@ -225,6 +225,12 @@ func setupRoutes() *http.ServeMux {
 	mux.HandleFunc("/bible/", handleBibleIndex)
 	mux.HandleFunc("/bible", handleBibleIndex)
 
+	// Library (multi-Bible browse/search/compare)
+	mux.HandleFunc("/library/bibles/install", handleBibleInstall)
+	mux.HandleFunc("/library/bibles/delete", handleBibleDelete)
+	mux.HandleFunc("/library/bibles/", handleLibraryBibles)
+	mux.HandleFunc("/library/bibles", handleLibraryBibles)
+
 	// Bible API
 	mux.HandleFunc("/api/bibles/search", handleAPIBibleSearch)
 	mux.HandleFunc("/api/bibles/", handleAPIBibles)

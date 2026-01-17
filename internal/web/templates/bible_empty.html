@@ -1,0 +1,44 @@
+{{template "header" .}}
+
+<article>
+  <header class="michael-header">
+    <h1 class="font-hand">
+      Bible Reader
+    </h1>
+    <div class="actions">
+      <span class="tag tag-muted font-hand">No Bibles Found</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="bible-text welcome-content">
+      <div class="empty-state">
+        <h2 class="font-hand">No Bible Capsules Available</h2>
+        <p>To start reading, you'll need to add Bible capsules to the capsules directory.</p>
+
+        <h2 class="font-hand">Getting Started</h2>
+        <ul>
+          <li><strong>Developer Tools</strong> - Use the capsule ingest feature to create Bible capsules from source files</li>
+          <li><strong>Supported Formats</strong> - MySword, e-Sword, OSIS, USFM, and more</li>
+          <li><strong>DRC Bible</strong> - The Douay-Rheims Catholic Bible is the default reader Bible</li>
+        </ul>
+
+        <nav class="quick-links">
+          <a href="/juniper" role="button" class="font-hand outline" id="dev-tools-link" style="display:none;">Developer Tools</a>
+        </nav>
+      </div>
+    </div>
+  </section>
+</article>
+
+<script>
+  // Show Developer Tools link if enabled
+  document.addEventListener('DOMContentLoaded', function() {
+    var devToolsLink = document.getElementById('dev-tools-link');
+    if (devToolsLink && window.settingsManager && window.settingsManager.isVisible()) {
+      devToolsLink.style.display = '';
+    }
+  });
+</script>
+
+{{template "footer" .}}

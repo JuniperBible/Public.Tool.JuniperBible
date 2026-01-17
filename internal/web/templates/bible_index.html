@@ -1,18 +1,22 @@
 {{template "header" .}}
 
 <article>
-  <header>
-    <h2>Bible</h2>
+  <header class="michael-header">
+    <h1 class="font-hand">Bible Library</h1>
+    <div class="actions">
+      <span class="tag tag-primary font-hand">{{len .AllBibles}} Bibles</span>
+    </div>
   </header>
 
   <div class="tab-nav">
-    <a href="/bible?tab=browse" class="{{if eq .Tab "browse"}}active{{else}}{{if and (ne .Tab "compare") (ne .Tab "search")}}active{{end}}{{end}}" id="tab-browse-link">Browse</a>
-    <a href="/bible?tab=compare" class="{{if eq .Tab "compare"}}active{{end}}" id="tab-compare-link">Compare</a>
-    <a href="/bible?tab=search" class="{{if eq .Tab "search"}}active{{end}}" id="tab-search-link">Search</a>
+    <a href="/library/bibles/?tab=browse" class="{{if eq .Tab "browse"}}active{{else}}{{if and (ne .Tab "compare") (ne .Tab "search") (ne .Tab "manage")}}active{{end}}{{end}}" id="tab-browse-link">Browse</a>
+    <a href="/library/bibles/?tab=compare" class="{{if eq .Tab "compare"}}active{{end}}" id="tab-compare-link">Compare</a>
+    <a href="/library/bibles/?tab=search" class="{{if eq .Tab "search"}}active{{end}}" id="tab-search-link">Search</a>
+    <a href="/library/bibles/?tab=manage" class="{{if eq .Tab "manage"}}active{{end}}" id="tab-manage-link">Manage</a>
   </div>
 
   <!-- Browse Tab -->
-  <div class="tab-content {{if and (ne .Tab "compare") (ne .Tab "search")}}active{{end}}" id="tab-browse">
+  <div class="tab-content {{if and (ne .Tab "compare") (ne .Tab "search") (ne .Tab "manage")}}active{{end}}" id="tab-browse">
 
     {{if .Languages}}
     <div style="margin-bottom: 1rem;">
@@ -28,18 +32,18 @@
     {{if gt .TotalPages 1}}
     <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 1rem; gap: 0.25rem; flex-wrap: wrap;">
       {{if gt .Page 1}}
-      <a href="/bible?tab=browse&page={{subtract .Page 1}}&perPage={{.PerPage}}" role="button" class="outline secondary" style="padding: 0.25rem 0.5rem;">&laquo;</a>
+      <a href="/library/bibles/?tab=browse&page={{subtract .Page 1}}&perPage={{.PerPage}}" role="button" class="outline secondary" style="padding: 0.25rem 0.5rem;">&laquo;</a>
       {{end}}
       {{range iterate .TotalPages}}
       {{$pageNum := add . 1}}
       {{if eq $pageNum $.Page}}
-      <span style="padding: 0.25rem 0.5rem; background: var(--pico-primary); color: white; border-radius: var(--pico-border-radius);">{{$pageNum}}</span>
+      <span class="page-current">{{$pageNum}}</span>
       {{else}}
-      <a href="/bible?tab=browse&page={{$pageNum}}&perPage={{$.PerPage}}" role="button" class="outline secondary" style="padding: 0.25rem 0.5rem;">{{$pageNum}}</a>
+      <a href="/library/bibles/?tab=browse&page={{$pageNum}}&perPage={{$.PerPage}}" role="button" class="outline secondary" style="padding: 0.25rem 0.5rem;">{{$pageNum}}</a>
       {{end}}
       {{end}}
       {{if lt .Page .TotalPages}}
-      <a href="/bible?tab=browse&page={{add .Page 1}}&perPage={{.PerPage}}" role="button" class="outline secondary" style="padding: 0.25rem 0.5rem;">&raquo;</a>
+      <a href="/library/bibles/?tab=browse&page={{add .Page 1}}&perPage={{.PerPage}}" role="button" class="outline secondary" style="padding: 0.25rem 0.5rem;">&raquo;</a>
       {{end}}
     </div>
     {{end}}
@@ -118,7 +122,7 @@
 
   <!-- Search Tab -->
   <div class="tab-content {{if eq .Tab "search"}}active{{end}}" id="tab-search">
-    <form method="get" action="/bible">
+    <form method="get" action="/library/bibles/">
       <input type="hidden" name="tab" value="search">
       <div class="search-form">
         <input type="search" name="q" placeholder="Search for word, &quot;exact phrase&quot;, or H1234/G5678" value="{{.Query | html}}" autocomplete="off">
@@ -168,12 +172,234 @@
     {{end}}
     {{end}}
   </div>
+
+  <!-- Manage Tab -->
+  <div class="tab-content {{if eq .Tab "manage"}}active{{end}}" id="tab-manage">
+    <!-- Filters -->
+    <div class="manage-filters" style="margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
+      <!-- Tag Filter -->
+      <div class="manage-filter">
+        <strong>Filter by tag:</strong>
+        <a href="/library/bibles/?tab=manage&tag=all&lang={{.ManageLanguageFilter}}" class="{{if or (eq .ManageTagFilter "all") (eq .ManageTagFilter "")}}active{{end}}">All</a>
+        {{range .ManageAvailableTags}}
+        <a href="/library/bibles/?tab=manage&tag={{.}}&lang={{$.ManageLanguageFilter}}" class="{{if eq $.ManageTagFilter .}}active{{end}}">{{.}}</a>
+        {{end}}
+      </div>
+      <!-- Language Dropdown -->
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <strong>Language:</strong>
+        <select onchange="window.location.href='/library/bibles/?tab=manage&tag={{.ManageTagFilter}}&lang=' + this.value" style="padding: 0.35rem 0.5rem;">
+          <option value="all" {{if or (eq .ManageLanguageFilter "all") (eq .ManageLanguageFilter "")}}selected{{end}}>All languages</option>
+          {{range .ManageAvailableLanguages}}
+          <option value="{{.}}" {{if eq $.ManageLanguageFilter .}}selected{{end}}>{{.}}</option>
+          {{end}}
+        </select>
+      </div>
+    </div>
+
+    <h3>Installed Bibles <span class="tag tag-count">{{len .AllInstalledBibles}}</span></h3>
+    {{if .InstalledBibles}}
+    <p class="meta">These Bibles have been processed and are ready to read.</p>
+    <table class="manage-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Source</th>
+          <th>Format</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .InstalledBibles}}
+        <tr>
+          <td><a href="/bible/{{.ID}}">{{.Name}}</a></td>
+          <td><span class="tag">{{.Source}}</span></td>
+          <td>{{.Format}}</td>
+          <td>
+            <form method="post" action="/library/bibles/delete" style="display: inline;">
+              <input type="hidden" name="id" value="{{.ID}}">
+              <input type="hidden" name="source" value="{{.Source}}">
+              <button type="submit" class="outline secondary" onclick="return confirm('Delete {{.Name}}? This will remove the IR data.')">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    <!-- Installed Pagination -->
+    {{if gt .InstalledTotalPages 1}}
+    <div class="pagination" style="display: flex; justify-content: center; align-items: center; margin: 1rem 0; gap: 0.25rem; flex-wrap: wrap;">
+      {{if gt .InstalledPage 1}}
+      <a href="/library/bibles/?tab=manage&tag={{.ManageTagFilter}}&lang={{.ManageLanguageFilter}}&ipage=1&upage={{.InstallablePage}}" class="page-link">&laquo;&laquo;</a>
+      <a href="/library/bibles/?tab=manage&tag={{.ManageTagFilter}}&lang={{.ManageLanguageFilter}}&ipage={{subtract .InstalledPage 1}}&upage={{.InstallablePage}}" class="page-link">&laquo;</a>
+      {{end}}
+      <span class="page-info">Page {{.InstalledPage}} of {{.InstalledTotalPages}}</span>
+      {{if lt .InstalledPage .InstalledTotalPages}}
+      <a href="/library/bibles/?tab=manage&tag={{.ManageTagFilter}}&lang={{.ManageLanguageFilter}}&ipage={{add .InstalledPage 1}}&upage={{.InstallablePage}}" class="page-link">&raquo;</a>
+      <a href="/library/bibles/?tab=manage&tag={{.ManageTagFilter}}&lang={{.ManageLanguageFilter}}&ipage={{.InstalledTotalPages}}&upage={{.InstallablePage}}" class="page-link">&raquo;&raquo;</a>
+      {{end}}
+    </div>
+    {{end}}
+    {{else}}
+    <div class="empty-state">
+      <p>No installed Bibles{{if or (ne .ManageTagFilter "all") (ne .ManageLanguageFilter "all")}} matching filters{{end}}.</p>
+      <p class="meta">Install a Bible from the list below to start reading.</p>
+    </div>
+    {{end}}
+
+    <h3>Installable Bibles <span class="tag tag-count">{{len .AllInstallableBibles}}</span></h3>
+    {{if .InstallableBibles}}
+    <p class="meta">These Bibles can be installed by generating their IR (Intermediate Representation).</p>
+    <table class="manage-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Source</th>
+          <th>Format</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .InstallableBibles}}
+        <tr>
+          <td>{{.Name}}</td>
+          <td><span class="tag">{{.Source}}</span></td>
+          <td>{{.Format}}</td>
+          <td>
+            <form method="post" action="/library/bibles/install" style="display: inline;">
+              <input type="hidden" name="id" value="{{.ID}}">
+              <input type="hidden" name="source" value="{{.Source}}">
+              <input type="hidden" name="path" value="{{.SourcePath}}">
+              <button type="submit" class="outline">Install</button>
+            </form>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    <!-- Installable Pagination -->
+    {{if gt .InstallableTotalPages 1}}
+    <div class="pagination" style="display: flex; justify-content: center; align-items: center; margin: 1rem 0; gap: 0.25rem; flex-wrap: wrap;">
+      {{if gt .InstallablePage 1}}
+      <a href="/library/bibles/?tab=manage&tag={{.ManageTagFilter}}&lang={{.ManageLanguageFilter}}&ipage={{.InstalledPage}}&upage=1" class="page-link">&laquo;&laquo;</a>
+      <a href="/library/bibles/?tab=manage&tag={{.ManageTagFilter}}&lang={{.ManageLanguageFilter}}&ipage={{.InstalledPage}}&upage={{subtract .InstallablePage 1}}" class="page-link">&laquo;</a>
+      {{end}}
+      <span class="page-info">Page {{.InstallablePage}} of {{.InstallableTotalPages}}</span>
+      {{if lt .InstallablePage .InstallableTotalPages}}
+      <a href="/library/bibles/?tab=manage&tag={{.ManageTagFilter}}&lang={{.ManageLanguageFilter}}&ipage={{.InstalledPage}}&upage={{add .InstallablePage 1}}" class="page-link">&raquo;</a>
+      <a href="/library/bibles/?tab=manage&tag={{.ManageTagFilter}}&lang={{.ManageLanguageFilter}}&ipage={{.InstalledPage}}&upage={{.InstallableTotalPages}}" class="page-link">&raquo;&raquo;</a>
+      {{end}}
+    </div>
+    {{end}}
+    {{else}}
+    <div class="empty-state">
+      <p>No installable Bibles found{{if or (ne .ManageTagFilter "all") (ne .ManageLanguageFilter "all")}} matching filters{{end}}.</p>
+      <p class="meta">Add capsules to the capsules directory or SWORD modules to ~/.sword/</p>
+    </div>
+    {{end}}
+  </div>
 </article>
 
 <!-- Hidden data attributes for JavaScript -->
 <input type="hidden" id="search-query-data" data-query="{{.Query | html}}">
 <div id="bibles-data" style="display: none;" data-bibles='{{range $i, $b := .AllBibles}}{{if $i}},{{end}}{"id":"{{$b.ID}}","abbrev":"{{$b.Abbrev}}","title":"{{$b.Title}}"}{{end}}'></div>
 
+<!-- Loading Modal -->
+<div id="loading-modal" class="loading-modal">
+  <div class="loading-spinner">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <!-- Static triangle (logo background) -->
+      <polygon class="logo-triangle" points="12,2 22,20 2,20" stroke-width="1" stroke-linejoin="round" stroke="currentColor"/>
+      <!-- Center dot -->
+      <circle class="logo-center-dot" cx="12" cy="14" r="1.5" fill="currentColor"/>
+      <!-- Spinning arrows forming circle perimeter -->
+      <g class="spinner-arrows">
+        <!-- Two arrows chasing each other as the circle perimeter -->
+        <path d="M 12 9 A 5 5 0 0 1 16.33 16.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <polygon points="16.33,16.5 15.5,14.5 17.8,15.3" fill="currentColor"/>
+        <path d="M 12 19 A 5 5 0 0 1 7.67 11.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <polygon points="7.67,11.5 8.5,13.5 6.2,12.7" fill="currentColor"/>
+      </g>
+    </svg>
+  </div>
+  <p id="loading-message">Installing...</p>
+</div>
+
+<!-- Error Modal -->
+<div id="error-modal" class="error-modal">
+  <div class="error-modal-content">
+    <div class="error-modal-header">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <circle cx="12" cy="16" r="1" fill="currentColor"/>
+      </svg>
+      <h3>Error</h3>
+    </div>
+    <p id="error-message"></p>
+    <button id="error-acknowledge-btn" class="error-acknowledge">OK</button>
+  </div>
+</div>
+
 <script src="/static/bible-compare.js"></script>
+
+<script>
+// Loading modal functions
+function showLoadingModal(message) {
+  const modal = document.getElementById('loading-modal');
+  const msgEl = document.getElementById('loading-message');
+  if (msgEl && message) msgEl.textContent = message;
+  if (modal) modal.classList.add('active');
+}
+
+function hideLoadingModal() {
+  const modal = document.getElementById('loading-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+// Error modal functions
+function showErrorModal(message) {
+  const modal = document.getElementById('error-modal');
+  const msgEl = document.getElementById('error-message');
+  if (msgEl) msgEl.textContent = message;
+  if (modal) modal.classList.add('active');
+}
+
+function hideErrorModal() {
+  const modal = document.getElementById('error-modal');
+  if (modal) modal.classList.remove('active');
+  // Remove error from URL without reloading
+  const url = new URL(window.location);
+  url.searchParams.delete('error');
+  window.history.replaceState({}, '', url);
+}
+
+// Intercept install form submissions to show loading modal
+document.addEventListener('DOMContentLoaded', function() {
+  // Check for error parameter in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const errorMsg = urlParams.get('error');
+  if (errorMsg) {
+    showErrorModal(errorMsg);
+  }
+
+  // Set up error modal acknowledge button
+  const ackBtn = document.getElementById('error-acknowledge-btn');
+  if (ackBtn) {
+    ackBtn.addEventListener('click', hideErrorModal);
+  }
+
+  // Find all install forms
+  const installForms = document.querySelectorAll('form[action="/library/bibles/install"]');
+  installForms.forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+      // Get the Bible name from the row
+      const row = form.closest('tr');
+      const name = row ? row.querySelector('td:first-child').textContent : 'Bible';
+      showLoadingModal('Installing ' + name + '...');
+    });
+  });
+});
+</script>
 
 {{template "footer" .}}

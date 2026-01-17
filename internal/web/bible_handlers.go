@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1102,6 +1101,7 @@ func handleLibraryBibles(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleBibleInstall handles POST requests to install a Bible (generate IR).
+// This is now fully async - it queues the task and returns immediately.
 func handleBibleInstall(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -1122,33 +1122,28 @@ func handleBibleInstall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var err error
-	switch source {
-	case "capsule":
-		err = installCapsuleBible(id, sourcePath)
-	case "sword":
-		err = installSWORDBible(id, sourcePath)
-	default:
+	// Validate source type
+	if source != "capsule" && source != "sword" {
 		http.Error(w, "Unknown source type", http.StatusBadRequest)
 		return
 	}
 
-	if err != nil {
-		log.Printf("[INSTALL] Failed to install %s: %v", id, err)
-		http.Redirect(w, r, "/library/bibles/?tab=manage&error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
-		return
+	// Queue the install task asynchronously
+	params := map[string]string{
+		"id":     id,
+		"source": source,
+		"path":   sourcePath,
 	}
+	taskQueue.AddTask(TaskInstall, id, params)
 
-	// Invalidate caches
-	invalidateBibleCache()
-	invalidateCorpusCache()
-	invalidateManageableBiblesCache()
+	log.Printf("[INSTALL] Queued install task for %s", id)
 
-	log.Printf("[INSTALL] Successfully installed %s", id)
+	// Redirect back immediately - task runs in background
 	http.Redirect(w, r, "/library/bibles/?tab=manage", http.StatusSeeOther)
 }
 
 // handleBibleDelete handles POST requests to delete a Bible (remove IR).
+// This is now fully async - it queues the task and returns immediately.
 func handleBibleDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -1168,27 +1163,22 @@ func handleBibleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var err error
-	switch source {
-	case "capsule":
-		err = deleteCapsuleBibleIR(id)
-	default:
+	// Validate source type - only capsules can be deleted
+	if source != "capsule" {
 		http.Error(w, "Cannot delete non-capsule Bibles", http.StatusBadRequest)
 		return
 	}
 
-	if err != nil {
-		log.Printf("[DELETE] Failed to delete %s: %v", id, err)
-		http.Redirect(w, r, "/library/bibles/?tab=manage&error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
-		return
+	// Queue the delete task asynchronously
+	params := map[string]string{
+		"id":     id,
+		"source": source,
 	}
+	taskQueue.AddTask(TaskDelete, id, params)
 
-	// Invalidate caches
-	invalidateBibleCache()
-	invalidateCorpusCache()
-	invalidateManageableBiblesCache()
+	log.Printf("[DELETE] Queued delete task for %s", id)
 
-	log.Printf("[DELETE] Successfully deleted IR for %s", id)
+	// Redirect back immediately - task runs in background
 	http.Redirect(w, r, "/library/bibles/?tab=manage", http.StatusSeeOther)
 }
 

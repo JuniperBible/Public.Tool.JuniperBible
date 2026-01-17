@@ -131,9 +131,22 @@
         /**
          * Update internal task tracking with server response
          */
-        updateTasks(serverTasks) {
-            if (!Array.isArray(serverTasks)) {
-                serverTasks = [serverTasks];
+        updateTasks(serverResponse) {
+            // Handle both array format and {running, queued, history} format
+            let serverTasks = [];
+            if (Array.isArray(serverResponse)) {
+                serverTasks = serverResponse;
+            } else if (serverResponse && typeof serverResponse === 'object') {
+                // Combine running, queued, and history into single array
+                if (Array.isArray(serverResponse.running)) {
+                    serverTasks = serverTasks.concat(serverResponse.running);
+                }
+                if (Array.isArray(serverResponse.queued)) {
+                    serverTasks = serverTasks.concat(serverResponse.queued);
+                }
+                if (Array.isArray(serverResponse.history)) {
+                    serverTasks = serverTasks.concat(serverResponse.history);
+                }
             }
 
             serverTasks.forEach(serverTask => {

@@ -845,10 +845,10 @@ func handleLibraryBibles(w http.ResponseWriter, r *http.Request) {
 			manageTagFilter = "all"
 		}
 
-		// Get language filter parameter
+		// Get language filter parameter (default to "en" for better UX)
 		manageLanguageFilter = r.URL.Query().Get("lang")
 		if manageLanguageFilter == "" {
-			manageLanguageFilter = "all"
+			manageLanguageFilter = "en"
 		}
 
 		// Filter by tag and language

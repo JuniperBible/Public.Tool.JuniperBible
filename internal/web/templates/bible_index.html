@@ -189,7 +189,7 @@
       <div style="display: flex; align-items: center; gap: 0.5rem;">
         <strong>Language:</strong>
         <select onchange="window.location.href='/library/bibles/?tab=manage&tag={{.ManageTagFilter}}&lang=' + this.value" style="padding: 0.35rem 0.5rem;">
-          <option value="all" {{if or (eq .ManageLanguageFilter "all") (eq .ManageLanguageFilter "")}}selected{{end}}>All languages</option>
+          <option value="all" {{if eq .ManageLanguageFilter "all"}}selected{{end}}>All languages</option>
           {{range .ManageAvailableLanguages}}
           <option value="{{.}}" {{if eq $.ManageLanguageFilter .}}selected{{end}}>{{.}}</option>
           {{end}}

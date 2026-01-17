@@ -2004,30 +2004,36 @@ func listCapsules() []CapsuleInfo {
 }
 
 // listCapsulesUncached returns all capsules without caching.
+// Uses os.ReadDir for better performance than filepath.Walk.
 func listCapsulesUncached() []CapsuleInfo {
+	entries, err := os.ReadDir(ServerConfig.CapsulesDir)
+	if err != nil {
+		return nil
+	}
+
 	var capsules []CapsuleInfo
-
-	filepath.Walk(ServerConfig.CapsulesDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if info.IsDir() {
-			return nil
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
 		}
 
-		ext := filepath.Ext(path)
+		name := entry.Name()
+		ext := filepath.Ext(name)
 		if ext == ".xz" || ext == ".gz" || ext == ".tar" {
-			rel, _ := filepath.Rel(ServerConfig.CapsulesDir, path)
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			fullPath := filepath.Join(ServerConfig.CapsulesDir, name)
 			capsules = append(capsules, CapsuleInfo{
-				Name:      filepath.Base(path),
-				Path:      rel,
+				Name:      name,
+				Path:      name, // Flat directory, path == name
 				Size:      info.Size(),
 				SizeHuman: humanSize(info.Size()),
-				Format:    detectCapsuleFormat(path),
+				Format:    detectCapsuleFormat(fullPath),
 			})
 		}
-		return nil
-	})
+	}
 
 	sort.Slice(capsules, func(i, j int) bool {
 		return capsules[i].Name < capsules[j].Name

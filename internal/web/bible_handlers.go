@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/FocuswithJustin/JuniperBible/core/ir"
+	"github.com/FocuswithJustin/JuniperBible/internal/archive"
 )
 
 // Pre-compiled regexes for performance (avoid recompilation on every request)
@@ -25,10 +26,13 @@ var (
 	strongsSearchRegex = regexp.MustCompile(`^[HG]\d+$`)
 )
 
+// startupReady is an atomic bool for lock-free ready checks (hot path optimization).
+var startupReady atomic.Bool
+
 // startupState tracks server startup progress for the splash screen.
+// Uses RWMutex only for message/detail/progress (not checked on hot path).
 var startupState struct {
 	sync.RWMutex
-	ready    bool
 	message  string
 	detail   string
 	progress int // 0-100
@@ -47,7 +51,7 @@ func GetStartupStatus() StartupStatus {
 	startupState.RLock()
 	defer startupState.RUnlock()
 	return StartupStatus{
-		Ready:    startupState.ready,
+		Ready:    startupReady.Load(),
 		Message:  startupState.message,
 		Detail:   startupState.detail,
 		Progress: startupState.progress,
@@ -55,10 +59,9 @@ func GetStartupStatus() StartupStatus {
 }
 
 // IsStartupReady returns true if the server has finished warming up.
+// Uses atomic load for lock-free hot path performance.
 func IsStartupReady() bool {
-	startupState.RLock()
-	defer startupState.RUnlock()
-	return startupState.ready
+	return startupReady.Load()
 }
 
 func setStartupProgress(message, detail string, progress int) {
@@ -71,11 +74,11 @@ func setStartupProgress(message, detail string, progress int) {
 
 func setStartupReady() {
 	startupState.Lock()
-	startupState.ready = true
 	startupState.message = "Ready"
 	startupState.detail = ""
 	startupState.progress = 100
 	startupState.Unlock()
+	startupReady.Store(true) // Atomic store - lock-free
 }
 
 // bibleCache caches Bible info to avoid re-parsing capsules on every request.
@@ -217,10 +220,7 @@ func getCachedCorpus(capsuleID string) (*ir.Corpus, string, error) {
 	capsules := listCapsules()
 	var capsulePath string
 	for _, c := range capsules {
-		id := strings.TrimSuffix(c.Name, ".capsule.tar.xz")
-		id = strings.TrimSuffix(id, ".tar.xz")
-		id = strings.TrimSuffix(id, ".tar.gz")
-		id = strings.TrimSuffix(id, ".tar")
+		id := archive.ExtractCapsuleID(c.Name)
 		if strings.EqualFold(id, capsuleID) {
 			capsulePath = c.Path
 			break
@@ -471,10 +471,7 @@ func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 	// Process capsules in parallel using worker pool
 	pool := NewWorkerPool[CapsuleInfo, result](maxWorkers, len(capsules))
 	pool.Start(func(c CapsuleInfo) result {
-		capsuleID := strings.TrimSuffix(c.Name, ".capsule.tar.xz")
-		capsuleID = strings.TrimSuffix(capsuleID, ".tar.xz")
-		capsuleID = strings.TrimSuffix(capsuleID, ".tar.gz")
-		capsuleID = strings.TrimSuffix(capsuleID, ".tar")
+		capsuleID := archive.ExtractCapsuleID(c.Name)
 
 		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
 		// Use getCapsuleMetadata for cached HasIR check
@@ -1254,10 +1251,7 @@ func deleteCapsuleBibleIR(id string) error {
 	capsules := listCapsules()
 	var capsulePath string
 	for _, c := range capsules {
-		capsuleID := strings.TrimSuffix(c.Name, ".capsule.tar.xz")
-		capsuleID = strings.TrimSuffix(capsuleID, ".tar.xz")
-		capsuleID = strings.TrimSuffix(capsuleID, ".tar.gz")
-		capsuleID = strings.TrimSuffix(capsuleID, ".tar")
+		capsuleID := archive.ExtractCapsuleID(c.Name)
 		if strings.EqualFold(capsuleID, id) {
 			capsulePath = filepath.Join(ServerConfig.CapsulesDir, c.Path)
 			break
@@ -1588,10 +1582,7 @@ func listBiblesUncached() []BibleInfo {
 	// Create and start worker pool
 	pool := NewWorkerPool[CapsuleInfo, result](maxWorkers, len(capsules))
 	pool.Start(func(c CapsuleInfo) result {
-		capsuleID := strings.TrimSuffix(c.Name, ".capsule.tar.xz")
-		capsuleID = strings.TrimSuffix(capsuleID, ".tar.xz")
-		capsuleID = strings.TrimSuffix(capsuleID, ".tar.gz")
-		capsuleID = strings.TrimSuffix(capsuleID, ".tar")
+		capsuleID := archive.ExtractCapsuleID(c.Name)
 
 		// Try to get corpus from cache first (avoids re-reading archive)
 		var corpus *ir.Corpus
@@ -1747,11 +1738,18 @@ func loadChapterVerses(capsuleID, bookID string, chapter int) ([]VerseData, erro
 
 	// Extract verses for the chapter
 	var verses []VerseData
-	verseRe := regexp.MustCompile(`^` + regexp.QuoteMeta(doc.ID) + `\.(\d+)\.(\d+)`)
+	// Use prefix matching + pre-compiled regex for better performance
+	// (avoid compiling regex on every chapter load)
+	docPrefix := doc.ID + "."
 
 	for _, cb := range doc.ContentBlocks {
-		// Try to parse verse reference from content block ID
-		matches := verseRe.FindStringSubmatch(cb.ID)
+		// Fast prefix check before regex
+		if !strings.HasPrefix(cb.ID, docPrefix) {
+			continue
+		}
+		// Use pre-compiled regex on the suffix (after doc.ID.)
+		suffix := cb.ID[len(docPrefix):]
+		matches := chapterVerseRegex.FindStringSubmatch("." + suffix)
 		if len(matches) == 3 {
 			var cbChapter, cbVerse int
 			fmt.Sscanf(matches[1], "%d", &cbChapter)

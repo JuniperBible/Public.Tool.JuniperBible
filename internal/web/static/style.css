@@ -203,9 +203,9 @@
 [data-theme="dark"] .btn.secondary,
 [data-theme="dark"] [role="button"].outline,
 [data-theme="dark"] [role="button"].secondary {
-  background-color: transparent;
+  background-color: var(--dark-surface-dim);
   border-color: var(--dark-accent);
-  color: var(--dark-accent);
+  color: var(--cream-200);
 }
 
 [data-theme="dark"] button.outline:hover,
@@ -296,6 +296,19 @@
 [data-theme="dark"] article > footer {
   background-color: rgba(0, 0, 0, 0.2);
   border-top-color: var(--dark-border);
+}
+
+[data-theme="dark"] article > footer [role="button"].outline,
+[data-theme="dark"] article > footer a.outline {
+  background-color: var(--dark-accent);
+  border-color: var(--dark-accent);
+  color: var(--dark-bg);
+}
+
+[data-theme="dark"] article > footer [role="button"].outline:hover,
+[data-theme="dark"] article > footer a.outline:hover {
+  background-color: var(--dark-accent-hover);
+  border-color: var(--dark-accent-hover);
 }
 
 [data-theme="dark"] article a {

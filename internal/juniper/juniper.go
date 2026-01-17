@@ -284,6 +284,198 @@ func IngestModule(swordPath string, module *Module, outputPath string) error {
 	return archive.CreateCapsuleTarGz(capsuleDir, outputPath)
 }
 
+// InstallConfig holds configuration for installing SWORD modules as capsules with IR.
+type InstallConfig struct {
+	Path       string   // SWORD installation path
+	Output     string   // Output directory for capsules
+	Modules    []string // Specific modules to install
+	All        bool     // Install all modules
+	PluginsDir string   // Directory containing format plugins
+}
+
+// Install installs SWORD modules as capsules with IR generated.
+// This combines ingest + IR generation in one step.
+func Install(cfg InstallConfig) error {
+	swordPath, err := ResolveSwordPath(cfg.Path)
+	if err != nil {
+		return err
+	}
+
+	modules, err := ListModules(swordPath)
+	if err != nil {
+		return err
+	}
+
+	if len(modules) == 0 {
+		return fmt.Errorf("no Bible modules found in %s", swordPath)
+	}
+
+	// Determine which modules to install
+	var toInstall []*Module
+	if cfg.All {
+		toInstall = modules
+	} else if len(cfg.Modules) > 0 {
+		moduleMap := make(map[string]*Module)
+		for _, m := range modules {
+			moduleMap[m.Name] = m
+		}
+		for _, name := range cfg.Modules {
+			if m, ok := moduleMap[name]; ok {
+				toInstall = append(toInstall, m)
+			} else {
+				fmt.Printf("Warning: module '%s' not found\n", name)
+			}
+		}
+	} else {
+		return fmt.Errorf("specify module names or use --all")
+	}
+
+	if len(toInstall) == 0 {
+		return fmt.Errorf("no modules to install")
+	}
+
+	// Create output directory
+	if err := os.MkdirAll(cfg.Output, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	fmt.Printf("Installing %d module(s) to %s/ (with IR generation)\n\n", len(toInstall), cfg.Output)
+
+	successful := 0
+	for _, m := range toInstall {
+		if m.Encrypted {
+			fmt.Printf("Skipping %s (encrypted)\n", m.Name)
+			continue
+		}
+
+		capsulePath := filepath.Join(cfg.Output, m.Name+".capsule.tar.gz")
+		fmt.Printf("Installing %s...\n", m.Name)
+
+		// Step 1: Ingest
+		fmt.Printf("  Ingesting SWORD module...\n")
+		if err := IngestModule(swordPath, m, capsulePath); err != nil {
+			fmt.Printf("  Error during ingest: %v\n", err)
+			continue
+		}
+
+		// Step 2: Generate IR
+		fmt.Printf("  Generating IR...\n")
+		if err := GenerateIRForCapsule(capsulePath, cfg.PluginsDir); err != nil {
+			fmt.Printf("  Error during IR generation: %v\n", err)
+			fmt.Printf("  (Capsule created but without IR)\n")
+			continue
+		}
+
+		info, _ := os.Stat(capsulePath)
+		if info != nil {
+			fmt.Printf("  Done: %s (%d bytes)\n", capsulePath, info.Size())
+		}
+		successful++
+	}
+
+	fmt.Printf("\nInstalled %d/%d modules successfully\n", successful, len(toInstall))
+	return nil
+}
+
+// GenerateIRForCapsule generates IR for an existing capsule.
+func GenerateIRForCapsule(capsulePath string, pluginsDir string) error {
+	// Check if already has IR
+	if archive.HasIR(capsulePath) {
+		return nil // Already has IR
+	}
+
+	// Create temp directory
+	tempDir, err := os.MkdirTemp("", "capsule-ir-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Extract capsule
+	extractDir := filepath.Join(tempDir, "extract")
+	if _, err := capsule.Unpack(capsulePath, extractDir); err != nil {
+		return fmt.Errorf("failed to extract capsule: %w", err)
+	}
+
+	// Find content and detect format
+	contentPath, sourceFormat := findConvertibleContent(extractDir)
+	if contentPath == "" {
+		return fmt.Errorf("no convertible content found (supported: OSIS, USFM, USX, SWORD)")
+	}
+
+	// Load plugins using embedded registry
+	loader := getPluginLoader(pluginsDir)
+
+	// Extract IR
+	irDir := filepath.Join(tempDir, "ir")
+	os.MkdirAll(irDir, 0755)
+
+	sourcePlugin, err := loader.GetPlugin("format." + sourceFormat)
+	if err != nil {
+		return fmt.Errorf("no plugin for format '%s': %w", sourceFormat, err)
+	}
+
+	extractReq := newExtractIRRequest(contentPath, irDir)
+	extractResp, err := executePlugin(sourcePlugin, extractReq)
+	if err != nil {
+		return fmt.Errorf("IR extraction failed: %w", err)
+	}
+
+	extractResult, err := parseExtractIRResult(extractResp)
+	if err != nil {
+		return fmt.Errorf("failed to parse result: %w", err)
+	}
+
+	// Create new capsule with IR
+	newCapsuleDir := filepath.Join(tempDir, "new-capsule")
+
+	// Copy all original files
+	if err := fileutil.CopyDir(extractDir, newCapsuleDir); err != nil {
+		return fmt.Errorf("failed to copy contents: %w", err)
+	}
+
+	// Add IR file
+	irData, err := os.ReadFile(extractResult.IRPath)
+	if err != nil {
+		return fmt.Errorf("failed to read IR: %w", err)
+	}
+
+	baseName := filepath.Base(capsulePath)
+	baseName = strings.TrimSuffix(baseName, ".capsule.tar.gz")
+	baseName = strings.TrimSuffix(baseName, ".capsule.tar.xz")
+	baseName = strings.TrimSuffix(baseName, ".tar.gz")
+	baseName = strings.TrimSuffix(baseName, ".tar.xz")
+	os.WriteFile(filepath.Join(newCapsuleDir, baseName+".ir.json"), irData, 0644)
+
+	// Update manifest
+	manifestPath := filepath.Join(newCapsuleDir, "manifest.json")
+	manifest := make(map[string]interface{})
+	if data, err := os.ReadFile(manifestPath); err == nil {
+		json.Unmarshal(data, &manifest)
+	}
+	manifest["has_ir"] = true
+	manifest["source_format"] = sourceFormat
+	manifest["ir_loss_class"] = extractResult.LossClass
+	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
+	os.WriteFile(manifestPath, manifestData, 0644)
+
+	// Rename original and create new
+	oldPath := capsulePath + ".old"
+	if err := os.Rename(capsulePath, oldPath); err != nil {
+		return fmt.Errorf("failed to rename original: %w", err)
+	}
+
+	if err := archive.CreateCapsuleTarGz(newCapsuleDir, capsulePath); err != nil {
+		os.Rename(oldPath, capsulePath)
+		return fmt.Errorf("failed to create capsule: %w", err)
+	}
+
+	// Remove old file
+	os.Remove(oldPath)
+
+	return nil
+}
+
 // CASToSword converts a CAS capsule to a SWORD module.
 func CASToSword(cfg CASToSwordConfig) error {
 	capsulePath, _ := filepath.Abs(cfg.Capsule)
@@ -474,4 +666,136 @@ func ParseConf(path string) *Module {
 	}
 
 	return module
+}
+
+// Helper functions for IR generation
+
+// findConvertibleContent finds content in a capsule that can be converted to IR.
+func findConvertibleContent(extractDir string) (contentPath, format string) {
+	// Check for SWORD module (mods.d/*.conf)
+	modsDir := filepath.Join(extractDir, "mods.d")
+	if entries, err := os.ReadDir(modsDir); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".conf") {
+				return filepath.Join(modsDir, e.Name()), "sword-pure"
+			}
+		}
+	}
+
+	// Check for OSIS
+	if files, _ := filepath.Glob(filepath.Join(extractDir, "*.osis")); len(files) > 0 {
+		return files[0], "osis"
+	}
+	if files, _ := filepath.Glob(filepath.Join(extractDir, "*.osis.xml")); len(files) > 0 {
+		return files[0], "osis"
+	}
+
+	// Check for USFM
+	if files, _ := filepath.Glob(filepath.Join(extractDir, "*.usfm")); len(files) > 0 {
+		return files[0], "usfm"
+	}
+	if files, _ := filepath.Glob(filepath.Join(extractDir, "*.sfm")); len(files) > 0 {
+		return files[0], "usfm"
+	}
+
+	// Check for USX
+	if files, _ := filepath.Glob(filepath.Join(extractDir, "*.usx")); len(files) > 0 {
+		return files[0], "usx"
+	}
+
+	return "", ""
+}
+
+// extractIRResult holds the result of IR extraction.
+type extractIRResult struct {
+	IRPath    string
+	LossClass string
+}
+
+// getPluginLoader returns a plugin loader with embedded plugins.
+func getPluginLoader(pluginsDir string) pluginLoader {
+	return &embeddedPluginLoader{}
+}
+
+// pluginLoader interface for loading plugins.
+type pluginLoader interface {
+	GetPlugin(name string) (plugin, error)
+}
+
+// plugin interface for executing plugins.
+type plugin interface {
+	Execute(request map[string]interface{}) (map[string]interface{}, error)
+}
+
+// embeddedPluginLoader uses the embedded plugin registry.
+type embeddedPluginLoader struct{}
+
+func (l *embeddedPluginLoader) GetPlugin(name string) (plugin, error) {
+	// Use the embedded plugin registry
+	p := getEmbeddedPlugin(name)
+	if p == nil {
+		return nil, fmt.Errorf("plugin not found: %s", name)
+	}
+	return p, nil
+}
+
+// getEmbeddedPlugin returns an embedded plugin by name.
+func getEmbeddedPlugin(name string) plugin {
+	// Import the embedded registry and get the plugin
+	registry := getEmbeddedRegistry()
+	if registry == nil {
+		return nil
+	}
+	return registry.Get(name)
+}
+
+// embeddedRegistry interface for getting embedded plugins.
+type embeddedRegistry interface {
+	Get(name string) plugin
+}
+
+// Global registry - set by init() in embedded package
+var globalRegistry embeddedRegistry
+
+func getEmbeddedRegistry() embeddedRegistry {
+	return globalRegistry
+}
+
+// SetEmbeddedRegistry sets the global embedded plugin registry.
+// Called by the embedded package's init().
+func SetEmbeddedRegistry(r embeddedRegistry) {
+	globalRegistry = r
+}
+
+// newExtractIRRequest creates a request for IR extraction.
+func newExtractIRRequest(contentPath, outputDir string) map[string]interface{} {
+	return map[string]interface{}{
+		"action":     "extract_ir",
+		"input_path": contentPath,
+		"output_dir": outputDir,
+	}
+}
+
+// executePlugin executes a plugin with a request.
+func executePlugin(p plugin, request map[string]interface{}) (map[string]interface{}, error) {
+	return p.Execute(request)
+}
+
+// parseExtractIRResult parses the result of IR extraction.
+func parseExtractIRResult(resp map[string]interface{}) (*extractIRResult, error) {
+	result := &extractIRResult{}
+
+	if irPath, ok := resp["ir_path"].(string); ok {
+		result.IRPath = irPath
+	} else if outputPath, ok := resp["output_path"].(string); ok {
+		result.IRPath = outputPath
+	} else {
+		return nil, fmt.Errorf("no ir_path in response")
+	}
+
+	if lossClass, ok := resp["loss_class"].(string); ok {
+		result.LossClass = lossClass
+	}
+
+	return result, nil
 }

@@ -1612,7 +1612,8 @@ func (c *DocgenCmd) Run() error {
 // JuniperCmd provides SWORD module tools.
 type JuniperCmd struct {
 	List       JuniperListCmd       `cmd:"" help:"List Bible modules in SWORD installation"`
-	Ingest     JuniperIngestCmd     `cmd:"" help:"Ingest SWORD modules into capsules"`
+	Ingest     JuniperIngestCmd     `cmd:"" help:"Ingest SWORD modules into capsules (raw, no IR)"`
+	Install    JuniperInstallCmd    `cmd:"" help:"Install SWORD modules as capsules with IR (recommended)"`
 	CASToSword JuniperCASToSwordCmd `cmd:"cas-to-sword" help:"Convert CAS capsule to SWORD module"`
 	Hugo       JuniperHugoCmd       `cmd:"" help:"Export SWORD modules to Hugo JSON data files"`
 }
@@ -1778,6 +1779,124 @@ func (c *JuniperIngestCmd) Run() error {
 	}
 
 	fmt.Println("\nDone!")
+	return nil
+}
+
+// JuniperInstallCmd installs SWORD modules as capsules with IR generated.
+type JuniperInstallCmd struct {
+	Modules []string `arg:"" optional:"" help:"Module names to install (or --all)"`
+	Path    string   `help:"Path to SWORD installation (default: ~/.sword)"`
+	Output  string   `short:"o" help:"Output directory (default: capsules)" default:"capsules"`
+	All     bool     `short:"a" help:"Install all Bible modules"`
+}
+
+func (c *JuniperInstallCmd) Run() error {
+	swordPath := c.Path
+	if swordPath == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("cannot determine home directory: %w", err)
+		}
+		swordPath = filepath.Join(home, ".sword")
+	}
+
+	// Check if mods.d exists
+	modsDir := filepath.Join(swordPath, "mods.d")
+	if _, err := os.Stat(modsDir); errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("SWORD installation not found at %s", swordPath)
+	}
+
+	// Get all modules
+	entries, err := os.ReadDir(modsDir)
+	if err != nil {
+		return fmt.Errorf("failed to read mods.d: %w", err)
+	}
+
+	// Build module list
+	var modules []*juniperModule
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".conf") {
+			continue
+		}
+
+		confPath := filepath.Join(modsDir, e.Name())
+		module := parseConfForList(confPath)
+		if module == nil || module.modType != "Bible" {
+			continue
+		}
+		module.confPath = confPath
+		modules = append(modules, module)
+	}
+
+	if len(modules) == 0 {
+		return fmt.Errorf("no Bible modules found in %s", swordPath)
+	}
+
+	// Determine which modules to install
+	var toInstall []*juniperModule
+	if c.All {
+		toInstall = modules
+	} else if len(c.Modules) > 0 {
+		moduleMap := make(map[string]*juniperModule)
+		for _, m := range modules {
+			moduleMap[m.name] = m
+		}
+		for _, name := range c.Modules {
+			if m, ok := moduleMap[name]; ok {
+				toInstall = append(toInstall, m)
+			} else {
+				fmt.Printf("Warning: module '%s' not found\n", name)
+			}
+		}
+	} else {
+		return fmt.Errorf("specify module names or use --all")
+	}
+
+	if len(toInstall) == 0 {
+		return fmt.Errorf("no modules to install")
+	}
+
+	// Create output directory
+	if err := os.MkdirAll(c.Output, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	fmt.Printf("Installing %d module(s) to %s/ (with IR generation)\n\n", len(toInstall), c.Output)
+
+	successful := 0
+	for _, m := range toInstall {
+		if m.encrypted {
+			fmt.Printf("Skipping %s (encrypted)\n", m.name)
+			continue
+		}
+
+		capsulePath := filepath.Join(c.Output, m.name+".capsule.tar.gz")
+		fmt.Printf("Installing %s...\n", m.name)
+
+		// Step 1: Ingest
+		fmt.Printf("  Ingesting SWORD module...\n")
+		if err := ingestSwordModule(swordPath, m, capsulePath); err != nil {
+			fmt.Printf("  Error during ingest: %v\n", err)
+			continue
+		}
+
+		// Step 2: Generate IR
+		fmt.Printf("  Generating IR...\n")
+		irCmd := &GenerateIRCmd{Capsule: capsulePath}
+		if err := irCmd.Run(); err != nil {
+			fmt.Printf("  Error during IR generation: %v\n", err)
+			fmt.Printf("  (Capsule created but without IR)\n")
+			continue
+		}
+
+		info, _ := os.Stat(capsulePath)
+		if info != nil {
+			fmt.Printf("  Done: %s (%d bytes)\n", capsulePath, info.Size())
+		}
+		successful++
+	}
+
+	fmt.Printf("\nInstalled %d/%d modules successfully\n", successful, len(toInstall))
 	return nil
 }
 

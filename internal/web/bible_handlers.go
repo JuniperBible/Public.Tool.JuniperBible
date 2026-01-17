@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -951,19 +950,10 @@ func handleBibleDelete(w http.ResponseWriter, r *http.Request) {
 
 // installCapsuleBible generates IR for a capsule Bible.
 func installCapsuleBible(id, sourcePath string) error {
-	fullPath := filepath.Join(ServerConfig.CapsulesDir, sourcePath)
-
-	// Check if capsule exists
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		return fmt.Errorf("capsule not found: %s", sourcePath)
-	}
-
-	// Use the capsule CLI to generate IR: capsule format ir generate <path>
-	cmd := exec.Command("capsule", "format", "ir", "generate", fullPath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("[INSTALL] CLI output: %s", string(output))
-		return fmt.Errorf("IR generation failed: %v", err)
+	// Use the direct IR generation function from handlers.go
+	result := performIRGeneration(sourcePath)
+	if !result.Success {
+		return fmt.Errorf("IR generation failed: %s", result.Message)
 	}
 
 	log.Printf("[INSTALL] IR generation successful for %s", id)
@@ -972,15 +962,28 @@ func installCapsuleBible(id, sourcePath string) error {
 
 // installSWORDBible converts a SWORD module to a capsule with IR.
 func installSWORDBible(id, confPath string) error {
-	// Use the capsule CLI to ingest SWORD module: capsule juniper ingest <module> -o <output>
-	cmd := exec.Command("capsule", "juniper", "ingest", id, "-o", ServerConfig.CapsulesDir)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("[INSTALL] CLI output: %s", string(output))
-		return fmt.Errorf("SWORD ingest failed: %v", err)
+	// Resolve SWORD directory from conf path (confPath is like ~/.sword/mods.d/kjv.conf)
+	// We need the parent of mods.d, i.e., ~/.sword
+	swordDir := filepath.Dir(filepath.Dir(confPath))
+
+	// Step 1: Ingest SWORD module into a capsule
+	result := ingestSWORDModule(swordDir, id)
+	if !result.Success {
+		return fmt.Errorf("SWORD ingest failed: %s", result.Error)
+	}
+	log.Printf("[INSTALL] SWORD module %s ingested as %s", id, result.CapsulePath)
+
+	// Step 2: Generate IR for the new capsule
+	// The capsule path is relative to CapsulesDir, so extract just the filename
+	capsuleFilename := filepath.Base(result.CapsulePath)
+	irResult := performIRGeneration(capsuleFilename)
+	if !irResult.Success {
+		// Capsule was created but IR generation failed - still a partial success
+		log.Printf("[INSTALL] Warning: IR generation failed for %s: %s", id, irResult.Message)
+		return fmt.Errorf("capsule created but IR generation failed: %s", irResult.Message)
 	}
 
-	log.Printf("[INSTALL] SWORD module %s installed successfully", id)
+	log.Printf("[INSTALL] SWORD module %s installed successfully with IR", id)
 	return nil
 }
 

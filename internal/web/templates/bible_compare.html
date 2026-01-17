@@ -17,7 +17,7 @@
   <div class="translation-selector" id="translation-selector">
     {{range .Bibles}}
     <label>
-      <input type="checkbox" name="bible" value="{{.ID}}" onchange="updateComparison()">
+      <input type="checkbox" name="bible" value="{{.ID}}" class="bible-checkbox">
       <span>{{.Abbrev}}</span>
     </label>
     {{end}}
@@ -25,13 +25,13 @@
 
   <h3>Select Passage</h3>
   <div class="nav-row">
-    <select id="book-select" onchange="updateChapters()">
+    <select id="book-select">
       <option value="">Select book...</option>
     </select>
-    <select id="chapter-select" onchange="updateVerses()">
+    <select id="chapter-select">
       <option value="">Chapter</option>
     </select>
-    <button onclick="loadChapter()" class="secondary">Load Chapter</button>
+    <button id="load-chapter-btn" class="secondary">Load Chapter</button>
   </div>
 
   <div class="verse-grid" id="verse-grid">
@@ -40,7 +40,7 @@
 
   <div style="margin-bottom: 1rem;">
     <label>
-      <input type="checkbox" id="highlight-diff" onchange="toggleHighlight()">
+      <input type="checkbox" id="highlight-diff">
       Highlight differences
     </label>
   </div>

@@ -99,7 +99,7 @@
       <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
         <div>
           <label for="source" style="margin-right: 0.5rem;"><strong>Repository:</strong></label>
-          <select id="source" name="source" onchange="handleSourceChange(this)" style="display: inline-block; width: auto;">
+          <select id="source" name="source" style="display: inline-block; width: auto;">
             {{range .Sources}}
             <option value="{{.Name}}" {{if eq .Name $.SelectedSource}}selected{{end}}>{{.Name}}</option>
             {{end}}
@@ -191,7 +191,7 @@
               <div class="btn-group">
                 {{template "btnSecondary" dict "label" "View" "href" (printf "/capsule/%s" .Path)}}
                 {{template "btnSecondary" dict "label" "IR" "href" (printf "/ir/%s" .Path)}}
-                <form method="post" action="/capsules/delete" style="display: inline;" onsubmit="return confirmDeleteCapsule(this);">
+                <form method="post" action="/capsules/delete" style="display: inline;" class="delete-capsule-form">
                   <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                   <input type="hidden" name="path" value="{{.Path}}">
                   <input type="hidden" class="capsule-name" value="{{.Name}}">
@@ -227,8 +227,8 @@
       <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
         <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
           <span id="generate-selected-count" class="meta">0 selected</span>
-          <button type="button" onclick="selectAllGenerate()" class="secondary outline" style="padding: 0.25rem 0.5rem;">All</button>
-          <button type="button" onclick="selectNoneGenerate()" class="secondary outline" style="padding: 0.25rem 0.5rem;">None</button>
+          <button type="button" id="select-all-generate-btn" class="secondary outline" style="padding: 0.25rem 0.5rem;">All</button>
+          <button type="button" id="select-none-generate-btn" class="secondary outline" style="padding: 0.25rem 0.5rem;">None</button>
           <button type="submit" style="padding: 0.25rem 0.75rem;">Generate IR</button>
         </div>
       </div>
@@ -238,7 +238,7 @@
           <caption style="caption-side: top; text-align: left; font-weight: bold; padding-bottom: 0.5rem;">Capsules Requiring IR Generation</caption>
           <thead>
             <tr>
-              <th style="width: 40px;"><input type="checkbox" id="select-all-generate" aria-label="Select all modules" onchange="toggleSelectAllGenerate(this)"></th>
+              <th style="width: 40px;"><input type="checkbox" id="select-all-generate" aria-label="Select all modules"></th>
               <th>Name</th>
               <th>Format</th>
               <th>Size</th>
@@ -248,7 +248,7 @@
           <tbody>
             {{range .CapsulesNoIR}}
             <tr>
-              <td><input type="checkbox" name="source" value="{{.Path}}" aria-label="Select {{.Name}}" onchange="updateGenerateCount()"></td>
+              <td><input type="checkbox" name="source" value="{{.Path}}" aria-label="Select {{.Name}}" class="generate-checkbox"></td>
               <td><a href="/capsule/{{.Path}}">{{.Name}}</a></td>
               <td><span class="tag">{{.Format}}</span></td>
               <td class="meta">{{.SizeHuman}}</td>
@@ -307,8 +307,8 @@
         </div>
         <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
           <span id="export-selected-count" class="meta">0 selected</span>
-          <button type="button" onclick="selectAllExport()" class="secondary outline" style="padding: 0.25rem 0.5rem;">All</button>
-          <button type="button" onclick="selectNoneExport()" class="secondary outline" style="padding: 0.25rem 0.5rem;">None</button>
+          <button type="button" id="select-all-export-btn" class="secondary outline" style="padding: 0.25rem 0.5rem;">All</button>
+          <button type="button" id="select-none-export-btn" class="secondary outline" style="padding: 0.25rem 0.5rem;">None</button>
           <button type="submit" style="padding: 0.25rem 0.75rem;">Export</button>
         </div>
       </div>
@@ -318,7 +318,7 @@
           <caption style="caption-side: top; text-align: left; font-weight: bold; padding-bottom: 0.5rem;">Capsules Ready for Export</caption>
           <thead>
             <tr>
-              <th style="width: 40px;"><input type="checkbox" id="select-all-export" aria-label="Select all modules" onchange="toggleSelectAllExport(this)"></th>
+              <th style="width: 40px;"><input type="checkbox" id="select-all-export" aria-label="Select all modules"></th>
               <th>Name</th>
               <th>Format</th>
               <th>Size</th>
@@ -328,7 +328,7 @@
           <tbody>
             {{range .CapsulesWithIR}}
             <tr>
-              <td><input type="checkbox" name="source" value="{{.Path}}" aria-label="Select {{.Name}}" onchange="updateExportCount()"></td>
+              <td><input type="checkbox" name="source" value="{{.Path}}" aria-label="Select {{.Name}}" class="export-checkbox"></td>
               <td><a href="/capsule/{{.Path}}">{{.Name}}</a></td>
               <td><span class="tag">{{.Format}}</span></td>
               <td class="meta">{{.SizeHuman}}</td>
@@ -622,22 +622,6 @@
 
 {{template "sword_filter_script" .}}
 
-<script>
-  // Confirmation dialog handler for delete forms
-  // Uses accessible modal if available, falls back to browser confirm()
-  function confirmDeleteCapsule(form) {
-    const capsuleNameInput = form.querySelector('.capsule-name');
-    const capsuleName = capsuleNameInput ? capsuleNameInput.value : 'this capsule';
-    const message = 'Delete ' + capsuleName + '? This cannot be undone.';
-
-    // Use accessible modal if showConfirmDialog is available
-    if (typeof showConfirmDialog === 'function') {
-      return showConfirmDialog(message, form);
-    }
-
-    // Fallback to browser confirm()
-    return confirm(message);
-  }
-</script>
+<script src="/static/juniper.js"></script>
 
 {{template "footer" .}}

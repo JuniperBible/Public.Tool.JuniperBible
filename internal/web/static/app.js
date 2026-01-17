@@ -239,6 +239,35 @@ document.addEventListener('DOMContentLoaded', function() {
   if (generateTable) updateGenerateCount();
   if (exportTable) updateExportCount();
 
+  // Chapter jump select handler - navigates to selected chapter
+  document.querySelectorAll('.chapter-jump-select').forEach(select => {
+    select.addEventListener('change', function() {
+      if (this.value) {
+        window.location.href = this.value;
+      }
+    });
+  });
+
+  // Delete form confirmation handler
+  document.querySelectorAll('.delete-confirm-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const moduleNameInput = this.querySelector('.module-name');
+      const moduleName = moduleNameInput ? moduleNameInput.value : 'this module';
+      const message = 'Delete ' + moduleName + '? This cannot be undone.';
+
+      // Use accessible modal if showConfirmDialog is available
+      if (typeof showConfirmDialog === 'function') {
+        showConfirmDialog(message, this);
+      } else {
+        // Fallback to browser confirm()
+        if (confirm(message)) {
+          this.submit();
+        }
+      }
+    });
+  });
+
   // Disable submit buttons on form submission to prevent double clicks
   document.querySelectorAll('form').forEach(form => {
     form.addEventListener('submit', function(e) {

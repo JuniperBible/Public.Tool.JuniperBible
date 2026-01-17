@@ -22,7 +22,7 @@
 <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
   <div>
     <label for="filter-type" style="margin-right: 0.5rem;"><strong>Type:</strong></label>
-    <select id="filter-type" onchange="applyFilters()" style="display: inline-block; width: auto;">
+    <select id="filter-type" data-filter-action="apply" style="display: inline-block; width: auto;">
       <option value="">All Types</option>
       {{range .Types}}
       <option value="{{.}}">{{.}}</option>
@@ -31,7 +31,7 @@
   </div>
   <div>
     <label for="filter-language" style="margin-right: 0.5rem;"><strong>Language:</strong></label>
-    <select id="filter-language" onchange="applyFilters()" style="display: inline-block; width: auto;">
+    <select id="filter-language" data-filter-action="apply" style="display: inline-block; width: auto;">
       <option value="">All Languages</option>
       {{range .Languages}}
       <option value="{{.}}">{{.}}</option>
@@ -40,16 +40,16 @@
   </div>
   <div>
     <label for="filter-search" style="margin-right: 0.5rem;"><strong>Search:</strong></label>
-    <input type="text" id="filter-search" oninput="applyFiltersDebounced()" placeholder="Filter by name..." style="display: inline-block; width: 200px;">
+    <input type="text" id="filter-search" data-filter-action="search" placeholder="Filter by name..." style="display: inline-block; width: 200px;">
   </div>
   <div>
-    <button type="button" onclick="clearFilters()" class="secondary outline" style="padding: 0.25rem 0.75rem;">Clear Filters</button>
+    <button type="button" data-action="clear-filters" class="secondary outline" style="padding: 0.25rem 0.75rem;">Clear Filters</button>
   </div>
   <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
     <span id="filter-count" class="meta"></span>
     {{if eq .ActionType "ingest"}}
-    <button type="button" onclick="selectAllVisible()" class="secondary outline" style="padding: 0.25rem 0.5rem;">All</button>
-    <button type="button" onclick="selectNone()" class="secondary outline" style="padding: 0.25rem 0.5rem;">None</button>
+    <button type="button" data-action="select-all" class="secondary outline" style="padding: 0.25rem 0.5rem;">All</button>
+    <button type="button" data-action="select-none" class="secondary outline" style="padding: 0.25rem 0.5rem;">None</button>
     <button type="submit" form="{{if .FormID}}{{.FormID}}{{else}}ingest-form{{end}}" style="padding: 0.25rem 0.75rem;">Ingest Selected</button>
     {{end}}
   </div>
@@ -60,7 +60,7 @@
 <div style="margin-bottom: 1rem;">
   <span class="meta" style="margin-right: 0.5rem;">Quick filters:</span>
   {{range .Types}}
-  <span class="tag filter-tag" data-filter-type="type" data-filter-value="{{.}}" onclick="toggleTag(this)" style="cursor: pointer; margin: 0.125rem; {{if eq . "Bible"}}background: #28a745; color: white;{{else if eq . "Commentary"}}background: #17a2b8; color: white;{{else if eq . "Dictionary"}}background: #6c757d; color: white;{{else if eq . "GenBook"}}background: #ffc107; color: black;{{else}}background: #e9ecef;{{end}}">{{.}}</span>
+  <span class="tag filter-tag" data-filter-type="type" data-filter-value="{{.}}" data-action="toggle-tag" style="cursor: pointer; margin: 0.125rem; {{if eq . "Bible"}}background: #28a745; color: white;{{else if eq . "Commentary"}}background: #17a2b8; color: white;{{else if eq . "Dictionary"}}background: #6c757d; color: white;{{else if eq . "GenBook"}}background: #ffc107; color: black;{{else}}background: #e9ecef;{{end}}">{{.}}</span>
   {{end}}
 </div>
 {{end}}
@@ -72,7 +72,7 @@
     <caption style="caption-side: top; text-align: left; font-weight: bold; padding-bottom: 0.5rem;">SWORD Modules</caption>
     <thead>
       <tr>
-        {{if eq .ActionType "ingest"}}<th style="width: 40px;"><input type="checkbox" id="select-all" aria-label="Select all modules" onchange="toggleSelectAll(this)"></th>{{end}}
+        {{if eq .ActionType "ingest"}}<th style="width: 40px;"><input type="checkbox" id="select-all" aria-label="Select all modules" data-action="toggle-select-all"></th>{{end}}
         <th style="white-space: nowrap;">{{if .ShowActions}}Name{{else}}Module ID{{end}}</th>
         <th>Description</th>
         <th style="white-space: nowrap;">{{if .ShowActions}}Type{{else}}Category{{end}}</th>
@@ -90,14 +90,14 @@
         <td>{{if .Description}}{{truncate .Description 80}}{{else}}<span class="meta">-</span>{{end}}</td>
         <td>
           {{$typeVal := .Type}}{{if not $typeVal}}{{$typeVal = .Category}}{{end}}{{if not $typeVal}}{{$typeVal = "Biblical Texts"}}{{end}}
-          {{if eq $typeVal "Bible"}}<span class="tag" style="background: #28a745; color: white;{{if $root.ShowFilters}} cursor: pointer;{{end}}"{{if $root.ShowFilters}} onclick="setFilter('type', '{{$typeVal}}')"{{end}}>Bible</span>
-          {{else if eq $typeVal "Commentary"}}<span class="tag" style="background: #17a2b8; color: white;{{if $root.ShowFilters}} cursor: pointer;{{end}}"{{if $root.ShowFilters}} onclick="setFilter('type', '{{$typeVal}}')"{{end}}>Commentary</span>
-          {{else if eq $typeVal "Dictionary"}}<span class="tag" style="background: #6c757d; color: white;{{if $root.ShowFilters}} cursor: pointer;{{end}}"{{if $root.ShowFilters}} onclick="setFilter('type', '{{$typeVal}}')"{{end}}>Dictionary</span>
-          {{else if eq $typeVal "GenBook"}}<span class="tag" style="background: #ffc107; color: black;{{if $root.ShowFilters}} cursor: pointer;{{end}}"{{if $root.ShowFilters}} onclick="setFilter('type', '{{$typeVal}}')"{{end}}>GenBook</span>
+          {{if eq $typeVal "Bible"}}<span class="tag"{{if $root.ShowFilters}} data-action="set-filter" data-filter-type="type" data-filter-value="{{$typeVal}}"{{end}} style="background: #28a745; color: white;{{if $root.ShowFilters}} cursor: pointer;{{end}}">Bible</span>
+          {{else if eq $typeVal "Commentary"}}<span class="tag"{{if $root.ShowFilters}} data-action="set-filter" data-filter-type="type" data-filter-value="{{$typeVal}}"{{end}} style="background: #17a2b8; color: white;{{if $root.ShowFilters}} cursor: pointer;{{end}}">Commentary</span>
+          {{else if eq $typeVal "Dictionary"}}<span class="tag"{{if $root.ShowFilters}} data-action="set-filter" data-filter-type="type" data-filter-value="{{$typeVal}}"{{end}} style="background: #6c757d; color: white;{{if $root.ShowFilters}} cursor: pointer;{{end}}">Dictionary</span>
+          {{else if eq $typeVal "GenBook"}}<span class="tag"{{if $root.ShowFilters}} data-action="set-filter" data-filter-type="type" data-filter-value="{{$typeVal}}"{{end}} style="background: #ffc107; color: black;{{if $root.ShowFilters}} cursor: pointer;{{end}}">GenBook</span>
           {{else if eq $typeVal "Biblical Texts"}}<span class="meta">Biblical Texts</span>
-          {{else}}<span class="tag"{{if $root.ShowFilters}} style="cursor: pointer;" onclick="setFilter('type', '{{$typeVal}}')"{{end}}>{{$typeVal}}</span>{{end}}
+          {{else}}<span class="tag"{{if $root.ShowFilters}} data-action="set-filter" data-filter-type="type" data-filter-value="{{$typeVal}}" style="cursor: pointer;"{{end}}>{{$typeVal}}</span>{{end}}
         </td>
-        <td>{{if .Language}}{{if $root.ShowFilters}}<span class="tag" style="cursor: pointer; background: #e9ecef;" onclick="setFilter('language', '{{.Language}}')">{{.Language}}</span>{{else}}{{.Language}}{{end}}{{else}}<span class="meta">-</span>{{end}}</td>
+        <td>{{if .Language}}{{if $root.ShowFilters}}<span class="tag" data-action="set-filter" data-filter-type="language" data-filter-value="{{.Language}}" style="cursor: pointer; background: #e9ecef;">{{.Language}}</span>{{else}}{{.Language}}{{end}}{{else}}<span class="meta">-</span>{{end}}</td>
         <td>{{if .Version}}{{.Version}}{{else}}<span class="meta">-</span>{{end}}</td>
         {{if $root.ShowActions}}
         <td>
@@ -111,10 +111,10 @@
             <button type="submit" class="secondary outline" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Install</button>
           </form>
           {{else if eq $root.ActionType "ingest"}}
-          <button type="button" class="secondary outline" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;" onclick="ingestSingle('{{if .ID}}{{.ID}}{{else}}{{.Name}}{{end}}')">Ingest</button>
+          <button type="button" class="secondary outline" data-action="ingest-single" data-module-id="{{if .ID}}{{.ID}}{{else}}{{.Name}}{{end}}" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Ingest</button>
           {{end}}
           {{if or (eq $root.ActionType "delete") $root.ShowDeleteAction}}
-          <form method="post" style="display: inline;" onsubmit="return confirmDelete(this);">
+          <form method="post" style="display: inline;" data-action="confirm-delete">
             <input type="hidden" name="csrf_token" value="{{$root.CSRFToken}}">
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="module" value="{{if .Name}}{{.Name}}{{else}}{{.ID}}{{end}}">

@@ -64,7 +64,7 @@
   <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
     <div>
       <label for="filter-language" style="margin-right: 0.5rem;"><strong>Language:</strong></label>
-      <select id="filter-language" onchange="applyFilters()" style="display: inline-block; width: auto;">
+      <select id="filter-language" style="display: inline-block; width: auto;">
         <option value="">All Languages</option>
         {{range .Languages}}
         <option value="{{.}}">{{.}}</option>
@@ -73,7 +73,7 @@
     </div>
     <div>
       <label for="filter-category" style="margin-right: 0.5rem;"><strong>Category:</strong></label>
-      <select id="filter-category" onchange="applyFilters()" style="display: inline-block; width: auto;">
+      <select id="filter-category" style="display: inline-block; width: auto;">
         <option value="">All Categories</option>
         {{range .Categories}}
         <option value="{{.}}">{{.}}</option>
@@ -82,7 +82,7 @@
     </div>
     <div>
       <label for="filter-license" style="margin-right: 0.5rem;"><strong>License:</strong></label>
-      <select id="filter-license" onchange="applyFilters()" style="display: inline-block; width: auto;">
+      <select id="filter-license" style="display: inline-block; width: auto;">
         <option value="">All Licenses</option>
         {{range .Licenses}}
         <option value="{{.}}">{{truncate . 50}}</option>
@@ -90,7 +90,7 @@
       </select>
     </div>
     <div>
-      <button type="button" onclick="clearFilters()" class="secondary outline" style="padding: 0.25rem 0.75rem;">Clear Filters</button>
+      <button type="button" id="clear-filters-btn" class="secondary outline" style="padding: 0.25rem 0.75rem;">Clear Filters</button>
     </div>
     <div style="margin-left: auto;">
       <span id="filter-count" class="meta"></span>
@@ -102,7 +102,7 @@
   <div style="margin-bottom: 1rem;">
     <span class="meta" style="margin-right: 0.5rem;">Quick filters:</span>
     {{range .Categories}}
-    <span class="tag filter-tag" data-filter-type="category" data-filter-value="{{.}}" onclick="toggleTag(this)" style="cursor: pointer; margin: 0.125rem; background: #d4edda; border: 1px solid #c3e6cb;">{{.}}</span>
+    <span class="tag filter-tag" data-filter-type="category" data-filter-value="{{.}}" style="cursor: pointer; margin: 0.125rem; background: #d4edda; border: 1px solid #c3e6cb;">{{.}}</span>
     {{end}}
   </div>
   {{end}}
@@ -131,11 +131,11 @@
             </td>
             <td><label for="mod-{{.ID}}"><strong>{{.ID}}</strong></label></td>
             <td>{{if .Description}}{{.Description}}{{else}}<span class="meta">-</span>{{end}}</td>
-            <td>{{if .Language}}<span class="tag filter-tag-inline" data-filter-type="language" data-filter-value="{{.Language}}" onclick="setFilter('language', '{{.Language}}')" style="cursor: pointer;">{{.Language}}</span>{{else}}<span class="meta">-</span>{{end}}</td>
-            <td>{{if .Category}}<span class="tag filter-tag-inline" data-filter-type="category" data-filter-value="{{.Category}}" onclick="setFilter('category', '{{.Category}}')" style="cursor: pointer; background: #d4edda;">{{.Category}}</span>{{else}}<span class="meta">-</span>{{end}}</td>
+            <td>{{if .Language}}<span class="tag filter-tag-inline" data-filter-type="language" data-filter-value="{{.Language}}" style="cursor: pointer;">{{.Language}}</span>{{else}}<span class="meta">-</span>{{end}}</td>
+            <td>{{if .Category}}<span class="tag filter-tag-inline" data-filter-type="category" data-filter-value="{{.Category}}" style="cursor: pointer; background: #d4edda;">{{.Category}}</span>{{else}}<span class="meta">-</span>{{end}}</td>
             <td>{{if .License}}<span class="meta" title="{{.License}}">{{truncate .License 30}}</span>{{else}}<span class="meta">-</span>{{end}}</td>
             <td>
-              <button type="button" class="secondary outline" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;" onclick="ingestSingle('{{.ID}}')">Ingest</button>
+              <button type="button" class="ingest-single-btn secondary outline" data-module-id="{{.ID}}" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Ingest</button>
             </td>
           </tr>
           {{end}}
@@ -143,8 +143,8 @@
       </table>
     </div>
     <div style="margin-top: 1rem;">
-      <button type="button" onclick="selectAllVisible()" class="secondary outline">Select All Visible</button>
-      <button type="button" onclick="selectNone()" class="secondary outline">Select None</button>
+      <button type="button" id="select-all-visible-btn" class="secondary outline">Select All Visible</button>
+      <button type="button" id="select-none-btn" class="secondary outline">Select None</button>
       <button type="submit">Ingest Selected Modules</button>
     </div>
   </form>
@@ -161,121 +161,6 @@
   <a href="/" role="button" class="secondary outline">Back to Home</a>
 </div>
 
-<script>
-  function applyFilters() {
-    const langFilter = document.getElementById('filter-language').value;
-    const categoryFilter = document.getElementById('filter-category').value;
-    const licenseFilter = document.getElementById('filter-license').value;
-    const rows = document.querySelectorAll('#modules-table tbody tr');
-    let visibleCount = 0;
-
-    rows.forEach(row => {
-      const rowLang = row.dataset.language || '';
-      const rowCategory = row.dataset.category || '';
-      const rowLicense = row.dataset.license || '';
-      const langMatch = !langFilter || rowLang === langFilter;
-      const categoryMatch = !categoryFilter || rowCategory === categoryFilter;
-      const licenseMatch = !licenseFilter || rowLicense === licenseFilter;
-
-      if (langMatch && categoryMatch && licenseMatch) {
-        row.style.display = '';
-        visibleCount++;
-      } else {
-        row.style.display = 'none';
-        // Uncheck hidden rows
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        if (checkbox) checkbox.checked = false;
-      }
-    });
-
-    document.getElementById('filter-count').textContent =
-      `Showing ${visibleCount} of ${rows.length} modules`;
-
-    // Update tag active states
-    updateTagStates();
-  }
-
-  function updateTagStates() {
-    const langFilter = document.getElementById('filter-language').value;
-    const categoryFilter = document.getElementById('filter-category').value;
-
-    document.querySelectorAll('.filter-tag').forEach(tag => {
-      const filterType = tag.dataset.filterType;
-      const filterValue = tag.dataset.filterValue;
-      let isActive = false;
-
-      if (filterType === 'language' && langFilter === filterValue) {
-        isActive = true;
-      } else if (filterType === 'category' && categoryFilter === filterValue) {
-        isActive = true;
-      }
-
-      if (isActive) {
-        tag.style.fontWeight = 'bold';
-        tag.style.boxShadow = '0 0 0 2px #007bff';
-      } else {
-        tag.style.fontWeight = 'normal';
-        tag.style.boxShadow = 'none';
-      }
-    });
-  }
-
-  function toggleTag(tag) {
-    const filterType = tag.dataset.filterType;
-    const filterValue = tag.dataset.filterValue;
-    const selectId = 'filter-' + filterType;
-    const select = document.getElementById(selectId);
-
-    if (select) {
-      if (select.value === filterValue) {
-        select.value = ''; // Clear if already selected
-      } else {
-        select.value = filterValue;
-      }
-      applyFilters();
-    }
-  }
-
-  function setFilter(filterType, filterValue) {
-    const selectId = 'filter-' + filterType;
-    const select = document.getElementById(selectId);
-    if (select) {
-      select.value = filterValue;
-      applyFilters();
-    }
-  }
-
-  function clearFilters() {
-    document.getElementById('filter-language').value = '';
-    document.getElementById('filter-category').value = '';
-    document.getElementById('filter-license').value = '';
-    applyFilters();
-  }
-
-  function selectAllVisible() {
-    document.querySelectorAll('#modules-table tbody tr').forEach(row => {
-      if (row.style.display !== 'none') {
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        if (checkbox) checkbox.checked = true;
-      }
-    });
-  }
-
-  function selectNone() {
-    document.querySelectorAll('input[name="modules"]').forEach(cb => cb.checked = false);
-  }
-
-  function ingestSingle(moduleId) {
-    selectNone();
-    const checkbox = document.getElementById('mod-' + moduleId);
-    if (checkbox) {
-      checkbox.checked = true;
-      document.getElementById('ingest-form').submit();
-    }
-  }
-
-  // Initialize filter count on page load
-  document.addEventListener('DOMContentLoaded', applyFilters);
-</script>
+<script src="/static/juniper_ingest.js"></script>
 
 {{template "footer" .}}

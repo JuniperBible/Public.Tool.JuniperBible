@@ -168,11 +168,6 @@ function ingestSingle(moduleId) {
   }
 }
 
-// Add change listeners to individual checkboxes
-document.querySelectorAll('input[name="modules"]').forEach(cb => {
-  cb.addEventListener('change', updateSelectAllState);
-});
-
 // Confirmation dialog handler for delete forms
 // Uses accessible modal if available, falls back to browser confirm()
 function confirmDelete(form) {
@@ -189,4 +184,90 @@ function confirmDelete(form) {
   return confirm(message);
 }
 
-document.addEventListener('DOMContentLoaded', applyFilters);
+// Initialize all event listeners when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  // Apply initial filters
+  applyFilters();
+
+  // Filter controls - apply filters on change
+  const filterType = document.getElementById('filter-type');
+  const filterLanguage = document.getElementById('filter-language');
+  const filterSearch = document.getElementById('filter-search');
+
+  if (filterType) {
+    filterType.addEventListener('change', applyFilters);
+  }
+
+  if (filterLanguage) {
+    filterLanguage.addEventListener('change', applyFilters);
+  }
+
+  if (filterSearch) {
+    filterSearch.addEventListener('input', applyFiltersDebounced);
+  }
+
+  // Clear filters button
+  const clearFiltersBtn = document.querySelector('[data-action="clear-filters"]');
+  if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener('click', clearFilters);
+  }
+
+  // Select all/none buttons
+  const selectAllBtn = document.querySelector('[data-action="select-all"]');
+  const selectNoneBtn = document.querySelector('[data-action="select-none"]');
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', selectAllVisible);
+  }
+
+  if (selectNoneBtn) {
+    selectNoneBtn.addEventListener('click', selectNone);
+  }
+
+  // Filter tags - toggle filters
+  document.querySelectorAll('[data-action="toggle-tag"]').forEach(tag => {
+    tag.addEventListener('click', function() {
+      toggleTag(this);
+    });
+  });
+
+  // Set filter tags (in table cells)
+  document.querySelectorAll('[data-action="set-filter"]').forEach(tag => {
+    tag.addEventListener('click', function() {
+      const filterType = this.dataset.filterType;
+      const filterValue = this.dataset.filterValue;
+      setFilter(filterType, filterValue);
+    });
+  });
+
+  // Select-all checkbox
+  const selectAllCheckbox = document.getElementById('select-all');
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+      toggleSelectAll(this);
+    });
+  }
+
+  // Individual module checkboxes
+  document.querySelectorAll('input[name="modules"]').forEach(cb => {
+    cb.addEventListener('change', updateSelectAllState);
+  });
+
+  // Ingest single buttons
+  document.querySelectorAll('[data-action="ingest-single"]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const moduleId = this.dataset.moduleId;
+      ingestSingle(moduleId);
+    });
+  });
+
+  // Delete confirmation forms
+  document.querySelectorAll('form[data-action="confirm-delete"]').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      if (!confirmDelete(this)) {
+        e.preventDefault();
+        return false;
+      }
+    });
+  });
+});

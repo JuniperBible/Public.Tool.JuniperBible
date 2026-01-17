@@ -22,3 +22,11 @@ function updateProfiles() {
     });
   }
 }
+
+// Attach event listeners when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+  const pluginSelect = document.getElementById('plugin');
+  if (pluginSelect) {
+    pluginSelect.addEventListener('change', updateProfiles);
+  }
+});

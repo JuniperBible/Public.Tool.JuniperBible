@@ -22,9 +22,9 @@
     <div style="margin-bottom: 1rem;">
       <strong>Filter by language:</strong>
       {{range .Languages}}
-      <button class="outline secondary" onclick="filterByLanguage('{{.}}')" style="padding: 0.25rem 0.5rem; margin: 0.25rem;">{{.}}</button>
+      <button class="outline secondary language-filter-btn" data-language="{{.}}" style="padding: 0.25rem 0.5rem; margin: 0.25rem;">{{.}}</button>
       {{end}}
-      <button class="outline" onclick="filterByLanguage('')" style="padding: 0.25rem 0.5rem; margin: 0.25rem;">All</button>
+      <button class="outline language-filter-btn" style="padding: 0.25rem 0.5rem; margin: 0.25rem;">All</button>
     </div>
     {{end}}
 
@@ -87,7 +87,7 @@
     <div class="translation-selector" id="translation-selector">
       {{range .AllBibles}}
       <label>
-        <input type="checkbox" name="compare-bible" value="{{.ID}}" onchange="updateComparison()">
+        <input type="checkbox" name="compare-bible" value="{{.ID}}">
         <span>{{.Abbrev}}</span>
       </label>
       {{end}}
@@ -95,13 +95,13 @@
 
     <h3>Select Passage</h3>
     <div class="nav-row">
-      <select id="book-select" onchange="updateChapters()">
+      <select id="book-select">
         <option value="">Select book...</option>
       </select>
-      <select id="chapter-select" onchange="updateVerses()">
+      <select id="chapter-select">
         <option value="">Chapter</option>
       </select>
-      <button onclick="loadChapter()" class="secondary">Load Chapter</button>
+      <button id="load-chapter-btn" class="secondary">Load Chapter</button>
     </div>
 
     <div class="verse-grid" id="verse-grid">
@@ -110,7 +110,7 @@
 
     <div style="margin-bottom: 1rem;">
       <label>
-        <input type="checkbox" id="highlight-diff" onchange="toggleHighlight()">
+        <input type="checkbox" id="highlight-diff">
         Highlight differences
       </label>
     </div>
@@ -219,7 +219,7 @@
             <form method="post" action="/library/bibles/delete" style="display: inline;">
               <input type="hidden" name="id" value="{{.ID}}">
               <input type="hidden" name="source" value="{{.Source}}">
-              <button type="submit" class="outline secondary" onclick="return confirm('Delete {{.Name}}? This will remove the IR data.')">Delete</button>
+              <button type="submit" class="outline secondary delete-bible-btn" data-bible-name="{{.Name}}">Delete</button>
             </form>
           </td>
         </tr>
@@ -341,6 +341,7 @@
   </div>
 </div>
 
+<script src="/static/bible_index.js"></script>
 <script src="/static/bible-compare.js"></script>
 
 <script>

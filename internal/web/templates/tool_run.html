@@ -36,7 +36,7 @@
     <div class="grid">
       <label for="plugin">
         Tool Plugin
-        <select id="plugin" name="plugin" required onchange="updateProfiles()">
+        <select id="plugin" name="plugin" required>
           <option value="">Select a tool...</option>
           {{range .ToolPlugins}}
           <option value="{{.PluginID}}" data-profiles='{{range $i, $p := .Profiles}}{{if $i}},{{end}}{{$p.ID}}:{{$p.Description}}{{end}}'>

@@ -16,13 +16,13 @@
     {{end}}
 
     <div class="tabs">
-      <button class="tab {{if eq .ActiveTab "convert"}}active{{end}}" onclick="showTab('convert')">
+      <button class="tab {{if eq .ActiveTab "convert"}}active{{end}}" data-tab="convert">
         Convert Format
       </button>
-      <button class="tab {{if eq .ActiveTab "generate-ir"}}active{{end}}" onclick="showTab('generate-ir')">
+      <button class="tab {{if eq .ActiveTab "generate-ir"}}active{{end}}" data-tab="generate-ir">
         Generate IR
       </button>
-      <button class="tab {{if eq .ActiveTab "cas-to-sword"}}active{{end}}" onclick="showTab('cas-to-sword')">
+      <button class="tab {{if eq .ActiveTab "cas-to-sword"}}active{{end}}" data-tab="cas-to-sword">
         CAS → SWORD
       </button>
     </div>
@@ -254,4 +254,5 @@
       </article>
     </div>
 
+<script src="/static/convert.js"></script>
 {{template "footer" .}}

@@ -35,7 +35,7 @@
               <div class="btn-group">
                 <a href="/capsule/{{.Path}}" role="button" class="secondary outline">View</a>
                 <a href="/ir/{{.Path}}" role="button" class="secondary outline">IR</a>
-                <form method="post" action="/capsules/delete" style="display: inline;" onsubmit="return confirmDeleteCapsule(this);">
+                <form method="post" action="/capsules/delete" style="display: inline;">
                   <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                   <input type="hidden" name="path" value="{{.Path}}">
                   <input type="hidden" class="capsule-name" value="{{.Name}}">
@@ -71,8 +71,8 @@
       <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
         <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
           <span id="generate-selected-count" class="meta">0 selected</span>
-          <button type="button" onclick="selectAllGenerate()" class="secondary outline" style="padding: 0.25rem 0.5rem;">All</button>
-          <button type="button" onclick="selectNoneGenerate()" class="secondary outline" style="padding: 0.25rem 0.5rem;">None</button>
+          <button type="button" data-action="select-all" class="secondary outline" style="padding: 0.25rem 0.5rem;">All</button>
+          <button type="button" data-action="select-none" class="secondary outline" style="padding: 0.25rem 0.5rem;">None</button>
           <button type="submit" style="padding: 0.25rem 0.75rem;">Generate IR</button>
         </div>
       </div>
@@ -82,7 +82,7 @@
           <caption style="caption-side: top; text-align: left; font-weight: bold; padding-bottom: 0.5rem;">Capsules Requiring IR Generation</caption>
           <thead>
             <tr>
-              <th style="width: 40px;"><input type="checkbox" id="select-all-generate" aria-label="Select all capsules" onchange="toggleSelectAllGenerate(this)"></th>
+              <th style="width: 40px;"><input type="checkbox" id="select-all-generate" aria-label="Select all capsules"></th>
               <th>Name</th>
               <th>Format</th>
               <th>Size</th>
@@ -92,7 +92,7 @@
           <tbody>
             {{range .CapsulesNoIR}}
             <tr>
-              <td><input type="checkbox" name="source" value="{{.Path}}" onchange="updateGenerateCount()"></td>
+              <td><input type="checkbox" name="source" value="{{.Path}}"></td>
               <td><a href="/capsule/{{.Path}}">{{.Name}}</a></td>
               <td><span class="tag">{{.Format}}</span></td>
               <td class="meta">{{.SizeHuman}}</td>
@@ -151,8 +151,8 @@
         </div>
         <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
           <span id="export-selected-count" class="meta">0 selected</span>
-          <button type="button" onclick="selectAllExport()" class="secondary outline" style="padding: 0.25rem 0.5rem;">All</button>
-          <button type="button" onclick="selectNoneExport()" class="secondary outline" style="padding: 0.25rem 0.5rem;">None</button>
+          <button type="button" data-action="select-all" class="secondary outline" style="padding: 0.25rem 0.5rem;">All</button>
+          <button type="button" data-action="select-none" class="secondary outline" style="padding: 0.25rem 0.5rem;">None</button>
           <button type="submit" style="padding: 0.25rem 0.75rem;">Export</button>
         </div>
       </div>
@@ -162,7 +162,7 @@
           <caption style="caption-side: top; text-align: left; font-weight: bold; padding-bottom: 0.5rem;">Capsules Ready for Export</caption>
           <thead>
             <tr>
-              <th style="width: 40px;"><input type="checkbox" id="select-all-export" aria-label="Select all capsules" onchange="toggleSelectAllExport(this)"></th>
+              <th style="width: 40px;"><input type="checkbox" id="select-all-export" aria-label="Select all capsules"></th>
               <th>Name</th>
               <th>Format</th>
               <th>Size</th>
@@ -172,7 +172,7 @@
           <tbody>
             {{range .CapsulesWithIR}}
             <tr>
-              <td><input type="checkbox" name="source" value="{{.Path}}" onchange="updateExportCount()"></td>
+              <td><input type="checkbox" name="source" value="{{.Path}}"></td>
               <td><a href="/capsule/{{.Path}}">{{.Name}}</a></td>
               <td><span class="tag">{{.Format}}</span></td>
               <td class="meta">{{.SizeHuman}}</td>

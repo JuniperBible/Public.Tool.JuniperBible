@@ -39,7 +39,7 @@
     <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
       <div>
         <label for="source" style="margin-right: 0.5rem;"><strong>Repository:</strong></label>
-        <select id="source" name="source" onchange="this.form.submit()" style="display: inline-block; width: auto;">
+        <select id="source" name="source" style="display: inline-block; width: auto;">
           {{range .Sources}}
           <option value="{{.Name}}" {{if eq .Name $.SelectedSource}}selected{{end}}>{{.Name}}</option>
           {{end}}
@@ -74,7 +74,7 @@
   <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
     <div>
       <label for="filter-type" style="margin-right: 0.5rem;"><strong>Type:</strong></label>
-      <select id="filter-type" onchange="applyFilters()" style="display: inline-block; width: auto;">
+      <select id="filter-type" style="display: inline-block; width: auto;">
         <option value="">All Types</option>
         {{range .Types}}
         <option value="{{.}}">{{.}}</option>
@@ -83,7 +83,7 @@
     </div>
     <div>
       <label for="filter-language" style="margin-right: 0.5rem;"><strong>Language:</strong></label>
-      <select id="filter-language" onchange="applyFilters()" style="display: inline-block; width: auto;">
+      <select id="filter-language" style="display: inline-block; width: auto;">
         <option value="">All Languages</option>
         {{range .Languages}}
         <option value="{{.}}">{{.}}</option>
@@ -92,10 +92,10 @@
     </div>
     <div>
       <label for="filter-search" style="margin-right: 0.5rem;"><strong>Search:</strong></label>
-      <input type="text" id="filter-search" oninput="applyFilters()" placeholder="Filter by name..." style="display: inline-block; width: 200px;">
+      <input type="text" id="filter-search" placeholder="Filter by name..." style="display: inline-block; width: 200px;">
     </div>
     <div>
-      <button type="button" onclick="clearFilters()" class="secondary outline" style="padding: 0.25rem 0.75rem;">Clear Filters</button>
+      <button type="button" id="clear-filters-btn" class="secondary outline" style="padding: 0.25rem 0.75rem;">Clear Filters</button>
     </div>
     <div style="margin-left: auto;">
       <span id="filter-count" class="meta"></span>
@@ -107,7 +107,7 @@
   <div style="margin-bottom: 1rem;">
     <span class="meta" style="margin-right: 0.5rem;">Quick filters:</span>
     {{range .Types}}
-    <span class="tag filter-tag" data-filter-type="type" data-filter-value="{{.}}" onclick="toggleTag(this)" style="cursor: pointer; margin: 0.125rem; {{if eq . "Bible"}}background: #28a745; color: white;{{else if eq . "Commentary"}}background: #17a2b8; color: white;{{else if eq . "Dictionary"}}background: #6c757d; color: white;{{else if eq . "GenBook"}}background: #ffc107; color: black;{{else}}background: #e9ecef;{{end}}">{{.}}</span>
+    <span class="tag filter-tag" data-filter-type="type" data-filter-value="{{.}}" style="cursor: pointer; margin: 0.125rem; {{if eq . "Bible"}}background: #28a745; color: white;{{else if eq . "Commentary"}}background: #17a2b8; color: white;{{else if eq . "Dictionary"}}background: #6c757d; color: white;{{else if eq . "GenBook"}}background: #ffc107; color: black;{{else}}background: #e9ecef;{{end}}">{{.}}</span>
     {{end}}
   </div>
   {{end}}
@@ -130,13 +130,13 @@
           <td><strong>{{.Name}}</strong></td>
           <td>{{if .Description}}{{truncate .Description 80}}{{else}}<span class="meta">-</span>{{end}}</td>
           <td>
-            {{if eq .Type "Bible"}}<span class="tag" style="background: #28a745; color: white; cursor: pointer;" onclick="setFilter('type', '{{.Type}}')">Bible</span>
-            {{else if eq .Type "Commentary"}}<span class="tag" style="background: #17a2b8; color: white; cursor: pointer;" onclick="setFilter('type', '{{.Type}}')">Commentary</span>
-            {{else if eq .Type "Dictionary"}}<span class="tag" style="background: #6c757d; color: white; cursor: pointer;" onclick="setFilter('type', '{{.Type}}')">Dictionary</span>
-            {{else if eq .Type "GenBook"}}<span class="tag" style="background: #ffc107; color: black; cursor: pointer;" onclick="setFilter('type', '{{.Type}}')">GenBook</span>
-            {{else}}<span class="tag" style="cursor: pointer;" onclick="setFilter('type', '{{.Type}}')">{{.Type}}</span>{{end}}
+            {{if eq .Type "Bible"}}<span class="tag tag-type" data-filter-value="{{.Type}}" style="background: #28a745; color: white; cursor: pointer;">Bible</span>
+            {{else if eq .Type "Commentary"}}<span class="tag tag-type" data-filter-value="{{.Type}}" style="background: #17a2b8; color: white; cursor: pointer;">Commentary</span>
+            {{else if eq .Type "Dictionary"}}<span class="tag tag-type" data-filter-value="{{.Type}}" style="background: #6c757d; color: white; cursor: pointer;">Dictionary</span>
+            {{else if eq .Type "GenBook"}}<span class="tag tag-type" data-filter-value="{{.Type}}" style="background: #ffc107; color: black; cursor: pointer;">GenBook</span>
+            {{else}}<span class="tag tag-type" data-filter-value="{{.Type}}" style="cursor: pointer;">{{.Type}}</span>{{end}}
           </td>
-          <td>{{if .Language}}<span class="tag" style="cursor: pointer; background: #e9ecef;" onclick="setFilter('language', '{{.Language}}')">{{.Language}}</span>{{else}}<span class="meta">-</span>{{end}}</td>
+          <td>{{if .Language}}<span class="tag tag-language" data-filter-value="{{.Language}}" style="cursor: pointer; background: #e9ecef;">{{.Language}}</span>{{else}}<span class="meta">-</span>{{end}}</td>
           <td>{{if .Version}}{{.Version}}{{else}}<span class="meta">-</span>{{end}}</td>
           <td>
             <form method="post" style="display: inline;">
@@ -195,7 +195,7 @@
           <td>{{if .Language}}{{.Language}}{{else}}<span class="meta">-</span>{{end}}</td>
           <td>{{if .Version}}{{.Version}}{{else}}<span class="meta">-</span>{{end}}</td>
           <td>
-            <form method="post" style="display: inline;" onsubmit="return confirm('Delete {{.Name}}? This cannot be undone.');">
+            <form method="post" style="display: inline;" class="delete-form" data-module-name="{{.Name}}">
               <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="module" value="{{.Name}}">
@@ -220,96 +220,6 @@
   <a href="/" role="button" class="secondary outline">Back to Home</a>
 </div>
 
-<script>
-  function applyFilters() {
-    const typeFilter = document.getElementById('filter-type').value;
-    const langFilter = document.getElementById('filter-language').value;
-    const searchFilter = document.getElementById('filter-search').value.toLowerCase();
-    const rows = document.querySelectorAll('#modules-table tbody tr');
-    let visibleCount = 0;
-
-    rows.forEach(row => {
-      const rowType = row.dataset.type || '';
-      const rowLang = row.dataset.language || '';
-      const rowName = row.dataset.name || '';
-      const typeMatch = !typeFilter || rowType === typeFilter;
-      const langMatch = !langFilter || rowLang === langFilter;
-      const searchMatch = !searchFilter || rowName.toLowerCase().includes(searchFilter);
-
-      if (typeMatch && langMatch && searchMatch) {
-        row.style.display = '';
-        visibleCount++;
-      } else {
-        row.style.display = 'none';
-      }
-    });
-
-    document.getElementById('filter-count').textContent =
-      `Showing ${visibleCount} of ${rows.length} modules`;
-
-    // Update tag active states
-    updateTagStates();
-  }
-
-  function updateTagStates() {
-    const typeFilter = document.getElementById('filter-type').value;
-    const langFilter = document.getElementById('filter-language').value;
-
-    document.querySelectorAll('.filter-tag').forEach(tag => {
-      const filterType = tag.dataset.filterType;
-      const filterValue = tag.dataset.filterValue;
-      let isActive = false;
-
-      if (filterType === 'type' && typeFilter === filterValue) {
-        isActive = true;
-      } else if (filterType === 'language' && langFilter === filterValue) {
-        isActive = true;
-      }
-
-      if (isActive) {
-        tag.style.fontWeight = 'bold';
-        tag.style.boxShadow = '0 0 0 2px #007bff';
-      } else {
-        tag.style.fontWeight = 'normal';
-        tag.style.boxShadow = 'none';
-      }
-    });
-  }
-
-  function toggleTag(tag) {
-    const filterType = tag.dataset.filterType;
-    const filterValue = tag.dataset.filterValue;
-    const selectId = 'filter-' + filterType;
-    const select = document.getElementById(selectId);
-
-    if (select) {
-      if (select.value === filterValue) {
-        select.value = ''; // Clear if already selected
-      } else {
-        select.value = filterValue;
-      }
-      applyFilters();
-    }
-  }
-
-  function setFilter(filterType, filterValue) {
-    const selectId = 'filter-' + filterType;
-    const select = document.getElementById(selectId);
-    if (select) {
-      select.value = filterValue;
-      applyFilters();
-    }
-  }
-
-  function clearFilters() {
-    document.getElementById('filter-type').value = '';
-    document.getElementById('filter-language').value = '';
-    document.getElementById('filter-search').value = '';
-    applyFilters();
-  }
-
-  // Initialize filter count on page load
-  document.addEventListener('DOMContentLoaded', applyFilters);
-</script>
+<script src="/static/juniper_repoman.js"></script>
 
 {{template "footer" .}}

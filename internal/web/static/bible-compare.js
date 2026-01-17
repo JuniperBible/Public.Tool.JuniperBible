@@ -69,7 +69,7 @@ async function initCompare() {
 
   if (selectedBibles) {
     selectedBibles.split(',').forEach(id => {
-      const cb = document.querySelector(`input[name="compare-bible"][value="${id}"]`);
+      const cb = document.querySelector(`input[name="bible"][value="${id}"]`);
       if (cb) cb.checked = true;
     });
   }
@@ -136,14 +136,14 @@ async function updateVerses() {
     const allBtn = document.createElement('button');
     allBtn.textContent = 'All';
     allBtn.className = 'secondary';
-    allBtn.onclick = () => loadChapter();
+    allBtn.addEventListener('click', () => loadChapter());
     grid.appendChild(allBtn);
 
     currentVerses.forEach(v => {
       const btn = document.createElement('button');
       btn.textContent = v.number;
       btn.className = 'outline';
-      btn.onclick = () => loadVerse(v.number);
+      btn.addEventListener('click', () => loadVerse(v.number));
       grid.appendChild(btn);
     });
   } catch (e) {
@@ -152,7 +152,7 @@ async function updateVerses() {
 }
 
 function getSelectedBibles() {
-  const checkboxes = document.querySelectorAll('input[name="compare-bible"]:checked');
+  const checkboxes = document.querySelectorAll('input[name="bible"]:checked');
   return Array.from(checkboxes).map(cb => cb.value);
 }
 
@@ -349,6 +349,32 @@ function highlightDifferences() {
 document.addEventListener('DOMContentLoaded', function() {
   // Load bibles data from data attribute if available
   loadBiblesFromDataAttribute();
+
+  // Attach event listeners for bible compare page
+  const bibleCheckboxes = document.querySelectorAll('.bible-checkbox');
+  bibleCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', updateComparison);
+  });
+
+  const bookSelect = document.getElementById('book-select');
+  if (bookSelect) {
+    bookSelect.addEventListener('change', updateChapters);
+  }
+
+  const chapterSelect = document.getElementById('chapter-select');
+  if (chapterSelect) {
+    chapterSelect.addEventListener('change', updateVerses);
+  }
+
+  const loadChapterBtn = document.getElementById('load-chapter-btn');
+  if (loadChapterBtn) {
+    loadChapterBtn.addEventListener('click', loadChapter);
+  }
+
+  const highlightDiff = document.getElementById('highlight-diff');
+  if (highlightDiff) {
+    highlightDiff.addEventListener('change', toggleHighlight);
+  }
 
   const params = new URLSearchParams(window.location.search);
   if (params.get('tab') === 'compare') {

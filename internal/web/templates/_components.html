@@ -166,7 +166,7 @@
   <span></span>
   {{end}}
 
-  <select onchange="if(this.value) window.location.href=this.value" aria-label="Jump to chapter - navigates immediately on selection">
+  <select class="chapter-jump-select" aria-label="Jump to chapter - navigates immediately on selection">
     <option value="">Jump to chapter...</option>
     {{range $i := iterate .Book.ChapterCount}}
     <option value="/bible/{{$.Bible.ID}}/{{$.Book.ID}}/{{add $i 1}}" {{if eq (add $i 1) $.Chapter}}selected{{end}}>Chapter {{add $i 1}}</option>
@@ -247,7 +247,7 @@
 
 {{/* Delete Button (form) - Usage: {{template "btnDeleteForm" dict "module" "KJV" "csrfToken" .CSRFToken}} */}}
 {{define "btnDeleteForm"}}
-<form method="post" style="display: inline;" onsubmit="return confirmDelete(this);">
+<form method="post" style="display: inline;" class="delete-confirm-form">
   {{if .csrfToken}}<input type="hidden" name="csrf_token" value="{{.csrfToken}}">{{end}}
   <input type="hidden" name="action" value="delete">
   {{if .module}}<input type="hidden" name="module" value="{{.module}}"><input type="hidden" class="module-name" value="{{.module}}">{{end}}

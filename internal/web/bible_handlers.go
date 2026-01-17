@@ -377,14 +377,64 @@ func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 	return installed, installable
 }
 
-// listSWORDModules finds SWORD Bible modules in ~/.sword/
-// Uses the existing listSWORDModulesHelper and parseSWORDConf from handlers.go
-func listSWORDModules() []ManageableBible {
-	var modules []ManageableBible
+// swordModulesCache caches SWORD modules list to avoid re-reading conf files.
+// SWORD modules don't change often, so we use a longer TTL.
+var swordModulesCache struct {
+	sync.RWMutex
+	modules   []ManageableBible
+	populated bool
+	timestamp time.Time
+	ttl       time.Duration
+}
 
+func init() {
+	swordModulesCache.ttl = 10 * time.Minute // SWORD modules rarely change
+}
+
+// getCachedSWORDModules returns cached SWORD modules or rebuilds if expired.
+func getCachedSWORDModules() []ManageableBible {
+	swordModulesCache.RLock()
+	if swordModulesCache.populated && time.Since(swordModulesCache.timestamp) < swordModulesCache.ttl {
+		modules := swordModulesCache.modules
+		swordModulesCache.RUnlock()
+		return modules
+	}
+	swordModulesCache.RUnlock()
+
+	// Rebuild cache
+	swordModulesCache.Lock()
+	defer swordModulesCache.Unlock()
+
+	// Double-check after acquiring write lock
+	if swordModulesCache.populated && time.Since(swordModulesCache.timestamp) < swordModulesCache.ttl {
+		return swordModulesCache.modules
+	}
+
+	start := time.Now()
+	swordModulesCache.modules = listSWORDModulesUncached()
+	swordModulesCache.populated = true
+	swordModulesCache.timestamp = time.Now()
+	log.Printf("[CACHE] Rebuilt SWORD modules cache: %d modules in %v", len(swordModulesCache.modules), time.Since(start))
+
+	return swordModulesCache.modules
+}
+
+// listSWORDModules returns cached SWORD Bible modules.
+func listSWORDModules() []ManageableBible {
+	return getCachedSWORDModules()
+}
+
+// swordConfFile represents a conf file to process.
+type swordConfFile struct {
+	path string
+	name string
+}
+
+// listSWORDModulesUncached finds SWORD Bible modules in ~/.sword/ using parallel processing.
+func listSWORDModulesUncached() []ManageableBible {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return modules
+		return nil
 	}
 
 	swordDir := filepath.Join(homeDir, ".sword")
@@ -392,86 +442,124 @@ func listSWORDModules() []ManageableBible {
 
 	// Check if mods.d directory exists
 	if _, err := os.Stat(modsDir); os.IsNotExist(err) {
-		return modules
+		return nil
 	}
 
 	// Read .conf files from mods.d
 	files, err := os.ReadDir(modsDir)
 	if err != nil {
-		return modules
+		return nil
 	}
 
+	// Collect conf files to process
+	var confFiles []swordConfFile
 	for _, f := range files {
 		if f.IsDir() || !strings.HasSuffix(f.Name(), ".conf") {
 			continue
 		}
+		confFiles = append(confFiles, swordConfFile{
+			path: filepath.Join(modsDir, f.Name()),
+			name: f.Name(),
+		})
+	}
 
-		confPath := filepath.Join(modsDir, f.Name())
-		confContent, err := os.ReadFile(confPath)
+	if len(confFiles) == 0 {
+		return nil
+	}
+
+	// Process conf files in parallel using worker pool
+	type result struct {
+		module *ManageableBible
+	}
+
+	pool := NewWorkerPool[swordConfFile, result](32, len(confFiles))
+	pool.Start(func(cf swordConfFile) result {
+		confContent, err := os.ReadFile(cf.path)
 		if err != nil {
-			continue
+			return result{module: nil}
 		}
 
 		// Use existing parseSWORDConf from handlers.go
-		module := parseSWORDConf(string(confContent), f.Name())
+		module := parseSWORDConf(string(confContent), cf.name)
 
 		// Check if it's a Bible module by looking at the Category field
 		// SWORD modules with Category=Biblical Texts are Bibles
-		if module.ID != "" && module.Category == "Biblical Texts" {
-			name := module.Description
-			if name == "" {
-				name = module.ID
-			}
-			// SWORD modules are always "identified" (properly parsed conf file)
-			tags := []string{"sword", "identified"}
+		if module.ID == "" || module.Category != "Biblical Texts" {
+			return result{module: nil}
+		}
 
-			// Add versification-based tags
-			switch strings.ToLower(module.Versification) {
-			case "catholic", "catholic2", "vulg", "lxx":
-				tags = append(tags, "catholic")
-			case "kjv", "nrsv", "luther", "german", "leningrad":
+		name := module.Description
+		if name == "" {
+			name = module.ID
+		}
+		// SWORD modules are always "identified" (properly parsed conf file)
+		tags := []string{"sword", "identified"}
+
+		// Add versification-based tags
+		switch strings.ToLower(module.Versification) {
+		case "catholic", "catholic2", "vulg", "lxx":
+			tags = append(tags, "catholic")
+		case "kjv", "nrsv", "luther", "german", "leningrad":
+			tags = append(tags, "protestant")
+		case "orthodox", "synodal", "synodalprot":
+			tags = append(tags, "orthodox")
+		default:
+			// If no versification specified, default to protestant (most common)
+			if module.Versification == "" {
 				tags = append(tags, "protestant")
-			case "orthodox", "synodal", "synodalprot":
-				tags = append(tags, "orthodox")
-			default:
-				// If no versification specified, default to protestant (most common)
-				if module.Versification == "" {
-					tags = append(tags, "protestant")
-				}
 			}
+		}
 
-			// Add feature-based tags
-			for _, feature := range module.Features {
-				switch strings.ToLower(feature) {
-				case "strongsnumbers":
-					tags = append(tags, "strongs")
-				case "images":
-					tags = append(tags, "images")
-				case "greekdef", "hebrewdef":
-					tags = append(tags, "definitions")
-				case "greekparse":
-					tags = append(tags, "parsing")
-				case "morphology":
-					tags = append(tags, "morphology")
-				case "footnotes":
-					tags = append(tags, "footnotes")
-				case "headings":
-					tags = append(tags, "headings")
-				}
+		// Add feature-based tags
+		for _, feature := range module.Features {
+			switch strings.ToLower(feature) {
+			case "strongsnumbers":
+				tags = append(tags, "strongs")
+			case "images":
+				tags = append(tags, "images")
+			case "greekdef", "hebrewdef":
+				tags = append(tags, "definitions")
+			case "greekparse":
+				tags = append(tags, "parsing")
+			case "morphology":
+				tags = append(tags, "morphology")
+			case "footnotes":
+				tags = append(tags, "footnotes")
+			case "headings":
+				tags = append(tags, "headings")
 			}
+		}
 
-			modules = append(modules, ManageableBible{
-				ID:          module.ID,
-				Name:        name,
-				Source:      "sword",
-				SourcePath:  confPath,
-				IsInstalled: false,
-				Format:      "sword",
-				Tags:        tags,
-				Language:    module.Language,
-			})
+		return result{module: &ManageableBible{
+			ID:          module.ID,
+			Name:        name,
+			Source:      "sword",
+			SourcePath:  cf.path,
+			IsInstalled: false,
+			Format:      "sword",
+			Tags:        tags,
+			Language:    module.Language,
+		}}
+	})
+
+	// Submit jobs
+	for _, cf := range confFiles {
+		pool.Submit(cf)
+	}
+	pool.Close()
+
+	// Collect results
+	var modules []ManageableBible
+	for r := range pool.Results() {
+		if r.module != nil {
+			modules = append(modules, *r.module)
 		}
 	}
+
+	// Sort by name
+	sort.Slice(modules, func(i, j int) bool {
+		return modules[i].Name < modules[j].Name
+	})
 
 	return modules
 }

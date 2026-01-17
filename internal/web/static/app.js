@@ -142,6 +142,15 @@ class BibleReaderNav {
 document.addEventListener('DOMContentLoaded', function() {
   // Initialize Bible Reader Navigation
   new BibleReaderNav();
+
+  // Initialize manage tab language filter dropdown
+  const manageLangFilter = document.getElementById('manage-lang-filter');
+  if (manageLangFilter) {
+    manageLangFilter.addEventListener('change', function() {
+      const tag = this.dataset.tag || 'all';
+      window.location.href = '/library/bibles/?tab=manage&tag=' + tag + '&lang=' + this.value;
+    });
+  }
   const toggle = document.getElementById('theme-toggle');
   const sunIcon = document.getElementById('sun-icon');
   const moonIcon = document.getElementById('moon-icon');

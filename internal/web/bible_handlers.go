@@ -113,10 +113,10 @@ var manageableBiblesCache struct {
 }
 
 func init() {
-	bibleCache.ttl = 5 * time.Minute // Cache for 5 minutes
+	bibleCache.ttl = 30 * time.Minute // Cache for 30 minutes (expensive to rebuild)
 	corpusCache.corpora = make(map[string]*corpusCacheEntry)
-	corpusCache.ttl = 10 * time.Minute // Cache corpora longer since they're expensive to load
-	manageableBiblesCache.ttl = 5 * time.Minute // Cache manageable bibles list
+	corpusCache.ttl = 60 * time.Minute // Cache corpora for 1 hour since they're very expensive to load
+	manageableBiblesCache.ttl = 10 * time.Minute // Cache manageable bibles list
 }
 
 // getCachedBibles returns cached Bible list or rebuilds if expired.
@@ -262,12 +262,16 @@ func PreWarmCaches() {
 		setStartupProgress("Initializing", "Starting cache warmup...", 0)
 		log.Println("[CACHE] Pre-warming caches...")
 
+		// 1. First preload capsule metadata (HasIR checks) - this is fast and needed for other operations
+		setStartupProgress("Scanning capsules", "Reading capsule metadata...", 5)
+		preloadCapsuleMetadata()
+
 		var wg sync.WaitGroup
 		var bibles []BibleInfo
 		var installed, installable []ManageableBible
 
-		// 1. Warm Bible list and manageable caches in parallel
-		setStartupProgress("Loading Bibles", "Scanning Bible library...", 10)
+		// 2. Warm Bible list and manageable caches in parallel
+		setStartupProgress("Loading Bibles", "Scanning Bible library...", 15)
 		wg.Add(2)
 
 		go func() {
@@ -285,7 +289,7 @@ func PreWarmCaches() {
 		wg.Wait()
 		setStartupProgress("Loading Bibles", fmt.Sprintf("Found %d installed Bibles", len(bibles)), 30)
 
-		// 2. Pre-load all installed Bible corpora in parallel with progress tracking
+		// 3. Pre-load all installed Bible corpora in parallel with progress tracking
 		if len(bibles) > 0 {
 			log.Printf("[CACHE] Pre-loading %d Bible corpora...", len(bibles))
 			preloadCorporaWithProgress(bibles)
@@ -444,8 +448,14 @@ func (mb ManageableBible) HasTag(tag string) bool {
 // listManageableBiblesUncached returns lists of installed and installable Bibles without caching.
 // Installed = capsules with IR
 // Installable = capsules without IR + SWORD modules from ~/.sword/
+// Uses parallel processing for metadata lookups.
 func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 	capsules := listCapsules()
+	if len(capsules) == 0 {
+		// Still check SWORD modules even if no capsules
+		swordModules := listSWORDModules()
+		return nil, swordModules
+	}
 
 	// Build a map of installed Bible info for quick lookup (includes Language)
 	installedBibleInfo := make(map[string]BibleInfo)
@@ -453,15 +463,21 @@ func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 		installedBibleInfo[bible.ID] = bible
 	}
 
-	// Process capsules using cached metadata for performance
-	for _, c := range capsules {
+	type result struct {
+		mb          ManageableBible
+		isInstalled bool
+	}
+
+	// Process capsules in parallel using worker pool
+	pool := NewWorkerPool[CapsuleInfo, result](maxWorkers, len(capsules))
+	pool.Start(func(c CapsuleInfo) result {
 		capsuleID := strings.TrimSuffix(c.Name, ".capsule.tar.xz")
 		capsuleID = strings.TrimSuffix(capsuleID, ".tar.xz")
 		capsuleID = strings.TrimSuffix(capsuleID, ".tar.gz")
 		capsuleID = strings.TrimSuffix(capsuleID, ".tar")
 
 		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
-		// Use getCapsuleMetadata for cached HasIR check (avoids re-reading archive)
+		// Use getCapsuleMetadata for cached HasIR check
 		meta := getCapsuleMetadata(fullPath)
 		hasIR := meta.HasIR
 
@@ -495,14 +511,25 @@ func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 			Language:    language,
 		}
 
-		if hasIR {
-			installed = append(installed, mb)
+		return result{mb: mb, isInstalled: hasIR}
+	})
+
+	// Submit jobs
+	for _, c := range capsules {
+		pool.Submit(c)
+	}
+	pool.Close()
+
+	// Collect results
+	for r := range pool.Results() {
+		if r.isInstalled {
+			installed = append(installed, r.mb)
 		} else {
-			installable = append(installable, mb)
+			installable = append(installable, r.mb)
 		}
 	}
 
-	// List SWORD modules from ~/.sword/
+	// List SWORD modules from ~/.sword/ (already parallelized internally)
 	swordModules := listSWORDModules()
 	for _, sm := range swordModules {
 		// Check if already in installed list (by ID)
@@ -1546,7 +1573,7 @@ func handleAPIBibleSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 // listBiblesUncached returns all Bible capsules without caching.
-// Uses goroutines for parallel processing.
+// Uses goroutines for parallel processing and leverages corpus cache when available.
 func listBiblesUncached() []BibleInfo {
 	capsules := listCapsules()
 	if len(capsules) == 0 {
@@ -1561,20 +1588,31 @@ func listBiblesUncached() []BibleInfo {
 	// Create and start worker pool
 	pool := NewWorkerPool[CapsuleInfo, result](maxWorkers, len(capsules))
 	pool.Start(func(c CapsuleInfo) result {
-		irContent, err := readIRContent(filepath.Join(ServerConfig.CapsulesDir, c.Path))
-		if err != nil {
-			return result{ok: false}
-		}
-
-		corpus := parseIRToCorpus(irContent)
-		if corpus == nil || corpus.ModuleType != ir.ModuleBible {
-			return result{ok: false}
-		}
-
 		capsuleID := strings.TrimSuffix(c.Name, ".capsule.tar.xz")
 		capsuleID = strings.TrimSuffix(capsuleID, ".tar.xz")
 		capsuleID = strings.TrimSuffix(capsuleID, ".tar.gz")
 		capsuleID = strings.TrimSuffix(capsuleID, ".tar")
+
+		// Try to get corpus from cache first (avoids re-reading archive)
+		var corpus *ir.Corpus
+		corpusCache.RLock()
+		if entry, ok := corpusCache.corpora[capsuleID]; ok {
+			corpus = entry.corpus
+		}
+		corpusCache.RUnlock()
+
+		// If not in cache, read from archive
+		if corpus == nil {
+			irContent, err := readIRContent(filepath.Join(ServerConfig.CapsulesDir, c.Path))
+			if err != nil {
+				return result{ok: false}
+			}
+			corpus = parseIRToCorpus(irContent)
+		}
+
+		if corpus == nil || corpus.ModuleType != ir.ModuleBible {
+			return result{ok: false}
+		}
 
 		bible := BibleInfo{
 			ID:            capsuleID,
@@ -1586,20 +1624,26 @@ func listBiblesUncached() []BibleInfo {
 			CapsulePath:   c.Path,
 		}
 
-		// Check for Strong's numbers
-		for _, doc := range corpus.Documents {
+		// Check for Strong's numbers (only check first few documents to speed up)
+		maxDocsToCheck := 3
+		for i, doc := range corpus.Documents {
+			if i >= maxDocsToCheck {
+				break
+			}
+			found := false
 			for _, cb := range doc.ContentBlocks {
 				for _, tok := range cb.Tokens {
 					if len(tok.Strongs) > 0 {
 						bible.Features = append(bible.Features, "Strong's Numbers")
+						found = true
 						break
 					}
 				}
-				if len(bible.Features) > 0 {
+				if found {
 					break
 				}
 			}
-			if len(bible.Features) > 0 {
+			if found {
 				break
 			}
 		}

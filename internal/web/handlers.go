@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -195,8 +196,51 @@ var capsuleMetadataCache struct {
 }
 
 func init() {
-	capsuleMetadataCache.ttl = 5 * time.Minute
+	capsuleMetadataCache.ttl = 30 * time.Minute // Longer TTL since expensive to compute
 	capsuleMetadataCache.data = make(map[string]CapsuleMetadata)
+}
+
+// preloadCapsuleMetadata preloads metadata for all capsules in parallel.
+// This should be called during startup warmup.
+func preloadCapsuleMetadata() {
+	capsules := listCapsules()
+	if len(capsules) == 0 {
+		return
+	}
+
+	type metaResult struct {
+		path string
+		meta CapsuleMetadata
+	}
+
+	// Use worker pool to read metadata in parallel
+	pool := NewWorkerPool[CapsuleInfo, metaResult](maxWorkers, len(capsules))
+	pool.Start(func(c CapsuleInfo) metaResult {
+		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
+		acquireArchiveSemaphore()
+		meta := CapsuleMetadata{
+			IsCAS: archive.IsCASCapsule(fullPath),
+			HasIR: archive.HasIR(fullPath),
+		}
+		releaseArchiveSemaphore()
+		return metaResult{path: fullPath, meta: meta}
+	})
+
+	// Submit all capsules
+	for _, c := range capsules {
+		pool.Submit(c)
+	}
+	pool.Close()
+
+	// Collect results into cache
+	capsuleMetadataCache.Lock()
+	for r := range pool.Results() {
+		capsuleMetadataCache.data[r.path] = r.meta
+	}
+	capsuleMetadataCache.timestamp = time.Now()
+	capsuleMetadataCache.Unlock()
+
+	log.Printf("[CACHE] Preloaded metadata for %d capsules", len(capsules))
 }
 
 // getCapsuleMetadata returns cached metadata for a capsule or computes it if not cached.

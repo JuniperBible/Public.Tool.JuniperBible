@@ -5,6 +5,8 @@ package swordpure
 import (
 	"fmt"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/formats/swordpure/versdata"
 )
 
 // VersificationID identifies a versification system.
@@ -51,20 +53,91 @@ var ntBookSet = map[string]bool{
 }
 
 // NewVersification creates a versification instance for the given system.
+// It first tries to load from embedded SWORD versification data, falling back
+// to hardcoded data for systems not in SWORD (e.g., Ethiopian).
 func NewVersification(id VersificationID) (*Versification, error) {
+	// Try loading from embedded SWORD data first
+	if v := loadFromVersdata(string(id)); v != nil {
+		return v, nil
+	}
+
+	// Fall back to hardcoded data for special cases
 	switch id {
-	case VersKJV, VersLDS, "":
-		// LDS uses KJV Bible versification (additional LDS scriptures are separate)
-		return newKJVVersification(), nil
-	case VersNRSV:
-		return newNRSVVersification(), nil
-	case VersVulgate, VersCatholic, "Vulg":
-		return newVulgateVersification(), nil
 	case VersEthiopian, "Orthodox", "Tewahedo":
 		return newEthiopianVersification(), nil
+	case VersLDS:
+		// LDS uses KJV Bible versification (additional LDS scriptures are separate)
+		if v := loadFromVersdata("KJV"); v != nil {
+			return v, nil
+		}
+		return newKJVVersification(), nil
+	case "":
+		// Empty defaults to KJV
+		if v := loadFromVersdata("KJV"); v != nil {
+			return v, nil
+		}
+		return newKJVVersification(), nil
 	default:
 		// Default to KJV for unknown systems
+		if v := loadFromVersdata("KJV"); v != nil {
+			return v, nil
+		}
 		return newKJVVersification(), nil
+	}
+}
+
+// loadFromVersdata attempts to load versification from embedded SWORD data.
+func loadFromVersdata(id string) *Versification {
+	data, err := versdata.Load(id)
+	if err != nil {
+		return nil
+	}
+
+	// Convert versdata format to Versification
+	books := make([]BookData, 0, len(data.OTBooks)+len(data.NTBooks))
+	for _, b := range data.OTBooks {
+		books = append(books, BookData{
+			Name:     b.Name,
+			OSIS:     b.OSIS,
+			Chapters: b.Chapters,
+		})
+	}
+	for _, b := range data.NTBooks {
+		books = append(books, BookData{
+			Name:     b.Name,
+			OSIS:     b.OSIS,
+			Chapters: b.Chapters,
+		})
+	}
+
+	// Use the original ID (uppercase) if it matches a known constant
+	versID := VersificationID(data.ID)
+	switch strings.ToLower(data.ID) {
+	case "kjv":
+		versID = VersKJV
+	case "nrsv":
+		versID = VersNRSV
+	case "nrsva":
+		versID = VersNRSVA
+	case "vulg":
+		versID = VersVulgate
+	case "catholic":
+		versID = VersCatholic
+	case "lxx":
+		versID = VersLXX
+	case "leningrad", "mt":
+		versID = VersMT
+	case "synodal":
+		versID = VersSynodal
+	case "german":
+		versID = VersGerman
+	case "luther":
+		versID = VersLuther
+	}
+
+	return &Versification{
+		ID:    versID,
+		Books: books,
 	}
 }
 
@@ -366,7 +439,16 @@ func newVulgateVersification() *Versification {
 			{Name: "Judith", OSIS: "Jdt", Chapters: []int{16, 28, 10, 15, 24, 21, 32, 36, 14, 23, 23, 20, 20, 19, 14, 25}},
 			{Name: "Esther", OSIS: "Esth", Chapters: []int{22, 23, 15, 17, 14, 14, 10, 17, 32, 3}},
 			{Name: "Job", OSIS: "Job", Chapters: []int{22, 13, 26, 21, 27, 30, 21, 22, 35, 22, 20, 25, 28, 22, 35, 22, 16, 21, 29, 29, 34, 30, 17, 25, 6, 14, 23, 28, 25, 31, 40, 22, 33, 37, 16, 33, 24, 41, 30, 24, 34, 17}},
-			{Name: "Psalms", OSIS: "Ps", Chapters: []int{6, 12, 8, 8, 12, 10, 17, 9, 20, 18, 7, 8, 6, 7, 5, 11, 15, 50, 14, 9, 13, 31, 6, 10, 22, 12, 14, 9, 11, 12, 24, 11, 22, 22, 28, 12, 40, 22, 13, 17, 13, 11, 5, 26, 17, 11, 9, 14, 20, 23, 19, 9, 6, 7, 23, 13, 11, 11, 17, 12, 8, 12, 11, 10, 13, 20, 7, 35, 36, 5, 24, 20, 28, 23, 10, 12, 20, 72, 13, 19, 16, 8, 18, 12, 13, 17, 7, 18, 52, 17, 16, 15, 5, 23, 11, 13, 12, 9, 9, 5, 8, 28, 22, 35, 45, 48, 43, 13, 31, 7, 10, 10, 9, 8, 18, 19, 2, 29, 176, 7, 8, 9, 4, 8, 5, 6, 5, 6, 8, 8, 3, 18, 3, 3, 21, 26, 9, 8, 24, 13, 10, 7, 12, 15, 21, 10, 20, 14, 9, 6}},
+			// Vulgate Psalms - verse counts from SWORD canon_vulg.h
+			// Note: Vulgate Psalm numbering differs from Hebrew/KJV after Psalm 9:
+			// - Vulg Ps 9 includes Hebrew Ps 9-10 (combined)
+			// - Vulg Ps 10-112 = Hebrew Ps 11-113 (offset by 1)
+			// - Vulg Ps 113 = Hebrew Ps 114-115 (combined)
+			// - Vulg Ps 114-115 = Hebrew Ps 116 (split)
+			// - Vulg Ps 116-145 = Hebrew Ps 117-146 (offset by 1)
+			// - Vulg Ps 146-147 = Hebrew Ps 147 (split)
+			// - Vulg Ps 148-150 = Hebrew Ps 148-150 (same)
+			{Name: "Psalms", OSIS: "Ps", Chapters: []int{6, 13, 9, 10, 13, 11, 18, 10, 39, 8, 9, 6, 7, 5, 11, 15, 51, 15, 10, 14, 32, 6, 10, 22, 12, 14, 9, 11, 13, 25, 11, 22, 23, 28, 13, 40, 23, 14, 18, 14, 12, 6, 26, 18, 12, 10, 15, 21, 23, 21, 11, 7, 9, 24, 13, 12, 12, 18, 14, 9, 13, 12, 11, 14, 20, 8, 36, 37, 6, 24, 20, 28, 23, 11, 13, 21, 72, 13, 20, 17, 8, 19, 13, 14, 17, 7, 19, 53, 17, 16, 16, 5, 23, 11, 13, 12, 9, 9, 5, 8, 29, 22, 35, 45, 48, 43, 14, 31, 7, 10, 10, 9, 26, 9, 10, 2, 29, 176, 7, 8, 9, 4, 8, 5, 7, 5, 6, 8, 8, 3, 18, 3, 3, 21, 27, 9, 8, 24, 14, 10, 8, 12, 15, 21, 10, 11, 9, 14, 9, 6}},
 			{Name: "Proverbs", OSIS: "Prov", Chapters: []int{33, 22, 35, 27, 23, 35, 27, 36, 18, 32, 31, 28, 25, 35, 33, 33, 28, 24, 29, 30, 31, 29, 35, 34, 28, 28, 27, 28, 27, 33, 31}},
 			{Name: "Ecclesiastes", OSIS: "Eccl", Chapters: []int{18, 26, 22, 16, 20, 12, 29, 17, 18, 20, 10, 14}},
 			{Name: "Song of Solomon", OSIS: "Song", Chapters: []int{17, 17, 11, 16, 16, 13, 13, 14}},

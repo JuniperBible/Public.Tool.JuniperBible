@@ -1,6 +1,7 @@
 package swordpure
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -337,6 +338,54 @@ func TestVulgateVersification(t *testing.T) {
 	// Vulgate includes deuterocanonical books (73 total)
 	if len(v.Books) != 73 {
 		t.Errorf("Vulgate has %d books, want 73", len(v.Books))
+	}
+}
+
+// TestVulgatePsalmVerseCounts verifies that Vulgate Psalm verse counts
+// match the SWORD canon_vulg.h specification. This is critical for correct
+// verse extraction from Vulgate-versified modules like DRC.
+func TestVulgatePsalmVerseCounts(t *testing.T) {
+	v := newVulgateVersification()
+
+	// Find Psalms book
+	var psalms *BookData
+	for i := range v.Books {
+		if v.Books[i].OSIS == "Ps" {
+			psalms = &v.Books[i]
+			break
+		}
+	}
+	if psalms == nil {
+		t.Fatal("Psalms not found in Vulgate versification")
+	}
+
+	// Verify key Psalm verse counts that differ from KJV
+	// These are from SWORD canon_vulg.h
+	// Note: Vulgate Psalm numbering is offset from Hebrew/KJV:
+	// - Vulg Ps 9 = Hebrew Ps 9-10 combined
+	// - Vulg Ps 118 = Hebrew Ps 119 (the longest psalm, 176 verses)
+	testCases := []struct {
+		psalm int // 1-indexed
+		want  int
+	}{
+		{9, 39},   // Vulg Ps 9 = Hebrew Ps 9-10 combined (39 verses)
+		{50, 21},  // Vulg Ps 50
+		{65, 20},  // Vulg Ps 65 = Hebrew Ps 66 (20 verses, NOT 13 like KJV Ps 65)
+		{66, 8},   // Vulg Ps 66 = Hebrew Ps 67 (8 verses)
+		{113, 26}, // Vulg Ps 113 = Hebrew Ps 114-115 combined
+		{118, 176}, // Vulg Ps 118 = Hebrew Ps 119 (176 verses)
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("Psalm_%d", tc.psalm), func(t *testing.T) {
+			if tc.psalm > len(psalms.Chapters) {
+				t.Fatalf("Psalm %d out of range (max %d)", tc.psalm, len(psalms.Chapters))
+			}
+			got := psalms.Chapters[tc.psalm-1]
+			if got != tc.want {
+				t.Errorf("Vulgate Psalm %d: got %d verses, want %d", tc.psalm, got, tc.want)
+			}
+		})
 	}
 }
 

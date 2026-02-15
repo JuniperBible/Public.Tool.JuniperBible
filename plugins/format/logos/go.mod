@@ -1,6 +1,6 @@
 module format-logos
 
-go 1.25.7
+go 1.26.0
 
 require (
 	github.com/mattn/go-sqlite3 v1.14.24 // optional: CGO (build with -tags cgo_sqlite)

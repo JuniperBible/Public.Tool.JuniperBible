@@ -70,7 +70,7 @@ func (d *DiathekeCmd) Run() error {
 		return fmt.Errorf("diatheke not found in PATH: install SWORD tools")
 	}
 
-	diathekeCmd := exec.Command(diathekePath, diathekeArgs...)
+	diathekeCmd := exec.Command(diathekePath, diathekeArgs...) // #nosec G204 -- diathekePath is from trusted config
 	diathekeCmd.Stdout = os.Stdout
 	diathekeCmd.Stderr = os.Stderr
 

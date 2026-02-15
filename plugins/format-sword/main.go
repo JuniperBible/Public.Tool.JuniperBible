@@ -17,6 +17,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // IPCRequest is the incoming JSON request.
@@ -406,7 +408,7 @@ func parseSwordModules(path string) ([]*SwordModule, error) {
 
 // parseConfFile parses a SWORD .conf file.
 func parseConfFile(path string) (*SwordModule, error) {
-	f, err := os.Open(path)
+	f, err := safefile.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +508,7 @@ func handleExtractIR(args map[string]interface{}) {
 	}
 
 	// Read conf file content for L0 reconstruction
-	if confData, err := os.ReadFile(module.ConfPath); err == nil {
+	if confData, err := safefile.ReadFile(module.ConfPath); err == nil {
 		corpus.Attributes["_sword_conf"] = string(confData)
 	}
 
@@ -523,7 +525,7 @@ func handleExtractIR(args map[string]interface{}) {
 	}
 
 	// Compute source hash from conf file
-	if confData, err := os.ReadFile(module.ConfPath); err == nil {
+	if confData, err := safefile.ReadFile(module.ConfPath); err == nil {
 		h := sha256.Sum256(confData)
 		corpus.SourceHash = hex.EncodeToString(h[:])
 	}
@@ -571,7 +573,7 @@ func handleEmitNative(args map[string]interface{}) {
 	}
 
 	// Read IR file
-	data, err := os.ReadFile(irPath)
+	data, err := safefile.ReadFile(irPath)
 	if err != nil {
 		respondError(fmt.Sprintf("failed to read IR file: %v", err))
 		return

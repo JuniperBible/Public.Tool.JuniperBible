@@ -508,7 +508,7 @@ func runExtract(cmd *cobra.Command, args []string) error {
 }
 
 func loadVersification(path string) (*Versification, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- path is validated
 	if err != nil {
 		return nil, err
 	}

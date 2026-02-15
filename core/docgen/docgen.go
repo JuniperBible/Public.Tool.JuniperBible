@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // PluginManifest represents a plugin.json file.
@@ -129,7 +131,7 @@ func (g *Generator) LoadPlugins() ([]PluginManifest, error) {
 }
 
 func loadManifest(path string) (PluginManifest, error) {
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		return PluginManifest{}, err
 	}

@@ -24,11 +24,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // readBlock reads and decompresses a block from a .bzz file.
 func readBlock(bzzPath string, block BlockEntry) ([]byte, error) {
-	f, err := os.Open(bzzPath)
+	f, err := safefile.Open(bzzPath)
 	if err != nil {
 		return nil, err
 	}

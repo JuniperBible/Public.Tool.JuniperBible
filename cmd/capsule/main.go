@@ -31,6 +31,7 @@ import (
 	"github.com/FocuswithJustin/JuniperBible/internal/fileutil"
 	"github.com/FocuswithJustin/JuniperBible/internal/api"
 	"github.com/FocuswithJustin/JuniperBible/internal/juniper"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"github.com/FocuswithJustin/JuniperBible/internal/validation"
 	"github.com/FocuswithJustin/JuniperBible/internal/web"
 
@@ -200,7 +201,7 @@ func (c *ExportCmd) Run() error {
 	}
 
 	// Verify hash
-	data, err := os.ReadFile(outputPath)
+	data, err := safefile.ReadFile(outputPath)
 	if err != nil {
 		return fmt.Errorf("failed to read exported file: %w", err)
 	}
@@ -1160,7 +1161,7 @@ func (c *GoldenCheckCmd) Run() error {
 	transcriptHash := run.Outputs.TranscriptBlobSHA256
 
 	// Check against golden
-	goldenData, err := os.ReadFile(checkFile)
+	goldenData, err := safefile.ReadFile(checkFile)
 	if err != nil {
 		return fmt.Errorf("failed to read golden: %w", err)
 	}
@@ -1234,7 +1235,7 @@ func (c *ExtractIRCmd) Run() error {
 	}
 
 	// Copy IR to output
-	irData, err := os.ReadFile(result.IRPath)
+	irData, err := safefile.ReadFile(result.IRPath)
 	if err != nil {
 		return fmt.Errorf("failed to read IR: %w", err)
 	}
@@ -1306,7 +1307,7 @@ func (c *EmitNativeCmd) Run() error {
 	}
 
 	// Copy output to destination
-	outputData, err := os.ReadFile(result.OutputPath)
+	outputData, err := safefile.ReadFile(result.OutputPath)
 	if err != nil {
 		return fmt.Errorf("failed to read output: %w", err)
 	}
@@ -1437,7 +1438,7 @@ func (c *ConvertCmd) Run() error {
 	}
 
 	// Copy output to destination
-	outputData, err := os.ReadFile(emitResult.OutputPath)
+	outputData, err := safefile.ReadFile(emitResult.OutputPath)
 	if err != nil {
 		return fmt.Errorf("failed to read output: %w", err)
 	}
@@ -1468,7 +1469,7 @@ func (c *IRInfoCmd) Run() error {
 	jsonOutput := c.JSON
 
 	// Read IR file
-	data, err := os.ReadFile(irPath)
+	data, err := safefile.ReadFile(irPath)
 	if err != nil {
 		return fmt.Errorf("failed to read IR file: %w", err)
 	}
@@ -1913,7 +1914,7 @@ type juniperModule struct {
 
 // parseConfForList parses a SWORD conf file for listing.
 func parseConfForList(path string) *juniperModule {
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		return nil
 	}
@@ -1972,7 +1973,7 @@ func parseConfForList(path string) *juniperModule {
 // ingestSwordModule creates a capsule from a SWORD module.
 func ingestSwordModule(swordPath string, module *juniperModule, outputPath string) error {
 	// Read conf file
-	confData, err := os.ReadFile(module.confPath)
+	confData, err := safefile.ReadFile(module.confPath)
 	if err != nil {
 		return fmt.Errorf("failed to read conf: %w", err)
 	}
@@ -2297,7 +2298,7 @@ func (c *CapsuleConvertCmd) Run() error {
 	os.MkdirAll(newCapsuleDir, 0755)
 
 	// Copy converted output
-	outputData, err := os.ReadFile(emitResult.OutputPath)
+	outputData, err := safefile.ReadFile(emitResult.OutputPath)
 	if err != nil {
 		return fmt.Errorf("failed to read output: %w", err)
 	}
@@ -2305,7 +2306,7 @@ func (c *CapsuleConvertCmd) Run() error {
 	os.WriteFile(filepath.Join(newCapsuleDir, outputName), outputData, 0644)
 
 	// Copy IR
-	irData, _ := os.ReadFile(extractResult.IRPath)
+	irData, _ := safefile.ReadFile(extractResult.IRPath)
 	baseName := filepath.Base(capsulePath)
 	baseName = strings.TrimSuffix(baseName, ".capsule.tar.gz")
 	baseName = strings.TrimSuffix(baseName, ".capsule.tar.xz")
@@ -2427,7 +2428,7 @@ func (c *GenerateIRCmd) Run() error {
 	}
 
 	// Add IR file
-	irData, err := os.ReadFile(extractResult.IRPath)
+	irData, err := safefile.ReadFile(extractResult.IRPath)
 	if err != nil {
 		return fmt.Errorf("failed to read IR: %w", err)
 	}
@@ -2442,7 +2443,7 @@ func (c *GenerateIRCmd) Run() error {
 	// Update manifest
 	manifestPath := filepath.Join(newCapsuleDir, "manifest.json")
 	manifest := make(map[string]interface{})
-	if data, err := os.ReadFile(manifestPath); err == nil {
+	if data, err := safefile.ReadFile(manifestPath); err == nil {
 		json.Unmarshal(data, &manifest)
 	}
 	manifest["has_ir"] = true
@@ -2691,7 +2692,7 @@ func (c *CASToSWORDCmd) Run() error {
 	}
 
 	// Read manifest
-	manifestData, err := os.ReadFile(filepath.Join(extractDir, "manifest.json"))
+	manifestData, err := safefile.ReadFile(filepath.Join(extractDir, "manifest.json"))
 	if err != nil {
 		return fmt.Errorf("failed to read manifest: %w", err)
 	}
@@ -2740,7 +2741,7 @@ func (c *CASToSWORDCmd) Run() error {
 			continue
 		}
 
-		content, err := os.ReadFile(blobPath)
+		content, err := safefile.ReadFile(blobPath)
 		if err != nil {
 			continue
 		}
@@ -3083,7 +3084,7 @@ func runCapsuleTest(capsulePath, goldenDir, name string) (bool, error) {
 	}
 
 	// Compare report hash to golden
-	goldenData, err := os.ReadFile(goldenPath)
+	goldenData, err := safefile.ReadFile(goldenPath)
 	if err != nil {
 		return false, fmt.Errorf("failed to read golden: %w", err)
 	}
@@ -3139,7 +3140,7 @@ func runIngestTest(inputPath, goldenDir, name string) (bool, error) {
 	}
 
 	// Compare hash
-	goldenData, err := os.ReadFile(goldenPath)
+	goldenData, err := safefile.ReadFile(goldenPath)
 	if err != nil {
 		return false, err
 	}

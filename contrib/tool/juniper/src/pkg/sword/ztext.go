@@ -127,7 +127,7 @@ func (p *ZTextParser) loadTestamentIndices(testament string) ([]BlockIndexEntry,
 	bzvPath := filepath.Join(p.dataPath, testament+".bzv")
 
 	// Read block index (.bzs) - 12 bytes per entry
-	bzsData, err := os.ReadFile(bzsPath)
+	bzsData, err := os.ReadFile(bzsPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return nil, nil, err
 	}
@@ -144,7 +144,7 @@ func (p *ZTextParser) loadTestamentIndices(testament string) ([]BlockIndexEntry,
 	}
 
 	// Read verse index (.bzv) - 10 bytes per entry
-	bzvData, err := os.ReadFile(bzvPath)
+	bzvData, err := os.ReadFile(bzvPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return nil, nil, err
 	}
@@ -300,7 +300,7 @@ func (p *ZTextParser) getBlock(testament string, blockNum int, bzs []BlockIndexE
 
 	// Read compressed data
 	bzzPath := filepath.Join(p.dataPath, testament+".bzz")
-	file, err := os.Open(bzzPath)
+	file, err := os.Open(bzzPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return nil, err
 	}

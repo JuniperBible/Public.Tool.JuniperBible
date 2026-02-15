@@ -16,6 +16,7 @@ import (
 	"github.com/ulikunitz/xz"
 
 	"github.com/FocuswithJustin/JuniperBible/core/errors"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"github.com/FocuswithJustin/JuniperBible/internal/validation"
 )
 
@@ -535,7 +536,7 @@ func detectFormat(path string) string {
 }
 
 func readCapsule(path string) (*CapsuleManifest, []ArtifactInfo, error) {
-	f, err := os.Open(path)
+	f, err := safefile.Open(path)
 	if err != nil {
 		return nil, nil, err
 	}

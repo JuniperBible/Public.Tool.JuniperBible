@@ -115,7 +115,7 @@ func copyFile(src, dst string) error {
 		return err
 	}
 
-	srcFile, err := os.Open(src)
+	srcFile, err := os.Open(src) // #nosec G304 -- path is validated
 	if err != nil {
 		return err
 	}

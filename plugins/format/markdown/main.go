@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
 	"path/filepath"
@@ -87,7 +88,7 @@ func handleDetect(args map[string]interface{}) {
 	}
 
 	// Check for YAML frontmatter
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		ipc.MustRespond(&ipc.DetectResult{
 			Detected: false,
@@ -124,7 +125,7 @@ func handleIngest(args map[string]interface{}) {
 		return
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		ipc.RespondErrorf("failed to read file: %v", err)
 		return
@@ -218,7 +219,7 @@ func handleExtractIR(args map[string]interface{}) {
 		return
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		ipc.RespondErrorf("failed to read file: %v", err)
 		return
@@ -378,7 +379,7 @@ func handleEmitNative(args map[string]interface{}) {
 		return
 	}
 
-	data, err := os.ReadFile(irPath)
+	data, err := safefile.ReadFile(irPath)
 	if err != nil {
 		ipc.RespondErrorf("failed to read IR file: %v", err)
 		return

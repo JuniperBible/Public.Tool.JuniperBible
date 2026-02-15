@@ -15,6 +15,7 @@ import (
 
 	"github.com/FocuswithJustin/JuniperBible/core/cas"
 	"github.com/FocuswithJustin/JuniperBible/internal/fileutil"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // validIdentifierRegex validates plugin and profile identifiers.
@@ -181,7 +182,7 @@ func (e *NixExecutor) ExecuteRequest(ctx context.Context, req *Request, inputPat
 
 	// Read transcript if present
 	transcriptPath := filepath.Join(outDir, "transcript.jsonl")
-	if data, err := os.ReadFile(transcriptPath); err == nil {
+	if data, err := safefile.ReadFile(transcriptPath); err == nil {
 		result.TranscriptData = data
 		result.TranscriptHash = cas.Hash(data)
 	}
@@ -197,7 +198,7 @@ func (e *NixExecutor) ExecuteRequest(ctx context.Context, req *Request, inputPat
 		if name == "transcript.jsonl" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(outDir, name))
+		data, err := safefile.ReadFile(filepath.Join(outDir, name))
 		if err == nil {
 			result.OutputBlobs[name] = data
 		}

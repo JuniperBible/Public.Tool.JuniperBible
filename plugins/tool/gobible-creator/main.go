@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
@@ -97,7 +98,7 @@ func runTool() {
 		}
 	}
 
-	reqData, _ := os.ReadFile(reqPath)
+	reqData, _ := safefile.ReadFile(reqPath)
 	var req ToolRunRequest
 	json.Unmarshal(reqData, &req)
 	req.OutDir = outDir
@@ -250,7 +251,7 @@ func profileInfo(req *ToolRunRequest, transcript *ipc.Transcript) error {
 	transcript.WriteEvent(TranscriptEvent{Event: "info_start", InputFile: cleanInput})
 
 	// Parse OSIS file to extract info
-	data, err := os.ReadFile(cleanInput)
+	data, err := safefile.ReadFile(cleanInput)
 	if err != nil {
 		return fmt.Errorf("failed to read input: %w", err)
 	}
@@ -298,7 +299,7 @@ func profileValidate(req *ToolRunRequest, transcript *ipc.Transcript) error {
 	transcript.WriteEvent(TranscriptEvent{Event: "validate_start", InputFile: cleanInput})
 
 	// Parse OSIS file to validate
-	data, err := os.ReadFile(cleanInput)
+	data, err := safefile.ReadFile(cleanInput)
 	if err != nil {
 		return fmt.Errorf("failed to read input: %w", err)
 	}

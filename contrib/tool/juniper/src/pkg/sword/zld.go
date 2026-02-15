@@ -116,7 +116,7 @@ func (p *ZLDParser) loadCompressedIndices() error {
 	p.idxPath = idxPath
 	p.datPath = datPath
 
-	zdxData, err := os.ReadFile(zdxPath)
+	zdxData, err := os.ReadFile(zdxPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return err
 	}
@@ -130,13 +130,13 @@ func (p *ZLDParser) loadCompressedIndices() error {
 
 	// Read key index file (.idx) - binary format
 	// Each entry is 8 bytes: 4-byte offset into .dat, 4-byte size
-	idxData, err := os.ReadFile(idxPath)
+	idxData, err := os.ReadFile(idxPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return fmt.Errorf("could not find key index: %w", err)
 	}
 
 	// Read key data file (.dat) - contains actual key strings
-	datData, err := os.ReadFile(datPath)
+	datData, err := os.ReadFile(datPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return fmt.Errorf("could not find key data: %w", err)
 	}

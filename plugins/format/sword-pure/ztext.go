@@ -16,6 +16,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // Index entry sizes for SWORD binary file formats.
@@ -102,7 +104,7 @@ func OpenZTextModule(conf *ConfFile, swordPath string) (*ZTextModule, error) {
 
 // readBlockIndex reads a .bzs block index file.
 func readBlockIndex(path string) ([]BlockEntry, error) {
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +130,7 @@ func readBlockIndex(path string) ([]BlockEntry, error) {
 
 // readVerseIndex reads a .bzv verse index file.
 func readVerseIndex(path string) ([]VerseEntry, error) {
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +224,7 @@ func (m *ZTextModule) GetVerseText(ref *Ref) (string, error) {
 
 // readBlock reads and decompresses a block from the .bzz file.
 func (m *ZTextModule) readBlock(bzzPath string, block BlockEntry) ([]byte, error) {
-	f, err := os.Open(bzzPath)
+	f, err := safefile.Open(bzzPath)
 	if err != nil {
 		return nil, err
 	}

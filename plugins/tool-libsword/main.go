@@ -22,6 +22,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // IPCRequest is the request format from capsule.
@@ -185,7 +187,7 @@ func runTool() {
 	}
 
 	// Read request
-	reqData, err := os.ReadFile(reqPath)
+	reqData, err := safefile.ReadFile(reqPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to read request: %v\n", err)
 		os.Exit(1)

@@ -108,13 +108,13 @@ func (p *RawGenBookParser) loadIndices() error {
 	}
 
 	// Read the index file (.idx) - array of 4-byte offsets
-	idxData, err := os.ReadFile(idxPath)
+	idxData, err := os.ReadFile(idxPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return fmt.Errorf("reading index file: %w", err)
 	}
 
 	// Read the key/metadata file (.dat)
-	datData, err := os.ReadFile(datPath)
+	datData, err := os.ReadFile(datPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return fmt.Errorf("reading dat file: %w", err)
 	}
@@ -376,7 +376,7 @@ func (p *RawGenBookParser) readEntryContent(entry GenBookEntry) (string, error) 
 		return "", fmt.Errorf("no .bdt file found")
 	}
 
-	file, err := os.Open(bdtPath)
+	file, err := os.Open(bdtPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return "", err
 	}

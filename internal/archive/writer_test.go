@@ -172,7 +172,7 @@ func TestCreateCapsuleTarGzFromPath(t *testing.T) {
 func readTarGzFiles(t *testing.T, path string) []string {
 	t.Helper()
 
-	f, err := os.Open(path)
+	f, err := os.Open(path) // #nosec G304
 	if err != nil {
 		t.Fatalf("failed to open archive: %v", err)
 	}

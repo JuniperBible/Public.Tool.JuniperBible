@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
@@ -363,7 +364,7 @@ func ListInstalled(swordPath string) ([]ModuleInfo, error) {
 		}
 
 		confPath := filepath.Join(modsDir, entry.Name())
-		data, err := os.ReadFile(confPath)
+		data, err := safefile.ReadFile(confPath)
 		if err != nil {
 			continue
 		}
@@ -392,7 +393,7 @@ func Uninstall(moduleID, swordPath string) error {
 	}
 
 	// Read conf to find data path
-	data, err := os.ReadFile(confPath)
+	data, err := safefile.ReadFile(confPath)
 	if err != nil {
 		return fmt.Errorf("reading conf: %w", err)
 	}
@@ -438,7 +439,7 @@ func Verify(moduleID, swordPath string) (*VerifyResult, error) {
 	}
 
 	// Read and parse conf
-	data, err := os.ReadFile(confPath)
+	data, err := safefile.ReadFile(confPath)
 	if err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("cannot read conf: %v", err))
 		return result, nil

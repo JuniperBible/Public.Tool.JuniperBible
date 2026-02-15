@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
 	"path/filepath"
@@ -62,7 +63,7 @@ func handleDetect(args map[string]interface{}) {
 	}
 
 	// Check file content for NA28 apparatus markers
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		ipc.MustRespond(&ipc.DetectResult{
 			Detected: false,
@@ -132,7 +133,7 @@ func handleIngest(args map[string]interface{}) {
 	}
 
 	// Read the file
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		ipc.RespondErrorf("failed to read file: %v", err)
 		return
@@ -179,7 +180,7 @@ func handleEnumerate(args map[string]interface{}) {
 
 	// Read the blob
 	blobPath := filepath.Join(casDir, "blobs", blobHash[:2], blobHash[2:4], blobHash)
-	data, err := os.ReadFile(blobPath)
+	data, err := safefile.ReadFile(blobPath)
 	if err != nil {
 		ipc.RespondErrorf("failed to read blob: %v", err)
 		return
@@ -222,7 +223,7 @@ func handleExtractIR(args map[string]interface{}) {
 
 	// Read the blob
 	blobPath := filepath.Join(casDir, "blobs", blobHash[:2], blobHash[2:4], blobHash)
-	data, err := os.ReadFile(blobPath)
+	data, err := safefile.ReadFile(blobPath)
 	if err != nil {
 		ipc.RespondErrorf("failed to read blob: %v", err)
 		return
@@ -355,7 +356,7 @@ func handleEmitNative(args map[string]interface{}) {
 	}
 
 	// Read the IR
-	irData, err := os.ReadFile(irPath)
+	irData, err := safefile.ReadFile(irPath)
 	if err != nil {
 		ipc.RespondErrorf("failed to read IR: %v", err)
 		return

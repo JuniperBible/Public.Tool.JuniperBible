@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
@@ -97,7 +98,7 @@ func runTool() {
 		}
 	}
 
-	reqData, _ := os.ReadFile(reqPath)
+	reqData, _ := safefile.ReadFile(reqPath)
 	var req ToolRunRequest
 	json.Unmarshal(reqData, &req)
 	req.OutDir = outDir

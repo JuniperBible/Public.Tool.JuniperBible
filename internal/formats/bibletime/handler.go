@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/FocuswithJustin/JuniperBible/core/plugins"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // Handler implements the EmbeddedFormatHandler interface for BibleTime format.
@@ -282,7 +283,7 @@ func readFileOrDir(path string) ([]byte, error) {
 	// Find first file
 	for _, entry := range entries {
 		if !entry.IsDir() {
-			return os.ReadFile(filepath.Join(path, entry.Name()))
+			return safefile.ReadFile(filepath.Join(path, entry.Name()))
 		}
 	}
 

@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -227,7 +228,7 @@ func handleDetect(args map[string]interface{}) {
 	}
 
 	// Check for Bible-like content (verse markers)
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		respond(&DetectResult{
 			Detected: false,
@@ -268,7 +269,7 @@ func handleIngest(args map[string]interface{}) {
 		return
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		respondError(fmt.Sprintf("failed to read file: %v", err))
 		return
@@ -362,7 +363,7 @@ func handleExtractIR(args map[string]interface{}) {
 		return
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		respondError(fmt.Sprintf("failed to read file: %v", err))
 		return
@@ -511,7 +512,7 @@ func handleEmitNative(args map[string]interface{}) {
 		return
 	}
 
-	data, err := os.ReadFile(irPath)
+	data, err := safefile.ReadFile(irPath)
 	if err != nil {
 		respondError(fmt.Sprintf("failed to read IR file: %v", err))
 		return

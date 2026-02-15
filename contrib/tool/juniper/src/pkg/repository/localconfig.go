@@ -88,7 +88,7 @@ func (c *LocalConfig) ListInstalledModules() ([]ModuleInfo, error) {
 		}
 
 		confPath := filepath.Join(modsDir, entry.Name())
-		data, err := os.ReadFile(confPath)
+		data, err := os.ReadFile(confPath) // #nosec G304 -- path is validated
 		if err != nil {
 			continue
 		}

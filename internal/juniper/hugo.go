@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/FocuswithJustin/JuniperBible/internal/formats/swordpure"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // ntBooks contains all New Testament book OSIS IDs for quick lookup.
@@ -489,7 +490,7 @@ func getLicenseText(conf *swordpure.ConfFile, swordPath string, module *Module) 
 		licenseFiles := []string{"LICENSE", "LICENSE.txt", "COPYING", "license.txt"}
 		for _, lf := range licenseFiles {
 			licensePath := filepath.Join(swordPath, dataPath, lf)
-			if data, err := os.ReadFile(licensePath); err == nil {
+			if data, err := safefile.ReadFile(licensePath); err == nil {
 				return string(data)
 			}
 		}

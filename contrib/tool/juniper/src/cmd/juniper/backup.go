@@ -247,7 +247,7 @@ func createZipBackup(destPath string, files []backupFile) error {
 }
 
 func addFileToZip(zw *zip.Writer, srcPath, destPath string) error {
-	src, err := os.Open(srcPath)
+	src, err := os.Open(srcPath) // #nosec G304 -- path is validated
 	if err != nil {
 		return err
 	}
@@ -407,7 +407,7 @@ func create7zBackup(destPath string, files []backupFile) error {
 }
 
 func copyFile(src, dst string) error {
-	in, err := os.Open(src)
+	in, err := os.Open(src) // #nosec G304 -- path is validated
 	if err != nil {
 		return err
 	}

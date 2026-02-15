@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"github.com/zeebo/blake3"
 )
 
@@ -104,7 +105,7 @@ func (s *Store) LookupBlake3(blake3Hash string) (string, error) {
 	prefix := blake3Hash[:2]
 	pointerPath := filepath.Join(s.root, "blobs", "blake3", prefix, blake3Hash+".json")
 
-	data, err := os.ReadFile(pointerPath)
+	data, err := safefile.ReadFile(pointerPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", ErrBlobNotFound

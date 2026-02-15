@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // Source represents a SWORD repository source.
@@ -270,7 +272,7 @@ func ListInstalled(swordPath string) ([]ModuleInfo, error) {
 		}
 
 		confPath := filepath.Join(modsDir, entry.Name())
-		data, err := os.ReadFile(confPath)
+		data, err := safefile.ReadFile(confPath)
 		if err != nil {
 			continue
 		}

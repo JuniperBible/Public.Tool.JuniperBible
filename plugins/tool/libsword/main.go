@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
@@ -187,7 +188,7 @@ func runTool() {
 	}
 
 	// Read request
-	reqData, err := os.ReadFile(reqPath)
+	reqData, err := safefile.ReadFile(reqPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to read request: %v\n", err)
 		os.Exit(1)

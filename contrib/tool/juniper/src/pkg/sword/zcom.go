@@ -113,7 +113,7 @@ func (p *ZComParser) loadTestamentIndices(testament string) error {
 	}
 
 	// Read book index (.bzs)
-	bzsData, err := os.ReadFile(bzsPath)
+	bzsData, err := os.ReadFile(bzsPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (p *ZComParser) loadTestamentIndices(testament string) error {
 	}
 
 	// Read verse index (.bzv)
-	bzvData, err := os.ReadFile(bzvPath)
+	bzvData, err := os.ReadFile(bzvPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func (p *ZComParser) readEntryText(testament string, entry ZComVerseEntry) (stri
 	if _, err := os.Stat(bzzPath); os.IsNotExist(err) {
 		bzzPath = filepath.Join(p.dataPath, prefix+".czz")
 	}
-	file, err := os.Open(bzzPath)
+	file, err := os.Open(bzzPath) // #nosec G304 -- internal path construction
 	if err != nil {
 		return "", err
 	}

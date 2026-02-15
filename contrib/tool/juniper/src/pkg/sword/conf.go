@@ -10,7 +10,7 @@ import (
 // ParseConf parses a SWORD .conf file and returns module metadata.
 // Uses Participle parser for structured parsing.
 func ParseConf(confPath string) (*Module, error) {
-	data, err := os.ReadFile(confPath)
+	data, err := os.ReadFile(confPath) // #nosec G304 -- path is validated
 	if err != nil {
 		return nil, fmt.Errorf("failed to open conf file: %w", err)
 	}

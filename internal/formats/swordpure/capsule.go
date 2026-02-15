@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/FocuswithJustin/JuniperBible/internal/fileutil"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // skipIRExtraction can be set to true in tests to speed up capsule creation.
@@ -346,7 +347,7 @@ func createModuleCapsule(swordPath string, module ModuleInfo, outputPath string)
 	}
 
 	// Copy conf file
-	confData, err := os.ReadFile(confPath)
+	confData, err := safefile.ReadFile(confPath)
 	if err != nil {
 		return fmt.Errorf("failed to read conf: %w", err)
 	}

@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // ConfFile represents a parsed SWORD .conf file.
@@ -35,7 +37,7 @@ type ConfFile struct {
 
 // ParseConfFile parses a SWORD .conf file.
 func ParseConfFile(path string) (*ConfFile, error) {
-	f, err := os.Open(path)
+	f, err := safefile.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open conf file: %w", err)
 	}

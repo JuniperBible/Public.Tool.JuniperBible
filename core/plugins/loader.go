@@ -12,6 +12,7 @@ import (
 
 	apperrors "github.com/FocuswithJustin/JuniperBible/core/errors"
 	"github.com/FocuswithJustin/JuniperBible/internal/logging"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // ErrIncompatibleVersion is returned when a plugin's version requirements are not met.
@@ -300,7 +301,7 @@ func loadPluginFromDir(pluginDir string) (*Plugin, error) {
 
 // ParsePluginManifest parses a plugin.json file.
 func ParsePluginManifest(path string) (*PluginManifest, error) {
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		return nil, apperrors.NewIO("read", path, err)
 	}

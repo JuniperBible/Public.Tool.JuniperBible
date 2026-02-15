@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // CopyDir recursively copies a directory tree from src to dst.
@@ -48,7 +50,7 @@ func CopyDir(src, dst string) error {
 // CopyFile copies a single file from src to dst.
 // The destination file is created with the same permissions as the source.
 func CopyFile(src, dst string) error {
-	srcFile, err := os.Open(src)
+	srcFile, err := safefile.Open(src)
 	if err != nil {
 		return err
 	}
@@ -64,7 +66,7 @@ func CopyFile(src, dst string) error {
 		return err
 	}
 
-	dstFile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode())
+	dstFile, err := safefile.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode())
 	if err != nil {
 		return err
 	}

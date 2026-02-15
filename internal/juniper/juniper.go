@@ -15,6 +15,7 @@ import (
 	"github.com/FocuswithJustin/JuniperBible/core/ir"
 	"github.com/FocuswithJustin/JuniperBible/internal/archive"
 	"github.com/FocuswithJustin/JuniperBible/internal/fileutil"
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // Module holds parsed SWORD module metadata.
@@ -215,7 +216,7 @@ func Ingest(cfg IngestConfig) error {
 // IngestModule creates a capsule from a single SWORD module.
 func IngestModule(swordPath string, module *Module, outputPath string) error {
 	// Read conf file
-	confData, err := os.ReadFile(module.ConfPath)
+	confData, err := safefile.ReadFile(module.ConfPath)
 	if err != nil {
 		return fmt.Errorf("failed to read conf: %w", err)
 	}
@@ -435,7 +436,7 @@ func GenerateIRForCapsule(capsulePath string, pluginsDir string) error {
 	}
 
 	// Add IR file
-	irData, err := os.ReadFile(extractResult.IRPath)
+	irData, err := safefile.ReadFile(extractResult.IRPath)
 	if err != nil {
 		return fmt.Errorf("failed to read IR: %w", err)
 	}
@@ -450,7 +451,7 @@ func GenerateIRForCapsule(capsulePath string, pluginsDir string) error {
 	// Update manifest
 	manifestPath := filepath.Join(newCapsuleDir, "manifest.json")
 	manifest := make(map[string]interface{})
-	if data, err := os.ReadFile(manifestPath); err == nil {
+	if data, err := safefile.ReadFile(manifestPath); err == nil {
 		json.Unmarshal(data, &manifest)
 	}
 	manifest["has_ir"] = true
@@ -612,7 +613,7 @@ DistributionLicense=Copyrighted; Free non-commercial distribution
 
 // ParseConf parses a SWORD conf file.
 func ParseConf(path string) *Module {
-	data, err := os.ReadFile(path)
+	data, err := safefile.ReadFile(path)
 	if err != nil {
 		return nil
 	}

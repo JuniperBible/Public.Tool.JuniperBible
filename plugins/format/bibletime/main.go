@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
@@ -345,7 +346,7 @@ func readFileOrDir(path string) ([]byte, error) {
 	// Find first file
 	for _, entry := range entries {
 		if !entry.IsDir() {
-			return os.ReadFile(filepath.Join(path, entry.Name()))
+			return safefile.ReadFile(filepath.Join(path, entry.Name()))
 		}
 	}
 

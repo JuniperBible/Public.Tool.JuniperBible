@@ -24,13 +24,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const results = document.querySelectorAll('.result-text');
   results.forEach(el => {
-    const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
-    el.innerHTML = el.innerHTML.replace(regex, '<mark>$1</mark>');
+    highlightSearchTermInElement(el, searchTerm);
   });
 });
 
 function escapeRegex(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Safely highlights search terms using DOM manipulation instead of innerHTML
+function highlightSearchTermInElement(element, searchTerm) {
+  const walker = document.createTreeWalker(
+    element,
+    NodeFilter.SHOW_TEXT,
+    null,
+    false
+  );
+
+  const nodesToReplace = [];
+  let node;
+
+  while (node = walker.nextNode()) {
+    nodesToReplace.push(node);
+  }
+
+  const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+
+  nodesToReplace.forEach(textNode => {
+    const text = textNode.nodeValue;
+    const parts = text.split(regex);
+
+    if (parts.length > 1) {
+      const fragment = document.createDocumentFragment();
+      parts.forEach((part, i) => {
+        if (i % 2 === 1) {
+          // Matched text - wrap in <mark>
+          const mark = document.createElement('mark');
+          mark.textContent = part;
+          fragment.appendChild(mark);
+        } else if (part) {
+          // Non-matched text
+          fragment.appendChild(document.createTextNode(part));
+        }
+      });
+      textNode.parentNode.replaceChild(fragment, textNode);
+    }
+  });
 }
 
 // Compare tab functionality
@@ -205,7 +244,9 @@ async function loadChapter() {
       highlightDifferences();
     }
   } catch (e) {
-    area.innerHTML = `<p class="alert alert-error">Error loading: ${e.message}</p>`;
+    area.innerHTML = '<p class="alert alert-error">Error loading: </p>';
+    const errorMsg = document.createTextNode(e.message);
+    area.querySelector('p').appendChild(errorMsg);
   }
 }
 
@@ -249,7 +290,9 @@ async function loadVerse(verseNum) {
       highlightDifferences();
     }
   } catch (e) {
-    area.innerHTML = `<p class="alert alert-error">Error: ${e.message}</p>`;
+    area.innerHTML = '<p class="alert alert-error">Error: </p>';
+    const errorMsg = document.createTextNode(e.message);
+    area.querySelector('p').appendChild(errorMsg);
   }
 }
 
@@ -332,15 +375,86 @@ function highlightDifferences() {
       const textEl = row.querySelector('.verse-text');
       if (!textEl || !rowWords[idx]) return;
 
-      let html = textEl.innerHTML;
-      rowWords[idx].forEach(word => {
+      // Find unique words for this row
+      const uniqueWords = Array.from(rowWords[idx]).filter(word => {
         const isUnique = rowWords.every((ws, i) => i === idx || !ws.has(word));
-        if (isUnique && word.length > 2) {
-          const regex = new RegExp(`\\b(${word})\\b`, 'gi');
-          html = html.replace(regex, '<span class="highlight">$1</span>');
-        }
+        return isUnique && word.length > 2;
       });
-      textEl.innerHTML = html;
+
+      if (uniqueWords.length === 0) return;
+
+      // Use TreeWalker to safely highlight unique words in text nodes
+      const walker = document.createTreeWalker(
+        textEl,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      );
+
+      const nodesToReplace = [];
+      let node;
+
+      while (node = walker.nextNode()) {
+        nodesToReplace.push(node);
+      }
+
+      nodesToReplace.forEach(textNode => {
+        const text = textNode.nodeValue;
+        const parts = [];
+        let lastIndex = 0;
+        let hasMatch = false;
+
+        // Find all matches in the text
+        uniqueWords.forEach(word => {
+          const regex = new RegExp(`\\b${escapeRegex(word)}\\b`, 'gi');
+          let match;
+          regex.lastIndex = 0;
+          while ((match = regex.exec(text)) !== null) {
+            hasMatch = true;
+          }
+        });
+
+        if (!hasMatch) return;
+
+        // Build regex pattern for all unique words
+        const pattern = uniqueWords.map(w => `\\b(${escapeRegex(w)})\\b`).join('|');
+        const regex = new RegExp(pattern, 'gi');
+        let match;
+        const matches = [];
+
+        while ((match = regex.exec(text)) !== null) {
+          matches.push({ index: match.index, length: match[0].length, text: match[0] });
+        }
+
+        if (matches.length === 0) return;
+
+        // Sort matches by index
+        matches.sort((a, b) => a.index - b.index);
+
+        // Build fragment with highlighted matches
+        const fragment = document.createDocumentFragment();
+        lastIndex = 0;
+
+        matches.forEach(match => {
+          // Add text before match
+          if (match.index > lastIndex) {
+            fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+          }
+          // Add highlighted match
+          const span = document.createElement('span');
+          span.className = 'highlight';
+          span.textContent = match.text;
+          fragment.appendChild(span);
+          lastIndex = match.index + match.length;
+        });
+
+        // Add remaining text
+        if (lastIndex < text.length) {
+          fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+        }
+
+        textNode.parentNode.replaceChild(fragment, textNode);
+      });
     });
   });
 }

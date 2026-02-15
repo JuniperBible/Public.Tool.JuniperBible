@@ -211,8 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (searchTerm) {
         const results = document.querySelectorAll('.result-text');
         results.forEach(el => {
-          const regex = new RegExp('(' + escapeRegex(searchTerm) + ')', 'gi');
-          el.innerHTML = el.innerHTML.replace(regex, '<mark>$1</mark>');
+          highlightSearchTermInElement(el, searchTerm);
         });
       }
     }
@@ -343,6 +342,46 @@ document.addEventListener('DOMContentLoaded', function() {
 // Utility function for regex escaping
 function escapeRegex(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Safely highlights search terms using DOM manipulation instead of innerHTML
+function highlightSearchTermInElement(element, searchTerm) {
+  const walker = document.createTreeWalker(
+    element,
+    NodeFilter.SHOW_TEXT,
+    null,
+    false
+  );
+
+  const nodesToReplace = [];
+  let node;
+
+  while (node = walker.nextNode()) {
+    nodesToReplace.push(node);
+  }
+
+  const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+
+  nodesToReplace.forEach(textNode => {
+    const text = textNode.nodeValue;
+    const parts = text.split(regex);
+
+    if (parts.length > 1) {
+      const fragment = document.createDocumentFragment();
+      parts.forEach((part, i) => {
+        if (i % 2 === 1) {
+          // Matched text - wrap in <mark>
+          const mark = document.createElement('mark');
+          mark.textContent = part;
+          fragment.appendChild(mark);
+        } else if (part) {
+          // Non-matched text
+          fragment.appendChild(document.createTextNode(part));
+        }
+      });
+      textNode.parentNode.replaceChild(fragment, textNode);
+    }
+  });
 }
 
 // Repository source selection

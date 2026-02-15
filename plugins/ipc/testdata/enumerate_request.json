@@ -1,0 +1,6 @@
+{
+  "command": "enumerate",
+  "args": {
+    "path": "/path/to/archive.zip"
+  }
+}

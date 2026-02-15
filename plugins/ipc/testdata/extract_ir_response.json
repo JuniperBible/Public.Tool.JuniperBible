@@ -1,0 +1,14 @@
+{
+  "status": "ok",
+  "result": {
+    "ir_path": "/path/to/output/corpus.json",
+    "loss_class": "L1",
+    "loss_report": {
+      "source_format": "JSON",
+      "target_format": "IR",
+      "loss_class": "L1",
+      "lost_elements": [],
+      "warnings": []
+    }
+  }
+}

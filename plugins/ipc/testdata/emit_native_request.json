@@ -1,0 +1,7 @@
+{
+  "command": "emit-native",
+  "args": {
+    "ir_path": "/path/to/corpus.json",
+    "output_dir": "/path/to/output"
+  }
+}

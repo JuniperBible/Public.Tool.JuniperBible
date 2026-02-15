@@ -1,0 +1,7 @@
+{
+  "status": "ok",
+  "result": {
+    "detected": false,
+    "reason": "File does not match expected format"
+  }
+}

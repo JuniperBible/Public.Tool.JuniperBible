@@ -1,0 +1,8 @@
+{
+  "status": "ok",
+  "result": {
+    "detected": true,
+    "format": "JSON",
+    "reason": "JSON format detected via extension and content validation"
+  }
+}

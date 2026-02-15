@@ -1,0 +1,30 @@
+{
+  "status": "ok",
+  "result": {
+    "entries": [
+      {
+        "path": "Genesis.xml",
+        "size_bytes": 12345,
+        "is_dir": false,
+        "mod_time": "2024-01-15T10:30:00Z",
+        "metadata": {
+          "format": "XML"
+        }
+      },
+      {
+        "path": "Exodus.xml",
+        "size_bytes": 10234,
+        "is_dir": false,
+        "mod_time": "2024-01-15T10:30:00Z",
+        "metadata": {
+          "format": "XML"
+        }
+      },
+      {
+        "path": "data/",
+        "size_bytes": 0,
+        "is_dir": true
+      }
+    ]
+  }
+}

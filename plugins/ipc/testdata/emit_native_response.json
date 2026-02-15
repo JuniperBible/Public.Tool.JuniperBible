@@ -1,0 +1,15 @@
+{
+  "status": "ok",
+  "result": {
+    "output_path": "/path/to/output/sample.json",
+    "format": "JSON",
+    "loss_class": "L1",
+    "loss_report": {
+      "source_format": "IR",
+      "target_format": "JSON",
+      "loss_class": "L1",
+      "lost_elements": [],
+      "warnings": []
+    }
+  }
+}

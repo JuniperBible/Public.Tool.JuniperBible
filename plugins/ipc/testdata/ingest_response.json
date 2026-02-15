@@ -1,0 +1,12 @@
+{
+  "status": "ok",
+  "result": {
+    "artifact_id": "sample",
+    "blob_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "size_bytes": 1234,
+    "metadata": {
+      "format": "JSON",
+      "source_file": "sample.json"
+    }
+  }
+}

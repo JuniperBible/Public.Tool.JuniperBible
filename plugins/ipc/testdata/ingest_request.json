@@ -1,0 +1,7 @@
+{
+  "command": "ingest",
+  "args": {
+    "path": "/path/to/sample.json",
+    "output_dir": "/path/to/output"
+  }
+}

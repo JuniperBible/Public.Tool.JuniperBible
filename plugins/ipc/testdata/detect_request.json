@@ -1,0 +1,6 @@
+{
+  "command": "detect",
+  "args": {
+    "path": "/path/to/sample.json"
+  }
+}

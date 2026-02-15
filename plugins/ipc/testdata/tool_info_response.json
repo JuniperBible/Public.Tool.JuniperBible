@@ -1,0 +1,20 @@
+{
+  "status": "ok",
+  "result": {
+    "name": "tool-pandoc",
+    "version": "1.0.0",
+    "type": "tool",
+    "description": "Document format converter using Pandoc",
+    "profiles": [
+      {
+        "id": "docx-to-html",
+        "description": "Convert DOCX to HTML"
+      },
+      {
+        "id": "html-to-epub",
+        "description": "Convert HTML to EPUB"
+      }
+    ],
+    "requires": ["pandoc"]
+  }
+}

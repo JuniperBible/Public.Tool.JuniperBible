@@ -89,34 +89,34 @@ layer. Expected reduction: ~21,650 lines (68% overall).
 Charter: docs/SDK_PROJECT_CHARTER.md
 Full Plan: .claude/plans/frolicking-shimmying-comet.md
 
-## Phase 1: Stabilize IPC Contract
-[ ] Create plugins/ipc/PROTOCOL.md (document message envelope)
-[ ] Create plugins/ipc/testdata/ golden fixtures
-    [ ] detect request/response JSON
-    [ ] ingest request/response JSON
-    [ ] enumerate request/response JSON
-    [ ] extract-ir request/response JSON
-    [ ] emit-native request/response JSON
-[ ] Create plugins/ipc/testutil/ normalization helpers
-[ ] Document error envelope rules (stable codes, retryable vs non-retryable)
+## Phase 1: Stabilize IPC Contract [DONE - 2026-02-15]
+[X] Create plugins/ipc/PROTOCOL.md (document message envelope)
+[X] Create plugins/ipc/testdata/ golden fixtures
+    [X] detect request/response JSON
+    [X] ingest request/response JSON
+    [X] enumerate request/response JSON
+    [X] extract-ir request/response JSON
+    [X] emit-native request/response JSON
+[X] Create plugins/ipc/testutil/ normalization helpers
+[X] Document error envelope rules (stable codes, retryable vs non-retryable)
 
-## Phase 2: Create SDK Package
-[ ] Create plugins/sdk/runtime/ (dispatch, lifecycle)
-[ ] Create plugins/sdk/format/ (FormatConfig, Run)
-[ ] Create plugins/sdk/tool/ (ToolConfig, Run)
-[ ] Create plugins/sdk/ir/ (corpus read/write, hashing)
-[ ] Create plugins/sdk/blob/ (store, artifact IDs)
-[ ] Create plugins/sdk/errors/ (standardized errors, codes)
-[ ] Create plugins/sdk/types/ (IPC type re-exports)
-[ ] Create plugins/sdk/README.md with examples
-[ ] Migrate txt plugin as reference implementation
+## Phase 2: Create SDK Package [DONE - 2026-02-15]
+[X] Create plugins/sdk/runtime/ (dispatch, lifecycle)
+[X] Create plugins/sdk/format/ (FormatConfig, Run)
+[X] Create plugins/sdk/tool/ (ToolConfig, Run)
+[X] Create plugins/sdk/ir/ (corpus read/write, hashing)
+[X] Create plugins/sdk/blob/ (store, artifact IDs)
+[X] Create plugins/sdk/errors/ (standardized errors, codes)
+[X] Create plugins/sdk/types/ (IPC type re-exports)
+[X] Create plugins/sdk/README.md with examples
+[X] Create scripts/parity-test.sh
 
-## Phase 3: Migrate Format Plugins (42 plugins)
+## Phase 3: Migrate Format Plugins (42 plugins) [IN PROGRESS]
 [ ] Batch 1 (8 simple): txt, zip, tar, xml, file, dir, rtf, html
 [ ] Batch 2 (10 IR-enabled): json, zefania, tei, sfm, pdb, odf, tischendorf, morphgnt, sblgnt, ecm
 [ ] Batch 3 (12 complex): osis, usfm, usx, esword, mysword, mybible, theword, gobible, onlinebible, sqlite, olive, flex
 [ ] Batch 4 (8 proprietary/CGO): sword, sword-pure, crosswire, logos, accordance, dbl, epub, oshb
-[ ] Create scripts/parity-test.sh
+[X] Create scripts/parity-test.sh
 [ ] Create plugins/MIGRATION.md checklist
 
 ## Phase 4: Migrate Tool Plugins (10 plugins)

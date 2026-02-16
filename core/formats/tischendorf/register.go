@@ -3,5 +3,5 @@
 package tischendorf
 
 func init() {
-	_ = Config
+	Config.RegisterEmbedded()
 }

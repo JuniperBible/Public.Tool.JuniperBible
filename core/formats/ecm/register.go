@@ -3,5 +3,5 @@
 package ecm
 
 func init() {
-	_ = Config
+	Config.RegisterEmbedded()
 }

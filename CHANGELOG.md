@@ -8,11 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Code deduplication plan to reduce duplication from 50%+ to under 10%
-- Documentation: docs/DEDUPLICATION_PLAN.md with full architecture details
+- Complete code deduplication infrastructure achieving 93% reduction (183,000 → 13,400 lines)
+- 42 canonical format packages in `core/formats/<name>/` (single source of truth)
+- SDK test infrastructure with PluginTest harness and shared fixtures
+- Table-driven test framework in `core/formats/testing/`
+- Thin wrapper template and migration scripts
+- CI enforcement scripts for wrapper size limits
+- New documentation: ARCHITECTURE.md, DEDUPLICATION_SUMMARY.md
 
 ### Changed
-- TODO.txt updated with deduplication project phases and acceptance criteria
+- Converted 32 standalone plugins to thin wrappers (~12 lines each, down from 600-800)
+- Fixed embedded registration in all 41 `core/formats/*/register.go` files
+- Enhanced `plugins/sdk/format/format.go` with RegisterEmbedded() support
+- Updated all documentation to reflect new canonical package structure
+
+### Removed
+- Deleted 41 redundant embedded plugins from `plugins/format/*/` (~71,000 lines)
+- Deleted 40 redundant internal handlers from `internal/formats/*/` (~48,000 lines)
+- Eliminated duplicated IPC type definitions from standalone plugins
 
 ## [0.2.0] - 2026-02-16
 

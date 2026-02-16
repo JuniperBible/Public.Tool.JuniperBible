@@ -3,5 +3,5 @@
 package logos
 
 func init() {
-	_ = Config
+	Config.RegisterEmbedded()
 }

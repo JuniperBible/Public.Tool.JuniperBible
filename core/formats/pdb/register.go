@@ -3,5 +3,5 @@
 package pdb
 
 func init() {
-	_ = Config
+	Config.RegisterEmbedded()
 }

@@ -3,5 +3,5 @@
 package morphgnt
 
 func init() {
-	_ = Config
+	Config.RegisterEmbedded()
 }

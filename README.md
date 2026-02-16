@@ -119,18 +119,24 @@ Input Format → extract-ir → Juniper's Sword (IR) → emit-native → Output 
 │   ├── rtf/                # pure Go RTF parser (replaces unrtf)
 │   ├── epub/               # pure Go EPUB3 creation (replaces calibre)
 │   ├── gobible/            # pure Go GoBible JAR (replaces GoBible Creator)
-│   └── docgen/             # documentation generator
+│   ├── docgen/             # documentation generator
+│   └── formats/            # CANONICAL format packages (42 total, zero duplication)
+│       ├── json/           # JSON format (canonical implementation)
+│       ├── osis/           # OSIS format (canonical implementation)
+│       ├── usfm/           # USFM format (canonical implementation)
+│       └── .../            # All 42 formats (one canonical implementation each)
 ├── internal/
 │   ├── fileutil/           # shared file utilities
 │   ├── archive/            # shared archive utilities
 │   ├── embedded/           # embedded plugin registry
-│   └── formats/            # embedded format handlers
+│   └── formats/
+│       └── base/           # base utilities (other handlers removed via deduplication)
 ├── plugins/
-│   ├── format/             # format plugins (42 total)
+│   ├── format-*/           # thin standalone wrappers (~10 lines each, import core/formats)
 │   ├── tool/               # tool plugins (10 total)
 │   ├── meta/               # meta plugins (aggregators)
 │   ├── sdk/                # plugin SDK for simplified development
-│   └── ipc/                # shared IPC protocol package
+│   └── ipc/                # shared IPC protocol package (CANONICAL)
 ├── contrib/                # optional external dependencies
 │   ├── sqlite-external/    # CGO SQLite driver (mattn/go-sqlite3)
 │   └── tool/               # contributed tools
@@ -146,6 +152,8 @@ Input Format → extract-ir → Juniper's Sword (IR) → emit-native → Output 
 ```
 
 > **Note on naming:** the primary binary is currently `capsule` for historical reasons. The project identity is **Juniper Bible**.
+
+> **Architecture Note (2025):** Code deduplication project completed. All format implementations now live in canonical packages (`core/formats/<name>/`) with thin standalone wrappers in `plugins/format-*/`. This eliminated 93% of duplicated code. See `docs/DEDUPLICATION_PLAN.md` for details.
 
 ---
 

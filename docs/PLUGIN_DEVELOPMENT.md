@@ -36,14 +36,14 @@ The SDK pattern uses Go build tags to allow a single codebase to support both em
 
 This allows the same plugin logic to be compiled either as a standalone executable or embedded directly into the core binaries.
 
-### Usage Example
+### Usage Example - Canonical Package (New Architecture)
 
-Here's a complete example of a format plugin using the SDK pattern:
+Here's how to create a new format using the canonical package pattern:
+
+**Step 1**: Create canonical package in `core/formats/myformat/format.go`:
 
 ```go
-//go:build sdk
-
-package main
+package myformat
 
 import (
     "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
@@ -51,24 +51,26 @@ import (
     "github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
 )
 
-func main() {
-    format.Run(&format.Config{
-        Name:       "myformat",
-        Extensions: []string{".mf"},
-        Detect:     detect,
-        Parse:      parse,
-        Emit:       emit,
-        Enumerate:  enumerate,
-    })
+// Config defines the myformat plugin configuration
+var Config = &format.Config{
+    PluginID:      "format.myformat",
+    Name:          "MyFormat",
+    Version:       "1.0.0",
+    Extensions:    []string{".mf"},
+    LossClass:     "L1",
+    CanExtractIR:  true,
+    CanEmitNative: true,
+    Detect:        detect,
+    Parse:         parse,
+    Emit:          emit,
+    Enumerate:     enumerate,
 }
 
 func detect(path string) (*ipc.DetectResult, error) {
-    // Your detection logic here
-    result := ipc.StandardDetect(path, "myformat",
+    return ipc.StandardDetect(path, "myformat",
         []string{".mf"},
         []string{"MYFORMAT_MARKER"},
-    )
-    return result, nil
+    ), nil
 }
 
 func parse(path string) (*ir.Corpus, error) {
@@ -92,7 +94,6 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 }
 
 func enumerate(path string) (*ipc.EnumerateResult, error) {
-    // List components within the file
     return &ipc.EnumerateResult{
         Entries: []ipc.Entry{
             {Path: "myformat", SizeBytes: 1024, IsDir: false},
@@ -100,6 +101,37 @@ func enumerate(path string) (*ipc.EnumerateResult, error) {
     }, nil
 }
 ```
+
+**Step 2**: Create embedded registration in `core/formats/myformat/register.go`:
+
+```go
+//go:build !standalone
+
+package myformat
+
+func init() {
+    Config.RegisterEmbedded()
+}
+```
+
+**Step 3**: Create thin wrapper in `plugins/format-myformat/main.go`:
+
+```go
+//go:build standalone
+
+package main
+
+import (
+    "github.com/FocuswithJustin/JuniperBible/core/formats/myformat"
+    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+)
+
+func main() {
+    format.Run(myformat.Config)
+}
+```
+
+This gives you both embedded and standalone plugin support with zero code duplication.
 
 ### Migration Status
 
@@ -115,26 +147,39 @@ func enumerate(path string) (*ipc.EnumerateResult, error) {
 
 ## Plugin Structure
 
-Plugins are organized by kind in nested directories:
+### New Architecture (Post-Deduplication)
+
+As of 2025, Juniper Bible uses a canonical package architecture to eliminate code duplication:
 
 ```
-plugins/
-├── format/               # Format plugins
-│   ├── osis/             # OSIS format plugin
-│   │   ├── plugin.json   # Plugin manifest
-│   │   └── format-osis   # Executable binary
-│   ├── usfm/             # USFM format plugin
-│   └── .../              # Other format plugins
-└── tool/                 # Tool plugins
-    └── libsword/         # libsword tool plugin
-        ├── plugin.json
-        └── tool-libsword
+core/formats/             # Canonical format implementations (42 packages)
+├── json/
+│   ├── format.go         # Format-specific logic
+│   └── register.go       # Embedded registration
+├── osis/
+│   ├── format.go
+│   └── register.go
+└── .../
+
+plugins/format-*/         # Thin standalone wrappers (5-15 lines each)
+├── format-json/
+│   └── main.go           # Imports core/formats/json
+├── format-osis/
+│   └── main.go           # Imports core/formats/osis
+└── .../
+
+plugins/tool/             # Tool plugins (unchanged)
+└── libsword/
+    ├── plugin.json
+    └── tool-libsword
 ```
 
-Each plugin directory contains:
-
-- `plugin.json` - Plugin manifest with metadata
-- Executable binary (named `<kind>-<name>`, e.g., `format-osis`)
+Key points:
+- **Canonical implementations** live in `core/formats/<name>/`
+- **Standalone plugins** are thin wrappers (~10 lines) that import canonical packages
+- **No duplication** - each format has exactly one implementation
+- **Embedded mode** - canonical packages register via `init()` for embedded use
+- **Standalone mode** - wrappers call `format.Run(canonicalPackage.Config)`
 
 ---
 
@@ -752,42 +797,51 @@ type EmbeddedFormatHandler interface {
 }
 ```
 
-#### Creating an Embedded Plugin
+#### Creating an Embedded Plugin (New Architecture)
 
-1. Create a handler in `internal/formats/<name>/handler.go`:
+**Important**: The architecture has changed. Embedded plugins now use canonical packages in `core/formats/<name>/`.
+
+1. Create a canonical package in `core/formats/<name>/format.go`:
 
 ```go
 package myformat
 
-import "github.com/FocuswithJustin/JuniperBible/core/plugins"
+import (
+    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+    "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+)
 
-type Handler struct{}
+var Config = &format.Config{
+    PluginID:      "format.myformat",
+    Name:          "MyFormat",
+    Version:       "1.0.0",
+    Extensions:    []string{".mf"},
+    Detect:        detect,
+    Parse:         parse,
+    Emit:          emit,
+}
 
-func (h *Handler) Detect(path string) (*plugins.DetectResult, error) {
+func detect(path string) (*ipc.DetectResult, error) {
     // Detection logic
-    return &plugins.DetectResult{Detected: true, Format: "myformat"}, nil
+    return ipc.StandardDetect(path, "myformat", []string{".mf"}, nil), nil
 }
 
-// Implement other methods...
-
-func init() {
-    plugins.RegisterEmbeddedPlugin(&plugins.EmbeddedPlugin{
-        Manifest: &plugins.PluginManifest{
-            PluginID:    "format.myformat",
-            Version:     "1.0.0",
-            Kind:        "format",
-            Description: "My format handler",
-        },
-        Format: &Handler{},
-    })
-}
+// Implement parse, emit, etc.
 ```
 
-2. Import the handler in `internal/embedded/registry.go`:
+2. Create registration file in `core/formats/<name>/register.go`:
 
 ```go
-import _ "github.com/FocuswithJustin/JuniperBible/internal/formats/myformat"
+//go:build !standalone
+
+package myformat
+
+func init() {
+    Config.RegisterEmbedded()
+}
 ```
+
+3. The package is automatically available in embedded mode (no manual registry import needed)
 
 ### External Plugins (Optional)
 

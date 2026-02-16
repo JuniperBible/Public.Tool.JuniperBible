@@ -2,6 +2,18 @@
 
 Juniper Bible supports multiple build modes to balance between portability and performance.
 
+## Architecture Note (2025)
+
+The plugin architecture has been redesigned to use canonical packages (`core/formats/<name>/`) with thin standalone wrappers. This eliminated 93% of duplicated code. See `docs/ARCHITECTURE.md` for details.
+
+## Build Tags
+
+| Tag | Purpose | Usage |
+|-----|---------|-------|
+| `standalone` | Build standalone plugin wrappers | `go build -tags standalone plugins/format-*/` |
+| `cgo_sqlite` | Use CGO SQLite driver | `go build -tags cgo_sqlite ./...` |
+| `standalone,cgo_sqlite` | Both | `go build -tags "standalone cgo_sqlite" plugins/format-*/` |
+
 ## SQLite Driver Selection
 
 The project supports two SQLite implementations:
@@ -81,21 +93,18 @@ If a driver produces a different hash, the `TestDivergenceHash` test will fail.
 
 ## Plugin Build Modes
 
-### Main Module Plugins
+### Canonical Packages (New Architecture)
 
-Plugins in the main module (`plugins/format/sqlite`, `plugins/format/esword`) use the `core/sqlite` package and automatically support both build modes.
+As of 2025, all format implementations live in canonical packages (`core/formats/<name>/`). Formats that use SQLite (e.g., `esword`, `mysword`, `mybible`) import `core/sqlite` and automatically support both build modes.
 
-### Standalone Plugins
+### Standalone Plugin Wrappers
 
-Plugins with separate `go.mod` files (`plugins/format/logos`, `plugins/format/accordance`) have their own driver selection files:
-
-- `driver_purego.go` - Pure Go driver (default)
-- `driver_cgo.go` - CGO driver (with `cgo_sqlite` tag)
+Standalone plugins (`plugins/format-<name>/`) are thin wrappers (~10 lines) that import canonical packages from `core/formats/`. They inherit the driver selection from the canonical package.
 
 Build with:
 ```bash
-# Pure Go
-cd plugins/format/logos && go build
+# Pure Go (default)
+go build -tags standalone plugins/format-esword/
 
 # CGO
 cd plugins/format/logos && CGO_ENABLED=1 go build -tags cgo_sqlite

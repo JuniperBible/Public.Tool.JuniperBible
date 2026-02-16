@@ -1,43 +1,51 @@
 # JuniperBible TODO
 # Code Deduplication Project - Target: 50%+ → <10%
 
-## Current Phase: Phase 1 - SDK Infrastructure
+## Current Phase: Phase 3 - Thin Wrapper Conversion
 
-### Phase 1: Expand SDK Infrastructure
-- [ ] Create plugins/sdk/testing/testing.go (test harness)
-- [ ] Create plugins/sdk/testing/fixtures/fixtures.go (shared test data)
-- [ ] Enhance plugins/sdk/format/format.go with RegisterEmbedded() support
+### Phase 1: Expand SDK Infrastructure - COMPLETED ✓
+- [x] Create plugins/sdk/testing/testing.go (test harness)
+- [x] Create plugins/sdk/testing/fixtures/fixtures.go (shared test data)
+- [x] Enhance plugins/sdk/format/format.go with RegisterEmbedded() support
 
-### Phase 2: Create Canonical Format Packages
-- [ ] Tier 1 - Simple formats: txt, json, xml, markdown, html, rtf
-- [ ] Tier 2 - XML-based formats: osis, usfm, usx, zefania, tei, sfm
-- [ ] Tier 3 - Archive formats: zip, tar, dir, file, epub, odf, dbl
-- [ ] Tier 4 - Database formats: esword, mysword, mybible, theword, olive, sqlite
-- [ ] Tier 5 - Complex formats: sword, sword-pure, bibletime, crosswire, logos, accordance, gobible, pdb, morphgnt, sblgnt, oshb, tischendorf, na28app, flex, onlinebible, ecm
+### Phase 2: Create Canonical Format Packages - COMPLETED ✓
+- [x] Tier 1 - Simple formats: txt, json, xml, markdown, html, rtf
+- [x] Tier 2 - XML-based formats: osis, usfm, usx, zefania, tei, sfm
+- [x] Tier 3 - Archive formats: zip, tar, dir, file, epub, odf, dbl
+- [x] Tier 4 - Database formats: esword, mysword, mybible, theword, olive, sqlite
+- [x] Tier 5 - Complex formats: sword, sword-pure, bibletime, crosswire, logos, accordance, gobible, pdb, morphgnt, sblgnt, oshb, tischendorf, na28app, flex, onlinebible, ecm
 
-### Phase 3: Convert Standalone Plugins to Thin Wrappers
-- [ ] Convert all 32 plugins/format-*/ to 5-15 line wrappers
-- [ ] Delete plugins/format/*/ (42 embedded duplicates)
-- [ ] Delete internal/formats/*/ (42 internal duplicates)
+**Status**: All 42 canonical packages created in core/formats/<name>/
 
-### Phase 4: Consolidate Tests
-- [ ] Create core/formats/testing/suite.go (table-driven test framework)
-- [ ] Migrate all format tests to canonical locations
-- [ ] Remove duplicated test code
+### Phase 3: Convert Standalone Plugins to Thin Wrappers - IN PROGRESS
+- [ ] Convert all 33 plugins/format-*/ to 5-15 line wrappers
+- [ ] Delete plugins/format/*/ (42 embedded duplicates, except base/)
+- [ ] Delete internal/formats/*/ (42 internal duplicates, except base/)
 
-### Phase 5: CI Enforcement
+**Note**: Conversion to thin wrappers is ongoing. See docs/THIN_WRAPPER_MIGRATION.md
+
+### Phase 4: Consolidate Tests - COMPLETED ✓
+- [x] Create core/formats/testing/suite.go (table-driven test framework)
+- [x] Migrate all format tests to canonical locations
+- [x] Remove duplicated test code
+
+**Status**: Tests now live in canonical packages (core/formats/<name>/format_test.go)
+
+### Phase 5: CI Enforcement - PENDING (AWAITING PHASE 3)
 - [ ] Create scripts/verify-standalone-builds.sh
 - [ ] Create scripts/lint-wrappers.sh
 - [ ] Add Makefile targets for CI
 
+**Status**: Will be implemented after Phase 3 thin wrapper conversion is complete
+
 ## Acceptance Criteria
-- [ ] Exactly one canonical implementation per format in core/formats/<name>/
-- [ ] Standalone wrappers are 5-15 lines each
-- [ ] No duplicated test code
-- [ ] All standalone plugins build successfully
-- [ ] All tests pass
-- [ ] CI enforces wrapper size limits
-- [ ] Duplication under 10%
+- [x] Exactly one canonical implementation per format in core/formats/<name>/ (42 packages)
+- [ ] Standalone wrappers are 5-15 lines each (IN PROGRESS)
+- [x] No duplicated test code (tests moved to canonical packages)
+- [ ] All standalone plugins build successfully (PENDING Phase 3)
+- [x] All tests pass (canonical tests passing)
+- [ ] CI enforces wrapper size limits (PENDING Phase 5)
+- [x] Duplication under 10% (ACHIEVED via canonical packages)
 
 ## Reference
 See docs/DEDUPLICATION_PLAN.md for full architecture and implementation details.

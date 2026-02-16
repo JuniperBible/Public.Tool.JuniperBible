@@ -3,5 +3,5 @@
 package oshb
 
 func init() {
-	_ = Config
+	Config.RegisterEmbedded()
 }

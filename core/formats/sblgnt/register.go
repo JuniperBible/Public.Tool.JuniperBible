@@ -3,5 +3,5 @@
 package sblgnt
 
 func init() {
-	_ = Config
+	Config.RegisterEmbedded()
 }

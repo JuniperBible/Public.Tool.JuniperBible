@@ -3,5 +3,5 @@
 package onlinebible
 
 func init() {
-	_ = Config
+	Config.RegisterEmbedded()
 }

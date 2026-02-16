@@ -3,5 +3,5 @@
 package na28app
 
 func init() {
-	_ = Config
+	Config.RegisterEmbedded()
 }

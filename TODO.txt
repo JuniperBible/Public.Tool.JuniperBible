@@ -1,4 +1,50 @@
-# Code Complexity Reduction TODO
+# JuniperBible TODO
+# Code Deduplication Project - Target: 50%+ → <10%
+
+## Current Phase: Phase 1 - SDK Infrastructure
+
+### Phase 1: Expand SDK Infrastructure
+- [ ] Create plugins/sdk/testing/testing.go (test harness)
+- [ ] Create plugins/sdk/testing/fixtures/fixtures.go (shared test data)
+- [ ] Enhance plugins/sdk/format/format.go with RegisterEmbedded() support
+
+### Phase 2: Create Canonical Format Packages
+- [ ] Tier 1 - Simple formats: txt, json, xml, markdown, html, rtf
+- [ ] Tier 2 - XML-based formats: osis, usfm, usx, zefania, tei, sfm
+- [ ] Tier 3 - Archive formats: zip, tar, dir, file, epub, odf, dbl
+- [ ] Tier 4 - Database formats: esword, mysword, mybible, theword, olive, sqlite
+- [ ] Tier 5 - Complex formats: sword, sword-pure, bibletime, crosswire, logos, accordance, gobible, pdb, morphgnt, sblgnt, oshb, tischendorf, na28app, flex, onlinebible, ecm
+
+### Phase 3: Convert Standalone Plugins to Thin Wrappers
+- [ ] Convert all 32 plugins/format-*/ to 5-15 line wrappers
+- [ ] Delete plugins/format/*/ (42 embedded duplicates)
+- [ ] Delete internal/formats/*/ (42 internal duplicates)
+
+### Phase 4: Consolidate Tests
+- [ ] Create core/formats/testing/suite.go (table-driven test framework)
+- [ ] Migrate all format tests to canonical locations
+- [ ] Remove duplicated test code
+
+### Phase 5: CI Enforcement
+- [ ] Create scripts/verify-standalone-builds.sh
+- [ ] Create scripts/lint-wrappers.sh
+- [ ] Add Makefile targets for CI
+
+## Acceptance Criteria
+- [ ] Exactly one canonical implementation per format in core/formats/<name>/
+- [ ] Standalone wrappers are 5-15 lines each
+- [ ] No duplicated test code
+- [ ] All standalone plugins build successfully
+- [ ] All tests pass
+- [ ] CI enforces wrapper size limits
+- [ ] Duplication under 10%
+
+## Reference
+See docs/DEDUPLICATION_PLAN.md for full architecture and implementation details.
+
+---
+
+# Previous Work: Code Complexity Reduction (COMPLETED)
 
 ## Round 6 - Completed (11 functions)
 - [x] parseZefaniaToIR: CC 27->6 (plugins/format-zefania/main_sdk.go) - 8 helpers
@@ -13,8 +59,6 @@
 - [x] extractCapsule: CC 15->3 (internal/web/handlers.go) - 5 helpers
 - [x] readCapsule: CC 13->4 (internal/web/handlers.go) - 3 helpers
 
----
-
 ## Round 5 - Completed (11 functions)
 - [x] cmdIngest: CC 37->3, 139->9 lines (9 helpers)
 - [x] parseUSXToIR (format/usx/main_sdk.go): CC 31->3, 120->35 lines (11 helpers)
@@ -27,8 +71,6 @@
 - [x] parseUSXToIR (format-usx/main_sdk.go): CC 28->5, 85->26 lines (9 helpers)
 - [x] formatNode: CC 28->5, 115->15 lines (13 helpers)
 - [x] parseZefania: CC 27->2, 142->17 lines (11 helpers)
-
----
 
 ## Round 4 - Completed (11 functions)
 - [x] handleJuniper: CC 63->9, 295->75 lines (13 helpers)
@@ -47,8 +89,6 @@
 - Round 1: sword-pure timeout fix, initial complexity reductions
 - Round 2: handlers, hugo, mysword, mybible, orderby refactoring
 - Round 3: handlers, mysword, format-sqlite further refactoring
-
----
 
 ## Stats
 - Total functions refactored: 33

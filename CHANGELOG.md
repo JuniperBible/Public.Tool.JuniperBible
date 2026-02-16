@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Ongoing development and improvements
+- Code deduplication plan to reduce duplication from 50%+ to under 10%
+- Documentation: docs/DEDUPLICATION_PLAN.md with full architecture details
+
+### Changed
+- TODO.txt updated with deduplication project phases and acceptance criteria
 
 ## [0.2.0] - 2026-02-16
 

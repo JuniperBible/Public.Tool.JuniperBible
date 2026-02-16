@@ -501,30 +501,66 @@ func handleEmitNative(args map[string]interface{}) {
 		return
 	}
 
-	data, err := os.ReadFile(irPath)
+	corpus, err := loadCorpusFromIR(irPath)
 	if err != nil {
-		respondError(fmt.Sprintf("failed to read IR file: %v", err))
-		return
-	}
-
-	var corpus Corpus
-	if err := json.Unmarshal(data, &corpus); err != nil {
-		respondError(fmt.Sprintf("failed to parse IR: %v", err))
+		respondError(err.Error())
 		return
 	}
 
 	outputPath := filepath.Join(outputDir, corpus.ID+".db")
-
-	// Create new SQLite database
-	db, err := sql.Open(sqliteDriver, outputPath)
+	db, err := createSQLiteDatabase(outputPath)
 	if err != nil {
-		respondError(fmt.Sprintf("failed to create database: %v", err))
+		respondError(err.Error())
 		return
 	}
 	defer db.Close()
 
-	// Create schema
-	_, err = db.Exec(`
+	if err := createSQLiteSchema(db); err != nil {
+		respondError(err.Error())
+		return
+	}
+
+	if err := populateSQLiteDatabase(db, corpus); err != nil {
+		respondError(err.Error())
+		return
+	}
+
+	respond(&EmitNativeResult{
+		OutputPath: outputPath,
+		Format:     "SQLite",
+		LossClass:  "L1",
+		LossReport: &LossReport{
+			SourceFormat: "IR",
+			TargetFormat: "SQLite",
+			LossClass:    "L1",
+		},
+	})
+}
+
+func loadCorpusFromIR(irPath string) (*Corpus, error) {
+	data, err := os.ReadFile(irPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read IR file: %v", err)
+	}
+
+	var corpus Corpus
+	if err := json.Unmarshal(data, &corpus); err != nil {
+		return nil, fmt.Errorf("failed to parse IR: %v", err)
+	}
+
+	return &corpus, nil
+}
+
+func createSQLiteDatabase(outputPath string) (*sql.DB, error) {
+	db, err := sql.Open(sqliteDriver, outputPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create database: %v", err)
+	}
+	return db, nil
+}
+
+func createSQLiteSchema(db *sql.DB) error {
+	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS meta (
 			id TEXT PRIMARY KEY,
 			title TEXT,
@@ -548,15 +584,15 @@ func handleEmitNative(args map[string]interface{}) {
 		CREATE INDEX IF NOT EXISTS idx_verses_ref ON verses(book, chapter, verse);
 	`)
 	if err != nil {
-		respondError(fmt.Sprintf("failed to create schema: %v", err))
-		return
+		return fmt.Errorf("failed to create schema: %v", err)
 	}
+	return nil
+}
 
-	// Insert metadata
+func populateSQLiteDatabase(db *sql.DB, corpus *Corpus) error {
 	db.Exec("INSERT INTO meta (id, title, language, description, version) VALUES (?, ?, ?, ?, ?)",
 		corpus.ID, corpus.Title, corpus.Language, corpus.Description, corpus.Version)
 
-	// Insert books and verses
 	for _, doc := range corpus.Documents {
 		db.Exec("INSERT INTO books (id, name, book_order) VALUES (?, ?, ?)",
 			doc.ID, doc.Title, doc.Order)
@@ -573,16 +609,7 @@ func handleEmitNative(args map[string]interface{}) {
 		}
 	}
 
-	respond(&EmitNativeResult{
-		OutputPath: outputPath,
-		Format:     "SQLite",
-		LossClass:  "L1",
-		LossReport: &LossReport{
-			SourceFormat: "IR",
-			TargetFormat: "SQLite",
-			LossClass:    "L1",
-		},
-	})
+	return nil
 }
 
 func respond(result interface{}) {

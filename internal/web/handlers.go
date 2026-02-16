@@ -3237,7 +3237,6 @@ func getAvailablePlans() []PlanInfo {
 func performSelfcheck(capsulePath, planName string) *SelfcheckResult {
 	start := time.Now()
 
-	// Extract capsule to temp dir
 	tempDir, err := secureMkdirTemp("", "capsule-selfcheck-*")
 	if err != nil {
 		return &SelfcheckResult{
@@ -3256,116 +3255,136 @@ func performSelfcheck(capsulePath, planName string) *SelfcheckResult {
 		}
 	}
 
-	var checks []SelfcheckCheck
-
+	var result *SelfcheckResult
 	switch planName {
 	case "identity-bytes":
-		// Read manifest and artifacts
-		_, artifacts, err := readCapsule(capsulePath)
-		if err != nil {
-			return &SelfcheckResult{
-				Success:  false,
-				PlanName: planName,
-				Message:  fmt.Sprintf("Failed to read capsule: %v", err),
-			}
-		}
-
-		allPassed := true
-		for _, artifact := range artifacts {
-			if artifact.Name == "manifest.json" {
-				continue
-			}
-
-			check := SelfcheckCheck{
-				Name:     fmt.Sprintf("Identity check: %s", artifact.Name),
-				Expected: fmt.Sprintf("%d bytes", artifact.Size),
-			}
-
-			// Read extracted file
-			extractedPath := filepath.Join(tempDir, artifact.ID)
-			fileInfo, err := os.Stat(extractedPath)
-			if err != nil {
-				check.Status = "FAIL"
-				check.Actual = "file not found"
-				check.Passed = false
-				allPassed = false
-			} else {
-				check.Actual = fmt.Sprintf("%d bytes", fileInfo.Size())
-				if fileInfo.Size() == artifact.Size {
-					check.Status = "PASS"
-					check.Passed = true
-				} else {
-					check.Status = "FAIL"
-					check.Passed = false
-					allPassed = false
-				}
-			}
-
-			checks = append(checks, check)
-		}
-
-		return &SelfcheckResult{
-			Success:      allPassed,
-			PlanName:     planName,
-			CheckResults: checks,
-			Message:      fmt.Sprintf("Completed %d checks", len(checks)),
-			Duration:     time.Since(start).String(),
-		}
-
+		result = runIdentityBytesCheck(capsulePath, tempDir, planName)
 	case "verify-hashes":
-		// Verify all files exist and are readable
-		_, artifacts, err := readCapsule(capsulePath)
-		if err != nil {
-			return &SelfcheckResult{
-				Success:  false,
-				PlanName: planName,
-				Message:  fmt.Sprintf("Failed to read capsule: %v", err),
-			}
-		}
-
-		allPassed := true
-		for _, artifact := range artifacts {
-			if artifact.Name == "manifest.json" {
-				continue
-			}
-
-			check := SelfcheckCheck{
-				Name:     fmt.Sprintf("Hash verify: %s", artifact.Name),
-				Expected: "readable",
-			}
-
-			extractedPath := filepath.Join(tempDir, artifact.ID)
-			if _, err := os.ReadFile(extractedPath); err != nil {
-				check.Status = "FAIL"
-				check.Actual = "unreadable"
-				check.Passed = false
-				allPassed = false
-			} else {
-				check.Status = "PASS"
-				check.Actual = "readable"
-				check.Passed = true
-			}
-
-			checks = append(checks, check)
-		}
-
-		return &SelfcheckResult{
-			Success:      allPassed,
-			PlanName:     planName,
-			CheckResults: checks,
-			Message:      fmt.Sprintf("Verified %d artifacts", len(checks)),
-			Duration:     time.Since(start).String(),
-		}
-
+		result = runVerifyHashesCheck(capsulePath, tempDir, planName)
 	default:
-		return &SelfcheckResult{
+		result = &SelfcheckResult{
 			Success:  false,
 			PlanName: planName,
 			Message:  fmt.Sprintf("Unknown plan: %s", planName),
 		}
 	}
+
+	if result != nil {
+		result.Duration = time.Since(start).String()
+	}
+	return result
 }
 
+// runIdentityBytesCheck verifies that extracted artifact sizes match original sizes.
+func runIdentityBytesCheck(capsulePath, tempDir, planName string) *SelfcheckResult {
+	_, artifacts, err := readCapsule(capsulePath)
+	if err != nil {
+		return &SelfcheckResult{
+			Success:  false,
+			PlanName: planName,
+			Message:  fmt.Sprintf("Failed to read capsule: %v", err),
+		}
+	}
+
+	checks, allPassed := checkArtifactIdentity(artifacts, tempDir)
+	return &SelfcheckResult{
+		Success:      allPassed,
+		PlanName:     planName,
+		CheckResults: checks,
+		Message:      fmt.Sprintf("Completed %d checks", len(checks)),
+	}
+}
+
+// runVerifyHashesCheck verifies that all artifacts are readable.
+func runVerifyHashesCheck(capsulePath, tempDir, planName string) *SelfcheckResult {
+	_, artifacts, err := readCapsule(capsulePath)
+	if err != nil {
+		return &SelfcheckResult{
+			Success:  false,
+			PlanName: planName,
+			Message:  fmt.Sprintf("Failed to read capsule: %v", err),
+		}
+	}
+
+	checks, allPassed := checkArtifactReadability(artifacts, tempDir)
+	return &SelfcheckResult{
+		Success:      allPassed,
+		PlanName:     planName,
+		CheckResults: checks,
+		Message:      fmt.Sprintf("Verified %d artifacts", len(checks)),
+	}
+}
+
+// checkArtifactIdentity checks that extracted artifacts match expected sizes.
+func checkArtifactIdentity(artifacts []ArtifactInfo, tempDir string) ([]SelfcheckCheck, bool) {
+	var checks []SelfcheckCheck
+	allPassed := true
+
+	for _, artifact := range artifacts {
+		if artifact.Name == "manifest.json" {
+			continue
+		}
+
+		check := SelfcheckCheck{
+			Name:     fmt.Sprintf("Identity check: %s", artifact.Name),
+			Expected: fmt.Sprintf("%d bytes", artifact.Size),
+		}
+
+		extractedPath := filepath.Join(tempDir, artifact.ID)
+		fileInfo, err := os.Stat(extractedPath)
+		if err != nil {
+			check.Status = "FAIL"
+			check.Actual = "file not found"
+			check.Passed = false
+			allPassed = false
+		} else {
+			check.Actual = fmt.Sprintf("%d bytes", fileInfo.Size())
+			if fileInfo.Size() == artifact.Size {
+				check.Status = "PASS"
+				check.Passed = true
+			} else {
+				check.Status = "FAIL"
+				check.Passed = false
+				allPassed = false
+			}
+		}
+		checks = append(checks, check)
+	}
+
+	return checks, allPassed
+}
+
+// checkArtifactReadability checks that all artifacts can be read.
+func checkArtifactReadability(artifacts []ArtifactInfo, tempDir string) ([]SelfcheckCheck, bool) {
+	var checks []SelfcheckCheck
+	allPassed := true
+
+	for _, artifact := range artifacts {
+		if artifact.Name == "manifest.json" {
+			continue
+		}
+
+		check := SelfcheckCheck{
+			Name:     fmt.Sprintf("Hash verify: %s", artifact.Name),
+			Expected: "readable",
+		}
+
+		extractedPath := filepath.Join(tempDir, artifact.ID)
+		if _, err := os.ReadFile(extractedPath); err != nil {
+			check.Status = "FAIL"
+			check.Actual = "unreadable"
+			check.Passed = false
+			allPassed = false
+		} else {
+			check.Status = "PASS"
+			check.Actual = "readable"
+			check.Passed = true
+		}
+		checks = append(checks, check)
+	}
+
+	return checks, allPassed
+}
 // DevInfoData is the data for the dev info page.
 type DevInfoData struct {
 	PageData
@@ -4286,6 +4305,64 @@ func findSWORDConfFile(modsDir, moduleID string) (filename, fullPath string) {
 	return "", ""
 }
 
+// setupCapsuleDirectory creates the capsule directory structure and copies the conf file.
+func setupCapsuleDirectory(capsuleDir, confPath, confFilename string) error {
+	if err := os.MkdirAll(filepath.Join(capsuleDir, "mods.d"), 0755); err != nil {
+		return fmt.Errorf("failed to create capsule structure: %w", err)
+	}
+
+	destConf := filepath.Join(capsuleDir, "mods.d", confFilename)
+	if err := fileutil.CopyFile(confPath, destConf); err != nil {
+		return fmt.Errorf("failed to copy conf: %w", err)
+	}
+
+	return nil
+}
+
+// copyModuleData copies the module data from source to destination.
+// It handles both directory paths and file prefixes used by some SWORD modules.
+func copyModuleData(swordDir, dataPath, capsuleDir string) error {
+	srcData := filepath.Join(swordDir, dataPath)
+	destData := filepath.Join(capsuleDir, dataPath)
+
+	// Check if DataPath is a directory or a file prefix
+	// RawGenBook modules use file prefixes like ".../jesermons/jesermons"
+	// where the actual files are jesermons.bdt, jesermons.dat, etc.
+	info, err := os.Stat(srcData)
+	if err != nil {
+		// DataPath doesn't exist as-is, try parent directory (for file prefixes)
+		srcData = filepath.Dir(srcData)
+		destData = filepath.Dir(destData)
+		info, err = os.Stat(srcData)
+		if err != nil {
+			return fmt.Errorf("failed to find module data: %w", err)
+		}
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("module data path is not a directory: %s", srcData)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(destData), 0755); err != nil {
+		return fmt.Errorf("failed to create data directory: %w", err)
+	}
+
+	if err := fileutil.CopyDir(srcData, destData); err != nil {
+		return fmt.Errorf("failed to copy module data: %w", err)
+	}
+
+	return nil
+}
+
+// createCapsuleArchive creates a tar.gz archive of the capsule.
+func createCapsuleArchive(tempDir, moduleID string) (string, error) {
+	outputPath := filepath.Join(ServerConfig.CapsulesDir, moduleID+".capsule.tar.gz")
+	if err := archive.CreateTarGz(tempDir, outputPath, "capsule", true); err != nil {
+		return "", fmt.Errorf("failed to create capsule: %w", err)
+	}
+	return outputPath, nil
+}
+
 // ingestSWORDModule ingests a single SWORD module as a capsule.
 func ingestSWORDModule(swordDir, moduleID string) ModuleIngestResult {
 	result := ModuleIngestResult{
@@ -4319,58 +4396,23 @@ func ingestSWORDModule(swordDir, moduleID string) ModuleIngestResult {
 
 	// Prepare capsule directory structure
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	if err := os.MkdirAll(filepath.Join(capsuleDir, "mods.d"), 0755); err != nil {
-		result.Error = fmt.Sprintf("Failed to create capsule structure: %v", err)
+	if err := setupCapsuleDirectory(capsuleDir, confPath, confFilename); err != nil {
+		result.Error = err.Error()
 		return result
 	}
 
-	// Copy conf file (preserve original filename for consistency)
-	destConf := filepath.Join(capsuleDir, "mods.d", confFilename)
-	if err := fileutil.CopyFile(confPath, destConf); err != nil {
-		result.Error = fmt.Sprintf("Failed to copy conf: %v", err)
-		return result
-	}
-
-	// Copy module data
+	// Copy module data if present
 	if module.DataPath != "" {
-		srcData := filepath.Join(swordDir, module.DataPath)
-		destData := filepath.Join(capsuleDir, module.DataPath)
-
-		// Check if DataPath is a directory or a file prefix
-		// RawGenBook modules use file prefixes like ".../jesermons/jesermons"
-		// where the actual files are jesermons.bdt, jesermons.dat, etc.
-		info, err := os.Stat(srcData)
-		if err != nil {
-			// DataPath doesn't exist as-is, try parent directory (for file prefixes)
-			srcData = filepath.Dir(srcData)
-			destData = filepath.Dir(destData)
-			info, err = os.Stat(srcData)
-			if err != nil {
-				result.Error = fmt.Sprintf("Failed to find module data: %v", err)
-				return result
-			}
-		}
-
-		if !info.IsDir() {
-			result.Error = fmt.Sprintf("Module data path is not a directory: %s", srcData)
-			return result
-		}
-
-		if err := os.MkdirAll(filepath.Dir(destData), 0755); err != nil {
-			result.Error = fmt.Sprintf("Failed to create data directory: %v", err)
-			return result
-		}
-
-		if err := fileutil.CopyDir(srcData, destData); err != nil {
-			result.Error = fmt.Sprintf("Failed to copy module data: %v", err)
+		if err := copyModuleData(swordDir, module.DataPath, capsuleDir); err != nil {
+			result.Error = err.Error()
 			return result
 		}
 	}
 
 	// Create output capsule archive
-	outputPath := filepath.Join(ServerConfig.CapsulesDir, moduleID+".capsule.tar.gz")
-	if err := archive.CreateTarGz(tempDir, outputPath, "capsule", true); err != nil {
-		result.Error = fmt.Sprintf("Failed to create capsule: %v", err)
+	outputPath, err := createCapsuleArchive(tempDir, moduleID)
+	if err != nil {
+		result.Error = err.Error()
 		return result
 	}
 

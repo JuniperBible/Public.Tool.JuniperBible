@@ -891,23 +891,47 @@ func emitCommentaryNative(db *sql.DB, corpus *ipc.Corpus) error {
 	}
 
 	for _, doc := range corpus.Documents {
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil {
-						bookNum := osisToBookNum[span.Ref.Book]
-						verseEnd := span.Ref.Verse
-						if span.Ref.VerseEnd > 0 {
-							verseEnd = span.Ref.VerseEnd
-						}
-						if _, err := db.Exec("INSERT INTO commentaries (book_number, chapter_number_from, chapter_number_to, verse_number_from, verse_number_to, text) VALUES (?, ?, ?, ?, ?, ?)",
-							bookNum, span.Ref.Chapter, span.Ref.Chapter, span.Ref.Verse, verseEnd, cb.Text); err != nil {
-							return fmt.Errorf("insert commentaries entry: %w", err)
-						}
-					}
+		if err := emitCommentaryDocument(db, doc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// emitCommentaryDocument processes a single document for commentary emission
+func emitCommentaryDocument(db *sql.DB, doc *ipc.Document) error {
+	for _, cb := range doc.ContentBlocks {
+		if err := emitCommentaryContentBlock(db, cb); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// emitCommentaryContentBlock processes a single content block for commentary emission
+func emitCommentaryContentBlock(db *sql.DB, cb *ipc.ContentBlock) error {
+	for _, anchor := range cb.Anchors {
+		for _, span := range anchor.Spans {
+			if span.Ref != nil {
+				if err := insertCommentaryEntry(db, span.Ref, cb.Text); err != nil {
+					return err
 				}
 			}
 		}
+	}
+	return nil
+}
+
+// insertCommentaryEntry inserts a single commentary entry into the database
+func insertCommentaryEntry(db *sql.DB, ref *ipc.Ref, text string) error {
+	bookNum := osisToBookNum[ref.Book]
+	verseEnd := ref.Verse
+	if ref.VerseEnd > 0 {
+		verseEnd = ref.VerseEnd
+	}
+	if _, err := db.Exec("INSERT INTO commentaries (book_number, chapter_number_from, chapter_number_to, verse_number_from, verse_number_to, text) VALUES (?, ?, ?, ?, ?, ?)",
+		bookNum, ref.Chapter, ref.Chapter, ref.Verse, verseEnd, text); err != nil {
+		return fmt.Errorf("insert commentaries entry: %w", err)
 	}
 	return nil
 }
@@ -932,45 +956,50 @@ func emitDictionaryNative(db *sql.DB, corpus *ipc.Corpus) error {
 	return nil
 }
 
+// validTableNames is a whitelist of known valid MySword table names
+var validTableNames = []string{
+	"Books", "Bible", "info", "Details",
+	"commentaries", "Commentary",
+	"dictionary", "Dictionary",
+	"sqlite_sequence", // SQLite internal table
+}
+
 // isValidTableName validates that a table name contains only safe characters.
 // This prevents SQL injection when using table names from sqlite_master in queries.
 // SEC-005 FIX: Whitelist valid table names for MySword databases.
 func isValidTableName(name string) bool {
-	// Empty names are invalid
 	if name == "" {
 		return false
 	}
 
-	// Whitelist of known valid MySword table names
-	validTables := map[string]bool{
-		"Books":           true,
-		"Bible":           true,
-		"info":            true,
-		"Details":         true,
-		"commentaries":    true,
-		"Commentary":      true,
-		"dictionary":      true,
-		"Dictionary":      true,
-		"sqlite_sequence": true, // SQLite internal table
-	}
-
-	// If it's in the whitelist, it's valid
-	if validTables[name] {
-		return true
-	}
-
-	// For other tables, validate characters: allow alphanumeric, underscore, and hyphen
-	// Table names should not contain quotes, semicolons, or other SQL metacharacters
-	for _, ch := range name {
-		if !((ch >= 'a' && ch <= 'z') ||
-			(ch >= 'A' && ch <= 'Z') ||
-			(ch >= '0' && ch <= '9') ||
-			ch == '_' || ch == '-') {
-			return false
+	// Check if it's in the whitelist
+	for _, valid := range validTableNames {
+		if name == valid {
+			return true
 		}
 	}
 
+	// For other tables, validate that all characters are safe
+	return isValidTableNameChars(name)
+}
+
+// isValidTableNameChars checks if a table name contains only safe characters.
+// Allows: alphanumeric, underscore, and hyphen
+func isValidTableNameChars(name string) bool {
+	for _, ch := range name {
+		if !isSafeTableChar(ch) {
+			return false
+		}
+	}
 	return true
+}
+
+// isSafeTableChar returns true if the character is safe for table names
+func isSafeTableChar(ch rune) bool {
+	return (ch >= 'a' && ch <= 'z') ||
+		(ch >= 'A' && ch <= 'Z') ||
+		(ch >= '0' && ch <= '9') ||
+		ch == '_' || ch == '-'
 }
 
 // Compile check

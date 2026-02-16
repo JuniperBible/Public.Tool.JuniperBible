@@ -121,8 +121,6 @@ Comprehensive tests for INSERT compilation
 
 - `BenchmarkCompileInsertSingleRow`
 - `BenchmarkCompileInsertMultipleRows`
-
-
 ### examples_test.go (320 lines)
 Runnable examples for documentation
 

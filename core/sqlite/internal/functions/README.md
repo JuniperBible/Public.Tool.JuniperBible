@@ -203,8 +203,6 @@ Returns X raised to the power Y.
 SELECT power(2, 3);   -- 8.0
 SELECT pow(10, 2);    -- 100.0
 ```
-
-
 #### `exp(X)`
 Returns e raised to the power X.
 
@@ -276,8 +274,6 @@ Sums values. `sum()` returns NULL for empty set, `total()` returns 0.0.
 SELECT sum(amount) FROM sales;
 SELECT total(amount) FROM sales;
 ```
-
-
 #### `avg(X)`
 Returns the average of all non-NULL X values.
 
@@ -352,8 +348,6 @@ Returns the Julian day number.
 SELECT julianday('2000-01-01');  -- 2451544.5
 SELECT julianday('now');
 ```
-
-
 #### `unixepoch(timestring [, modifier, ...])`
 Returns seconds since 1970-01-01 00:00:00 UTC.
 

@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-file handles single file ingestion.
 // It stores files verbatim in the CAS without any transformation.
 package main

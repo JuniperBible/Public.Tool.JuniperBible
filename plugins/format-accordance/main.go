@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-accordance handles Accordance Mac Bible format.
 // Accordance uses a proprietary SQLite-based format with custom structure.
 //

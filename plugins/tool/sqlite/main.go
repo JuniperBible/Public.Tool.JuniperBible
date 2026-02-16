@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin tool-sqlite provides SQLite database operations.
 package main
 

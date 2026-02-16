@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-ecm handles ECM (Editio Critica Maior) critical apparatus format.
 // ECM is an XML-based format for scholarly editions of the New Testament,
 // containing variant readings and manuscript witnesses.

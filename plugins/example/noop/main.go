@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin example-noop is a placeholder plugin for the dist/plugins/ directory.
 // It serves as a template for external/premium plugins and indicates where
 // additional plugins can be installed.

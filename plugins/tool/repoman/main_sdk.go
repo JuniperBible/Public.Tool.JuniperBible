@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Package main implements a SWORD repository management plugin.
 // Provides InstallMgr-like functionality for managing SWORD modules.
 package main

@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-flex handles FLEx/Fieldworks linguistic database format.
 package main
 

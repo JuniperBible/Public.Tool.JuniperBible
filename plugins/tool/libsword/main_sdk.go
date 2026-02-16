@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin tool-libsword provides operations for SWORD Bible modules using libsword.
 // This is the subdirectory version used alongside the top-level tool-libsword.
 package main

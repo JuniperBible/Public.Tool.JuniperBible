@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-tischendorf handles Tischendorf 8th edition critical apparatus format.
 // Tischendorf's Novum Testamentum Graece (8th edition) is a historical critical text
 // with extensive apparatus criticus documenting textual variants.

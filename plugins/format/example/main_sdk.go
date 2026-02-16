@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-example demonstrates all plugin features using the SDK pattern.
 // This is a NOOP plugin for documentation purposes only - it won't process real files.
 //

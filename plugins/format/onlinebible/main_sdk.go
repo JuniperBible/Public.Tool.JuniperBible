@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-onlinebible handles OnlineBible .ont format using the SDK pattern.
 // OnlineBible uses a text-based format with structured verse references.
 //

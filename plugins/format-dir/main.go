@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-dir handles directory ingestion.
 // It recursively enumerates and ingests all files in a directory.
 package main

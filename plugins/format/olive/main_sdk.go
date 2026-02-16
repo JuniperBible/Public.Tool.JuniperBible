@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-olive handles Olive Tree Bible file detection using SDK pattern.
 // Olive Tree uses a proprietary format with OTML (Olive Tree Markup Language).
 // Known extensions: .ot4i, .oti, .pdb (Palm Database), .otm

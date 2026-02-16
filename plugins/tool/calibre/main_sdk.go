@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin tool-calibre provides e-book format conversions using Calibre.
 //
 // This is a TOOL plugin (not a format plugin). It runs Calibre tools as

@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-usx handles USX (Unified Scripture XML) file ingestion.
 // USX is an XML representation of USFM developed by United Bible Societies.
 //

@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-markdown handles Markdown Bible format using the SDK pattern.
 // Produces Hugo-compatible markdown with YAML frontmatter.
 //

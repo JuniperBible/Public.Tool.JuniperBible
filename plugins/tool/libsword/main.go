@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin tool-libsword provides operations for SWORD Bible modules using libsword.
 //
 // This is a TOOL plugin (not a format plugin). It runs reference implementations

@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-odf handles Open Document Format Bible files using the SDK pattern.
 // Produces .odt files with styled content.
 //

@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-zip handles ZIP archive ingestion using the SDK pattern.
 // It detects ZIP files by magic bytes and can enumerate contents.
 //

@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-morphgnt handles MorphGNT Greek NT format using the SDK pattern.
 // MorphGNT is a morphologically parsed Greek New Testament in TSV format.
 //

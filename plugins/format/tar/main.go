@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-tar handles TAR archive ingestion.
 // It detects tar, tar.gz, tar.xz files and can enumerate contents.
 package main

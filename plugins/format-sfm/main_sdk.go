@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-sfm handles Standard Format Markers (SFM/Paratext) format.
 package main
 

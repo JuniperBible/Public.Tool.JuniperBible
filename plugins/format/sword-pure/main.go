@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Package main implements a pure Go SWORD module parser plugin.
 // This plugin provides SWORD module parsing without CGO dependencies.
 package main

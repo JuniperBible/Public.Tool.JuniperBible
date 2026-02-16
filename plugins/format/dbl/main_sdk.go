@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-dbl handles Digital Bible Library format.
 // DBL is a bundle format containing USX files and metadata.
 //

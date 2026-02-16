@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-epub handles EPUB Bible format.
 // Produces EPUB3 with NCX navigation and spine.
 //

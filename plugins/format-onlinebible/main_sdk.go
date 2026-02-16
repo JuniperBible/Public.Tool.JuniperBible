@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-onlinebible handles Online Bible text format.
 // Format uses $BookName Chapter:Verse Text pattern.
 //

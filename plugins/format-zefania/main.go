@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-zefania handles Zefania XML Bible file ingestion.
 // Zefania XML is a Bible format used primarily in German-speaking regions.
 //

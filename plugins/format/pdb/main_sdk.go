@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-pdb handles Palm Bible+ PDB format using the SDK pattern.
 // PDB is a binary database format used by Palm OS Bible applications.
 //

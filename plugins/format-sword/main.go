@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-sword handles SWORD Bible module ingestion.
 // It detects SWORD module directories by looking for mods.d/*.conf files
 // and modules/* data directories.

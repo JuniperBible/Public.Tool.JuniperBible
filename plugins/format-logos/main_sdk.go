@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-logos handles Logos/Libronix Bible format.
 // Logos uses proprietary SQLite-based format with encrypted content.
 //

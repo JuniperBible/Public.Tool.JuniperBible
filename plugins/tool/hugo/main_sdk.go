@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Package main implements a Hugo JSON output generator plugin.
 // Generates Hugo-compatible JSON data files from Bible modules.
 package main

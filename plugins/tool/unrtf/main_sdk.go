@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin tool-unrtf provides RTF to other format conversions using unrtf.
 package main
 

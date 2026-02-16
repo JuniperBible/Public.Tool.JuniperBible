@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-bibletime handles BibleTime Bible study format using the SDK pattern.
 // BibleTime uses SWORD modules with additional bookmarks/notes metadata.
 //

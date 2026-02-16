@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-na28app handles NA28 critical apparatus format.
 // NA28 (Nestle-Aland 28th edition) apparatus contains textual variants
 // and manuscript witnesses for the Greek New Testament.

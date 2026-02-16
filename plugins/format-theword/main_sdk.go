@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-theword handles TheWord/PalmBible+ Bible file ingestion.
 // TheWord format uses line-based text files where each line is a verse.
 // Supported extensions: .ont (OT), .nt (NT), .twm (full module)

@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Package main implements a CrossWire native format plugin.
 // This handles SWORD module distributions in their native .zip format
 // as distributed by CrossWire repositories (containing mods.d/ and modules/).

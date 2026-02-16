@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-tei handles TEI (Text Encoding Initiative) XML format.
 // TEI is a scholarly XML format for encoding texts in the humanities.
 //

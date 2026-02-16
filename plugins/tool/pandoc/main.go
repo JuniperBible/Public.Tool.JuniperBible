@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin tool-pandoc provides document format conversions using Pandoc.
 //
 // This is a TOOL plugin (not a format plugin). It runs Pandoc as a reference

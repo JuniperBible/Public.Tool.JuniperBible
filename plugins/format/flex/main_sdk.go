@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-flex handles FLEx/Fieldworks linguistic database format.
 // FLEx (FieldWorks Language Explorer) is a linguistic database for language documentation
 // and analysis, containing lexical, grammatical, and text corpus data.

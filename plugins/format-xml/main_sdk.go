@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-xml handles generic XML Bible format.
 // Uses simple XML structure with verses as elements.
 //

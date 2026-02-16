@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin tool-usfm2osis provides USFM to OSIS conversion.
 package main
 

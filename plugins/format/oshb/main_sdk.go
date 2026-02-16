@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-oshb handles OpenScriptures Hebrew Bible format.
 // OSHB is a morphologically parsed Hebrew Bible in XML/TSV format.
 //

@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-gobible handles GoBible J2ME format using the SDK pattern.
 // GoBible uses JAR-based .gbk files containing binary verse data.
 //

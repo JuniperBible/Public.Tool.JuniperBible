@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin tool-gobible-creator provides GoBible format creation for feature phones.
 package main
 

@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-rtf handles Rich Text Format Bible files.
 //
 // IR Support:

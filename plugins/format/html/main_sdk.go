@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-html handles HTML Bible format (SDK version).
 // Produces static HTML site with navigation.
 //

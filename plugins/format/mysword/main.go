@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-mysword handles MySword Bible module ingestion.
 // MySword is an Android Bible app that uses SQLite databases with extensions:
 // - .mybible: Bible text (may also contain commentaries/dictionaries)

@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-json handles JSON Bible format using the SDK pattern.
 // Provides clean JSON structure for programmatic access.
 //

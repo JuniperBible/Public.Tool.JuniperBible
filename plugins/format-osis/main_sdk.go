@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-osis handles OSIS XML Bible files.
 // It supports L0 lossless round-trip conversion through IR.
 package main

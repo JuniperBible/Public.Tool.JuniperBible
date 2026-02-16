@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin tool-libxml2 provides XML validation and transformation using libxml2.
 package main
 

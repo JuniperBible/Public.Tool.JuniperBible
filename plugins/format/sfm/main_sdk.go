@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-sfm handles Standard Format Markers (SFM/Paratext) format.
 // SFM is a text-based markup format used by Paratext and SIL translation tools,
 // using backslash markers for structure and formatting.

@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-flex handles FLEx (Fieldworks Language Explorer) format.
 // FLEx uses XML-based linguistic database format with phrase/word structures.
 //

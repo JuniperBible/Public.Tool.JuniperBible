@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-mybible handles MyBible.zone Bible module ingestion.
 // MyBible is an Android Bible app that uses SQLite databases with extension:
 // - .SQLite3: Bible text (MyBible.zone format)

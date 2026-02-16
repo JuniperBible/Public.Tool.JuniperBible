@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Package main implements the Juniper meta-plugin.
 // Juniper provides a unified CLI for working with Bible modules,
 // delegating to specialized format and tool plugins.

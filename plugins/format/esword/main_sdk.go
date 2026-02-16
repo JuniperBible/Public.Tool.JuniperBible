@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-esword handles e-Sword Bible module ingestion.
 // e-Sword uses SQLite databases with extensions:
 // - .bblx: Bible text

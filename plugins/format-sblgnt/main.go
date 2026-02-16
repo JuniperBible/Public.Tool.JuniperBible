@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-sblgnt handles SBL Greek New Testament format.
 package main
 

@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Plugin format-txt handles plain text Bible format.
 // Produces verse-per-line text output.
 //

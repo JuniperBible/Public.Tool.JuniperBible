@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Plugin format-sblgnt handles SBL Greek New Testament format.
 // SBLGNT is a morphologically analyzed Greek New Testament in text format
 // with parsing codes for each word.

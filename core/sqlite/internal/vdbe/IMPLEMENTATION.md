@@ -42,6 +42,7 @@ Implements the memory cell structure that holds values.
 - Metadata (flags, n, subtype, nZero)
 
 **Constructor Functions:**
+
 - `NewMem()` - Undefined cell
 - `NewMemNull()` - NULL cell
 - `NewMemInt(int64)` - Integer cell
@@ -50,6 +51,7 @@ Implements the memory cell structure that holds values.
 - `NewMemBlob([]byte)` - Blob cell
 
 **Type Checking Methods:**
+
 - `IsNull()`, `IsInt()`, `IsReal()`, `IsStr()`, `IsBlob()`, `IsNumeric()`
 
 **Type Conversion Methods:**
@@ -93,6 +95,7 @@ Implements the main VDBE virtual machine structure.
 **Key Components:**
 
 **VDBE Structure:**
+
 - Program: `[]*Instruction` - Bytecode program
 - PC: int - Program counter
 - State: VdbeState - Execution state (Init, Ready, Run, Halt)
@@ -120,6 +123,7 @@ Implements the main VDBE virtual machine structure.
 **Methods:**
 
 Program Building:
+
 - `New()` - Create VDBE
 - `AddOp(opcode, p1, p2, p3)` - Add instruction
 - `AddOpWithP4Int()` - Add with integer P4
@@ -182,6 +186,7 @@ Register Operations (8 handlers):
 - `execSCopy()` - r[P2] = r[P1] (shallow copy)
 
 Cursor Operations (8 handlers):
+
 - `execOpenRead()` - Open cursor P1 for reading
 - `execOpenWrite()` - Open cursor P1 for writing
 - `execClose()` - Close cursor P1
@@ -210,6 +215,7 @@ Comparison (6 handlers):
 - `execCompare()` - Helper for comparisons
 
 Arithmetic (5 handlers):
+
 - `execAdd()` - r[P3] = r[P1] + r[P2]
 - `execSubtract()` - r[P3] = r[P1] - r[P2]
 - `execMultiply()` - r[P3] = r[P1] * r[P2]
@@ -217,6 +223,7 @@ Arithmetic (5 handlers):
 - `execRemainder()` - r[P3] = r[P1] % r[P2]
 
 Functions (2 stub handlers):
+
 - `execAggStep()` - Placeholder
 - `execAggFinal()` - Placeholder
 - `execFunction()` - Placeholder
@@ -229,6 +236,7 @@ Comprehensive test suite with 17 test functions.
 **Test Categories:**
 
 **Memory Cell Tests (TestMemBasicTypes):**
+
 - NULL value handling
 - Integer storage and retrieval
 - Real number storage and retrieval
@@ -242,6 +250,7 @@ Comprehensive test suite with 17 test functions.
 - Integer to String conversion
 
 **Arithmetic Tests (TestMemArithmetic):**
+
 - Integer addition
 - Integer subtraction
 - Integer multiplication
@@ -260,6 +269,7 @@ Comprehensive test suite with 17 test functions.
 - Shallow copy operations
 
 **VDBE Execution Tests (TestVdbeBasicExecution):**
+
 - Simple constant program
 - Arithmetic program (10 + 20 = 30)
 - Conditional jump program
@@ -279,6 +289,7 @@ Comprehensive test suite with 17 test functions.
 - Cursor type verification
 
 **Reset Tests (TestVdbeReset):**
+
 - Multiple execution cycles
 - State preservation across resets
 
@@ -299,6 +310,7 @@ Comprehensive documentation including:
 **Documentation:** ~250 lines across README and IMPLEMENTATION docs
 
 **Opcode Coverage:**
+
 - Defined: 146 opcodes
 - Implemented: 41 opcode handlers
 - Coverage: 28%

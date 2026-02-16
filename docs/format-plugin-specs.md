@@ -100,10 +100,12 @@ The IR is project-defined, but to make cross-format conversion sane, every plugi
 - `milestones`: verse boundaries, page breaks, speaker changes, etc.
 
 ### Canonical identifiers
+
 - Prefer **OSIS identifiers** for book codes where possible.
 - Maintain a `versification` field when the source format supports or implies it.
 
 ### Required normalization rules
+
 - Text MUST be Unicode **NFC** (unless a source format mandates otherwise).
 - Newlines in IR MUST be `\n`.
 - Preserve significant whitespace where the source spec requires it (notably USFM).
@@ -128,6 +130,7 @@ Each section includes:
 **What it is:** OSIS is an XML schema for scripture and related texts. It is commonly used as an interchange format and is strongly schema-driven.
 
 **Primary references**
+
 - OSIS official page + schema links: https://crosswire.org/osis/
 - Official schema: `osisCore.2.1.1.xsd`: http://www.crosswire.org/osis/osisCore.2.1.1.xsd
 - OSIS 2.1.1 user manual (PDF): https://www.crosswire.org/osis/OSIS%202.1.1%20User%20Manual%2006March2006.pdf
@@ -137,6 +140,7 @@ Each section includes:
 - Many ecosystems use a “cw-latest” variant for practical validation: https://www.crosswire.org/~dmsmith/osis/osisCore.2.1.1-cw-latest.xsd (useful in CI but not the “official” schema).
 
 **Minimum implementation profile (MUST)**
+
 - Parse `<osis>` root with namespace and validate against XSD.
 - Support `osisText` with `div` structure, plus `chapter`, `verse`, `title`, `p`, `lg/l`, `note`, and `reference`.
 - Preserve OSIS identifiers:
@@ -145,6 +149,7 @@ Each section includes:
 - Support `seg`, `hi`, and `w` for inline semantics when present.
 
 **IR mapping notes**
+
 - `book` → `div[@type="book"]` and/or `osisIDWork` mappings.
 - Verse boundaries are explicit (`<verse osisID="Gen.1.1">`), but OSIS also allows milestone patterns; implement both if you want true L0 behavior.
 - Footnotes are usually `<note type="footnote">…</note>`, crossrefs often `type="crossReference"`.
@@ -160,6 +165,7 @@ Each section includes:
 - USFM 3.x Syntax Notes (whitespace, parsing rules): https://ubsicap.github.io/usfm/usfm3.0/about/syntax.html
 
 **Validation artifacts**
+
 - There is no single XSD; validation is rule-based (marker grammar + structural constraints).
 - Implement a validator that checks:
   - marker legality per declared `\usfm` version
@@ -189,15 +195,18 @@ Each section includes:
 **What it is:** USX is the XML representation of USFM (unified scripture XML). It is schema-validated (Relax NG).
 
 **Primary references**
+
 - USX schemas page (links to RNG/RNC): https://ubsicap.github.io/usx/schema.html
 - Canonical schemas (GitHub):
   - RNG: https://github.com/ubsicap/usx/blob/master/schema/usx.rng
   - RNC: https://github.com/ubsicap/usx/blob/master/schema/usx.rnc
 
 **Validation artifacts**
-- Validate using Relax NG against `usx.rng` matching the document’s USX version series.
+
+- Validate using Relax NG against `usx.rng` matching the document's USX version series.
 
 **Minimum implementation profile (MUST)**
+
 - Support `usx` root and primary structural nodes: `book`, `chapter`, `verse`, `para`, `char`, `note`, `ref`, `figure`.
 - Preserve `style` attributes (they map to USFM markers and drive semantics).
 - Support `loc` / ref addressing when present.
@@ -222,6 +231,7 @@ Each section includes:
 - Expect real-world corpora to contain minor schema drift; provide `--strict` vs `--tolerant` validation modes.
 
 **Minimum implementation profile (MUST)**
+
 - Parse book/chapter/verse structures as defined in the schema docs.
 - Preserve metadata blocks (title, language, identifiers) when present.
 - Enforce UTF-8 and well-formed XML.
@@ -260,6 +270,7 @@ Each section includes:
 **What it is:** JSON is a syntax standard; your schema defines semantics.
 
 **Primary references**
+
 - JSON spec: RFC 8259: https://datatracker.ietf.org/doc/html/rfc8259
 
 **Validation artifacts**
@@ -270,6 +281,7 @@ Each section includes:
   - stable float/int handling (ideally avoid floats)
 
 **Minimum implementation profile (MUST)**
+
 - Require UTF-8 and reject invalid Unicode.
 - Emit stable, deterministic JSON (canonical sorting + stable whitespace policy).
 - Provide a published schema file in the repo, e.g., `schemas/ir.schema.json`.

@@ -129,6 +129,7 @@ Source File → Ingest (hash + store) → Capsule Archive
 ## Development Roadmap
 
 See [TODO.txt](../TODO.txt) for complete implementation roadmap including:
+
 - **Phase 15**: Tool plugins for all reference tools
 - **Phase 16**: IR system enhancements (versification, cross-refs, parallel corpora)
 - **Phase 17**: Infrastructure and documentation generation

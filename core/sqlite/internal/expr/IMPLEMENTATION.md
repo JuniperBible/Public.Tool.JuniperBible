@@ -147,6 +147,7 @@ The implementation includes comprehensive tests covering:
 - Type-safe with Go's type system
 
 ### 2. Explicit Type Handling
+
 - `interface{}` for runtime values
 - Type switches for operations
 - Clear type coercion rules
@@ -157,6 +158,7 @@ The implementation includes comprehensive tests covering:
 - Instruction abstraction
 
 ### 4. Comprehensive NULL Handling
+
 - Three-valued logic throughout
 - IS/IS NOT special cases
 - NULL propagation in arithmetic

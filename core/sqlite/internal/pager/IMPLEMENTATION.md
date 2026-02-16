@@ -33,6 +33,7 @@ Implements the SQLite database file format specification:
 - Support for all header fields per SQLite spec
 
 **Features:**
+
 - Big-endian integer encoding (SQLite standard)
 - Special handling for 65536 byte pages (stored as 1)
 - Comprehensive validation of all header fields
@@ -71,6 +72,7 @@ Implements individual pages and the page cache:
 - `Clone()` - Deep copy
 
 **Cache Operations:**
+
 - `Get()` - Retrieve page from cache
 - `Put()` - Add page to cache
 - `Remove()` - Remove page from cache
@@ -131,6 +133,7 @@ Implements the complete pager subsystem:
 ```
 
 **Commit Process:**
+
 1. Write all dirty pages to database file
 2. Sync database file to disk
 3. Delete/truncate journal file
@@ -139,6 +142,7 @@ Implements the complete pager subsystem:
 6. Release locks
 
 **Rollback Process:**
+
 1. Read journal entries
 2. Restore original page content
 3. Sync database file
@@ -185,6 +189,7 @@ Comprehensive test suites with 100% coverage of core functionality:
 - Benchmarks for pager operations
 
 ### example_test.go (360 lines)
+
 - Basic usage example
 - Read/write example
 - Rollback example
@@ -203,6 +208,7 @@ Comprehensive test suites with 100% coverage of core functionality:
 - Magic string validation
 
 ### 2. Thread Safety
+
 - All operations are goroutine-safe
 - RWMutex for pager state
 - RWMutex for page data
@@ -216,6 +222,7 @@ Comprehensive test suites with 100% coverage of core functionality:
 - **Durability**: File sync before journal deletion
 
 ### 4. Performance
+
 - Page caching reduces disk I/O
 - Reference counting prevents duplicate reads
 - Dirty page tracking for efficient commits
@@ -278,6 +285,7 @@ These simplifications don't affect correctness, only advanced features.
 - Validate edge cases
 
 ### Integration Tests
+
 - Test complete workflows
 - Multi-page transactions
 - Commit and rollback scenarios
@@ -326,6 +334,7 @@ pager.Put(page)
 - Rollback: O(j) - where j = journal entries
 
 ### Space Complexity
+
 - Cache memory: O(c × p) - where c = cache size, p = page size
 - Journal file: O(m × p) - where m = modified pages
 

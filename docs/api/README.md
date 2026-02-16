@@ -57,6 +57,7 @@ The Juniper Bible API provides **11 endpoints** across 6 categories:
 - `DELETE /capsules/{id}` - Delete a capsule
 
 ### Conversion
+
 - `POST /convert` - Synchronous conversion (not yet implemented)
 
 ### Asynchronous Jobs
@@ -65,10 +66,12 @@ The Juniper Bible API provides **11 endpoints** across 6 categories:
 - `DELETE /jobs/{id}` - Cancel job
 
 ### Metadata
+
 - `GET /plugins` - List available plugins
 - `GET /formats` - List supported formats
 
 ### Real-Time Updates
+
 - `WS /ws` - WebSocket connection for progress updates
 
 ## Authentication

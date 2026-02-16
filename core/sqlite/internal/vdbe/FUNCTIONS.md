@@ -31,6 +31,7 @@ The VDBE (Virtual Database Engine) now supports executing both scalar and aggreg
 Scalar functions operate on individual values and return a single result.
 
 #### String Functions
+
 - `upper(X)` - Convert to uppercase
 - `lower(X)` - Convert to lowercase
 - `length(X)` - Get string/blob length
@@ -47,6 +48,7 @@ Scalar functions operate on individual values and return a single result.
 - `char(X1, X2, ...)` - Characters from code points
 
 #### Type Functions
+
 - `typeof(X)` - Return type name
 - `coalesce(X, Y, ...)` - First non-NULL value
 - `ifnull(X, Y)` - Return X if not NULL, else Y
@@ -180,6 +182,7 @@ Functions perform automatic type coercion:
 ### Aggregate State Management
 
 Each cursor maintains separate aggregate state:
+
 - Multiple aggregate functions can run concurrently
 - State is tracked per function index
 - Functions are reset between query executions

@@ -67,6 +67,7 @@ The SQLite blessing applies:
 - **URL**: https://github.com/ulikunitz/xz
 
 ### github.com/zeebo/blake3 (v0.2.4)
+
 - **License**: CC0-1.0 (Public Domain)
 - **URL**: https://github.com/zeebo/blake3
 

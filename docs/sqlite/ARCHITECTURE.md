@@ -195,6 +195,7 @@ core/sqlite (public API)
 - **Cursors**: Array of B-tree cursors for table/index access
 
 **Expression Evaluator** (`internal/expr`)
+
 - **Arithmetic**: +, -, *, /, %
 - **Comparison**: =, !=, <, >, <=, >=, IS, IS NOT
 - **Logical**: AND, OR, NOT
@@ -202,6 +203,7 @@ core/sqlite (public API)
 - **Collation**: Text comparison rules
 
 **Functions** (`internal/functions`)
+
 - **Scalar Functions**: 75+ built-in functions (upper, lower, substr, abs, round, etc.)
 - **Aggregate Functions**: COUNT, SUM, AVG, MIN, MAX, GROUP_CONCAT
 - **Date/Time Functions**: date, time, datetime, julianday, strftime
@@ -210,6 +212,7 @@ core/sqlite (public API)
 ### 3. B-tree Layer
 
 **Storage Engine** (`internal/btree`)
+
 - **B-tree Structure**: Balanced tree for sorted data
 - **Page Types**: Interior/Leaf for Tables/Indexes (4 types)
 - **Cells**: Key-value pairs stored in B-tree pages
@@ -217,6 +220,7 @@ core/sqlite (public API)
 - **Overflow Pages**: Handles large payloads
 
 **Cursors** (`internal/btree/cursor.go`)
+
 - **Positioning**: MoveToFirst, MoveToLast, Seek
 - **Navigation**: Next, Previous
 - **State Management**: Valid, Invalid, SkipNext, RequireSeek, Fault

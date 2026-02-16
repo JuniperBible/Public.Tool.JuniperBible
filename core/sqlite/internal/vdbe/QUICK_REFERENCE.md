@@ -76,6 +76,7 @@ v.AddOp(OpAggFinal, cursor, outReg, funcIdx)
 | P5 | Number of arguments |
 
 **Example**: `Function 0 1 5 "upper" 1`
+
 - Call UPPER with arg from r1, store in r5
 
 ### OP_AggStep (Aggregate Step)
@@ -98,6 +99,7 @@ v.AddOp(OpAggFinal, cursor, outReg, funcIdx)
 | P3 | Function index |
 
 **Example**: `AggFinal 0 5 0`
+
 - Finalize aggregate 0 into r5
 
 ## Common Patterns

@@ -115,6 +115,7 @@ go test -fuzz=FuzzOSISConverter -fuzztime=30s ./pkg/markup/
 - `pkg/output/json_test.go` - JSON file generation
 
 #### Migration (Phase 6)
+
 - `pkg/migrate/migrator_test.go` - Module file operations
 
 #### Robustness (Phase 7)
@@ -149,6 +150,7 @@ go test -v -run TestToolComparison ./pkg/testing/
 ```
 
 **Validates:**
+
 - JSON schema compliance
 - Verse counts match
 - Book ordering consistency
@@ -262,6 +264,7 @@ path := createTestZTextModule(t, map[string]string{
 - NFC normalization roundtrip
 
 ### Strong's Numbers
+
 - H/G prefixes, leading zeros (H0430)
 - Malformed: empty, non-numeric
 - Duplicates in same verse
@@ -279,6 +282,7 @@ path := createTestZTextModule(t, map[string]string{
 - Encoding (Latin-1 vs UTF-8)
 
 ### Markup
+
 - Unclosed tags
 - Nested elements
 - Empty tags

@@ -233,6 +233,7 @@ The code generator produces instructions for the VDBE virtual machine:
 ### Register Usage
 
 Registers are allocated sequentially starting from 1:
+
 - Temporary values use consecutive registers
 - Result values are stored in allocated registers
 - The generator ensures sufficient VDBE memory is allocated

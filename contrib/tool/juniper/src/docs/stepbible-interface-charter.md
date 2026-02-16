@@ -12,6 +12,7 @@ This charter outlines the implementation of a comprehensive Bible study interfac
 
 ### Current State
 The Focus with Justin website currently has:
+
 - 8 Bible translations (KJV, Douay-Rheims, Geneva 1599, Vulgate, Tyndale, LXX, OSMHB, SBLGNT)
 - Parallel translation comparison view (up to 4 translations)
 - Bible search with Strong's number and phrase search
@@ -23,6 +24,7 @@ The Focus with Justin website currently has:
 
 ### STEPBible Inspiration
 STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the cleanest and most powerful free Bible study tools available. Key strengths:
+
 - Intuitive parallel and comparison interface
 - Interlinear Hebrew/Greek with customizable word order
 - Integrated Strong's numbers with occurrence counts
@@ -83,6 +85,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Highlight textual differences between translations.
 
 **Technical Approach:**
+
 - JavaScript text diff algorithm (word-level comparison)
 - CSS classes for additions/omissions/variations
 - Optional toggle to enable/disable highlighting
@@ -123,6 +126,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
   - English order (reverse interlinear)
 
 **UI/UX Considerations:**
+
 - Vertical word stacks: [Original] over [Transliteration] over [Gloss]
 - Handwritten font for transliteration
 - Hebrew/Greek fonts with good RTL support
@@ -172,6 +176,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Show all occurrences of a Strong's number across Scripture.
 
 **Technical Approach:**
+
 - Pre-index all Strong's numbers during build
 - Create concordance JSON: `data/strongs_concordance.json`
 - Search page: `/religion/concordance/?strongs=H430`
@@ -219,6 +224,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Gospel harmony and OT/NT parallel passage viewing.
 
 **Technical Approach:**
+
 - Pre-compile parallel passage data:
   - Synoptic Gospels (Matthew, Mark, Luke parallel events)
   - Samuel/Kings vs Chronicles parallels
@@ -238,6 +244,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Search across all Bible translations with advanced filters.
 
 **Technical Approach:**
+
 - Lunr.js or Pagefind for client-side search indexing
 - Build search index during Hugo build
 - Search page: `/religion/search/`
@@ -308,6 +315,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 Create reusable components matching the AirFold theme:
 
 **Components to Build:**
+
 - `bible-toolbar.html` - Translation selector, view mode toggle, search
 - `bible-verse-card.html` - Single verse display card
 - `bible-word-study-modal.html` - Strong's popup with paper frame

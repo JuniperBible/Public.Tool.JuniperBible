@@ -30,12 +30,14 @@ The driver integrates the following internal packages:
 - Prepares SQL statements
 
 ### Statement (`stmt.go`)
+
 - Implements `database/sql/driver.Stmt`
 - Compiles SQL to VDBE bytecode
 - Binds parameters
 - Executes queries and commands
 
 ### Rows (`rows.go`)
+
 - Implements `database/sql/driver.Rows`
 - Iterates over query results
 - Converts VDBE memory cells to Go values
@@ -46,6 +48,7 @@ The driver integrates the following internal packages:
 - Integrates with pager journaling
 
 ### Value (`value.go`)
+
 - Type conversion utilities
 - Converts Go types to SQLite values
 - Implements `driver.Result`
@@ -110,6 +113,7 @@ Returns values to application
 ## Current Implementation Status
 
 ### Implemented
+
 - [x] Driver registration and initialization
 - [x] Connection management
 - [x] Statement preparation
@@ -118,6 +122,7 @@ Returns values to application
 - [x] Type conversion
 
 ### In Progress
+
 - [ ] Complete VDBE bytecode generation for all SQL statements
 - [ ] B-tree cursor integration
 - [ ] Schema table management
@@ -125,6 +130,7 @@ Returns values to application
 - [ ] Parameter binding
 
 ### Future Work
+
 - [ ] Aggregate functions
 - [ ] Subqueries
 - [ ] Joins
@@ -220,6 +226,7 @@ go test -v ./internal/driver/integration/...
 ## Compatibility
 
 This driver aims to be compatible with:
+
 - SQLite 3.x file format
 - Go 1.19+
 - Standard `database/sql` package

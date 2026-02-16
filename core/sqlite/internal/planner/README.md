@@ -192,6 +192,7 @@ For single table:
 - Choose lowest-cost WhereLoop
 
 For joins:
+
 - Use dynamic programming to find optimal join order
 - Consider prerequisites (which tables must be accessed first)
 - Keep top N partial plans at each level
@@ -259,6 +260,7 @@ Cost: seek + (matchingRows * (indexScan + rowLookup))
 ```
 
 Used for:
+
 - Equality on prefix columns
 - Range on last column
 - e.g., `a = 1 AND b > 10`
@@ -410,6 +412,7 @@ BenchmarkWhereLoopBuilder-8  100000    12345 ns/op
 ## Limitations
 
 This implementation includes:
+
 - ✅ Single and multi-table queries
 - ✅ Index selection and cost estimation
 - ✅ JOIN order optimization

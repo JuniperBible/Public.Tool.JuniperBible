@@ -35,6 +35,7 @@ The implementation follows SQLite's design where appropriate:
 ### 2. Idiomatic Go
 
 The code uses Go idioms:
+
 - Interfaces for polymorphism (Statement, Expression, Node)
 - Error values instead of exceptions
 - Clear struct types for AST nodes
@@ -43,6 +44,7 @@ The code uses Go idioms:
 ### 3. Comprehensive Testing
 
 The test suite includes:
+
 - Unit tests for every component
 - Integration tests for complex queries
 - Benchmark tests for performance
@@ -208,6 +210,7 @@ Defines all token types used in SQL parsing:
 ### Complete Support
 
 ✅ **SELECT Statements**
+
 - Column selection (*, column names, expressions)
 - FROM clause with tables and subqueries
 - JOIN (INNER, LEFT, RIGHT, CROSS, NATURAL)
@@ -225,6 +228,7 @@ Defines all token types used in SQL parsing:
 - OR REPLACE/IGNORE/ABORT/FAIL
 
 ✅ **UPDATE Statements**
+
 - SET clause with multiple assignments
 - WHERE clause
 - ORDER BY and LIMIT (SQLite extension)
@@ -244,12 +248,14 @@ Defines all token types used in SQL parsing:
 - STRICT mode
 
 ✅ **CREATE INDEX**
+
 - Simple and composite indexes
 - UNIQUE indexes
 - Partial indexes (WHERE clause)
 - IF NOT EXISTS
 
 ✅ **DROP TABLE/INDEX**
+
 - IF EXISTS
 
 ✅ **Transactions**
@@ -265,6 +271,7 @@ Defines all token types used in SQL parsing:
 - Frame specs not fully tested
 
 ⚠️ **Generated Columns**
+
 - GENERATED ALWAYS AS parsed
 - STORED/VIRTUAL recognized
 
@@ -274,6 +281,7 @@ Defines all token types used in SQL parsing:
 - WITH clause
 
 ❌ **UPSERT**
+
 - INSERT ... ON CONFLICT
 
 ❌ **ALTER TABLE**
@@ -353,6 +361,7 @@ type Token struct {
 ```
 
 Error messages include:
+
 - Line and column numbers
 - Token that caused the error
 - Description of what was expected
@@ -426,6 +435,7 @@ These results show:
 Target: >90% code coverage
 
 Key areas:
+
 - ✅ All token types
 - ✅ All statement types
 - ✅ All expression types

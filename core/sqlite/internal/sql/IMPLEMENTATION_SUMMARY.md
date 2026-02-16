@@ -88,6 +88,7 @@ This implementation provides comprehensive support for INSERT, UPDATE, and DELET
 ### Record Format (SQLite Binary Format)
 
 ✅ **Varint Encoding**
+
 - Optimized encoding for small values (1 byte for 0-240)
 - Standard varint for larger values
 - Full encode/decode support
@@ -101,6 +102,7 @@ This implementation provides comprehensive support for INSERT, UPDATE, and DELET
 - TEXT: variable length (odd types ≥13)
 
 ✅ **Record Operations**
+
 - MakeRecord: Encode values to binary format
 - ParseRecord: Decode binary format to values
 - Automatic serial type selection
@@ -172,6 +174,7 @@ end:
 ### DELETE Statement Compilation
 
 ✅ **Basic DELETE**
+
 - WHERE clause filtering
 - Two-pass algorithm (collect rowids, then delete)
 
@@ -212,6 +215,7 @@ end:
 ### Implemented Opcodes (50+)
 
 **Control Flow**
+
 - OpInit, OpHalt, OpGoto, OpIf, OpIfNot
 
 **Table Operations**
@@ -233,6 +237,7 @@ end:
 - OpAdd, OpSubtract, OpMultiply, OpDivide
 
 **Iteration**
+
 - OpRewind, OpNext, OpPrev
 - OpNotFound, OpNotExists, OpSeek
 
@@ -297,6 +302,7 @@ type Expression struct {
 - ✅ Performance benchmarks
 
 ### INSERT Tests
+
 - ✅ Single row insertion
 - ✅ Multi-row insertion
 - ✅ Mixed data types
@@ -333,11 +339,13 @@ BenchmarkCompileInsert       500,000 ops  3200 ns/op  1024 B/op
 ## Design Decisions
 
 ### 1. Pure Go Implementation
+
 - No C dependencies
 - All SQLite logic reimplemented in Go
 - Follows Go idioms (errors, slices, interfaces)
 
 ### 2. Stateless Compilation
+
 - Compilers are pure functions
 - Programs are immutable once created
 - Thread-safe for read-only access

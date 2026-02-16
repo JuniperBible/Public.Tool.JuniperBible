@@ -41,6 +41,7 @@ The CGO driver typically offers:
 - Lower memory overhead in some scenarios
 
 However, it comes with trade-offs:
+
 - Requires C compiler toolchain
 - Harder to cross-compile
 - Platform-specific build requirements

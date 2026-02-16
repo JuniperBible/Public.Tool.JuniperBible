@@ -89,6 +89,7 @@ Successfully wired the built-in SQL functions to the VDBE (Virtual Database Engi
 **Purpose**: Comprehensive function integration guide
 
 **Contents**:
+
 - Architecture overview
 - Complete function reference (100+ functions)
   - String functions (14)
@@ -177,6 +178,7 @@ count, count(*), sum, total, avg, min, max, group_concat
 ## Key Features
 
 ### 1. Complete NULL Handling
+
 - SQL-compliant NULL propagation
 - Special handling for coalesce/ifnull
 - Aggregate functions skip NULLs
@@ -248,6 +250,7 @@ count, count(*), sum, total, avg, min, max, group_concat
 ## SQL Compliance
 
 The implementation follows SQLite's behavior for:
+
 - ✅ NULL handling rules
 - ✅ Type coercion rules
 - ✅ Function signatures
@@ -295,6 +298,7 @@ WHERE LENGTH(name) > 5;
 3. Extension loading mechanism
 
 ### Long Term
+
 1. JIT compilation for hot functions
 2. SIMD optimization for aggregates
 3. Parallel aggregate execution

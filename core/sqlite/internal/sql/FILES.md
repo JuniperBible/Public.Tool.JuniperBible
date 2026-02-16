@@ -6,6 +6,7 @@
 SQLite record format encoding and decoding
 
 **Key Functions:**
+
 - `PutVarint(buf []byte, v uint64) []byte` - Encode varint
 - `GetVarint(buf []byte, offset int) (uint64, int)` - Decode varint
 - `SerialTypeFor(val Value) SerialType` - Determine serial type
@@ -53,6 +54,7 @@ UPDATE statement compilation to VDBE bytecode
 - `NewLiteralExpression(value Value) *Expression` - Literal value
 
 **Key Types:**
+
 - `UpdateStmt` - UPDATE statement
 - `WhereClause` - WHERE clause
 - `Expression` - SQL expression

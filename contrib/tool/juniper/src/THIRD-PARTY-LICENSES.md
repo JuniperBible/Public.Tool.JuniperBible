@@ -73,6 +73,7 @@ Rick Meyers. Module content licensing varies by module.
 ## Versification Data
 
 Versification mappings are derived from:
+
 - CrossWire SWORD versification schemas
 - OpenScriptures reference data
 - Academic biblical scholarship resources

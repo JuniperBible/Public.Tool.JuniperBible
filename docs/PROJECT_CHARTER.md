@@ -14,6 +14,7 @@ Bible formats and conversion tools are:
 Re-implementing them by "reading docs" fails. Juniper Bible solves this by measuring what tools actually do, freezing that behavior, and making our code match.
 
 ### Target Users/Audience
+
 - Bible tool developers
 - Religious text researchers
 - Archivists requiring byte-perfect preservation
@@ -22,6 +23,7 @@ Re-implementing them by "reading docs" fails. Juniper Bible solves this by measu
 ## 2. Core Guarantees (Non-Negotiables)
 
 ### Byte Sovereignty (Absolute)
+
 - All inputs are stored **verbatim**
 - SHA-256 and BLAKE3 hashes are recorded
 - Exporting "back to native" always re-emits the exact original bytes
@@ -35,6 +37,7 @@ Re-implementing them by "reading docs" fails. Juniper Bible solves this by measu
 - Documentation never overrides observed behavior
 
 ### Determinism
+
 - Same input + same engine = same hashes
 - If it's flaky, it's a bug
 - Fix the harness, don't loosen the tests
@@ -68,12 +71,14 @@ Re-implementing them by "reading docs" fails. Juniper Bible solves this by measu
 
 ### Artifact
 Immutable record pointing to a content-addressed blob and metadata:
+
 - kind: zip, tar, sword-module, sword-conf, sword-data, osis, usfm, pdf, unknown
 - hashes: sha256 + optional blake3
 - blob path in capsule
 
 ### Capsule
 Portable container (tar.xz or zip) holding:
+
 - manifest.json
 - blobs/sha256/<2>/<sha256>
 - optional blobs/blake3/<2>/<blake3>.json pointer files
@@ -101,6 +106,7 @@ Declarative pipeline definition:
 
 ### SelfCheck Report
 Machine-readable deterministic pass/fail artifact:
+
 - Stored as blobs
 - Compared by hash
 - Forms the basis of TDD/CI
@@ -149,6 +155,7 @@ Machine-readable deterministic pass/fail artifact:
 - Tool plugin: tools.libsword (emits transcript JSONL and content blobs)
 
 ### Phase 4: Self-Check Engine ✓
+
 - RoundTripPlan execution
 - SelfCheckReport generation
 - Default plans: identity-bytes, libsword-behavior-identity

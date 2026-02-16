@@ -5,6 +5,7 @@ This package implements a pure Go SQLite expression evaluation and code generati
 ## Overview
 
 The expression system provides:
+
 - **Expression AST**: Abstract syntax tree representation of SQL expressions
 - **Type Affinity**: SQLite's type coercion rules (TEXT, NUMERIC, INTEGER, REAL, BLOB)
 - **Comparison Operations**: Full comparison semantics with collation support
@@ -24,6 +25,7 @@ Core expression types and AST node definitions.
 - `ExprList`: List of expressions for function arguments, CASE, etc.
 
 **Expression Types Supported:**
+
 - Literals: NULL, INTEGER, FLOAT, STRING, BLOB
 - Column references: table.column
 - Binary operators: +, -, *, /, ||, =, <>, <, <=, >, >=, AND, OR
@@ -121,6 +123,7 @@ match := EvaluateLike("h%d", "hello world", 0)
 Arithmetic and logical operations.
 
 **Features:**
+
 - Integer arithmetic with overflow detection
 - Float arithmetic
 - Bitwise operations
@@ -129,6 +132,7 @@ Arithmetic and logical operations.
 - Type casting
 
 **Key Functions:**
+
 - `EvaluateArithmetic(op OpCode, left, right interface{}) interface{}`
 - `EvaluateUnary(op OpCode, operand interface{}) interface{}`
 - `EvaluateBitwise(op OpCode, left, right interface{}) interface{}`
@@ -206,6 +210,7 @@ targetReg := ctx.CodeExpr(expr, 0)
 ## SQLite Semantics
 
 ### NULL Handling
+
 - Arithmetic: NULL + x = NULL
 - Comparison: NULL = NULL returns NULL (not true!)
 - IS operator: NULL IS NULL returns true

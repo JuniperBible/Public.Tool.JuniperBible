@@ -125,6 +125,7 @@ Replace SWORD `installmgr` with native Go implementation:
 | CGo parity | Byte-exact for supported formats |
 
 ### Output Requirements
+
 - JSON validates against schema
 - All Strong's numbers preserved
 - All morphology codes preserved

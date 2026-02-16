@@ -87,11 +87,13 @@ The VDBE supports a comprehensive set of opcodes organized by category:
 - `OpClose` - Close cursor
 
 **Data Retrieval:**
+
 - `OpColumn` - Read column from cursor
 - `OpRowid` - Get row ID
 - `OpResultRow` - Output result row
 
 **Data Modification:**
+
 - `OpInsert` - Insert row
 - `OpDelete` - Delete row
 - `OpUpdate` - Update row
@@ -104,6 +106,7 @@ The VDBE supports a comprehensive set of opcodes organized by category:
 - `OpAdd/OpSubtract/OpMultiply/OpDivide/OpRemainder`
 
 **Functions:**
+
 - `OpAggStep/OpAggFinal` - Aggregate functions
 - `OpFunction` - Scalar functions
 
@@ -122,6 +125,7 @@ v.execColumn(...)   // Read column
 ```
 
 Cursor types:
+
 - `CursorBTree` - B-tree table/index cursor
 - `CursorSorter` - Temporary sorted data
 - `CursorVTab` - Virtual table cursor
@@ -221,6 +225,7 @@ Compiles to bytecode like:
 ## VDBE Instruction Format
 
 Each instruction has:
+
 - **Opcode**: What operation to perform
 - **P1, P2, P3**: Integer operands (register numbers, jump addresses, counts)
 - **P4**: Polymorphic operand (can be int32, int64, real, string, or pointer)

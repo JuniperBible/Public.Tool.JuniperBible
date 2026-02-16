@@ -75,6 +75,7 @@ The main database engine that coordinates all components.
 Compiles SQL AST to VDBE bytecode.
 
 **Compilation Pipeline:**
+
 1. Parse SQL → AST (done by parser)
 2. Analyze and validate AST
 3. Generate VDBE bytecode
@@ -96,6 +97,7 @@ Compiles SQL AST to VDBE bytecode.
 Represents the result of executing a SQL statement.
 
 **Fields:**
+
 - `Columns` - Column names
 - `Rows` - Result rows (for SELECT)
 - `RowsAffected` - Number of rows affected (for INSERT/UPDATE/DELETE)
@@ -106,6 +108,7 @@ Represents the result of executing a SQL statement.
 Iterator over query results (similar to database/sql.Rows).
 
 **Methods:**
+
 - `Next()` - Advance to next row
 - `Scan(dest...)` - Scan current row into variables
 - `Close()` - Close the iterator
@@ -243,6 +246,7 @@ fmt.Printf("Total users: %d\n", count)
 ## Implementation Status
 
 ### Completed
+
 - ✅ Basic engine structure
 - ✅ Database open/close
 - ✅ CREATE TABLE compilation
@@ -286,6 +290,7 @@ Each component has a clear responsibility:
 
 ### 2. Simplified Transaction Model
 Currently implements a basic two-phase commit:
+
 1. Modifications go to journal
 2. Commit writes journal and syncs
 3. Rollback restores from journal

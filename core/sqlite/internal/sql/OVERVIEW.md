@@ -111,10 +111,12 @@ The compiler generates bytecode using these key opcodes:
 - `OP_Column` - Read column value
 
 ### Result Output
+
 - `OP_ResultRow` - Return result row
 - `OP_Yield` - Yield to coroutine
 
 ### Sorting
+
 - `OP_SorterOpen` - Open sorter
 - `OP_SorterInsert` - Insert into sorter
 - `OP_SorterSort` - Sort data
@@ -128,6 +130,7 @@ The compiler generates bytecode using these key opcodes:
 - `OP_Halt` - Stop execution
 
 ### Data Operations
+
 - `OP_Integer` - Load integer constant
 - `OP_String8` - Load string constant
 - `OP_Null` - Load NULL
@@ -222,6 +225,7 @@ go run select_example.go
 ```
 
 This will display generated VDBE bytecode for:
+
 1. Simple SELECT with WHERE
 2. SELECT with ORDER BY and LIMIT
 3. SELECT with GROUP BY and aggregates

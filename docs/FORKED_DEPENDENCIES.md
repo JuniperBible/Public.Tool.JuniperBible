@@ -127,6 +127,7 @@ The participle parser library fork includes the following modifications:
 **Reason**: The USFM-specific lexer extensions are domain-specific. Would need to be generalized into a "custom token extension" API before upstream contribution.
 
 **Future Plan**:
+
 - Design generic custom lexer extension API
 - Refactor USFM parser to use generic API
 - Propose upstream PR with documentation and tests
@@ -219,6 +220,7 @@ jobs:
 ### Manual Monitoring
 
 **Monthly Review Checklist**:
+
 - [ ] Check kong releases: https://github.com/alecthomas/kong/releases
 - [ ] Check kong security: https://github.com/alecthomas/kong/security/advisories
 - [ ] Check participle releases: https://github.com/alecthomas/participle/releases
@@ -291,6 +293,7 @@ To reduce maintenance burden, consider these alternatives:
 - Allows controlled updates with testing
 
 **Update Policy**:
+
 - Patch updates: Auto-merge after tests pass
 - Minor updates: Manual review and testing
 - Major updates: Comprehensive review and migration plan

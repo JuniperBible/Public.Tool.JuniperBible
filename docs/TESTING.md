@@ -182,6 +182,7 @@ func runListCmd(args []string, stdout, stderr io.Writer) error {
 ```
 
 This pattern allows:
+
 - 100% coverage of `runListCmd`
 - 0% coverage of `cmdList` wrapper (expected)
 - Full testing of all code paths via dependency injection

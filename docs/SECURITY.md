@@ -21,6 +21,7 @@ Juniper Bible follows a **defense-in-depth** security model with multiple layers
 **Architecture**: Plugins are separate executables that communicate with the host via JSON over stdin/stdout (IPC).
 
 **Isolation Mechanisms**:
+
 - **Process Boundary**: Each plugin runs as a separate OS process with its own memory space
 - **No Shared State**: Plugins cannot directly access host memory or internal state
 - **Controlled IPC**: All communication goes through validated JSON messages
@@ -28,12 +29,14 @@ Juniper Bible follows a **defense-in-depth** security model with multiple layers
 - **Embedded-First**: External plugins are disabled by default; only embedded (compiled-in) plugins are used
 
 **Plugin Types**:
+
 - **Embedded Plugins**: Compiled directly into the binary, cannot be modified without rebuilding
 - **External Plugins**: Loadable from filesystem (disabled by default, requires `--plugins-external` flag)
 
 ### 2. Pure Go Implementation
 
 **Self-Contained Architecture**:
+
 - Built with `CGO_ENABLED=0` - no C dependencies
 - No external tool requirements (libsword, pandoc, calibre, libxml2, unrtf replaced with pure Go)
 - Reduces attack surface by eliminating external dependencies
@@ -103,6 +106,7 @@ When external plugins are enabled (`--plugins-external`):
 - Ensures resolved paths remain within base directory using prefix checking
 
 **API Handlers** (`internal/api/handlers.go`) - **FIXED**:
+
 - Added path sanitization for file uploads (`createCapsuleHandler`)
 - Added path sanitization for capsule access (`getCapsuleHandler`, `deleteCapsuleHandler`)
 - Uses `filepath.Base()` to extract filename only, preventing directory traversal
@@ -116,6 +120,7 @@ When external plugins are enabled (`--plugins-external`):
 ### File Access Patterns
 
 **Input Validation**:
+
 - User-supplied paths are cleaned with `filepath.Clean()`
 - Relative paths are resolved to absolute paths
 - Directory traversal sequences (`../`) are detected and rejected
@@ -199,6 +204,7 @@ w.Header().Set("Access-Control-Allow-Origin", "https://trusted-domain.com")
 **Impact**: Potential XSS vulnerabilities if user input is not properly sanitized.
 
 **Mitigation**:
+
 - All user input is HTML-escaped using `html/template`
 - Web UI is designed for local/trusted use
 - For public deployment, implement nonce-based CSP
@@ -304,6 +310,7 @@ docker run --read-only --tmpfs /tmp \
 **Warning**: Juniper Bible is designed for local/trusted environments. Public internet deployment requires significant additional hardening.
 
 **Required Hardening** (minimum):
+
 1. Strong authentication (OAuth2, mTLS)
 2. Rate limiting and DDoS protection
 3. Input validation and sanitization review
@@ -410,6 +417,7 @@ docker run --read-only --tmpfs /tmp \
 ### 2026-01-07: Initial Security Audit
 
 **Findings**:
+
 1. **CRITICAL - Path Traversal in API**: File upload and capsule access endpoints did not sanitize filenames/IDs
    - **Status**: FIXED
    - **Fix**: Added `filepath.Base()` and `..` detection in `createCapsuleHandler`, `getCapsuleHandler`, `deleteCapsuleHandler`

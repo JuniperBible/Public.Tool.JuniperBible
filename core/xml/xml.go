@@ -118,117 +118,167 @@ func Format(data []byte, opts FormatOptions) ([]byte, error) {
 func formatNode(w *bytes.Buffer, n *xmlquery.Node, depth int, indent string) error {
 	switch n.Type {
 	case xmlquery.DocumentNode:
-		// Process children
-		for child := n.FirstChild; child != nil; child = child.NextSibling {
-			if err := formatNode(w, child, depth, indent); err != nil {
-				return err
-			}
-		}
-
+		return formatDocumentNode(w, n, depth, indent)
 	case xmlquery.DeclarationNode:
-		w.WriteString("<?xml")
-		for _, attr := range n.Attr {
-			w.WriteString(" ")
-			w.WriteString(attr.Name.Local)
-			w.WriteString("=\"")
-			w.WriteString(encoding.EscapeXMLAttr(attr.Value))
-			w.WriteString("\"")
-		}
-		w.WriteString("?>\n")
-
+		formatDeclarationNode(w, n)
 	case xmlquery.ElementNode:
-		// Opening tag
-		writeIndent(w, depth, indent)
-		w.WriteString("<")
-		if n.Prefix != "" {
-			w.WriteString(n.Prefix)
-			w.WriteString(":")
-		}
-		w.WriteString(n.Data)
-
-		// Attributes
-		for _, attr := range n.Attr {
-			w.WriteString(" ")
-			if attr.Name.Space != "" {
-				w.WriteString("xmlns:")
-				w.WriteString(attr.Name.Local)
-			} else if attr.Name.Local != "" {
-				w.WriteString(attr.Name.Local)
-			}
-			w.WriteString("=\"")
-			w.WriteString(encoding.EscapeXMLAttr(attr.Value))
-			w.WriteString("\"")
-		}
-
-		// Check if has children
-		hasChildren := n.FirstChild != nil
-		hasElementChildren := false
-		for child := n.FirstChild; child != nil; child = child.NextSibling {
-			if child.Type == xmlquery.ElementNode {
-				hasElementChildren = true
-				break
-			}
-		}
-
-		if !hasChildren {
-			w.WriteString("/>\n")
-		} else {
-			w.WriteString(">")
-			if hasElementChildren {
-				w.WriteString("\n")
-			}
-
-			// Children
-			for child := n.FirstChild; child != nil; child = child.NextSibling {
-				if child.Type == xmlquery.ElementNode {
-					if err := formatNode(w, child, depth+1, indent); err != nil {
-						return err
-					}
-				} else if child.Type == xmlquery.TextNode {
-					text := strings.TrimSpace(child.Data)
-					if text != "" {
-						if hasElementChildren {
-							writeIndent(w, depth+1, indent)
-						}
-						w.WriteString(encoding.EscapeXMLText(child.Data))
-						if hasElementChildren {
-							w.WriteString("\n")
-						}
-					}
-				} else if child.Type == xmlquery.CharDataNode {
-					w.WriteString("<![CDATA[")
-					w.WriteString(child.Data)
-					w.WriteString("]]>")
-				}
-			}
-
-			// Closing tag
-			if hasElementChildren {
-				writeIndent(w, depth, indent)
-			}
-			w.WriteString("</")
-			if n.Prefix != "" {
-				w.WriteString(n.Prefix)
-				w.WriteString(":")
-			}
-			w.WriteString(n.Data)
-			w.WriteString(">\n")
-		}
-
+		return formatElementNode(w, n, depth, indent)
 	case xmlquery.TextNode:
-		text := strings.TrimSpace(n.Data)
-		if text != "" {
-			w.WriteString(encoding.EscapeXMLText(text))
-		}
-
+		formatTextNode(w, n)
 	case xmlquery.CommentNode:
-		writeIndent(w, depth, indent)
-		w.WriteString("<!--")
-		w.WriteString(n.Data)
-		w.WriteString("-->\n")
+		formatCommentNode(w, n, depth, indent)
+	}
+	return nil
+}
+
+// formatDocumentNode formats a document node by processing its children.
+func formatDocumentNode(w *bytes.Buffer, n *xmlquery.Node, depth int, indent string) error {
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		if err := formatNode(w, child, depth, indent); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// formatDeclarationNode formats an XML declaration node.
+func formatDeclarationNode(w *bytes.Buffer, n *xmlquery.Node) {
+	w.WriteString("<?xml")
+	for _, attr := range n.Attr {
+		w.WriteString(" ")
+		w.WriteString(attr.Name.Local)
+		w.WriteString("=\"")
+		w.WriteString(encoding.EscapeXMLAttr(attr.Value))
+		w.WriteString("\"")
+	}
+	w.WriteString("?>\n")
+}
+
+// formatElementNode formats an element node with its attributes and children.
+func formatElementNode(w *bytes.Buffer, n *xmlquery.Node, depth int, indent string) error {
+	writeOpeningTag(w, n, depth, indent)
+
+	hasChildren := n.FirstChild != nil
+	if !hasChildren {
+		w.WriteString("/>\n")
+		return nil
 	}
 
+	hasElementChildren := hasElementChild(n)
+	w.WriteString(">")
+	if hasElementChildren {
+		w.WriteString("\n")
+	}
+
+	if err := formatChildren(w, n, depth, indent, hasElementChildren); err != nil {
+		return err
+	}
+
+	writeClosingTag(w, n, depth, indent, hasElementChildren)
 	return nil
+}
+
+// writeOpeningTag writes the opening tag with attributes.
+func writeOpeningTag(w *bytes.Buffer, n *xmlquery.Node, depth int, indent string) {
+	writeIndent(w, depth, indent)
+	w.WriteString("<")
+	writeQualifiedName(w, n.Prefix, n.Data)
+	writeAttributes(w, n.Attr)
+}
+
+// writeClosingTag writes the closing tag.
+func writeClosingTag(w *bytes.Buffer, n *xmlquery.Node, depth int, indent string, hasElementChildren bool) {
+	if hasElementChildren {
+		writeIndent(w, depth, indent)
+	}
+	w.WriteString("</")
+	writeQualifiedName(w, n.Prefix, n.Data)
+	w.WriteString(">\n")
+}
+
+// writeQualifiedName writes a qualified name with optional prefix.
+func writeQualifiedName(w *bytes.Buffer, prefix, local string) {
+	if prefix != "" {
+		w.WriteString(prefix)
+		w.WriteString(":")
+	}
+	w.WriteString(local)
+}
+
+// writeAttributes writes all attributes of a node.
+func writeAttributes(w *bytes.Buffer, attrs []xmlquery.Attr) {
+	for _, attr := range attrs {
+		w.WriteString(" ")
+		if attr.Name.Space != "" {
+			w.WriteString("xmlns:")
+			w.WriteString(attr.Name.Local)
+		} else if attr.Name.Local != "" {
+			w.WriteString(attr.Name.Local)
+		}
+		w.WriteString("=\"")
+		w.WriteString(encoding.EscapeXMLAttr(attr.Value))
+		w.WriteString("\"")
+	}
+}
+
+// hasElementChild checks if a node has any element children.
+func hasElementChild(n *xmlquery.Node) bool {
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == xmlquery.ElementNode {
+			return true
+		}
+	}
+	return false
+}
+
+// formatChildren formats all children of a node.
+func formatChildren(w *bytes.Buffer, n *xmlquery.Node, depth int, indent string, hasElementChildren bool) error {
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		switch child.Type {
+		case xmlquery.ElementNode:
+			if err := formatNode(w, child, depth+1, indent); err != nil {
+				return err
+			}
+		case xmlquery.TextNode:
+			formatInlineText(w, child, depth, indent, hasElementChildren)
+		case xmlquery.CharDataNode:
+			w.WriteString("<![CDATA[")
+			w.WriteString(child.Data)
+			w.WriteString("]]>")
+		}
+	}
+	return nil
+}
+
+// formatInlineText formats text content within an element.
+func formatInlineText(w *bytes.Buffer, n *xmlquery.Node, depth int, indent string, hasElementChildren bool) {
+	text := strings.TrimSpace(n.Data)
+	if text == "" {
+		return
+	}
+	if hasElementChildren {
+		writeIndent(w, depth+1, indent)
+	}
+	w.WriteString(encoding.EscapeXMLText(n.Data))
+	if hasElementChildren {
+		w.WriteString("\n")
+	}
+}
+
+// formatTextNode formats a text node.
+func formatTextNode(w *bytes.Buffer, n *xmlquery.Node) {
+	text := strings.TrimSpace(n.Data)
+	if text != "" {
+		w.WriteString(encoding.EscapeXMLText(text))
+	}
+}
+
+// formatCommentNode formats a comment node.
+func formatCommentNode(w *bytes.Buffer, n *xmlquery.Node, depth int, indent string) {
+	writeIndent(w, depth, indent)
+	w.WriteString("<!--")
+	w.WriteString(n.Data)
+	w.WriteString("-->\n")
 }
 
 func writeIndent(w *bytes.Buffer, depth int, indent string) {

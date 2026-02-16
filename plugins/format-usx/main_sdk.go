@@ -104,17 +104,21 @@ func parseUSX(path string) (*ir.Corpus, error) {
 	return corpus, nil
 }
 
-func parseUSXToIR(data []byte) (*ir.Corpus, error) {
-	decoder := xml.NewDecoder(bytes.NewReader(data))
+type parseState struct {
+	doc            *ir.Document
+	currentChapter int
+	currentVerse   int
+	sequence       int
+	textBuf        strings.Builder
+}
 
+func parseUSXToIR(data []byte) (*ir.Corpus, error) {
 	corpus := ir.NewCorpus("", "BIBLE", "")
 	corpus.SourceFormat = "USX"
 	corpus.Attributes = make(map[string]string)
 
-	var doc *ir.Document
-	var currentChapter, currentVerse int
-	sequence := 0
-	var textBuf strings.Builder
+	state := &parseState{}
+	decoder := xml.NewDecoder(bytes.NewReader(data))
 
 	for {
 		token, err := decoder.Token()
@@ -125,83 +129,108 @@ func parseUSXToIR(data []byte) (*ir.Corpus, error) {
 			return nil, err
 		}
 
-		switch t := token.(type) {
-		case xml.StartElement:
-			switch t.Name.Local {
-			case "usx":
-				for _, attr := range t.Attr {
-					if attr.Name.Local == "version" {
-						corpus.Attributes["usx_version"] = attr.Value
-					}
-				}
-
-			case "book":
-				for _, attr := range t.Attr {
-					if attr.Name.Local == "code" {
-						corpus.ID = attr.Value
-						doc = ir.NewDocument(attr.Value, attr.Value, 1)
-					}
-					if attr.Name.Local == "style" && doc != nil {
-						if doc.Attributes == nil {
-							doc.Attributes = make(map[string]string)
-						}
-						doc.Attributes["style"] = attr.Value
-					}
-				}
-
-			case "chapter":
-				if textBuf.Len() > 0 && currentVerse > 0 {
-					sequence++
-					cb := createContentBlock(sequence, textBuf.String(), doc.ID, currentChapter, currentVerse)
-					doc.ContentBlocks = append(doc.ContentBlocks, cb)
-					textBuf.Reset()
-				}
-
-				for _, attr := range t.Attr {
-					if attr.Name.Local == "number" {
-						currentChapter, _ = strconv.Atoi(attr.Value)
-						currentVerse = 0
-					}
-				}
-
-			case "verse":
-				if textBuf.Len() > 0 && currentVerse > 0 {
-					sequence++
-					cb := createContentBlock(sequence, textBuf.String(), doc.ID, currentChapter, currentVerse)
-					doc.ContentBlocks = append(doc.ContentBlocks, cb)
-					textBuf.Reset()
-				}
-
-				for _, attr := range t.Attr {
-					if attr.Name.Local == "number" {
-						currentVerse, _ = strconv.Atoi(attr.Value)
-					}
-				}
-			}
-
-		case xml.CharData:
-			text := strings.TrimSpace(string(t))
-			if text != "" && currentVerse > 0 {
-				if textBuf.Len() > 0 {
-					textBuf.WriteString(" ")
-				}
-				textBuf.WriteString(text)
-			}
+		if err := processToken(token, corpus, state); err != nil {
+			return nil, err
 		}
 	}
 
-	if textBuf.Len() > 0 && currentVerse > 0 && doc != nil {
-		sequence++
-		cb := createContentBlock(sequence, textBuf.String(), doc.ID, currentChapter, currentVerse)
-		doc.ContentBlocks = append(doc.ContentBlocks, cb)
-	}
+	flushTextBuffer(state)
+	finalizeCorpus(corpus, state.doc)
 
+	return corpus, nil
+}
+
+func processToken(token xml.Token, corpus *ir.Corpus, state *parseState) error {
+	switch t := token.(type) {
+	case xml.StartElement:
+		processStartElement(t, corpus, state)
+	case xml.CharData:
+		processCharData(t, state)
+	}
+	return nil
+}
+
+func processStartElement(elem xml.StartElement, corpus *ir.Corpus, state *parseState) {
+	switch elem.Name.Local {
+	case "usx":
+		processUSXElement(elem, corpus)
+	case "book":
+		processBookElement(elem, corpus, state)
+	case "chapter":
+		processChapterElement(elem, state)
+	case "verse":
+		processVerseElement(elem, state)
+	}
+}
+
+func processUSXElement(elem xml.StartElement, corpus *ir.Corpus) {
+	for _, attr := range elem.Attr {
+		if attr.Name.Local == "version" {
+			corpus.Attributes["usx_version"] = attr.Value
+		}
+	}
+}
+
+func processBookElement(elem xml.StartElement, corpus *ir.Corpus, state *parseState) {
+	for _, attr := range elem.Attr {
+		if attr.Name.Local == "code" {
+			corpus.ID = attr.Value
+			state.doc = ir.NewDocument(attr.Value, attr.Value, 1)
+		}
+		if attr.Name.Local == "style" && state.doc != nil {
+			if state.doc.Attributes == nil {
+				state.doc.Attributes = make(map[string]string)
+			}
+			state.doc.Attributes["style"] = attr.Value
+		}
+	}
+}
+
+func processChapterElement(elem xml.StartElement, state *parseState) {
+	flushTextBuffer(state)
+
+	for _, attr := range elem.Attr {
+		if attr.Name.Local == "number" {
+			state.currentChapter, _ = strconv.Atoi(attr.Value)
+			state.currentVerse = 0
+		}
+	}
+}
+
+func processVerseElement(elem xml.StartElement, state *parseState) {
+	flushTextBuffer(state)
+
+	for _, attr := range elem.Attr {
+		if attr.Name.Local == "number" {
+			state.currentVerse, _ = strconv.Atoi(attr.Value)
+		}
+	}
+}
+
+func processCharData(charData xml.CharData, state *parseState) {
+	text := strings.TrimSpace(string(charData))
+	if text != "" && state.currentVerse > 0 {
+		if state.textBuf.Len() > 0 {
+			state.textBuf.WriteString(" ")
+		}
+		state.textBuf.WriteString(text)
+	}
+}
+
+func flushTextBuffer(state *parseState) {
+	if state.textBuf.Len() > 0 && state.currentVerse > 0 && state.doc != nil {
+		state.sequence++
+		cb := createContentBlock(state.sequence, state.textBuf.String(), state.doc.ID, state.currentChapter, state.currentVerse)
+		state.doc.ContentBlocks = append(state.doc.ContentBlocks, cb)
+		state.textBuf.Reset()
+	}
+}
+
+func finalizeCorpus(corpus *ir.Corpus, doc *ir.Document) {
 	if doc != nil {
 		corpus.Documents = []*ir.Document{doc}
 		corpus.Title = doc.Title
 	}
-
-	return corpus, nil
 }
 
 func createContentBlock(sequence int, text, book string, chapter, verse int) *ir.ContentBlock {

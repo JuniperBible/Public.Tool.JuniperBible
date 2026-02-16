@@ -125,148 +125,196 @@ func detectZefania(data []byte) (bool, string) {
 	return true, "Zefania XML detected"
 }
 
-func parseZefania(data []byte) (*ir.Corpus, error) {
-	decoder := xml.NewDecoder(bytes.NewReader(data))
+// parseContext holds state during XML parsing
+type parseContext struct {
+	corpus         *ir.Corpus
+	currentBook    *ir.Document
+	currentChapter int
+	sequence       int
+}
 
-	corpus := &ir.Corpus{
-		Version:      "1.0.0",
-		ModuleType:   "BIBLE",
-		SourceFormat: "Zefania",
-		Attributes:   make(map[string]string),
+func parseZefania(data []byte) (*ir.Corpus, error) {
+	ctx := &parseContext{
+		corpus: &ir.Corpus{
+			Version:      "1.0.0",
+			ModuleType:   "BIBLE",
+			SourceFormat: "Zefania",
+			Attributes:   make(map[string]string),
+		},
 	}
 
-	var currentBook *ir.Document
-	var currentChapter int
-	sequence := 0
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	if err := parseXMLTokens(decoder, ctx); err != nil {
+		return nil, err
+	}
 
+	finalizeCorpus(ctx.corpus, data)
+	return ctx.corpus, nil
+}
+
+func parseXMLTokens(decoder *xml.Decoder, ctx *parseContext) error {
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
-			break
+			return nil
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		switch t := token.(type) {
-		case xml.StartElement:
-			switch strings.ToUpper(t.Name.Local) {
-			case "XMLBIBLE":
-				for _, attr := range t.Attr {
-					switch strings.ToLower(attr.Name.Local) {
-					case "biblename":
-						corpus.Title = attr.Value
-						corpus.ID = sanitizeID(attr.Value)
-					case "language":
-						corpus.Language = attr.Value
-					}
-				}
-
-			case "BIBLEBOOK":
-				var bookNum int
-				var bookName string
-				for _, attr := range t.Attr {
-					switch strings.ToLower(attr.Name.Local) {
-					case "bnumber":
-						bookNum, _ = strconv.Atoi(attr.Value)
-					case "bname":
-						bookName = attr.Value
-					}
-				}
-
-				osisID := zefaniaBookToOSIS[bookNum]
-				if osisID == "" {
-					osisID = sanitizeID(bookName)
-				}
-
-				currentBook = &ir.Document{
-					ID:    osisID,
-					Title: bookName,
-					Order: bookNum,
-					Attributes: map[string]string{
-						"bnumber": strconv.Itoa(bookNum),
-					},
-				}
-				corpus.Documents = append(corpus.Documents, currentBook)
-
-			case "CHAPTER":
-				for _, attr := range t.Attr {
-					if strings.ToLower(attr.Name.Local) == "cnumber" {
-						currentChapter, _ = strconv.Atoi(attr.Value)
-					}
-				}
-
-			case "VERS":
-				var verseNum int
-				for _, attr := range t.Attr {
-					if strings.ToLower(attr.Name.Local) == "vnumber" {
-						verseNum, _ = strconv.Atoi(attr.Value)
-					}
-				}
-
-				// Read verse content
-				var textContent strings.Builder
-				for {
-					innerToken, err := decoder.Token()
-					if err != nil {
-						break
-					}
-					if end, ok := innerToken.(xml.EndElement); ok && strings.ToUpper(end.Name.Local) == "VERS" {
-						break
-					}
-					if charData, ok := innerToken.(xml.CharData); ok {
-						textContent.Write(charData)
-					}
-				}
-
-				text := strings.TrimSpace(textContent.String())
-				if text != "" && currentBook != nil {
-					sequence++
-					hash := sha256.Sum256([]byte(text))
-					osisID := fmt.Sprintf("%s.%d.%d", currentBook.ID, currentChapter, verseNum)
-
-					cb := &ir.ContentBlock{
-						ID:       fmt.Sprintf("cb-%d", sequence),
-						Sequence: sequence,
-						Text:     text,
-						Hash:     hex.EncodeToString(hash[:]),
-						Anchors: []*ir.Anchor{
-							{
-								ID:       fmt.Sprintf("a-%d-0", sequence),
-								Position: 0,
-								Spans: []*ir.Span{
-									{
-										ID:            fmt.Sprintf("s-%s", osisID),
-										Type:          "VERSE",
-										StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
-										Ref: &ir.Ref{
-											Book:    currentBook.ID,
-											Chapter: currentChapter,
-											Verse:   verseNum,
-											OSISID:  osisID,
-										},
-									},
-								},
-							},
-						},
-					}
-					currentBook.ContentBlocks = append(currentBook.ContentBlocks, cb)
-				}
+		if startElem, ok := token.(xml.StartElement); ok {
+			if err := handleStartElement(decoder, startElem, ctx); err != nil {
+				return err
 			}
 		}
 	}
+}
 
+func handleStartElement(decoder *xml.Decoder, elem xml.StartElement, ctx *parseContext) error {
+	switch strings.ToUpper(elem.Name.Local) {
+	case "XMLBIBLE":
+		parseXMLBibleAttrs(elem.Attr, ctx.corpus)
+	case "BIBLEBOOK":
+		parseBookElement(elem.Attr, ctx)
+	case "CHAPTER":
+		parseChapterElement(elem.Attr, ctx)
+	case "VERS":
+		return parseVerseElement(decoder, elem.Attr, ctx)
+	}
+	return nil
+}
+
+func parseXMLBibleAttrs(attrs []xml.Attr, corpus *ir.Corpus) {
+	for _, attr := range attrs {
+		switch strings.ToLower(attr.Name.Local) {
+		case "biblename":
+			corpus.Title = attr.Value
+			corpus.ID = sanitizeID(attr.Value)
+		case "language":
+			corpus.Language = attr.Value
+		}
+	}
+}
+
+func parseBookElement(attrs []xml.Attr, ctx *parseContext) {
+	bookNum, bookName := extractBookAttrs(attrs)
+	osisID := zefaniaBookToOSIS[bookNum]
+	if osisID == "" {
+		osisID = sanitizeID(bookName)
+	}
+
+	ctx.currentBook = &ir.Document{
+		ID:    osisID,
+		Title: bookName,
+		Order: bookNum,
+		Attributes: map[string]string{
+			"bnumber": strconv.Itoa(bookNum),
+		},
+	}
+	ctx.corpus.Documents = append(ctx.corpus.Documents, ctx.currentBook)
+}
+
+func extractBookAttrs(attrs []xml.Attr) (int, string) {
+	var bookNum int
+	var bookName string
+	for _, attr := range attrs {
+		switch strings.ToLower(attr.Name.Local) {
+		case "bnumber":
+			bookNum, _ = strconv.Atoi(attr.Value)
+		case "bname":
+			bookName = attr.Value
+		}
+	}
+	return bookNum, bookName
+}
+
+func parseChapterElement(attrs []xml.Attr, ctx *parseContext) {
+	for _, attr := range attrs {
+		if strings.ToLower(attr.Name.Local) == "cnumber" {
+			ctx.currentChapter, _ = strconv.Atoi(attr.Value)
+		}
+	}
+}
+
+func parseVerseElement(decoder *xml.Decoder, attrs []xml.Attr, ctx *parseContext) error {
+	verseNum := extractVerseNumber(attrs)
+	text := readVerseText(decoder)
+
+	if text != "" && ctx.currentBook != nil {
+		ctx.sequence++
+		contentBlock := createContentBlock(text, ctx, verseNum)
+		ctx.currentBook.ContentBlocks = append(ctx.currentBook.ContentBlocks, contentBlock)
+	}
+	return nil
+}
+
+func extractVerseNumber(attrs []xml.Attr) int {
+	for _, attr := range attrs {
+		if strings.ToLower(attr.Name.Local) == "vnumber" {
+			num, _ := strconv.Atoi(attr.Value)
+			return num
+		}
+	}
+	return 0
+}
+
+func readVerseText(decoder *xml.Decoder) string {
+	var textContent strings.Builder
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			break
+		}
+		if end, ok := token.(xml.EndElement); ok && strings.ToUpper(end.Name.Local) == "VERS" {
+			break
+		}
+		if charData, ok := token.(xml.CharData); ok {
+			textContent.Write(charData)
+		}
+	}
+	return strings.TrimSpace(textContent.String())
+}
+
+func createContentBlock(text string, ctx *parseContext, verseNum int) *ir.ContentBlock {
+	hash := sha256.Sum256([]byte(text))
+	osisID := fmt.Sprintf("%s.%d.%d", ctx.currentBook.ID, ctx.currentChapter, verseNum)
+
+	return &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", ctx.sequence),
+		Sequence: ctx.sequence,
+		Text:     text,
+		Hash:     hex.EncodeToString(hash[:]),
+		Anchors: []*ir.Anchor{
+			{
+				ID:       fmt.Sprintf("a-%d-0", ctx.sequence),
+				Position: 0,
+				Spans: []*ir.Span{
+					{
+						ID:            fmt.Sprintf("s-%s", osisID),
+						Type:          "VERSE",
+						StartAnchorID: fmt.Sprintf("a-%d-0", ctx.sequence),
+						Ref: &ir.Ref{
+							Book:    ctx.currentBook.ID,
+							Chapter: ctx.currentChapter,
+							Verse:   verseNum,
+							OSISID:  osisID,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func finalizeCorpus(corpus *ir.Corpus, data []byte) {
 	if corpus.ID == "" {
 		corpus.ID = "zefania"
 	}
 
-	// Store raw data for L0 lossless round-trip
 	sourceHash := sha256.Sum256(data)
 	corpus.SourceHash = hex.EncodeToString(sourceHash[:])
 	corpus.LossClass = "L0"
 	corpus.Attributes["_zefania_raw"] = string(data)
-
-	return corpus, nil
 }
 
 func sanitizeID(s string) string {

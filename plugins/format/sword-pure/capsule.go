@@ -62,42 +62,63 @@ func cmdList() {
 	fmt.Printf("\nTotal: %d Bible modules\n", len(bibles))
 }
 
+// ingestConfig holds configuration for the ingest command.
+type ingestConfig struct {
+	swordPath       string
+	outputDir       string
+	selectedModules []string
+	ingestAll       bool
+}
+
 // cmdIngest implements the "ingest" command to create capsules from modules.
 func cmdIngest() {
-	swordPath := getDefaultSwordPath()
-	outputDir := "capsules"
-	var selectedModules []string
-	ingestAll := false
+	config := parseIngestArgs()
+	bibles := getAvailableBibles(config.swordPath)
+	toIngest := selectModulesToIngest(config, bibles)
+	if len(toIngest) == 0 {
+		fmt.Println("No modules selected for ingestion.")
+		return
+	}
+	processIngestion(config, toIngest)
+}
 
-	// Parse arguments
+// parseIngestArgs parses command-line arguments for the ingest command.
+func parseIngestArgs() ingestConfig {
+	config := ingestConfig{
+		swordPath: getDefaultSwordPath(),
+		outputDir: "capsules",
+	}
+
 	for i := 2; i < len(os.Args); i++ {
 		arg := os.Args[i]
 		switch {
 		case arg == "--all" || arg == "-a":
-			ingestAll = true
+			config.ingestAll = true
 		case arg == "--output" || arg == "-o":
 			if i+1 < len(os.Args) {
 				i++
-				outputDir = os.Args[i]
+				config.outputDir = os.Args[i]
 			}
 		case arg == "--path" || arg == "-p":
 			if i+1 < len(os.Args) {
 				i++
-				swordPath = os.Args[i]
+				config.swordPath = os.Args[i]
 			}
 		default:
-			selectedModules = append(selectedModules, arg)
+			config.selectedModules = append(config.selectedModules, arg)
 		}
 	}
+	return config
+}
 
-	// Get available modules
+// getAvailableBibles returns available Bible modules from the SWORD path.
+func getAvailableBibles(swordPath string) []ModuleInfo {
 	modules, err := ListModules(swordPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Filter to only Bible modules
 	var bibles []ModuleInfo
 	for _, m := range modules {
 		if m.Type == "Bible" {
@@ -109,98 +130,125 @@ func cmdIngest() {
 		fmt.Fprintf(os.Stderr, "No Bible modules found in %s\n", swordPath)
 		os.Exit(1)
 	}
+	return bibles
+}
 
-	// Determine which modules to ingest
+// selectModulesToIngest determines which modules to ingest based on config.
+func selectModulesToIngest(config ingestConfig, bibles []ModuleInfo) []ModuleInfo {
+	if config.ingestAll {
+		return bibles
+	}
+	if len(config.selectedModules) > 0 {
+		return findSelectedModules(config.selectedModules, bibles)
+	}
+	return interactiveModuleSelection(bibles)
+}
+
+// findSelectedModules finds modules by name from the selected list.
+func findSelectedModules(selectedNames []string, bibles []ModuleInfo) []ModuleInfo {
+	moduleMap := make(map[string]ModuleInfo)
+	for _, m := range bibles {
+		moduleMap[m.Name] = m
+	}
+
 	var toIngest []ModuleInfo
-	if ingestAll {
-		toIngest = bibles
-	} else if len(selectedModules) > 0 {
-		// Find specified modules
-		moduleMap := make(map[string]ModuleInfo)
-		for _, m := range bibles {
-			moduleMap[m.Name] = m
+	for _, name := range selectedNames {
+		if m, ok := moduleMap[name]; ok {
+			toIngest = append(toIngest, m)
+		} else {
+			fmt.Fprintf(os.Stderr, "Warning: module '%s' not found\n", name)
 		}
-		for _, name := range selectedModules {
-			if m, ok := moduleMap[name]; ok {
-				toIngest = append(toIngest, m)
-			} else {
-				fmt.Fprintf(os.Stderr, "Warning: module '%s' not found\n", name)
-			}
-		}
-	} else {
-		// Interactive selection
-		fmt.Println("Available Bible modules:")
-		for i, m := range bibles {
-			encrypted := ""
-			if m.Encrypted {
-				encrypted = " [encrypted]"
-			}
-			fmt.Printf("  %2d. %-15s %s%s\n", i+1, m.Name, m.Description, encrypted)
-		}
-		fmt.Println()
-		fmt.Println("Enter module numbers to ingest (comma-separated), 'all', or 'q' to quit:")
-		fmt.Print("> ")
+	}
+	return toIngest
+}
 
-		scanner := bufio.NewScanner(os.Stdin)
-		if scanner.Scan() {
-			input := scanner.Text()
-			if input == "q" || input == "quit" {
-				return
+// interactiveModuleSelection prompts the user to select modules interactively.
+func interactiveModuleSelection(bibles []ModuleInfo) []ModuleInfo {
+	fmt.Println("Available Bible modules:")
+	for i, m := range bibles {
+		encrypted := ""
+		if m.Encrypted {
+			encrypted = " [encrypted]"
+		}
+		fmt.Printf("  %2d. %-15s %s%s\n", i+1, m.Name, m.Description, encrypted)
+	}
+	fmt.Println()
+	fmt.Println("Enter module numbers to ingest (comma-separated), 'all', or 'q' to quit:")
+	fmt.Print("> ")
+
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() {
+		return nil
+	}
+
+	input := scanner.Text()
+	if input == "q" || input == "quit" {
+		return nil
+	}
+	if input == "all" {
+		return bibles
+	}
+	return parseUserSelection(input, bibles)
+}
+
+// parseUserSelection parses user input to select modules.
+func parseUserSelection(input string, bibles []ModuleInfo) []ModuleInfo {
+	var toIngest []ModuleInfo
+	for _, s := range splitAndTrim(input, ",") {
+		var idx int
+		if _, err := fmt.Sscanf(s, "%d", &idx); err == nil {
+			if idx >= 1 && idx <= len(bibles) {
+				toIngest = append(toIngest, bibles[idx-1])
 			}
-			if input == "all" {
-				toIngest = bibles
-			} else {
-				// Parse comma-separated numbers
-				for _, s := range splitAndTrim(input, ",") {
-					var idx int
-					if _, err := fmt.Sscanf(s, "%d", &idx); err == nil {
-						if idx >= 1 && idx <= len(bibles) {
-							toIngest = append(toIngest, bibles[idx-1])
-						}
-					} else {
-						// Try as module name
-						for _, m := range bibles {
-							if m.Name == s {
-								toIngest = append(toIngest, m)
-								break
-							}
-						}
-					}
-				}
+		} else {
+			if m := findModuleInfoByName(s, bibles); m != nil {
+				toIngest = append(toIngest, *m)
 			}
 		}
 	}
+	return toIngest
+}
 
-	if len(toIngest) == 0 {
-		fmt.Println("No modules selected for ingestion.")
-		return
+// findModuleInfoByName finds a module by name.
+func findModuleInfoByName(name string, modules []ModuleInfo) *ModuleInfo {
+	for _, m := range modules {
+		if m.Name == name {
+			return &m
+		}
 	}
+	return nil
+}
 
-	// Create output directory
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+// processIngestion creates capsules for the selected modules.
+func processIngestion(config ingestConfig, toIngest []ModuleInfo) {
+	if err := os.MkdirAll(config.outputDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Ingest each module
-	fmt.Printf("\nIngesting %d module(s) to %s/\n\n", len(toIngest), outputDir)
+	fmt.Printf("\nIngesting %d module(s) to %s/\n\n", len(toIngest), config.outputDir)
 	for _, m := range toIngest {
 		if m.Encrypted {
 			fmt.Printf("Skipping %s (encrypted modules not supported)\n", m.Name)
 			continue
 		}
-		capsulePath := filepath.Join(outputDir, m.Name+".capsule.tar.xz")
-		fmt.Printf("Creating %s...\n", capsulePath)
-		if err := createModuleCapsule(swordPath, m, capsulePath); err != nil {
-			fmt.Fprintf(os.Stderr, "  Error: %v\n", err)
-			continue
-		}
-		info, _ := os.Stat(capsulePath)
-		if info != nil {
-			fmt.Printf("  Created: %s (%d bytes)\n", capsulePath, info.Size())
-		}
+		ingestModule(config.swordPath, config.outputDir, m)
 	}
 	fmt.Println("\nDone!")
+}
+
+// ingestModule creates a capsule for a single module.
+func ingestModule(swordPath, outputDir string, m ModuleInfo) {
+	capsulePath := filepath.Join(outputDir, m.Name+".capsule.tar.xz")
+	fmt.Printf("Creating %s...\n", capsulePath)
+	if err := createModuleCapsule(swordPath, m, capsulePath); err != nil {
+		fmt.Fprintf(os.Stderr, "  Error: %v\n", err)
+		return
+	}
+	info, _ := os.Stat(capsulePath)
+	if info != nil {
+		fmt.Printf("  Created: %s (%d bytes)\n", capsulePath, info.Size())
+	}
 }
 
 // getDefaultSwordPath returns the default SWORD installation path.

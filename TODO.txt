@@ -1,6 +1,21 @@
 # Code Complexity Reduction TODO
 
-## Round 4 - Completed (11 functions refactored)
+## Round 5 - Completed (11 functions)
+- [x] cmdIngest: CC 37->3, 139->9 lines (9 helpers)
+- [x] parseUSXToIR (format/usx/main_sdk.go): CC 31->3, 120->35 lines (11 helpers)
+- [x] parseUSXToIR (format-usx/main.go): CC 31->5, 120->25 lines (11 helpers)
+- [x] parseUSXToIR (format/usx/main.go): CC 31->3, 120->26 lines (12 helpers)
+- [x] CreateTable: CC 31->3, 123->34 lines (5 helpers)
+- [x] parseUSFMToIR (format/usfm/main_sdk.go): CC 30->3, 177->18 lines (13 helpers)
+- [x] parseUSFMToIR (format/usfm/main.go): CC 30->3, 177->23 lines (9 helpers)
+- [x] writePluginsDoc: CC 29->2, 122->18 lines (10 helpers)
+- [x] parseUSXToIR (format-usx/main_sdk.go): CC 28->5, 85->26 lines (9 helpers)
+- [x] formatNode: CC 28->5, 115->15 lines (13 helpers)
+- [x] parseZefania: CC 27->2, 142->17 lines (11 helpers)
+
+---
+
+## Round 4 - Completed (11 functions)
 - [x] handleJuniper: CC 63->9, 295->75 lines (13 helpers)
 - [x] handleLibraryBibles: CC 56->6, 262->54 lines (7 helpers)
 - [x] performIRGeneration: CC 27->8, 228->52 lines (8 helpers)
@@ -18,5 +33,10 @@
 - Round 2: handlers, hugo, mysword, mybible, orderby refactoring
 - Round 3: handlers, mysword, format-sqlite further refactoring
 
-## Remaining High Complexity Functions (CC >= 10)
-See: nix-shell -p python3Packages.lizard --run "lizard -l go -C 8 -w ."
+---
+
+## Stats
+- Total functions refactored: 22
+- Total helper functions extracted: ~200+
+- Average CC reduction: 85%
+- Files modified across all rounds: 30+

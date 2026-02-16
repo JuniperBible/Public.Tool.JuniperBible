@@ -248,6 +248,121 @@ func (t *Table) HasRowID() bool {
 	return !t.WithoutRowID
 }
 
+// checkTableExists checks if a table already exists in the schema.
+// Returns the existing table if found and ifNotExists is true, otherwise an error.
+func (s *Schema) checkTableExists(name string, ifNotExists bool) (*Table, error) {
+	lowerName := strings.ToLower(name)
+	for tableName, table := range s.Tables {
+		if strings.ToLower(tableName) == lowerName {
+			if ifNotExists {
+				return table, nil
+			}
+			return nil, fmt.Errorf("table already exists: %s", name)
+		}
+	}
+	return nil, nil
+}
+
+// processColumnConstraint processes a single column constraint.
+func processColumnConstraint(col *Column, constraint parser.ColumnConstraint, pkCols *[]string) {
+	switch constraint.Type {
+	case parser.ConstraintPrimaryKey:
+		col.PrimaryKey = true
+		*pkCols = append(*pkCols, col.Name)
+		if constraint.PrimaryKey != nil && constraint.PrimaryKey.Autoincrement {
+			col.Autoincrement = true
+		}
+	case parser.ConstraintNotNull:
+		col.NotNull = true
+	case parser.ConstraintUnique:
+		col.Unique = true
+	case parser.ConstraintCollate:
+		col.Collation = constraint.Collate
+	case parser.ConstraintDefault:
+		if constraint.Default != nil {
+			col.Default = constraint.Default.String()
+		}
+	case parser.ConstraintCheck:
+		if constraint.Check != nil {
+			col.Check = constraint.Check.String()
+		}
+	case parser.ConstraintGenerated:
+		if constraint.Generated != nil {
+			col.Generated = true
+			if constraint.Generated.Expr != nil {
+				col.GeneratedExpr = constraint.Generated.Expr.String()
+			}
+			col.GeneratedStored = constraint.Generated.Stored
+		}
+	}
+}
+
+// convertColumns converts parser column definitions to schema columns.
+func convertColumns(colDefs []parser.ColumnDef) ([]*Column, []string) {
+	columns := make([]*Column, len(colDefs))
+	var primaryKeyColumns []string
+
+	for i, colDef := range colDefs {
+		col := &Column{
+			Name:     colDef.Name,
+			Type:     colDef.Type,
+			Affinity: DetermineAffinity(colDef.Type),
+		}
+
+		for _, constraint := range colDef.Constraints {
+			processColumnConstraint(col, constraint, &primaryKeyColumns)
+		}
+
+		columns[i] = col
+	}
+
+	return columns, primaryKeyColumns
+}
+
+// convertTableConstraint converts a parser table constraint to a schema constraint.
+func convertTableConstraint(constraint parser.TableConstraint, pkCols *[]string) TableConstraint {
+	tc := TableConstraint{Name: constraint.Name}
+
+	switch constraint.Type {
+	case parser.ConstraintPrimaryKey:
+		tc.Type = ConstraintPrimaryKey
+		if constraint.PrimaryKey != nil {
+			for _, col := range constraint.PrimaryKey.Columns {
+				tc.Columns = append(tc.Columns, col.Column)
+				*pkCols = append(*pkCols, col.Column)
+			}
+		}
+	case parser.ConstraintUnique:
+		tc.Type = ConstraintUnique
+		if constraint.Unique != nil {
+			for _, col := range constraint.Unique.Columns {
+				tc.Columns = append(tc.Columns, col.Column)
+			}
+		}
+	case parser.ConstraintCheck:
+		tc.Type = ConstraintCheck
+		if constraint.Check != nil {
+			tc.Expression = constraint.Check.String()
+		}
+	case parser.ConstraintForeignKey:
+		tc.Type = ConstraintForeignKey
+		if constraint.ForeignKey != nil {
+			tc.Columns = constraint.ForeignKey.Columns
+		}
+	}
+
+	return tc
+}
+
+// convertTableConstraints converts all parser table constraints to schema constraints.
+func convertTableConstraints(constraints []parser.TableConstraint, pkCols *[]string) []TableConstraint {
+	tableConstraints := make([]TableConstraint, len(constraints))
+	for i, constraint := range constraints {
+		tableConstraints[i] = convertTableConstraint(constraint, pkCols)
+	}
+	return tableConstraints
+}
+
 // CreateTable creates a table from a CREATE TABLE statement.
 func (s *Schema) CreateTable(stmt *parser.CreateTableStmt) (*Table, error) {
 	if stmt == nil {
@@ -258,103 +373,13 @@ func (s *Schema) CreateTable(stmt *parser.CreateTableStmt) (*Table, error) {
 	defer s.mu.Unlock()
 
 	// Check if table already exists
-	lowerName := strings.ToLower(stmt.Name)
-	for tableName := range s.Tables {
-		if strings.ToLower(tableName) == lowerName {
-			if stmt.IfNotExists {
-				// Return existing table
-				return s.Tables[tableName], nil
-			}
-			return nil, fmt.Errorf("table already exists: %s", stmt.Name)
-		}
+	if existing, err := s.checkTableExists(stmt.Name, stmt.IfNotExists); err != nil || existing != nil {
+		return existing, err
 	}
 
-	// Convert parser columns to schema columns
-	columns := make([]*Column, len(stmt.Columns))
-	var primaryKeyColumns []string
-
-	for i, colDef := range stmt.Columns {
-		col := &Column{
-			Name:     colDef.Name,
-			Type:     colDef.Type,
-			Affinity: DetermineAffinity(colDef.Type),
-		}
-
-		// Process column constraints
-		for _, constraint := range colDef.Constraints {
-			switch constraint.Type {
-			case parser.ConstraintPrimaryKey:
-				col.PrimaryKey = true
-				primaryKeyColumns = append(primaryKeyColumns, col.Name)
-				if constraint.PrimaryKey != nil && constraint.PrimaryKey.Autoincrement {
-					col.Autoincrement = true
-				}
-			case parser.ConstraintNotNull:
-				col.NotNull = true
-			case parser.ConstraintUnique:
-				col.Unique = true
-			case parser.ConstraintCollate:
-				col.Collation = constraint.Collate
-			case parser.ConstraintDefault:
-				// Store default as expression string for now
-				if constraint.Default != nil {
-					col.Default = constraint.Default.String()
-				}
-			case parser.ConstraintCheck:
-				if constraint.Check != nil {
-					col.Check = constraint.Check.String()
-				}
-			case parser.ConstraintGenerated:
-				if constraint.Generated != nil {
-					col.Generated = true
-					if constraint.Generated.Expr != nil {
-						col.GeneratedExpr = constraint.Generated.Expr.String()
-					}
-					col.GeneratedStored = constraint.Generated.Stored
-				}
-			}
-		}
-
-		columns[i] = col
-	}
-
-	// Process table-level constraints
-	var tableConstraints []TableConstraint
-	for _, constraint := range stmt.Constraints {
-		tc := TableConstraint{
-			Name: constraint.Name,
-		}
-
-		switch constraint.Type {
-		case parser.ConstraintPrimaryKey:
-			tc.Type = ConstraintPrimaryKey
-			if constraint.PrimaryKey != nil {
-				for _, col := range constraint.PrimaryKey.Columns {
-					tc.Columns = append(tc.Columns, col.Column)
-					primaryKeyColumns = append(primaryKeyColumns, col.Column)
-				}
-			}
-		case parser.ConstraintUnique:
-			tc.Type = ConstraintUnique
-			if constraint.Unique != nil {
-				for _, col := range constraint.Unique.Columns {
-					tc.Columns = append(tc.Columns, col.Column)
-				}
-			}
-		case parser.ConstraintCheck:
-			tc.Type = ConstraintCheck
-			if constraint.Check != nil {
-				tc.Expression = constraint.Check.String()
-			}
-		case parser.ConstraintForeignKey:
-			tc.Type = ConstraintForeignKey
-			if constraint.ForeignKey != nil {
-				tc.Columns = constraint.ForeignKey.Columns
-			}
-		}
-
-		tableConstraints = append(tableConstraints, tc)
-	}
+	// Convert columns and constraints
+	columns, primaryKeyColumns := convertColumns(stmt.Columns)
+	tableConstraints := convertTableConstraints(stmt.Constraints, &primaryKeyColumns)
 
 	// Create the table
 	table := &Table{

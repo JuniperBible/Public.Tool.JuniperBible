@@ -267,18 +267,8 @@ func handleExtractIR(args map[string]interface{}) {
 
 func parseUSXToIR(data []byte) (*ipc.Corpus, error) {
 	decoder := xml.NewDecoder(bytes.NewReader(data))
-
-	corpus := &ipc.Corpus{
-		Version:      "1.0.0",
-		ModuleType:   "BIBLE",
-		SourceFormat: "USX",
-		Attributes:   make(map[string]string),
-	}
-
-	var doc *ipc.Document
-	var currentChapter, currentVerse int
-	sequence := 0
-	var textBuf strings.Builder
+	corpus := createEmptyCorpus()
+	state := newParseState()
 
 	for {
 		token, err := decoder.Token()
@@ -291,99 +281,123 @@ func parseUSXToIR(data []byte) (*ipc.Corpus, error) {
 
 		switch t := token.(type) {
 		case xml.StartElement:
-			switch t.Name.Local {
-			case "usx":
-				for _, attr := range t.Attr {
-					if attr.Name.Local == "version" {
-						corpus.Attributes["usx_version"] = attr.Value
-					}
-				}
-
-			case "book":
-				for _, attr := range t.Attr {
-					if attr.Name.Local == "code" {
-						corpus.ID = attr.Value
-						doc = &ipc.Document{
-							ID:         attr.Value,
-							Title:      attr.Value,
-							Order:      1,
-							Attributes: make(map[string]string),
-						}
-					}
-					if attr.Name.Local == "style" {
-						if doc != nil {
-							doc.Attributes["style"] = attr.Value
-						}
-					}
-				}
-
-			case "chapter":
-				// Flush any pending text
-				if textBuf.Len() > 0 && currentVerse > 0 {
-					sequence++
-					cb := createContentBlock(sequence, textBuf.String(), doc.ID, currentChapter, currentVerse)
-					doc.ContentBlocks = append(doc.ContentBlocks, cb)
-					textBuf.Reset()
-				}
-
-				for _, attr := range t.Attr {
-					if attr.Name.Local == "number" {
-						currentChapter, _ = strconv.Atoi(attr.Value)
-						currentVerse = 0
-					}
-				}
-
-			case "verse":
-				// Flush previous verse
-				if textBuf.Len() > 0 && currentVerse > 0 {
-					sequence++
-					cb := createContentBlock(sequence, textBuf.String(), doc.ID, currentChapter, currentVerse)
-					doc.ContentBlocks = append(doc.ContentBlocks, cb)
-					textBuf.Reset()
-				}
-
-				for _, attr := range t.Attr {
-					if attr.Name.Local == "number" {
-						currentVerse, _ = strconv.Atoi(attr.Value)
-					}
-				}
-
-			case "para":
-				// Handle paragraph styles
-				for _, attr := range t.Attr {
-					if attr.Name.Local == "style" {
-						switch attr.Value {
-						case "h", "toc1", "toc2", "toc3", "mt", "mt1", "mt2":
-							// Header content - captured in text
-						}
-					}
-				}
-			}
-
+			handleStartElement(t, corpus, state)
 		case xml.CharData:
-			text := strings.TrimSpace(string(t))
-			if text != "" && currentVerse > 0 {
-				if textBuf.Len() > 0 {
-					textBuf.WriteString(" ")
-				}
-				textBuf.WriteString(text)
-			}
+			handleCharData(t, state)
 		}
 	}
 
-	// Flush final verse
-	if textBuf.Len() > 0 && currentVerse > 0 && doc != nil {
-		sequence++
-		cb := createContentBlock(sequence, textBuf.String(), doc.ID, currentChapter, currentVerse)
-		doc.ContentBlocks = append(doc.ContentBlocks, cb)
-	}
-
-	if doc != nil {
-		corpus.Documents = []*ipc.Document{doc}
-		corpus.Title = doc.Title
-	}
-
+	flushFinalVerse(state, corpus)
+	finalizeCorpus(corpus, state)
 	return corpus, nil
+}
+
+type parseState struct {
+	doc            *ipc.Document
+	currentChapter int
+	currentVerse   int
+	sequence       int
+	textBuf        strings.Builder
+}
+
+func newParseState() *parseState {
+	return &parseState{}
+}
+
+func createEmptyCorpus() *ipc.Corpus {
+	return &ipc.Corpus{
+		Version:      "1.0.0",
+		ModuleType:   "BIBLE",
+		SourceFormat: "USX",
+		Attributes:   make(map[string]string),
+	}
+}
+
+func handleStartElement(elem xml.StartElement, corpus *ipc.Corpus, state *parseState) {
+	switch elem.Name.Local {
+	case "usx":
+		handleUSXElement(elem, corpus)
+	case "book":
+		handleBookElement(elem, corpus, state)
+	case "chapter":
+		handleChapterElement(elem, state)
+	case "verse":
+		handleVerseElement(elem, state)
+	}
+}
+
+func handleUSXElement(elem xml.StartElement, corpus *ipc.Corpus) {
+	for _, attr := range elem.Attr {
+		if attr.Name.Local == "version" {
+			corpus.Attributes["usx_version"] = attr.Value
+		}
+	}
+}
+
+func handleBookElement(elem xml.StartElement, corpus *ipc.Corpus, state *parseState) {
+	for _, attr := range elem.Attr {
+		if attr.Name.Local == "code" {
+			corpus.ID = attr.Value
+			state.doc = &ipc.Document{
+				ID:         attr.Value,
+				Title:      attr.Value,
+				Order:      1,
+				Attributes: make(map[string]string),
+			}
+		}
+		if attr.Name.Local == "style" && state.doc != nil {
+			state.doc.Attributes["style"] = attr.Value
+		}
+	}
+}
+
+func handleChapterElement(elem xml.StartElement, state *parseState) {
+	flushPendingVerse(state)
+	for _, attr := range elem.Attr {
+		if attr.Name.Local == "number" {
+			state.currentChapter, _ = strconv.Atoi(attr.Value)
+			state.currentVerse = 0
+		}
+	}
+}
+
+func handleVerseElement(elem xml.StartElement, state *parseState) {
+	flushPendingVerse(state)
+	for _, attr := range elem.Attr {
+		if attr.Name.Local == "number" {
+			state.currentVerse, _ = strconv.Atoi(attr.Value)
+		}
+	}
+}
+
+func handleCharData(data xml.CharData, state *parseState) {
+	text := strings.TrimSpace(string(data))
+	if text != "" && state.currentVerse > 0 {
+		if state.textBuf.Len() > 0 {
+			state.textBuf.WriteString(" ")
+		}
+		state.textBuf.WriteString(text)
+	}
+}
+
+func flushPendingVerse(state *parseState) {
+	if state.textBuf.Len() > 0 && state.currentVerse > 0 && state.doc != nil {
+		state.sequence++
+		cb := createContentBlock(state.sequence, state.textBuf.String(), state.doc.ID, state.currentChapter, state.currentVerse)
+		state.doc.ContentBlocks = append(state.doc.ContentBlocks, cb)
+		state.textBuf.Reset()
+	}
+}
+
+func flushFinalVerse(state *parseState, corpus *ipc.Corpus) {
+	flushPendingVerse(state)
+}
+
+func finalizeCorpus(corpus *ipc.Corpus, state *parseState) {
+	if state.doc != nil {
+		corpus.Documents = []*ipc.Document{state.doc}
+		corpus.Title = state.doc.Title
+	}
 }
 
 func createContentBlock(sequence int, text, book string, chapter, verse int) *ipc.ContentBlock {

@@ -105,17 +105,8 @@ func handleDetect(args map[string]interface{}) {
 
 	// Check file extension - MySword uses .mybible
 	base := strings.ToLower(filepath.Base(path))
-	moduleType := ""
-
-	if strings.HasSuffix(base, ".mybible") {
-		if strings.HasSuffix(base, ".commentaries.mybible") {
-			moduleType = "commentary"
-		} else if strings.HasSuffix(base, ".dictionary.mybible") {
-			moduleType = "dictionary"
-		} else {
-			moduleType = "bible"
-		}
-	} else {
+	moduleType, ok := getMySwordModuleType(base)
+	if !ok {
 		ipc.MustRespond(&ipc.DetectResult{
 			Detected: false,
 			Reason:   "not a .mybible file",
@@ -144,24 +135,7 @@ func handleDetect(args map[string]interface{}) {
 	}
 
 	// Check for MySword-specific tables
-	hasBooksTable := false
-	hasInfoTable := false
-
-	rows, err := db.Query("SELECT name FROM sqlite_master WHERE type='table'")
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var name string
-			if err := rows.Scan(&name); err == nil {
-				if strings.EqualFold(name, "Books") || strings.EqualFold(name, "Bible") {
-					hasBooksTable = true
-				}
-				if strings.EqualFold(name, "info") || strings.EqualFold(name, "Details") {
-					hasInfoTable = true
-				}
-			}
-		}
-	}
+	hasBooksTable, hasInfoTable := checkMySwordTables(db)
 
 	// For Bible modules, require a Books/Bible table
 	if !hasBooksTable && moduleType == "bible" {
@@ -180,6 +154,51 @@ func handleDetect(args map[string]interface{}) {
 		Format:   "MySword",
 		Reason:   fmt.Sprintf("MySword %s database detected", moduleType),
 	})
+}
+
+// getMySwordModuleType extracts the module type from a MySword file extension.
+// Returns the module type ("bible", "commentary", "dictionary") and whether the file is valid.
+func getMySwordModuleType(base string) (moduleType string, ok bool) {
+	if !strings.HasSuffix(base, ".mybible") {
+		return "", false
+	}
+
+	if strings.HasSuffix(base, ".commentaries.mybible") {
+		return "commentary", true
+	}
+
+	if strings.HasSuffix(base, ".dictionary.mybible") {
+		return "dictionary", true
+	}
+
+	return "bible", true
+}
+
+// checkMySwordTables checks for the presence of MySword-specific tables in the database.
+// Returns whether Books/Bible table exists and whether info/Details table exists.
+func checkMySwordTables(db *sql.DB) (hasBooksTable, hasInfoTable bool) {
+	rows, err := db.Query("SELECT name FROM sqlite_master WHERE type='table'")
+	if err != nil {
+		return false, false
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			continue
+		}
+
+		if strings.EqualFold(name, "Books") || strings.EqualFold(name, "Bible") {
+			hasBooksTable = true
+		}
+
+		if strings.EqualFold(name, "info") || strings.EqualFold(name, "Details") {
+			hasInfoTable = true
+		}
+	}
+
+	return hasBooksTable, hasInfoTable
 }
 
 func handleIngest(args map[string]interface{}) {

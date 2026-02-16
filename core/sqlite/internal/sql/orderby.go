@@ -65,6 +65,13 @@ func (sc *SelectCompiler) generateSortTail(sel *Select, sort *SortCtx, nColumn i
 	return obc.generateSortTail(sel, sort, nColumn, dest)
 }
 
+// sortLoopContext holds state for sort loop generation.
+type sortLoopContext struct {
+	iSortTab int
+	bSeq     bool
+	addr     int
+}
+
 // generateSortTail implements the main sorting output loop.
 func (obc *OrderByCompiler) generateSortTail(sel *Select, sort *SortCtx, nColumn int, dest *SelectDest) error {
 	vdbe := obc.parse.GetVdbe()
@@ -79,7 +86,44 @@ func (obc *OrderByCompiler) generateSortTail(sel *Select, sort *SortCtx, nColumn
 	iTab := sort.ECursor
 
 	// Allocate registers for result row
-	var regRow, regRowid int
+	regRow, regRowid := obc.allocateResultRegisters(dest, &nColumn)
+
+	// Generate sort loop based on sorter type
+	var ctx sortLoopContext
+	if sort.SortFlags&SORTFLAG_UseSorter != 0 {
+		ctx = obc.generateSorterLoop(iTab, nKey, nColumn, addrBreak)
+	} else {
+		ctx = obc.generateEphemeralLoop(sel, iTab, addrBreak, addrContinue)
+	}
+
+	// Extract result columns from sorted record
+	obc.extractResultColumns(sel, ctx.iSortTab, ctx.bSeq, nKey, nColumn, regRow)
+
+	// Output the row based on destination
+	eDest := dest.Dest
+	if err := obc.outputSortedRow(dest, ctx.iSortTab, nKey, ctx.bSeq, nColumn, regRow, regRowid); err != nil {
+		return err
+	}
+
+	// Clean up registers
+	obc.cleanupResultRegisters(eDest, regRow, regRowid, nColumn)
+
+	// Loop to next sorted record
+	vdbe.ResolveLabel(addrContinue)
+
+	if sort.SortFlags&SORTFLAG_UseSorter != 0 {
+		vdbe.AddOp2(OP_SorterNext, iTab, ctx.addr)
+	} else {
+		vdbe.AddOp2(OP_Next, iTab, ctx.addr)
+	}
+
+	vdbe.ResolveLabel(addrBreak)
+
+	return nil
+}
+
+// allocateResultRegisters allocates registers for the result row.
+func (obc *OrderByCompiler) allocateResultRegisters(dest *SelectDest, nColumn *int) (regRow, regRowid int) {
 	eDest := dest.Dest
 
 	if eDest == SRT_Output || eDest == SRT_Coroutine || eDest == SRT_Mem {
@@ -89,49 +133,66 @@ func (obc *OrderByCompiler) generateSortTail(sel *Select, sort *SortCtx, nColumn
 		regRowid = obc.parse.AllocReg()
 		if eDest == SRT_EphemTab || eDest == SRT_Table {
 			regRow = obc.parse.AllocReg()
-			nColumn = 0
+			*nColumn = 0
 		} else {
-			regRow = obc.parse.AllocRegs(nColumn)
+			regRow = obc.parse.AllocRegs(*nColumn)
 		}
 	}
 
-	// Generate sort loop based on sorter type
-	var addr, iSortTab int
-	var bSeq bool
+	return regRow, regRowid
+}
 
-	if sort.SortFlags&SORTFLAG_UseSorter != 0 {
-		// Using sorter
-		regSortOut := obc.parse.AllocReg()
-		iSortTab = obc.parse.AllocCursor()
+// generateSorterLoop generates code for the sorter path.
+func (obc *OrderByCompiler) generateSorterLoop(iTab, nKey, nColumn, addrBreak int) sortLoopContext {
+	vdbe := obc.parse.GetVdbe()
 
-		// Open pseudo-cursor to read sorter output
-		vdbe.AddOp3(OP_OpenPseudo, iSortTab, regSortOut, nKey+1+nColumn)
+	regSortOut := obc.parse.AllocReg()
+	iSortTab := obc.parse.AllocCursor()
 
-		// Sort the data
-		addr = vdbe.AddOp2(OP_SorterSort, iTab, addrBreak)
+	// Open pseudo-cursor to read sorter output
+	vdbe.AddOp3(OP_OpenPseudo, iSortTab, regSortOut, nKey+1+nColumn)
 
-		// Extract data from sorter
-		vdbe.AddOp3(OP_SorterData, iTab, regSortOut, iSortTab)
-		bSeq = false
-	} else {
-		// Using ephemeral table
-		addr = vdbe.AddOp2(OP_Sort, iTab, addrBreak)
+	// Sort the data
+	addr := vdbe.AddOp2(OP_SorterSort, iTab, addrBreak)
 
-		// Handle OFFSET if present
-		if sel.Offset > 0 {
-			obc.codeOffset(sel.Offset, addrContinue)
-		}
+	// Extract data from sorter
+	vdbe.AddOp3(OP_SorterData, iTab, regSortOut, iSortTab)
 
-		iSortTab = iTab
-		bSeq = true
+	return sortLoopContext{
+		iSortTab: iSortTab,
+		bSeq:     false,
+		addr:     addr,
+	}
+}
 
-		// Adjust LIMIT for OFFSET
-		if sel.Offset > 0 && sel.Limit > 0 {
-			vdbe.AddOp2(OP_AddImm, sel.Limit, -1)
-		}
+// generateEphemeralLoop generates code for the ephemeral table path.
+func (obc *OrderByCompiler) generateEphemeralLoop(sel *Select, iTab, addrBreak, addrContinue int) sortLoopContext {
+	vdbe := obc.parse.GetVdbe()
+
+	// Using ephemeral table
+	addr := vdbe.AddOp2(OP_Sort, iTab, addrBreak)
+
+	// Handle OFFSET if present
+	if sel.Offset > 0 {
+		obc.codeOffset(sel.Offset, addrContinue)
 	}
 
-	// Extract result columns from sorted record
+	// Adjust LIMIT for OFFSET
+	if sel.Offset > 0 && sel.Limit > 0 {
+		vdbe.AddOp2(OP_AddImm, sel.Limit, -1)
+	}
+
+	return sortLoopContext{
+		iSortTab: iTab,
+		bSeq:     true,
+		addr:     addr,
+	}
+}
+
+// extractResultColumns extracts result columns from the sorted record.
+func (obc *OrderByCompiler) extractResultColumns(sel *Select, iSortTab int, bSeq bool, nKey, nColumn, regRow int) {
+	vdbe := obc.parse.GetVdbe()
+
 	// Record format: [ORDER BY keys...] [seq?] [result columns...]
 	iCol := nKey
 	if bSeq {
@@ -158,8 +219,13 @@ func (obc *OrderByCompiler) generateSortTail(sel *Select, sort *SortCtx, nColumn
 		// Extract column
 		vdbe.AddOp3(OP_Column, iSortTab, iRead, regRow+i)
 	}
+}
 
-	// Output the row based on destination
+// outputSortedRow outputs the sorted row based on destination type.
+func (obc *OrderByCompiler) outputSortedRow(dest *SelectDest, iSortTab, nKey int, bSeq bool, nColumn, regRow, regRowid int) error {
+	vdbe := obc.parse.GetVdbe()
+	eDest := dest.Dest
+
 	switch eDest {
 	case SRT_Table, SRT_EphemTab:
 		// Insert into table
@@ -189,7 +255,11 @@ func (obc *OrderByCompiler) generateSortTail(sel *Select, sort *SortCtx, nColumn
 		return fmt.Errorf("unsupported destination type in ORDER BY: %d", eDest)
 	}
 
-	// Clean up registers
+	return nil
+}
+
+// cleanupResultRegisters releases allocated result registers.
+func (obc *OrderByCompiler) cleanupResultRegisters(eDest SelectDestType, regRow, regRowid, nColumn int) {
 	if regRowid != 0 {
 		if eDest == SRT_Set {
 			obc.parse.ReleaseRegs(regRow, nColumn)
@@ -198,19 +268,6 @@ func (obc *OrderByCompiler) generateSortTail(sel *Select, sort *SortCtx, nColumn
 		}
 		obc.parse.ReleaseReg(regRowid)
 	}
-
-	// Loop to next sorted record
-	vdbe.ResolveLabel(addrContinue)
-
-	if sort.SortFlags&SORTFLAG_UseSorter != 0 {
-		vdbe.AddOp2(OP_SorterNext, iTab, addr)
-	} else {
-		vdbe.AddOp2(OP_Next, iTab, addr)
-	}
-
-	vdbe.ResolveLabel(addrBreak)
-
-	return nil
 }
 
 // pushOntoSorter generates code to insert a row into the sorter.

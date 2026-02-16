@@ -159,6 +159,20 @@ func extractPDBContent(data []byte, artifactID string) []*ir.Document {
 		return []*ir.Document{doc}
 	}
 
+	records := parseRecordEntries(data, numRecords)
+	sequence := 0
+
+	for i := range records {
+		if block := parsePDBRecord(data, records, i, &sequence); block != nil {
+			doc.ContentBlocks = append(doc.ContentBlocks, block...)
+		}
+	}
+
+	return []*ir.Document{doc}
+}
+
+// parseRecordEntries extracts the record entry list from PDB data
+func parseRecordEntries(data []byte, numRecords uint16) []PDBRecordEntry {
 	recordListStart := 78
 	var records []PDBRecordEntry
 
@@ -175,39 +189,44 @@ func extractPDBContent(data []byte, artifactID string) []*ir.Document {
 		records = append(records, entry)
 	}
 
-	sequence := 0
-	for i, rec := range records {
-		start := int(rec.Offset)
-		end := len(data)
-		if i+1 < len(records) {
-			end = int(records[i+1].Offset)
-		}
+	return records
+}
 
-		if start >= end || start >= len(data) {
-			continue
-		}
-		if end > len(data) {
-			end = len(data)
-		}
+// parsePDBRecord parses a single PDB record and returns content blocks
+func parsePDBRecord(data []byte, records []PDBRecordEntry, recordNum int, sequence *int) []*ir.ContentBlock {
+	rec := records[recordNum]
+	start := int(rec.Offset)
+	end := len(data)
 
-		recordData := data[start:end]
-		texts := extractTextFromRecord(recordData)
+	if recordNum+1 < len(records) {
+		end = int(records[recordNum+1].Offset)
+	}
 
-		for _, text := range texts {
-			if len(text) > 5 {
-				sequence++
-				hash := sha256.Sum256([]byte(text))
-				doc.ContentBlocks = append(doc.ContentBlocks, &ir.ContentBlock{
-					ID:       fmt.Sprintf("cb-%d", sequence),
-					Sequence: sequence,
-					Text:     text,
-					Hash:     hex.EncodeToString(hash[:]),
-				})
-			}
+	if start >= end || start >= len(data) {
+		return nil
+	}
+	if end > len(data) {
+		end = len(data)
+	}
+
+	recordData := data[start:end]
+	texts := extractTextFromRecord(recordData)
+
+	var blocks []*ir.ContentBlock
+	for _, text := range texts {
+		if len(text) > 5 {
+			*sequence++
+			hash := sha256.Sum256([]byte(text))
+			blocks = append(blocks, &ir.ContentBlock{
+				ID:       fmt.Sprintf("cb-%d", *sequence),
+				Sequence: *sequence,
+				Text:     text,
+				Hash:     hex.EncodeToString(hash[:]),
+			})
 		}
 	}
 
-	return []*ir.Document{doc}
+	return blocks
 }
 
 func extractTextFromRecord(data []byte) []string {

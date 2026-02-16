@@ -805,7 +805,12 @@ func TestExtractIRVerseIntegrity(t *testing.T) {
 }
 
 // TestExtractIRConsistency tests that repeated extractions produce identical output.
+// This test extracts the full KJV module twice (~31,102 verses each) which takes 5+ minutes.
 func TestExtractIRConsistency(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping full extraction consistency test in short mode")
+	}
+
 	swordPath := getSwordPath()
 	confPath := filepath.Join(swordPath, "mods.d", "kjv.conf")
 	if _, err := os.Stat(confPath); os.IsNotExist(err) {

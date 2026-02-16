@@ -450,6 +450,27 @@ func getLicense(conf *swordpure.ConfFile) string {
 	return "Unknown"
 }
 
+// findLicenseFile finds the license file in a directory.
+func findLicenseFile(dir string) (string, error) {
+	licenseFiles := []string{"LICENSE", "LICENSE.txt", "COPYING", "license.txt"}
+	for _, lf := range licenseFiles {
+		licensePath := filepath.Join(dir, lf)
+		if _, err := os.Stat(licensePath); err == nil {
+			return licensePath, nil
+		}
+	}
+	return "", fmt.Errorf("no license file found")
+}
+
+// readLicenseFromPath reads license content from a path.
+func readLicenseFromPath(path string) (string, error) {
+	data, err := safefile.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 // getLicenseText extracts the full license text from conf properties or LICENSE file.
 func getLicenseText(conf *swordpure.ConfFile, swordPath string, module *Module) string {
 	// Try DistributionLicenseNotes first (common in SWORD modules)
@@ -487,11 +508,10 @@ func getLicenseText(conf *swordpure.ConfFile, swordPath string, module *Module) 
 	// Try to read LICENSE file from module data path
 	if module.DataPath != "" {
 		dataPath := strings.TrimPrefix(module.DataPath, "./")
-		licenseFiles := []string{"LICENSE", "LICENSE.txt", "COPYING", "license.txt"}
-		for _, lf := range licenseFiles {
-			licensePath := filepath.Join(swordPath, dataPath, lf)
-			if data, err := safefile.ReadFile(licensePath); err == nil {
-				return string(data)
+		dir := filepath.Join(swordPath, dataPath)
+		if licensePath, err := findLicenseFile(dir); err == nil {
+			if content, err := readLicenseFromPath(licensePath); err == nil {
+				return content
 			}
 		}
 	}

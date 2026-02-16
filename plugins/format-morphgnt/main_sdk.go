@@ -118,30 +118,27 @@ func parseMorphGNT(path string) (*ir.Corpus, error) {
 }
 
 func extractMorphGNTContent(content, artifactID string) []*ir.Document {
-	// Group words by book/chapter/verse
+	verseWords, bookOrder := parseMorphGNTLines(content)
+	return buildDocumentsFromVerses(verseWords, bookOrder)
+}
+
+// parseMorphGNTLines parses TSV lines into grouped words by verse reference.
+func parseMorphGNTLines(content string) (map[string][]MorphWord, map[string]int) {
 	verseWords := make(map[string][]MorphWord)
 	bookOrder := make(map[string]int)
-
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	orderCounter := 0
 
 	for scanner.Scan() {
-		line := scanner.Text()
-		fields := strings.Split(line, "\t")
-		if len(fields) < 7 {
+		fields := strings.Split(scanner.Text(), "\t")
+		if len(fields) < 7 || len(fields[0]) < 8 {
 			continue
 		}
 
-		// Reference format: BBCCVVWWW
 		ref := fields[0]
-		if len(ref) < 8 {
-			continue
-		}
-
 		book := ref[0:2]
 		chapter, _ := strconv.Atoi(ref[2:4])
 		verse, _ := strconv.Atoi(ref[4:6])
-
 		verseRef := fmt.Sprintf("%s.%d.%d", book, chapter, verse)
 
 		if _, exists := bookOrder[book]; !exists {
@@ -149,7 +146,7 @@ func extractMorphGNTContent(content, artifactID string) []*ir.Document {
 			bookOrder[book] = orderCounter
 		}
 
-		word := MorphWord{
+		verseWords[verseRef] = append(verseWords[verseRef], MorphWord{
 			Reference:  ref,
 			PartOfSp:   fields[1],
 			Parsing:    fields[2],
@@ -157,12 +154,14 @@ func extractMorphGNTContent(content, artifactID string) []*ir.Document {
 			Word:       fields[4],
 			Normalized: fields[5],
 			Lemma:      fields[6],
-		}
-
-		verseWords[verseRef] = append(verseWords[verseRef], word)
+		})
 	}
 
-	// Create documents from verses
+	return verseWords, bookOrder
+}
+
+// buildDocumentsFromVerses builds IR documents from parsed verse words.
+func buildDocumentsFromVerses(verseWords map[string][]MorphWord, bookOrder map[string]int) []*ir.Document {
 	bookDocs := make(map[string]*ir.Document)
 	sequence := 0
 
@@ -180,7 +179,6 @@ func extractMorphGNTContent(content, artifactID string) []*ir.Document {
 			bookDocs[book] = ir.NewDocument(book, getBookName(book), bookOrder[book])
 		}
 
-		// Build verse text from words
 		var verseText strings.Builder
 		for i, w := range words {
 			if i > 0 {
@@ -194,7 +192,7 @@ func extractMorphGNTContent(content, artifactID string) []*ir.Document {
 		hash := sha256.Sum256([]byte(text))
 		osisID := fmt.Sprintf("%s.%d.%d", book, chapter, verse)
 
-		cb := &ir.ContentBlock{
+		bookDocs[book].ContentBlocks = append(bookDocs[book].ContentBlocks, &ir.ContentBlock{
 			ID:       fmt.Sprintf("cb-%d", sequence),
 			Sequence: chapter*1000 + verse,
 			Text:     text,
@@ -209,15 +207,12 @@ func extractMorphGNTContent(content, artifactID string) []*ir.Document {
 					Ref:           &ir.Ref{Book: book, Chapter: chapter, Verse: verse, OSISID: osisID},
 				}},
 			}},
-		}
-
-		bookDocs[book].ContentBlocks = append(bookDocs[book].ContentBlocks, cb)
+		})
 	}
 
-	// Sort content blocks within each document
 	var documents []*ir.Document
 	for _, doc := range bookDocs {
-		// Sort by sequence
+		// Sort content blocks by sequence
 		for i := 0; i < len(doc.ContentBlocks); i++ {
 			for j := i + 1; j < len(doc.ContentBlocks); j++ {
 				if doc.ContentBlocks[i].Sequence > doc.ContentBlocks[j].Sequence {

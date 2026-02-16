@@ -178,54 +178,119 @@ func emitXML(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Check for raw XML for round-trip
 	if raw, ok := corpus.Attributes["_xml_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
-			return "", fmt.Errorf("failed to write XML: %w", err)
-		}
-		return outputPath, nil
+		return writeRawXML(outputPath, raw)
 	}
 
 	// Generate XML from IR
+	bible := buildXMLBible(corpus)
+
+	// Marshal and write
+	return writeXMLBible(outputPath, bible)
+}
+
+// writeRawXML writes the raw XML content to the output path
+func writeRawXML(outputPath, raw string) (string, error) {
+	if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		return "", fmt.Errorf("failed to write XML: %w", err)
+	}
+	return outputPath, nil
+}
+
+// buildXMLBible constructs an XMLBible from the IR corpus
+func buildXMLBible(corpus *ir.Corpus) XMLBible {
 	bible := XMLBible{
 		Title:    corpus.Title,
 		Language: corpus.Language,
 	}
 
 	for _, doc := range corpus.Documents {
-		book := XMLBook{
-			ID:   doc.ID,
-			Name: doc.Title,
-		}
-
-		// Group by chapter
-		chapterMap := make(map[int]*XMLChapter)
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						chapter, exists := chapterMap[span.Ref.Chapter]
-						if !exists {
-							chapter = &XMLChapter{Number: span.Ref.Chapter}
-							chapterMap[span.Ref.Chapter] = chapter
-						}
-						chapter.Verses = append(chapter.Verses, XMLVerse{
-							Number: span.Ref.Verse,
-							Text:   cb.Text,
-						})
-					}
-				}
-			}
-		}
-
-		// Sort chapters
-		for i := 1; i <= len(chapterMap); i++ {
-			if chapter, ok := chapterMap[i]; ok {
-				book.Chapters = append(book.Chapters, *chapter)
-			}
-		}
-
+		book := buildXMLBook(doc)
 		bible.Books = append(bible.Books, book)
 	}
 
+	return bible
+}
+
+// buildXMLBook constructs an XMLBook from an IR document
+func buildXMLBook(doc *ir.Document) XMLBook {
+	book := XMLBook{
+		ID:   doc.ID,
+		Name: doc.Title,
+	}
+
+	// Group content blocks by chapter
+	chapterMap := groupContentBlocksByChapter(doc.ContentBlocks)
+
+	// Sort chapters numerically
+	book.Chapters = sortChaptersFromMap(chapterMap)
+
+	return book
+}
+
+// groupContentBlocksByChapter groups content blocks into chapters based on verse references
+func groupContentBlocksByChapter(blocks []*ir.ContentBlock) map[int]*XMLChapter {
+	chapterMap := make(map[int]*XMLChapter)
+
+	for _, cb := range blocks {
+		processContentBlockAnchors(cb, chapterMap)
+	}
+
+	return chapterMap
+}
+
+// processContentBlockAnchors processes all anchors in a content block and updates the chapter map
+func processContentBlockAnchors(cb *ir.ContentBlock, chapterMap map[int]*XMLChapter) {
+	for _, anchor := range cb.Anchors {
+		processAnchorSpans(anchor, cb, chapterMap)
+	}
+}
+
+// processAnchorSpans processes all spans in an anchor and updates the chapter map
+func processAnchorSpans(anchor *ir.Anchor, cb *ir.ContentBlock, chapterMap map[int]*XMLChapter) {
+	for _, span := range anchor.Spans {
+		if isVerseSpan(span) {
+			addVerseToChapter(span, cb, chapterMap)
+		}
+	}
+}
+
+// isVerseSpan checks if a span represents a verse reference
+func isVerseSpan(span *ir.Span) bool {
+	return span.Ref != nil && span.Type == "VERSE"
+}
+
+// addVerseToChapter adds a verse to the appropriate chapter in the map
+func addVerseToChapter(span *ir.Span, cb *ir.ContentBlock, chapterMap map[int]*XMLChapter) {
+	chapter := getOrCreateChapter(chapterMap, span.Ref.Chapter)
+	chapter.Verses = append(chapter.Verses, XMLVerse{
+		Number: span.Ref.Verse,
+		Text:   cb.Text,
+	})
+}
+
+// getOrCreateChapter retrieves or creates a chapter from the map
+func getOrCreateChapter(chapterMap map[int]*XMLChapter, chapterNum int) *XMLChapter {
+	chapter, exists := chapterMap[chapterNum]
+	if !exists {
+		chapter = &XMLChapter{Number: chapterNum}
+		chapterMap[chapterNum] = chapter
+	}
+	return chapter
+}
+
+// sortChaptersFromMap sorts chapters numerically from the map
+func sortChaptersFromMap(chapterMap map[int]*XMLChapter) []XMLChapter {
+	var chapters []XMLChapter
+	for i := 1; i <= len(chapterMap); i++ {
+		if chapter, ok := chapterMap[i]; ok {
+			chapters = append(chapters, *chapter)
+		}
+	}
+	return chapters
+}
+
+// writeXMLBible marshals and writes the XMLBible to the output path
+func writeXMLBible(outputPath string, bible XMLBible) (string, error) {
 	xmlData, err := xml.MarshalIndent(bible, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal XML: %w", err)

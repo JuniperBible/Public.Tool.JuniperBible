@@ -352,23 +352,56 @@ func handleExtractIR(args map[string]interface{}) {
 		return
 	}
 
-	// Compute source hash
+	db, corpus, err := openAndValidateSQLiteDB(path)
+	if err != nil {
+		respondError(err.Error())
+		return
+	}
+	defer db.Close()
+
+	sequence := 0
+	for _, doc := range corpus.Documents {
+		for range doc.ContentBlocks {
+			sequence++
+		}
+	}
+
+	irData, err := json.MarshalIndent(corpus, "", "  ")
+	if err != nil {
+		respondError(fmt.Sprintf("failed to serialize IR: %v", err))
+		return
+	}
+
+	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
+	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+		respondError(fmt.Sprintf("failed to write IR: %v", err))
+		return
+	}
+
+	respond(&ExtractIRResult{
+		IRPath:    irPath,
+		LossClass: "L1",
+		LossReport: &LossReport{
+			SourceFormat: "SQLite",
+			TargetFormat: "IR",
+			LossClass:    "L1",
+		},
+	})
+}
+
+func openAndValidateSQLiteDB(path string) (*sql.DB, *Corpus, error) {
 	sourceData, err := os.ReadFile(path)
 	if err != nil {
-		respondError(fmt.Sprintf("failed to read source: %v", err))
-		return
+		return nil, nil, fmt.Errorf("failed to read source: %v", err)
 	}
 	sourceHash := sha256.Sum256(sourceData)
 
 	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
 	if err != nil {
-		respondError(fmt.Sprintf("failed to open database: %v", err))
-		return
+		return nil, nil, fmt.Errorf("failed to open database: %v", err)
 	}
-	defer db.Close()
 
 	artifactID := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-
 	corpus := &Corpus{
 		ID:           artifactID,
 		Version:      "1.0.0",
@@ -379,7 +412,6 @@ func handleExtractIR(args map[string]interface{}) {
 		Attributes:   make(map[string]string),
 	}
 
-	// Try to get metadata
 	var title, language, description string
 	row := db.QueryRow("SELECT title, language, description FROM meta LIMIT 1")
 	if err := row.Scan(&title, &language, &description); err == nil {
@@ -388,11 +420,10 @@ func handleExtractIR(args map[string]interface{}) {
 		corpus.Description = description
 	}
 
-	// Read verses
 	rows, err := db.Query("SELECT book, chapter, verse, text FROM verses ORDER BY book, chapter, verse")
 	if err != nil {
-		respondError(fmt.Sprintf("failed to query verses: %v", err))
-		return
+		db.Close()
+		return nil, nil, fmt.Errorf("failed to query verses: %v", err)
 	}
 	defer rows.Close()
 
@@ -419,58 +450,42 @@ func handleExtractIR(args map[string]interface{}) {
 		}
 
 		sequence++
-		hash := sha256.Sum256([]byte(text))
-		osisID := fmt.Sprintf("%s.%d.%d", book, chapter, verse)
+		cb := extractVerseToContentBlock(book, chapter, verse, text, sequence)
+		doc.ContentBlocks = append(doc.ContentBlocks, cb)
+	}
 
-		cb := &ContentBlock{
-			ID:       fmt.Sprintf("cb-%d", sequence),
-			Sequence: sequence,
-			Text:     text,
-			Hash:     hex.EncodeToString(hash[:]),
-			Anchors: []*Anchor{
-				{
-					ID:       fmt.Sprintf("a-%d-0", sequence),
-					Position: 0,
-					Spans: []*Span{
-						{
-							ID:            fmt.Sprintf("s-%s", osisID),
-							Type:          "VERSE",
-							StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
-							Ref: &Ref{
-								Book:    book,
-								Chapter: chapter,
-								Verse:   verse,
-								OSISID:  osisID,
-							},
+	return db, corpus, nil
+}
+
+func extractVerseToContentBlock(book string, chapter, verse int, text string, sequence int) *ContentBlock {
+	hash := sha256.Sum256([]byte(text))
+	osisID := fmt.Sprintf("%s.%d.%d", book, chapter, verse)
+
+	return &ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", sequence),
+		Sequence: sequence,
+		Text:     text,
+		Hash:     hex.EncodeToString(hash[:]),
+		Anchors: []*Anchor{
+			{
+				ID:       fmt.Sprintf("a-%d-0", sequence),
+				Position: 0,
+				Spans: []*Span{
+					{
+						ID:            fmt.Sprintf("s-%s", osisID),
+						Type:          "VERSE",
+						StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
+						Ref: &Ref{
+							Book:    book,
+							Chapter: chapter,
+							Verse:   verse,
+							OSISID:  osisID,
 						},
 					},
 				},
 			},
-		}
-		doc.ContentBlocks = append(doc.ContentBlocks, cb)
-	}
-
-	irData, err := json.MarshalIndent(corpus, "", "  ")
-	if err != nil {
-		respondError(fmt.Sprintf("failed to serialize IR: %v", err))
-		return
-	}
-
-	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
-		respondError(fmt.Sprintf("failed to write IR: %v", err))
-		return
-	}
-
-	respond(&ExtractIRResult{
-		IRPath:    irPath,
-		LossClass: "L1",
-		LossReport: &LossReport{
-			SourceFormat: "SQLite",
-			TargetFormat: "IR",
-			LossClass:    "L1",
 		},
-	})
+	}
 }
 
 func handleEmitNative(args map[string]interface{}) {

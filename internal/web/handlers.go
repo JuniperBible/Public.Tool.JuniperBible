@@ -3424,6 +3424,60 @@ func handleRuns(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// formatTranscriptHash formats a transcript hash for display, truncating if needed.
+func formatTranscriptHash(hash string) string {
+	if hash == "" {
+		return ""
+	}
+	if len(hash) > 16 {
+		return hash[:16] + "..."
+	}
+	return hash
+}
+
+// buildRunInfoFromManifest constructs a RunInfo from a manifest run entry.
+func buildRunInfoFromManifest(id string, run struct {
+	ID     string `json:"id"`
+	Plugin *struct {
+		PluginID      string `json:"plugin_id"`
+		PluginVersion string `json:"plugin_version"`
+	} `json:"plugin"`
+	Command *struct {
+		Profile string `json:"profile"`
+	} `json:"command"`
+	Status string `json:"status"`
+	Inputs []struct {
+		ArtifactID string `json:"artifact_id"`
+	} `json:"inputs"`
+	Outputs *struct {
+		TranscriptBlobSHA256 string `json:"transcript_blob_sha256"`
+	} `json:"outputs"`
+}) RunInfo {
+	runInfo := RunInfo{
+		ID:     id,
+		Status: run.Status,
+	}
+
+	if run.Plugin != nil {
+		runInfo.PluginID = run.Plugin.PluginID
+		runInfo.PluginVersion = run.Plugin.PluginVersion
+	}
+
+	if run.Command != nil {
+		runInfo.Profile = run.Command.Profile
+	}
+
+	if run.Outputs != nil {
+		runInfo.TranscriptHash = formatTranscriptHash(run.Outputs.TranscriptBlobSHA256)
+	}
+
+	for _, input := range run.Inputs {
+		runInfo.InputIDs = append(runInfo.InputIDs, input.ArtifactID)
+	}
+
+	return runInfo
+}
+
 // getRunsFromCapsule extracts run information from a capsule's manifest.
 func getRunsFromCapsule(extractDir string) []RunInfo {
 	var runs []RunInfo
@@ -3460,34 +3514,7 @@ func getRunsFromCapsule(extractDir string) []RunInfo {
 	}
 
 	for id, run := range manifest.Runs {
-		runInfo := RunInfo{
-			ID:     id,
-			Status: run.Status,
-		}
-
-		if run.Plugin != nil {
-			runInfo.PluginID = run.Plugin.PluginID
-			runInfo.PluginVersion = run.Plugin.PluginVersion
-		}
-
-		if run.Command != nil {
-			runInfo.Profile = run.Command.Profile
-		}
-
-		if run.Outputs != nil && run.Outputs.TranscriptBlobSHA256 != "" {
-			hash := run.Outputs.TranscriptBlobSHA256
-			if len(hash) > 16 {
-				runInfo.TranscriptHash = hash[:16] + "..."
-			} else {
-				runInfo.TranscriptHash = hash
-			}
-		}
-
-		for _, input := range run.Inputs {
-			runInfo.InputIDs = append(runInfo.InputIDs, input.ArtifactID)
-		}
-
-		runs = append(runs, runInfo)
+		runs = append(runs, buildRunInfoFromManifest(id, run))
 	}
 
 	// Sort by ID for consistent ordering

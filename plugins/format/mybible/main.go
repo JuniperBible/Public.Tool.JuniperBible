@@ -408,6 +408,81 @@ func handleExtractIR(args map[string]interface{}) {
 	})
 }
 
+// VerseRow represents a row from the verses table
+type VerseRow struct {
+	BookNum int
+	Chapter int
+	Verse   int
+	Text    string
+}
+
+// parseVerseRow converts a verse row into a ContentBlock
+func parseVerseRow(row VerseRow, sequence int) (*ipc.ContentBlock, error) {
+	// Clean HTML from text (MyBible uses HTML)
+	cleanText := stripHTML(row.Text)
+
+	osisID := bookNumToOSIS[row.BookNum]
+	if osisID == "" {
+		osisID = fmt.Sprintf("Book%d", row.BookNum)
+	}
+	refID := fmt.Sprintf("%s.%d.%d", osisID, row.Chapter, row.Verse)
+
+	// Create content block for verse
+	hash := sha256.Sum256([]byte(cleanText))
+	cb := &ipc.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", sequence),
+		Sequence: sequence,
+		Text:     cleanText,
+		Hash:     hex.EncodeToString(hash[:]),
+		Anchors: []*ipc.Anchor{
+			{
+				ID:       fmt.Sprintf("a-%d-0", sequence),
+				Position: 0,
+				Spans: []*ipc.Span{
+					{
+						ID:            fmt.Sprintf("s-%s", refID),
+						Type:          "VERSE",
+						StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
+						Ref: &ipc.Ref{
+							Book:    osisID,
+							Chapter: row.Chapter,
+							Verse:   row.Verse,
+							OSISID:  refID,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return cb, nil
+}
+
+// groupVersesByBook organizes verses into book-keyed documents
+func groupVersesByBook(verses []VerseRow) map[int]*ipc.Document {
+	bookDocs := make(map[int]*ipc.Document)
+
+	for _, verse := range verses {
+		// Get or create document for this book
+		doc, ok := bookDocs[verse.BookNum]
+		if !ok {
+			osisID := bookNumToOSIS[verse.BookNum]
+			if osisID == "" {
+				osisID = fmt.Sprintf("Book%d", verse.BookNum)
+			}
+			doc = &ipc.Document{
+				ID:         osisID,
+				Title:      osisID,
+				Order:      verse.BookNum,
+				Attributes: map[string]string{"book_num": fmt.Sprintf("%d", verse.BookNum)},
+			}
+			bookDocs[verse.BookNum] = doc
+		}
+	}
+
+	return bookDocs
+}
+
 func extractBibleIR(db *sql.DB, corpus *ipc.Corpus, lostElements *[]ipc.LostElement) {
 	// Query verses table: book_number, chapter, verse, text
 	rows, err := db.Query("SELECT book_number, chapter, verse, text FROM verses ORDER BY book_number, chapter, verse")
@@ -416,73 +491,38 @@ func extractBibleIR(db *sql.DB, corpus *ipc.Corpus, lostElements *[]ipc.LostElem
 	}
 	defer rows.Close()
 
-	// Group by book
-	bookDocs := make(map[int]*ipc.Document)
-	sequence := 0
-
+	// Collect all verses
+	var verses []VerseRow
 	for rows.Next() {
-		var bookNum, chapter, verse int
-		var text string
-		if err := rows.Scan(&bookNum, &chapter, &verse, &text); err != nil {
+		var row VerseRow
+		if err := rows.Scan(&row.BookNum, &row.Chapter, &row.Verse, &row.Text); err != nil {
+			continue
+		}
+		verses = append(verses, row)
+	}
+
+	// Group verses by book
+	bookDocs := groupVersesByBook(verses)
+
+	// Process each verse and add content blocks
+	sequence := 0
+	for _, row := range verses {
+		doc := bookDocs[row.BookNum]
+		sequence++
+
+		cb, err := parseVerseRow(row, sequence)
+		if err != nil {
 			continue
 		}
 
-		// Get or create document for this book
-		doc, ok := bookDocs[bookNum]
-		if !ok {
-			osisID := bookNumToOSIS[bookNum]
-			if osisID == "" {
-				osisID = fmt.Sprintf("Book%d", bookNum)
-			}
-			doc = &ipc.Document{
-				ID:         osisID,
-				Title:      osisID,
-				Order:      bookNum,
-				Attributes: map[string]string{"book_num": fmt.Sprintf("%d", bookNum)},
-			}
-			bookDocs[bookNum] = doc
-		}
-
-		// Clean HTML from text (MyBible uses HTML)
-		cleanText := stripHTML(text)
-
-		sequence++
-		osisID := bookNumToOSIS[bookNum]
-		if osisID == "" {
-			osisID = fmt.Sprintf("Book%d", bookNum)
-		}
-		refID := fmt.Sprintf("%s.%d.%d", osisID, chapter, verse)
-
-		// Create content block for verse
-		hash := sha256.Sum256([]byte(cleanText))
-		cb := &ipc.ContentBlock{
-			ID:       fmt.Sprintf("cb-%d", sequence),
-			Sequence: sequence,
-			Text:     cleanText,
-			Hash:     hex.EncodeToString(hash[:]),
-			Anchors: []*ipc.Anchor{
-				{
-					ID:       fmt.Sprintf("a-%d-0", sequence),
-					Position: 0,
-					Spans: []*ipc.Span{
-						{
-							ID:            fmt.Sprintf("s-%s", refID),
-							Type:          "VERSE",
-							StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
-							Ref: &ipc.Ref{
-								Book:    osisID,
-								Chapter: chapter,
-								Verse:   verse,
-								OSISID:  refID,
-							},
-						},
-					},
-				},
-			},
-		}
-
 		// Track HTML loss if present
-		if text != cleanText && (strings.Contains(text, "<") || strings.Contains(text, "&")) {
+		cleanText := cb.Text
+		if row.Text != cleanText && (strings.Contains(row.Text, "<") || strings.Contains(row.Text, "&")) {
+			osisID := bookNumToOSIS[row.BookNum]
+			if osisID == "" {
+				osisID = fmt.Sprintf("Book%d", row.BookNum)
+			}
+			refID := fmt.Sprintf("%s.%d.%d", osisID, row.Chapter, row.Verse)
 			*lostElements = append(*lostElements, ipc.LostElement{
 				Path:        refID,
 				ElementType: "html-formatting",

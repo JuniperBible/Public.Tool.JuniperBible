@@ -221,7 +221,7 @@ func findModuleInfoByName(name string, modules []ModuleInfo) *ModuleInfo {
 
 // processIngestion creates capsules for the selected modules.
 func processIngestion(config ingestConfig, toIngest []ModuleInfo) {
-	if err := os.MkdirAll(config.outputDir, 0755); err != nil {
+	if err := os.MkdirAll(config.outputDir, 0700); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
 		os.Exit(1)
 	}
@@ -372,7 +372,7 @@ func createModuleCapsule(swordPath string, module ModuleInfo, outputPath string)
 
 	// Create SWORD structure at root level
 	modsDir := filepath.Join(tempDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create mods.d: %w", err)
 	}
 

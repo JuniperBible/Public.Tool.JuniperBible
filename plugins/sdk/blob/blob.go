@@ -20,7 +20,7 @@ func Store(outputDir string, data []byte) (hash string, size int64, err error) {
 
 	// Create directory structure (hash[:2]/)
 	blobDir := filepath.Join(outputDir, hash[:2])
-	if err := os.MkdirAll(blobDir, 0755); err != nil {
+	if err := os.MkdirAll(blobDir, 0700); err != nil {
 		return "", 0, fmt.Errorf("failed to create blob directory: %w", err)
 	}
 

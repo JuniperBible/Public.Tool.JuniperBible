@@ -125,7 +125,7 @@ func emitSFM(corpus *ir.Corpus, outputDir string) (string, error) {
 	}
 
 	// Ensure output directory exists
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
 

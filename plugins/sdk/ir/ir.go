@@ -40,7 +40,7 @@ func Read(path string) (*Corpus, error) {
 // Returns the path to the written file.
 func Write(corpus *Corpus, outputDir string) (string, error) {
 	// Ensure output directory exists
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -68,7 +68,7 @@ func Write(corpus *Corpus, outputDir string) (string, error) {
 // WriteCompact writes a Corpus to a JSON file without indentation.
 // More compact but less readable.
 func WriteCompact(corpus *Corpus, outputDir string) (string, error) {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
 

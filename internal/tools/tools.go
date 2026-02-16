@@ -134,7 +134,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve output directory: %w", err)
 		}
-		if err := os.MkdirAll(outDir, 0755); err != nil {
+		if err := os.MkdirAll(outDir, 0700); err != nil {
 			return nil, fmt.Errorf("failed to create output directory: %w", err)
 		}
 	}
@@ -204,7 +204,7 @@ func Execute(ctx context.Context, cfg ExecuteConfig) (*ExecuteResult, error) {
 
 	// Export artifact to temp directory for tool input
 	inputPath := filepath.Join(tempDir, "input", artifact.OriginalName)
-	if err := os.MkdirAll(filepath.Dir(inputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(inputPath), 0700); err != nil {
 		return nil, fmt.Errorf("failed to create input dir: %w", err)
 	}
 	if err := cap.Export(cfg.ArtifactID, capsule.ExportModeIdentity, inputPath); err != nil {

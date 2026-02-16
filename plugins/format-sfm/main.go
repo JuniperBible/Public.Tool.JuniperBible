@@ -167,7 +167,7 @@ func handleIngest(args map[string]interface{}) {
 	hash := sha256.Sum256(data)
 	hashHex := hex.EncodeToString(hash[:])
 	blobDir := filepath.Join(outputDir, hashHex[:2])
-	os.MkdirAll(blobDir, 0755)
+	os.MkdirAll(blobDir, 0700)
 	os.WriteFile(filepath.Join(blobDir, hashHex), data, 0600)
 	respond(&IngestResult{
 		ArtifactID: strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),

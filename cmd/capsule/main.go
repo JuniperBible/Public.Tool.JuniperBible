@@ -2741,15 +2741,15 @@ func (c *CASToSWORDCmd) Run() error {
 
 	// Create SWORD capsule directory
 	swordDir := filepath.Join(tempDir, "sword")
-	os.MkdirAll(swordDir, 0755)
+	os.MkdirAll(swordDir, 0700)
 
 	// Extract files from blobs
 	extracted := 0
 	for _, file := range mainArtifact.Files {
 		blobPath := ""
-		if file.Blake3 != "" {
+		if file.Blake3 != "" && validation.IsValidHexHash(file.Blake3) {
 			blobPath = filepath.Join(extractDir, "blobs", "blake3", file.Blake3[:2], file.Blake3)
-		} else if file.SHA256 != "" {
+		} else if file.SHA256 != "" && validation.IsValidHexHash(file.SHA256) {
 			blobPath = filepath.Join(extractDir, "blobs", "sha256", file.SHA256[:2], file.SHA256)
 		}
 
@@ -2763,7 +2763,7 @@ func (c *CASToSWORDCmd) Run() error {
 		}
 
 		destPath := filepath.Join(swordDir, file.Path)
-		os.MkdirAll(filepath.Dir(destPath), 0755)
+		os.MkdirAll(filepath.Dir(destPath), 0700)
 		os.WriteFile(destPath, content, 0600)
 		extracted++
 	}

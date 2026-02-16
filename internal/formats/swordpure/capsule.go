@@ -257,7 +257,7 @@ func runIngestCmd(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		return nil
 	}
 
-	if err := os.MkdirAll(cfg.outputDir, 0755); err != nil {
+	if err := os.MkdirAll(cfg.outputDir, 0700); err != nil {
 		return fmt.Errorf("error creating output directory: %w", err)
 	}
 
@@ -451,7 +451,7 @@ func setupTempDirectory(confPath, dataPath, fullDataPath string) (string, error)
 // copyConfFile copies the configuration file to the temporary directory.
 func copyConfFile(tempDir, confPath string) error {
 	modsDir := filepath.Join(tempDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create mods.d: %w", err)
 	}
 
@@ -471,7 +471,7 @@ func copyConfFile(tempDir, confPath string) error {
 // copyModuleData copies the module data to the temporary directory.
 func copyModuleData(tempDir, dataPath, fullDataPath string) error {
 	destDataPath := filepath.Join(tempDir, dataPath)
-	if err := os.MkdirAll(filepath.Dir(destDataPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destDataPath), 0700); err != nil {
 		return fmt.Errorf("failed to create data dir: %w", err)
 	}
 
@@ -484,7 +484,7 @@ func copyModuleData(tempDir, dataPath, fullDataPath string) error {
 
 // extractModuleIR extracts IR for supported Bible modules.
 func extractModuleIR(conf *ConfFile, swordPath, irDir string) {
-	if err := os.MkdirAll(irDir, 0755); err != nil {
+	if err := os.MkdirAll(irDir, 0700); err != nil {
 		return
 	}
 
@@ -561,7 +561,7 @@ func hasFilesInDir(dir string) bool {
 // Files are stored at the root level (no directory prefix).
 func createTarGZ(srcDir, dstPath string) error {
 	// Create parent directory if needed
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0700); err != nil {
 		return err
 	}
 

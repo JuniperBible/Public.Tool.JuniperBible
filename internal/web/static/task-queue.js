@@ -306,12 +306,12 @@
             // Running tasks
             if (runningTasks.length > 0) {
                 runningContainer.innerHTML = runningTasks.map(task => `
-                    <div class="task-item task-running" data-task-id="${task.id}">
+                    <div class="task-item task-running" data-task-id="${this.escapeHtml(task.id)}">
                         <div class="task-spinner"></div>
                         <div class="task-info">
                             <div class="task-name">${this.escapeHtml(task.name)}</div>
                             <div class="task-message">${this.escapeHtml(task.message || 'Running...')}</div>
-                            ${task.progress ? `<div class="task-progress"><div class="task-progress-bar" style="width: ${task.progress}%"></div></div>` : ''}
+                            ${task.progress ? `<div class="task-progress"><div class="task-progress-bar" style="width: ${parseInt(task.progress, 10) || 0}%"></div></div>` : ''}
                         </div>
                     </div>
                 `).join('');
@@ -334,7 +334,7 @@
             // Completed tasks
             if (completedTasks.length > 0) {
                 completedContainer.innerHTML = completedTasks.map(task => `
-                    <div class="task-item task-${task.status}" data-task-id="${task.id}">
+                    <div class="task-item task-${this.getValidStatus(task.status)}" data-task-id="${this.escapeHtml(task.id)}">
                         <div class="task-status-icon">${task.status === 'completed' ? '&#10003;' : '&#10007;'}</div>
                         <div class="task-info">
                             <div class="task-name">${this.escapeHtml(task.name)}</div>
@@ -606,7 +606,15 @@ ${task.progress ? 'Progress: ' + task.progress + '%' : ''}
                 try {
                     callback(data);
                 } catch (error) {
-                    console.error(`Error in event listener for ${eventName}:`, error);
+                    // Validate eventName against known events before logging
+                    const validEvents = [
+                        'taskSubmitted', 'taskStarted', 'taskCompleted',
+                        'taskFailed', 'taskError', 'idle', 'taskDetailsShown'
+                    ];
+                    const safeEventName = validEvents.includes(eventName)
+                        ? eventName
+                        : '[unknown event]';
+                    console.error(`Error in event listener for ${safeEventName}:`, error);
                 }
             });
         }
@@ -618,6 +626,14 @@ ${task.progress ? 'Progress: ' + task.progress + '%' : ''}
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        /**
+         * Utility: Validate task status against whitelist
+         */
+        getValidStatus(status) {
+            const validStatuses = ['queued', 'running', 'completed', 'failed'];
+            return validStatuses.includes(status) ? status : 'unknown';
         }
 
         /**

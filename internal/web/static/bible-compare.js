@@ -45,6 +45,11 @@ function escapeHtml(str) {
 
 // Safely highlights search terms using DOM manipulation instead of innerHTML
 function highlightSearchTermInElement(element, searchTerm) {
+  // ReDoS mitigation: limit input length
+  if (!searchTerm || searchTerm.length > 100) {
+    return;
+  }
+
   const walker = document.createTreeWalker(
     element,
     NodeFilter.SHOW_TEXT,
@@ -59,10 +64,23 @@ function highlightSearchTermInElement(element, searchTerm) {
     nodesToReplace.push(node);
   }
 
-  const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+  // ReDoS mitigation: wrap RegExp creation in try-catch
+  let regex;
+  try {
+    regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+  } catch (e) {
+    console.error('Invalid search term for regex:', e);
+    return;
+  }
 
   nodesToReplace.forEach(textNode => {
     const text = textNode.nodeValue;
+
+    // ReDoS mitigation: use simple string matching for basic containment check
+    if (!text.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return;
+    }
+
     const parts = text.split(regex);
 
     if (parts.length > 1) {
@@ -233,14 +251,17 @@ async function loadChapter() {
       const book = currentBooks.find(b => b.id === bookId);
       const bookName = book ? book.name : bookId;
 
-      html += `<div class="verse-group" id="v${verseNum}">`;
-      html += `<div class="verse-ref">${escapeHtml(bookName)} ${escapeHtml(chapter)}:${verseNum}</div>`;
+      // Ensure verseNum is a number for defense-in-depth
+      const safeVerseNum = parseInt(verseNum) || 0;
+
+      html += `<div class="verse-group" id="v${safeVerseNum}">`;
+      html += `<div class="verse-ref">${escapeHtml(bookName)} ${escapeHtml(chapter)}:${escapeHtml(safeVerseNum)}</div>`;
 
       results.forEach((r, idx) => {
         const verse = (r.verses || []).find(v => v.number === verseNum);
         const bible = bibles.find(b => b.id === selected[idx]);
         const abbrev = bible ? escapeHtml(bible.abbrev) : escapeHtml(selected[idx]);
-        const text = verse ? escapeHtml(verse.text) : '<em>Verse not available</em>';
+        const text = verse ? escapeHtml(verse.text) : '&lt;em&gt;Verse not available&lt;/em&gt;';
 
         html += `<div class="translation-row"><span class="translation-abbrev">${abbrev}:</span> <span class="verse-text">${text}</span></div>`;
       });
@@ -280,14 +301,17 @@ async function loadVerse(verseNum) {
     const book = currentBooks.find(b => b.id === bookId);
     const bookName = book ? book.name : bookId;
 
+    // Ensure verseNum is a number for defense-in-depth
+    const safeVerseNum = parseInt(verseNum) || 0;
+
     let html = `<div class="verse-group">`;
-    html += `<div class="verse-ref">${escapeHtml(bookName)} ${escapeHtml(chapter)}:${verseNum}</div>`;
+    html += `<div class="verse-ref">${escapeHtml(bookName)} ${escapeHtml(chapter)}:${escapeHtml(safeVerseNum)}</div>`;
 
     results.forEach((r, idx) => {
       const verse = (r.verses || []).find(v => v.number === verseNum);
       const bible = bibles.find(b => b.id === selected[idx]);
       const abbrev = bible ? escapeHtml(bible.abbrev) : escapeHtml(selected[idx]);
-      const text = verse ? escapeHtml(verse.text) : '<em>Verse not available</em>';
+      const text = verse ? escapeHtml(verse.text) : '&lt;em&gt;Verse not available&lt;/em&gt;';
 
       html += `<div class="translation-row"><span class="translation-abbrev">${abbrev}:</span> <span class="verse-text">${text}</span></div>`;
     });
@@ -415,21 +439,43 @@ function highlightDifferences() {
         let lastIndex = 0;
         let hasMatch = false;
 
+        // ReDoS mitigation: limit word lengths and count
+        const safeWords = uniqueWords.filter(w => w.length <= 50).slice(0, 100);
+        if (safeWords.length === 0) return;
+
+        // ReDoS mitigation: use simple string matching for basic containment check
+        const textLower = text.toLowerCase();
+        const wordsToHighlight = safeWords.filter(word => textLower.includes(word));
+        if (wordsToHighlight.length === 0) return;
+
         // Find all matches in the text
-        uniqueWords.forEach(word => {
-          const regex = new RegExp(`\\b${escapeRegex(word)}\\b`, 'gi');
-          let match;
-          regex.lastIndex = 0;
-          while ((match = regex.exec(text)) !== null) {
-            hasMatch = true;
+        wordsToHighlight.forEach(word => {
+          // ReDoS mitigation: wrap RegExp creation in try-catch
+          try {
+            const regex = new RegExp(`\\b${escapeRegex(word)}\\b`, 'gi');
+            let match;
+            regex.lastIndex = 0;
+            while ((match = regex.exec(text)) !== null) {
+              hasMatch = true;
+            }
+          } catch (e) {
+            console.error('Invalid word for regex highlighting:', e);
           }
         });
 
         if (!hasMatch) return;
 
         // Build regex pattern for all unique words
-        const pattern = uniqueWords.map(w => `\\b(${escapeRegex(w)})\\b`).join('|');
-        const regex = new RegExp(pattern, 'gi');
+        // ReDoS mitigation: wrap RegExp creation in try-catch
+        let regex;
+        try {
+          const pattern = wordsToHighlight.map(w => `\\b(${escapeRegex(w)})\\b`).join('|');
+          regex = new RegExp(pattern, 'gi');
+        } catch (e) {
+          console.error('Invalid pattern for regex highlighting:', e);
+          return;
+        }
+
         let match;
         const matches = [];
 

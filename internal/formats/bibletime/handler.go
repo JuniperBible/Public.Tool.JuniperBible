@@ -104,7 +104,7 @@ func (h *Handler) Ingest(path, outputDir string) (*plugins.IngestResult, error) 
 	hashHex := hex.EncodeToString(hash[:])
 
 	blobDir := filepath.Join(outputDir, hashHex[:2])
-	if err := os.MkdirAll(blobDir, 0755); err != nil {
+	if err := os.MkdirAll(blobDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create blob dir: %w", err)
 	}
 
@@ -219,13 +219,13 @@ func (h *Handler) EmitNative(irPath, outputDir string) (*plugins.EmitNativeResul
 	// For BibleTime, we would emit SWORD module format
 	// For now, create a placeholder
 	outputPath := filepath.Join(outputDir, "bibletime-module")
-	if err := os.MkdirAll(outputPath, 0755); err != nil {
+	if err := os.MkdirAll(outputPath, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create output dir: %w", err)
 	}
 
 	// Create a minimal mods.d directory
 	modsDir := filepath.Join(outputPath, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create mods.d: %w", err)
 	}
 

@@ -1838,11 +1838,12 @@ func extractArtifactFilesToSWORD(extractDir, swordDir string, artifact *CASArtif
 }
 
 // resolveBlobPath returns the path to a blob based on its hash.
+// Validates hash format to prevent path traversal attacks.
 func resolveBlobPath(extractDir string, file CASFile) string {
-	if file.Blake3 != "" {
+	if file.Blake3 != "" && validation.IsValidHexHash(file.Blake3) {
 		return filepath.Join(extractDir, "blobs", "blake3", file.Blake3[:2], file.Blake3)
 	}
-	if file.SHA256 != "" {
+	if file.SHA256 != "" && validation.IsValidHexHash(file.SHA256) {
 		return filepath.Join(extractDir, "blobs", "sha256", file.SHA256[:2], file.SHA256)
 	}
 	return ""

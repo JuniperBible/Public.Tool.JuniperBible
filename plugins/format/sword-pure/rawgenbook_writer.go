@@ -61,7 +61,7 @@ func (w *RawGenBookWriter) WriteModule() (int, error) {
 	}
 
 	// Create data directory
-	if err := os.MkdirAll(w.dataPath, 0755); err != nil {
+	if err := os.MkdirAll(w.dataPath, 0700); err != nil {
 		return 0, fmt.Errorf("failed to create data path: %w", err)
 	}
 

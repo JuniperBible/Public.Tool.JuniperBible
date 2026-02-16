@@ -131,7 +131,7 @@ func handleIngest(args map[string]interface{}) {
 	hashHex := hex.EncodeToString(hash[:])
 
 	blobDir := filepath.Join(outputDir, hashHex[:2])
-	if err := os.MkdirAll(blobDir, 0755); err != nil {
+	if err := os.MkdirAll(blobDir, 0700); err != nil {
 		ipc.RespondErrorf("failed to create blob dir: %v", err)
 		return
 	}

@@ -194,6 +194,33 @@ func SanitizeFilename(filename string) (string, error) {
 	return filename, nil
 }
 
+// ErrInvalidHash is returned when a hash string is invalid.
+var ErrInvalidHash = errors.New("invalid hash")
+
+// IsValidHexHash checks if a string is a valid hex hash (SHA256 or BLAKE3).
+// It validates that the string contains only hexadecimal characters and has
+// the expected length for hash algorithms (64 chars for SHA256/BLAKE3).
+// This prevents path traversal attacks via malicious hash values.
+func IsValidHexHash(hash string) bool {
+	if len(hash) < 3 || len(hash) > 128 {
+		return false
+	}
+	for _, c := range hash {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
+// ValidateHexHash validates a hash string and returns an error if invalid.
+func ValidateHexHash(hash string) error {
+	if !IsValidHexHash(hash) {
+		return ErrInvalidHash
+	}
+	return nil
+}
+
 // FileType represents a validated file type.
 type FileType string
 

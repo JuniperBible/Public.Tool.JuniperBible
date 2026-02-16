@@ -18,8 +18,6 @@ type CellInfo struct {
 
 // ParseCell parses a cell from a B-tree page
 func ParseCell(pageType byte, cellData []byte, usableSize uint32) (*CellInfo, error) {
-	info := &CellInfo{}
-
 	switch pageType {
 	case PageTypeLeafTable:
 		return parseTableLeafCell(cellData, usableSize)
@@ -32,8 +30,6 @@ func ParseCell(pageType byte, cellData []byte, usableSize uint32) (*CellInfo, er
 	default:
 		return nil, fmt.Errorf("invalid page type: 0x%02x", pageType)
 	}
-
-	return info, nil
 }
 
 // parseTableLeafCell parses a table leaf cell

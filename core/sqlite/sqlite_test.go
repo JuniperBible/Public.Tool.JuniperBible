@@ -128,8 +128,11 @@ func TestMustOpen(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "test.db")
 
-	// Should not panic for valid path
-	db := MustOpen(dbPath)
+	// Should not return error for valid path
+	db, err := MustOpen(dbPath)
+	if err != nil {
+		t.Fatalf("MustOpen failed: %v", err)
+	}
 	db.Close()
 }
 
@@ -156,8 +159,8 @@ func TestDriverTypeConsistency(t *testing.T) {
 	}
 }
 
-// Note: MustOpen panic path (lines 52-53) cannot be reliably tested.
+// Note: MustOpen error path cannot be reliably tested.
 // SQLite's sql.Open uses lazy initialization - it almost never returns an error
 // from sql.Open() itself. Errors typically occur when actually using the connection.
-// The panic path exists for safety but is unreachable with a registered SQLite driver.
+// The error path exists for safety but is rarely triggered with a registered SQLite driver.
 // Coverage: 90.9% is the practical maximum for this package.

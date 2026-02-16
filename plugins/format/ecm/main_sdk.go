@@ -72,16 +72,14 @@ type Annotation struct {
 }
 
 func main() {
-	cfg := &format.Config{
+	if err := format.Run(&format.Config{
 		Name:       "ECM",
 		Extensions: []string{".ecm", ".ecm.xml", ".xml"},
 		Detect:     detectECM,
 		Parse:      parseECM,
 		Emit:       emitECM,
-	}
-
-	if err := format.Run(cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "Plugin error: %v\n", err)
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }

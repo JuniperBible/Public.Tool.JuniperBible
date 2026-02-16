@@ -579,7 +579,11 @@ func (c *TestCmd) Run() error {
 	if goldenDir == "" {
 		goldenDir = filepath.Join(fixturesDir, "goldens")
 	} else {
-		goldenDir, _ = filepath.Abs(goldenDir)
+		var err error
+		goldenDir, err = filepath.Abs(goldenDir)
+		if err != nil {
+			return fmt.Errorf("failed to resolve golden directory path: %w", err)
+		}
 	}
 
 	// Find all capsule files in fixtures directory
@@ -678,14 +682,26 @@ func (c *RunCmd) Run() error {
 	outDir := c.Out
 
 	if inputPath != "" {
-		inputPath, _ = filepath.Abs(inputPath)
+		var err error
+		inputPath, err = filepath.Abs(inputPath)
+		if err != nil {
+			return fmt.Errorf("failed to resolve input path: %w", err)
+		}
 	}
 
 	if outDir == "" {
-		outDir, _ = os.MkdirTemp("", "capsule-run-*")
+		var err error
+		outDir, err = os.MkdirTemp("", "capsule-run-*")
+		if err != nil {
+			return fmt.Errorf("failed to create temporary output directory: %w", err)
+		}
 		defer os.RemoveAll(outDir)
 	} else {
-		outDir, _ = filepath.Abs(outDir)
+		var err error
+		outDir, err = filepath.Abs(outDir)
+		if err != nil {
+			return fmt.Errorf("failed to resolve output directory path: %w", err)
+		}
 		if err := os.MkdirAll(outDir, 0755); err != nil {
 			return fmt.Errorf("failed to create output directory: %w", err)
 		}

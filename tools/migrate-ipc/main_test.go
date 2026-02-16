@@ -135,7 +135,6 @@ func TestMigrateFileNoIPCRequest(t *testing.T) {
 import "fmt"
 
 func main() {
-	fmt.Println("hello")
 }
 `
 	path := filepath.Join(tempDir, "main.go")

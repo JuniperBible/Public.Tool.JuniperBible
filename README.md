@@ -104,7 +104,10 @@ Input Format → extract-ir → Juniper's Sword (IR) → emit-native → Output 
 ├── api/                    # REST API (OpenAPI spec)
 ├── cmd/                    # CLI entrypoints
 │   ├── capsule/            # Main CLI (includes web and api subcommands)
-│   └── capsule-api/        # REST API server (standalone)
+│   ├── capsule-format/     # Format conversion utilities
+│   ├── capsule-juniper/    # SWORD/Bible-specific workflows
+│   ├── capsule-repoman/    # Repository management
+│   └── capsule-tools/      # Tool execution utilities
 ├── core/
 │   ├── cas/                # content-addressed storage (SHA-256, BLAKE3)
 │   ├── capsule/            # manifest handling, schema validation
@@ -123,9 +126,10 @@ Input Format → extract-ir → Juniper's Sword (IR) → emit-native → Output 
 │   ├── embedded/           # embedded plugin registry
 │   └── formats/            # embedded format handlers
 ├── plugins/
-│   ├── format/             # format plugins (40 total)
+│   ├── format/             # format plugins (42 total)
 │   ├── tool/               # tool plugins (10 total)
 │   ├── meta/               # meta plugins (aggregators)
+│   ├── sdk/                # plugin SDK for simplified development
 │   └── ipc/                # shared IPC protocol package
 ├── contrib/                # optional external dependencies
 │   ├── sqlite-external/    # CGO SQLite driver (mattn/go-sqlite3)
@@ -265,7 +269,7 @@ Loss classes:
 
 ---
 
-## Implemented format plugins (40 total, all bidirectional)
+## Implemented format plugins (42 total, all bidirectional)
 
 | Plugin | extract-ir | emit-native | Loss Class | Notes |
 |---|:---:|:---:|:---:|---|
@@ -514,7 +518,7 @@ See [contrib/sqlite-external/README.md](contrib/sqlite-external/README.md) for C
 
 ### Single-binary architecture
 
-The main `capsule` binary embeds all 40 format plugins and 10 tool plugins. No external plugin directory required for standard operation.
+The main `capsule` binary embeds all 42 format plugins and 10 tool plugins. No external plugin directory required for standard operation.
 
 ### External plugin loading (optional)
 
@@ -707,7 +711,7 @@ Located in `contrib/sample-data/`.
 * CAS + schema validation complete (SHA-256 + BLAKE3)
 * Capsules: XZ default + gzip optional
 * Juniper's Sword IR complete (supports L0 lossless round-trips where applicable)
-* 40 format plugins implemented (all bidirectional)
+* 42 format plugins implemented (all bidirectional)
 * 10 tool plugins implemented
 * Web UI: browse, compare, search
 * CI/CD: GitHub Actions + reproducible Nix VM runner

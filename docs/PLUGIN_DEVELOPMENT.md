@@ -357,7 +357,7 @@ package main
 import (
     "encoding/json"
     "os"
-    "github.com/FocuswithJustin/mimicry/plugins/ipc"
+    "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 func main() {
@@ -412,7 +412,7 @@ func handleDetect(args map[string]interface{}) {
 The `plugins/ipc` package provides common functionality:
 
 ```go
-import "github.com/FocuswithJustin/mimicry/plugins/ipc"
+import "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 
 // Recommended: Use StandardDetect for two-stage detection (extension + content)
 func handleDetect(args map[string]interface{}) {
@@ -752,7 +752,7 @@ type EmbeddedFormatHandler interface {
 ```go
 package myformat
 
-import "github.com/FocuswithJustin/mimicry/core/plugins"
+import "github.com/FocuswithJustin/JuniperBible/core/plugins"
 
 type Handler struct{}
 
@@ -779,7 +779,7 @@ func init() {
 2. Import the handler in `internal/embedded/registry.go`:
 
 ```go
-import _ "github.com/FocuswithJustin/mimicry/internal/formats/myformat"
+import _ "github.com/FocuswithJustin/JuniperBible/internal/formats/myformat"
 ```
 
 ### External Plugins (Optional)

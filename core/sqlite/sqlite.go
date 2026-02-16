@@ -48,16 +48,14 @@ func OpenReadOnly(path string) (*sql.DB, error) {
 	return Open(dsn)
 }
 
-// MustOpen opens a SQLite database and panics on error.
-// Use Open instead if you need to handle errors gracefully.
-// This is intended for use in tests or initialization code where
-// database access failure is unrecoverable.
-func MustOpen(dataSourceName string) *sql.DB {
+// MustOpen opens a SQLite database and returns an error if it fails.
+// Deprecated: Use Open instead for clearer error handling semantics.
+func MustOpen(dataSourceName string) (*sql.DB, error) {
 	db, err := Open(dataSourceName)
 	if err != nil {
-		panic(fmt.Sprintf("sqlite: failed to open %s: %v", dataSourceName, err))
+		return nil, fmt.Errorf("sqlite: failed to open %s: %w", dataSourceName, err)
 	}
-	return db
+	return db, nil
 }
 
 // Info contains information about the SQLite driver configuration.

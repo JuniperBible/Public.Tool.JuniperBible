@@ -279,23 +279,9 @@ func handleEnumerate(args map[string]interface{}) {
 }
 
 func handleExtractIR(args map[string]interface{}) {
-	// Respond with error but use MustRespond instead of RespondError to avoid os.Exit in tests
-	resp := ipc.Response{
-		Status: "error",
-		Error:  "extract-ir not supported: Olive Tree format is proprietary/encrypted. Format specification not publicly documented. Contact Olive Tree Bible Software for conversion options.",
-	}
-	if err := json.NewEncoder(os.Stdout).Encode(resp); err != nil {
-		ipc.RespondErrorf("failed to encode error response: %v", err)
-	}
+	ipc.RespondError("extract-ir not supported: Olive Tree format is proprietary/encrypted. Format specification not publicly documented. Contact Olive Tree Bible Software for conversion options.")
 }
 
 func handleEmitNative(args map[string]interface{}) {
-	// Respond with error but use MustRespond instead of RespondError to avoid os.Exit in tests
-	resp := ipc.Response{
-		Status: "error",
-		Error:  "emit-native not supported: Olive Tree format is proprietary/encrypted. Format specification not publicly documented. Cannot generate Olive Tree files without format documentation.",
-	}
-	if err := json.NewEncoder(os.Stdout).Encode(resp); err != nil {
-		ipc.RespondErrorf("failed to encode error response: %v", err)
-	}
+	ipc.RespondError("emit-native not supported: Olive Tree format is proprietary/encrypted. Format specification not publicly documented. Cannot generate Olive Tree files without format documentation.")
 }

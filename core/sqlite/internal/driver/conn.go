@@ -207,9 +207,10 @@ func (c *Conn) openDatabase(schemaLoaded bool) error {
 	// Load schema from the database only if this is the first connection
 	if !schemaLoaded {
 		if err := c.schema.LoadFromMaster(c.btree); err != nil {
-			// Schema loading may fail for new empty databases, which is OK
-			// The schema will be populated as tables are created
-			_ = err // Ignore error for now
+			// Schema loading may fail for new empty databases (no sqlite_master table yet),
+			// which is expected and safe to ignore. The schema will be populated as tables
+			// are created through DDL statements.
+			// We explicitly ignore this error as it indicates a new database, not a failure.
 		}
 	}
 

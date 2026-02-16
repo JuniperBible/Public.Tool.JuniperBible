@@ -22,14 +22,6 @@ import (
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
-// ExtractIRResult is the result of an extract-ir command.
-
-// EmitNativeResult is the result of an emit-native command.
-
-// LossReport describes any data loss during conversion.
-
-// LostElement describes a specific element that was lost.
-
 // BibleTimeBookmark represents a bookmark in BibleTime's XBEL format.
 type BibleTimeBookmark struct {
 	Title       string `json:"title"`

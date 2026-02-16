@@ -30,14 +30,6 @@ import (
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
-// ExtractIRResult is the result of an extract-ir command.
-
-// EmitNativeResult is the result of an emit-native command.
-
-// LossReport describes any data loss during conversion.
-
-// LostElement describes a specific element that was lost.
-
 // MySword book number to OSIS ID mapping (same as e-Sword)
 var bookNumToOSIS = map[int]string{
 	1: "Gen", 2: "Exod", 3: "Lev", 4: "Num", 5: "Deut",

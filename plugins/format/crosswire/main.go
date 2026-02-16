@@ -46,9 +46,7 @@ func printInfo() {
 		Formats:     []string{"crosswire-zip", "sword-distribution"},
 	}
 
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	enc.Encode(info)
+	ipc.Respond(info)
 }
 
 func runIPC() {

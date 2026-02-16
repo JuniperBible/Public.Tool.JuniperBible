@@ -1,3 +1,5 @@
+//go:build !sdk
+
 // Package main provides comprehensive tests for the tar plugin.
 // This test suite achieves 73.3% code coverage and includes 65 test cases covering:
 //

@@ -82,7 +82,7 @@ func runIPC() {
 
 		var req ipc.Request
 		if err := json.Unmarshal([]byte(line), &req); err != nil {
-			sendError(fmt.Sprintf("invalid JSON: %v", err))
+			ipc.RespondError(fmt.Sprintf("invalid JSON: %v", err))
 			continue
 		}
 
@@ -90,7 +90,7 @@ func runIPC() {
 	}
 
 	if err := scanner.Err(); err != nil {
-		sendError(fmt.Sprintf("stdin read error: %v", err))
+		ipc.RespondError(fmt.Sprintf("stdin read error: %v", err))
 	}
 }
 
@@ -111,24 +111,24 @@ func handleRequest(req *ipc.Request) {
 	case "emit-native":
 		handleEmitNative(req)
 	default:
-		sendError(fmt.Sprintf("unknown command: %s", req.Command))
+		ipc.RespondError(fmt.Sprintf("unknown command: %s", req.Command))
 	}
 }
 
 func handleListModules(req *ipc.Request) {
 	path, ok := req.Args["path"].(string)
 	if !ok || path == "" {
-		sendError("missing required argument: path")
+		ipc.RespondError("missing required argument: path")
 		return
 	}
 
 	modules, err := ListModules(path)
 	if err != nil {
-		sendError(fmt.Sprintf("failed to list modules: %v", err))
+		ipc.RespondError(fmt.Sprintf("failed to list modules: %v", err))
 		return
 	}
 
-	sendResult(map[string]interface{}{
+	ipc.MustRespond(map[string]interface{}{
 		"modules": modules,
 		"count":   len(modules),
 	})
@@ -141,23 +141,23 @@ func handleRenderVerse(req *ipc.Request) {
 
 	// Check for missing arguments
 	if path == "" || module == "" || refStr == "" {
-		sendError("missing required arguments: path, module, ref")
+		ipc.RespondError("missing required arguments: path, module, ref")
 		return
 	}
 
 	// Check for wrong type (argument present but not a string)
 	if !pathOk || !moduleOk || !refOk {
-		sendError("invalid argument type: path, module, and ref must be strings")
+		ipc.RespondError("invalid argument type: path, module, and ref must be strings")
 		return
 	}
 
 	text, err := RenderVerse(path, module, refStr)
 	if err != nil {
-		sendError(fmt.Sprintf("failed to render verse: %v", err))
+		ipc.RespondError(fmt.Sprintf("failed to render verse: %v", err))
 		return
 	}
 
-	sendResult(map[string]interface{}{
+	ipc.MustRespond(map[string]interface{}{
 		"ref":  refStr,
 		"text": text,
 	})
@@ -169,23 +169,23 @@ func handleRenderAll(req *ipc.Request) {
 
 	// Check for missing arguments
 	if path == "" || module == "" {
-		sendError("missing required arguments: path, module")
+		ipc.RespondError("missing required arguments: path, module")
 		return
 	}
 
 	// Check for wrong type (argument present but not a string)
 	if !pathOk || !moduleOk {
-		sendError("invalid argument type: path and module must be strings")
+		ipc.RespondError("invalid argument type: path and module must be strings")
 		return
 	}
 
 	verses, err := RenderAll(path, module)
 	if err != nil {
-		sendError(fmt.Sprintf("failed to render all: %v", err))
+		ipc.RespondError(fmt.Sprintf("failed to render all: %v", err))
 		return
 	}
 
-	sendResult(map[string]interface{}{
+	ipc.MustRespond(map[string]interface{}{
 		"verses": verses,
 		"count":  len(verses),
 	})
@@ -194,17 +194,17 @@ func handleRenderAll(req *ipc.Request) {
 func handleDetect(req *ipc.Request) {
 	path, ok := req.Args["path"].(string)
 	if !ok || path == "" {
-		sendError("missing required argument: path")
+		ipc.RespondError("missing required argument: path")
 		return
 	}
 
 	detected, format, err := Detect(path)
 	if err != nil {
-		sendError(fmt.Sprintf("detection failed: %v", err))
+		ipc.RespondError(fmt.Sprintf("detection failed: %v", err))
 		return
 	}
 
-	sendResult(map[string]interface{}{
+	ipc.MustRespond(map[string]interface{}{
 		"detected": detected,
 		"format":   format,
 	})
@@ -213,17 +213,17 @@ func handleDetect(req *ipc.Request) {
 func handleParseConf(req *ipc.Request) {
 	path, ok := req.Args["path"].(string)
 	if !ok || path == "" {
-		sendError("missing required argument: path")
+		ipc.RespondError("missing required argument: path")
 		return
 	}
 
 	conf, err := ParseConfFile(path)
 	if err != nil {
-		sendError(fmt.Sprintf("failed to parse conf: %v", err))
+		ipc.RespondError(fmt.Sprintf("failed to parse conf: %v", err))
 		return
 	}
 
-	sendResult(conf)
+	ipc.MustRespond(conf)
 }
 
 // handleExtractIR extracts Intermediate Representation from SWORD modules.
@@ -235,30 +235,30 @@ func handleExtractIR(req *ipc.Request) {
 
 	// Check for missing required arguments
 	if path == "" {
-		sendError("missing required argument: path")
+		ipc.RespondError("missing required argument: path")
 		return
 	}
 	if outputDir == "" {
-		sendError("missing required argument: output_dir")
+		ipc.RespondError("missing required argument: output_dir")
 		return
 	}
 
 	// Check for wrong type (argument present but not a string)
 	if !pathOk || !outputDirOk {
-		sendError("invalid argument type: path and output_dir must be strings")
+		ipc.RespondError("invalid argument type: path and output_dir must be strings")
 		return
 	}
 
 	// Create output directory
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		sendError(fmt.Sprintf("failed to create output dir: %v", err))
+		ipc.RespondError(fmt.Sprintf("failed to create output dir: %v", err))
 		return
 	}
 
 	// Load modules from path
 	confs, err := LoadModulesFromPath(path)
 	if err != nil {
-		sendError(fmt.Sprintf("failed to load modules: %v", err))
+		ipc.RespondError(fmt.Sprintf("failed to load modules: %v", err))
 		return
 	}
 
@@ -334,7 +334,7 @@ func handleExtractIR(req *ipc.Request) {
 		})
 	}
 
-	sendResult(map[string]interface{}{
+	ipc.MustRespond(map[string]interface{}{
 		"modules": results,
 		"count":   len(results),
 	})
@@ -347,41 +347,41 @@ func handleEmitNative(req *ipc.Request) {
 
 	// Check for missing required arguments
 	if irPath == "" {
-		sendError("missing required argument: ir_path")
+		ipc.RespondError("missing required argument: ir_path")
 		return
 	}
 	if outputDir == "" {
-		sendError("missing required argument: output_dir")
+		ipc.RespondError("missing required argument: output_dir")
 		return
 	}
 
 	// Check for wrong type (argument present but not a string)
 	if !irPathOk || !outputDirOk {
-		sendError("invalid argument type: ir_path and output_dir must be strings")
+		ipc.RespondError("invalid argument type: ir_path and output_dir must be strings")
 		return
 	}
 
 	// Load IR corpus
 	data, err := os.ReadFile(irPath)
 	if err != nil {
-		sendError(fmt.Sprintf("failed to read IR file: %v", err))
+		ipc.RespondError(fmt.Sprintf("failed to read IR file: %v", err))
 		return
 	}
 
 	var corpus IRCorpus
 	if err := json.Unmarshal(data, &corpus); err != nil {
-		sendError(fmt.Sprintf("failed to parse IR: %v", err))
+		ipc.RespondError(fmt.Sprintf("failed to parse IR: %v", err))
 		return
 	}
 
 	// Use EmitZText for full binary generation
 	result, err := EmitZText(&corpus, outputDir)
 	if err != nil {
-		sendError(fmt.Sprintf("failed to emit zText: %v", err))
+		ipc.RespondError(fmt.Sprintf("failed to emit zText: %v", err))
 		return
 	}
 
-	sendResult(map[string]interface{}{
+	ipc.MustRespond(map[string]interface{}{
 		"status":         "ok",
 		"message":        "Generated complete zText module with binary data.",
 		"conf_path":      result.ConfPath,
@@ -392,18 +392,3 @@ func handleEmitNative(req *ipc.Request) {
 	})
 }
 
-func sendResult(result interface{}) {
-	resp := ipc.Response{
-		Status: "ok",
-		Result: result,
-	}
-	json.NewEncoder(os.Stdout).Encode(resp)
-}
-
-func sendError(msg string) {
-	resp := ipc.Response{
-		Status: "error",
-		Error:  msg,
-	}
-	json.NewEncoder(os.Stdout).Encode(resp)
-}

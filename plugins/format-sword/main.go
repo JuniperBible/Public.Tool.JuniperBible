@@ -14,6 +14,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -226,7 +227,7 @@ func handleDetect(args map[string]interface{}) {
 	// Check for SWORD module structure
 	// Look for mods.d/ directory with .conf files
 	modsD := filepath.Join(path, "mods.d")
-	if _, err := os.Stat(modsD); os.IsNotExist(err) {
+	if _, err := os.Stat(modsD); errors.Is(err, os.ErrNotExist) {
 		respond(&DetectResult{
 			Detected: false,
 			Reason:   "no mods.d directory found",
@@ -246,7 +247,7 @@ func handleDetect(args map[string]interface{}) {
 
 	// Check for modules/ directory
 	modulesDir := filepath.Join(path, "modules")
-	if _, err := os.Stat(modulesDir); os.IsNotExist(err) {
+	if _, err := os.Stat(modulesDir); errors.Is(err, os.ErrNotExist) {
 		respond(&DetectResult{
 			Detected: false,
 			Reason:   "no modules directory found",

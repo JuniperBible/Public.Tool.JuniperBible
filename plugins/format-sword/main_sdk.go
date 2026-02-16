@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -60,7 +61,7 @@ func detectSword(path string) (*ipc.DetectResult, error) {
 	}
 
 	modsD := filepath.Join(path, "mods.d")
-	if _, err := os.Stat(modsD); os.IsNotExist(err) {
+	if _, err := os.Stat(modsD); errors.Is(err, os.ErrNotExist) {
 		return &ipc.DetectResult{Detected: false, Reason: "no mods.d directory found"}, nil
 	}
 
@@ -70,7 +71,7 @@ func detectSword(path string) (*ipc.DetectResult, error) {
 	}
 
 	modulesDir := filepath.Join(path, "modules")
-	if _, err := os.Stat(modulesDir); os.IsNotExist(err) {
+	if _, err := os.Stat(modulesDir); errors.Is(err, os.ErrNotExist) {
 		return &ipc.DetectResult{Detected: false, Reason: "no modules directory found"}, nil
 	}
 

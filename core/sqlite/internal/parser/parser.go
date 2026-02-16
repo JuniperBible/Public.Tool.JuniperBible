@@ -111,85 +111,128 @@ func (p *Parser) parseSelect() (*SelectStmt, error) {
 	}
 	stmt.Columns = cols
 
-	// FROM clause
-	if p.match(TK_FROM) {
-		fromClause, err := p.parseFromClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.From = fromClause
-	}
-
-	// WHERE clause
-	if p.match(TK_WHERE) {
-		where, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Where = where
-	}
-
-	// GROUP BY clause
-	if p.match(TK_GROUP) {
-		if !p.match(TK_BY) {
-			return nil, p.error("expected BY after GROUP")
-		}
-		groupBy, err := p.parseExpressionList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.GroupBy = groupBy
-
-		// HAVING clause
-		if p.match(TK_HAVING) {
-			having, err := p.parseExpression()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Having = having
-		}
-	}
-
-	// ORDER BY clause
-	if p.match(TK_ORDER) {
-		if !p.match(TK_BY) {
-			return nil, p.error("expected BY after ORDER")
-		}
-		orderBy, err := p.parseOrderByList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OrderBy = orderBy
-	}
-
-	// LIMIT clause
-	if p.match(TK_LIMIT) {
-		limit, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Limit = limit
-
-		// OFFSET clause
-		if p.match(TK_OFFSET) || p.match(TK_COMMA) {
-			offset, err := p.parseExpression()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Offset = offset
-		}
+	// Parse optional clauses
+	if err := p.parseSelectClauses(stmt); err != nil {
+		return nil, err
 	}
 
 	// Compound SELECT (UNION, EXCEPT, INTERSECT)
-	if p.check(TK_UNION) || p.check(TK_EXCEPT) || p.check(TK_INTERSECT) {
-		compound, err := p.parseCompoundSelect(stmt)
-		if err != nil {
-			return nil, err
-		}
-		return compound, nil
+	if p.checkCompoundOp() {
+		return p.parseCompoundSelect(stmt)
 	}
 
 	return stmt, nil
+}
+
+// parseSelectClauses parses FROM, WHERE, GROUP BY, ORDER BY, and LIMIT clauses.
+func (p *Parser) parseSelectClauses(stmt *SelectStmt) error {
+	if err := p.parseFromClauseInto(stmt); err != nil {
+		return err
+	}
+	if err := p.parseWhereClauseInto(stmt); err != nil {
+		return err
+	}
+	if err := p.parseGroupByClauseInto(stmt); err != nil {
+		return err
+	}
+	if err := p.parseOrderByClauseInto(stmt); err != nil {
+		return err
+	}
+	return p.parseLimitClauseInto(stmt)
+}
+
+// parseFromClauseInto parses the FROM clause into the statement.
+func (p *Parser) parseFromClauseInto(stmt *SelectStmt) error {
+	if !p.match(TK_FROM) {
+		return nil
+	}
+	from, err := p.parseFromClause()
+	if err != nil {
+		return err
+	}
+	stmt.From = from
+	return nil
+}
+
+// parseWhereClauseInto parses the WHERE clause into the statement.
+func (p *Parser) parseWhereClauseInto(stmt *SelectStmt) error {
+	if !p.match(TK_WHERE) {
+		return nil
+	}
+	where, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	stmt.Where = where
+	return nil
+}
+
+// parseGroupByClauseInto parses the GROUP BY and HAVING clauses.
+func (p *Parser) parseGroupByClauseInto(stmt *SelectStmt) error {
+	if !p.match(TK_GROUP) {
+		return nil
+	}
+	if !p.match(TK_BY) {
+		return p.error("expected BY after GROUP")
+	}
+	groupBy, err := p.parseExpressionList()
+	if err != nil {
+		return err
+	}
+	stmt.GroupBy = groupBy
+
+	// HAVING clause
+	if p.match(TK_HAVING) {
+		having, err := p.parseExpression()
+		if err != nil {
+			return err
+		}
+		stmt.Having = having
+	}
+	return nil
+}
+
+// parseOrderByClauseInto parses the ORDER BY clause.
+func (p *Parser) parseOrderByClauseInto(stmt *SelectStmt) error {
+	if !p.match(TK_ORDER) {
+		return nil
+	}
+	if !p.match(TK_BY) {
+		return p.error("expected BY after ORDER")
+	}
+	orderBy, err := p.parseOrderByList()
+	if err != nil {
+		return err
+	}
+	stmt.OrderBy = orderBy
+	return nil
+}
+
+// parseLimitClauseInto parses the LIMIT and OFFSET clauses.
+func (p *Parser) parseLimitClauseInto(stmt *SelectStmt) error {
+	if !p.match(TK_LIMIT) {
+		return nil
+	}
+	limit, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	stmt.Limit = limit
+
+	// OFFSET clause
+	if p.match(TK_OFFSET) || p.match(TK_COMMA) {
+		offset, err := p.parseExpression()
+		if err != nil {
+			return err
+		}
+		stmt.Offset = offset
+	}
+	return nil
+}
+
+// checkCompoundOp checks if the next token is a compound operator.
+func (p *Parser) checkCompoundOp() bool {
+	return p.check(TK_UNION) || p.check(TK_EXCEPT) || p.check(TK_INTERSECT)
 }
 
 func (p *Parser) parseCompoundSelect(left *SelectStmt) (*SelectStmt, error) {
@@ -1109,6 +1152,29 @@ func (p *Parser) parseNotExpression() (Expression, error) {
 	return p.parseComparisonExpression()
 }
 
+// comparisonOpMap maps token types to their binary operators.
+var comparisonOpMap = map[TokenType]BinaryOp{
+	TK_EQ: OpEq,
+	TK_NE: OpNe,
+	TK_LT: OpLt,
+	TK_LE: OpLe,
+	TK_GT: OpGt,
+	TK_GE: OpGe,
+}
+
+// patternOpMap maps pattern matching token types to their binary operators.
+var patternOpMap = map[TokenType]BinaryOp{
+	TK_LIKE:   OpLike,
+	TK_GLOB:   OpGlob,
+	TK_REGEXP: OpRegexp,
+	TK_MATCH:  OpMatch,
+}
+
+// checkNotWithAhead checks if we have NOT followed by the given token.
+func (p *Parser) checkNotWithAhead(tok TokenType) bool {
+	return p.check(TK_NOT) && p.peekAhead(1).Type == tok
+}
+
 func (p *Parser) parseComparisonExpression() (Expression, error) {
 	left, err := p.parseBitwiseExpression()
 	if err != nil {
@@ -1117,144 +1183,137 @@ func (p *Parser) parseComparisonExpression() (Expression, error) {
 
 	// IS NULL, IS NOT NULL
 	if p.match(TK_IS) {
-		if p.match(TK_NOT) {
-			if p.match(TK_NULL) {
-				return &UnaryExpr{Op: OpNotNull, Expr: left}, nil
-			}
-			return nil, p.error("expected NULL after IS NOT")
-		} else if p.match(TK_NULL) {
-			return &UnaryExpr{Op: OpIsNull, Expr: left}, nil
-		}
-		// IS comparison
-		right, err := p.parseBitwiseExpression()
-		if err != nil {
-			return nil, err
-		}
-		return &BinaryExpr{Left: left, Op: OpEq, Right: right}, nil
+		return p.parseIsExpression(left)
 	}
 
-	// IN
-	if p.check(TK_IN) || (p.check(TK_NOT) && p.peekAhead(1).Type == TK_IN) {
-		not := p.match(TK_NOT)
-		p.match(TK_IN)
-
-		if !p.match(TK_LP) {
-			return nil, p.error("expected ( after IN")
-		}
-
-		inExpr := &InExpr{Expr: left, Not: not}
-
-		if p.match(TK_SELECT) {
-			sel, err := p.parseSelect()
-			if err != nil {
-				return nil, err
-			}
-			inExpr.Select = sel
-		} else {
-			values, err := p.parseExpressionList()
-			if err != nil {
-				return nil, err
-			}
-			inExpr.Values = values
-		}
-
-		if !p.match(TK_RP) {
-			return nil, p.error("expected ) after IN values")
-		}
-
-		return inExpr, nil
+	// IN / NOT IN
+	if p.check(TK_IN) || p.checkNotWithAhead(TK_IN) {
+		return p.parseInExpression(left)
 	}
 
-	// BETWEEN
-	if p.check(TK_BETWEEN) || (p.check(TK_NOT) && p.peekAhead(1).Type == TK_BETWEEN) {
-		not := p.match(TK_NOT)
-		p.match(TK_BETWEEN)
-
-		lower, err := p.parseBitwiseExpression()
-		if err != nil {
-			return nil, err
-		}
-
-		if !p.match(TK_AND) {
-			return nil, p.error("expected AND in BETWEEN")
-		}
-
-		upper, err := p.parseBitwiseExpression()
-		if err != nil {
-			return nil, err
-		}
-
-		return &BetweenExpr{
-			Expr:  left,
-			Lower: lower,
-			Upper: upper,
-			Not:   not,
-		}, nil
+	// BETWEEN / NOT BETWEEN
+	if p.check(TK_BETWEEN) || p.checkNotWithAhead(TK_BETWEEN) {
+		return p.parseBetweenExpression(left)
 	}
 
+	// Pattern operators and comparison operators
+	return p.tryParseOperators(left)
+}
+
+// tryParseOperators attempts to parse pattern or comparison operators.
+func (p *Parser) tryParseOperators(left Expression) (Expression, error) {
 	// LIKE, GLOB, REGEXP, MATCH
-	if p.match(TK_LIKE) {
-		right, err := p.parseBitwiseExpression()
-		if err != nil {
-			return nil, err
-		}
-		return &BinaryExpr{Left: left, Op: OpLike, Right: right}, nil
-	} else if p.match(TK_GLOB) {
-		right, err := p.parseBitwiseExpression()
-		if err != nil {
-			return nil, err
-		}
-		return &BinaryExpr{Left: left, Op: OpGlob, Right: right}, nil
-	} else if p.match(TK_REGEXP) {
-		right, err := p.parseBitwiseExpression()
-		if err != nil {
-			return nil, err
-		}
-		return &BinaryExpr{Left: left, Op: OpRegexp, Right: right}, nil
-	} else if p.match(TK_MATCH) {
-		right, err := p.parseBitwiseExpression()
-		if err != nil {
-			return nil, err
-		}
-		return &BinaryExpr{Left: left, Op: OpMatch, Right: right}, nil
+	if expr, err := p.tryParsePatternOp(left); expr != nil || err != nil {
+		return expr, err
 	}
 
 	// Comparison operators
-	var op BinaryOp
-	matched := false
-	if p.match(TK_EQ) {
-		op = OpEq
-		matched = true
-	} else if p.match(TK_NE) {
-		op = OpNe
-		matched = true
-	} else if p.match(TK_LT) {
-		op = OpLt
-		matched = true
-	} else if p.match(TK_LE) {
-		op = OpLe
-		matched = true
-	} else if p.match(TK_GT) {
-		op = OpGt
-		matched = true
-	} else if p.match(TK_GE) {
-		op = OpGe
-		matched = true
-	}
-
-	if matched {
-		right, err := p.parseBitwiseExpression()
-		if err != nil {
-			return nil, err
-		}
-		return &BinaryExpr{
-			Left:  left,
-			Op:    op,
-			Right: right,
-		}, nil
+	if expr, err := p.tryParseComparisonOp(left); expr != nil || err != nil {
+		return expr, err
 	}
 
 	return left, nil
+}
+
+// parseIsExpression parses IS NULL, IS NOT NULL, or IS comparison.
+func (p *Parser) parseIsExpression(left Expression) (Expression, error) {
+	if p.match(TK_NOT) {
+		if p.match(TK_NULL) {
+			return &UnaryExpr{Op: OpNotNull, Expr: left}, nil
+		}
+		return nil, p.error("expected NULL after IS NOT")
+	}
+	if p.match(TK_NULL) {
+		return &UnaryExpr{Op: OpIsNull, Expr: left}, nil
+	}
+	// IS comparison
+	right, err := p.parseBitwiseExpression()
+	if err != nil {
+		return nil, err
+	}
+	return &BinaryExpr{Left: left, Op: OpEq, Right: right}, nil
+}
+
+// parseInExpression parses IN or NOT IN expressions.
+func (p *Parser) parseInExpression(left Expression) (Expression, error) {
+	not := p.match(TK_NOT)
+	p.match(TK_IN)
+
+	if !p.match(TK_LP) {
+		return nil, p.error("expected ( after IN")
+	}
+
+	inExpr := &InExpr{Expr: left, Not: not}
+
+	if p.match(TK_SELECT) {
+		sel, err := p.parseSelect()
+		if err != nil {
+			return nil, err
+		}
+		inExpr.Select = sel
+	} else {
+		values, err := p.parseExpressionList()
+		if err != nil {
+			return nil, err
+		}
+		inExpr.Values = values
+	}
+
+	if !p.match(TK_RP) {
+		return nil, p.error("expected ) after IN values")
+	}
+
+	return inExpr, nil
+}
+
+// parseBetweenExpression parses BETWEEN or NOT BETWEEN expressions.
+func (p *Parser) parseBetweenExpression(left Expression) (Expression, error) {
+	not := p.match(TK_NOT)
+	p.match(TK_BETWEEN)
+
+	lower, err := p.parseBitwiseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	if !p.match(TK_AND) {
+		return nil, p.error("expected AND in BETWEEN")
+	}
+
+	upper, err := p.parseBitwiseExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	return &BetweenExpr{Expr: left, Lower: lower, Upper: upper, Not: not}, nil
+}
+
+// tryParsePatternOp tries to parse LIKE, GLOB, REGEXP, or MATCH.
+func (p *Parser) tryParsePatternOp(left Expression) (Expression, error) {
+	for tokType, op := range patternOpMap {
+		if p.match(tokType) {
+			right, err := p.parseBitwiseExpression()
+			if err != nil {
+				return nil, err
+			}
+			return &BinaryExpr{Left: left, Op: op, Right: right}, nil
+		}
+	}
+	return nil, nil
+}
+
+// tryParseComparisonOp tries to parse comparison operators (=, <>, <, <=, >, >=).
+func (p *Parser) tryParseComparisonOp(left Expression) (Expression, error) {
+	for tokType, op := range comparisonOpMap {
+		if p.match(tokType) {
+			right, err := p.parseBitwiseExpression()
+			if err != nil {
+				return nil, err
+			}
+			return &BinaryExpr{Left: left, Op: op, Right: right}, nil
+		}
+	}
+	return nil, nil
 }
 
 func (p *Parser) parseBitwiseExpression() (Expression, error) {
@@ -1421,207 +1480,225 @@ func (p *Parser) parsePostfixExpression() (Expression, error) {
 }
 
 func (p *Parser) parsePrimaryExpression() (Expression, error) {
-	// Literals
-	if p.check(TK_INTEGER) {
-		tok := p.advance()
-		return &LiteralExpr{
-			Type:  LiteralInteger,
-			Value: tok.Lexeme,
-		}, nil
-	} else if p.check(TK_FLOAT) {
-		tok := p.advance()
-		return &LiteralExpr{
-			Type:  LiteralFloat,
-			Value: tok.Lexeme,
-		}, nil
-	} else if p.check(TK_STRING) {
-		tok := p.advance()
-		return &LiteralExpr{
-			Type:  LiteralString,
-			Value: Unquote(tok.Lexeme),
-		}, nil
-	} else if p.check(TK_BLOB) {
-		tok := p.advance()
-		return &LiteralExpr{
-			Type:  LiteralBlob,
-			Value: tok.Lexeme,
-		}, nil
-	} else if p.match(TK_NULL) {
-		return &LiteralExpr{
-			Type:  LiteralNull,
-			Value: "NULL",
-		}, nil
+	// Try literal parsing
+	if expr := p.tryParseLiteral(); expr != nil {
+		return expr, nil
 	}
 
 	// Variable
 	if p.check(TK_VARIABLE) {
 		tok := p.advance()
-		return &VariableExpr{
-			Name: tok.Lexeme,
-		}, nil
+		return &VariableExpr{Name: tok.Lexeme}, nil
 	}
 
 	// Identifier or function call
 	if p.check(TK_ID) {
-		name := Unquote(p.advance().Lexeme)
-
-		// Function call
-		if p.match(TK_LP) {
-			fn := &FunctionExpr{Name: name}
-
-			// Check for DISTINCT
-			if p.match(TK_DISTINCT) {
-				fn.Distinct = true
-			}
-
-			// Check for *
-			if p.match(TK_STAR) {
-				fn.Star = true
-			} else if !p.check(TK_RP) {
-				args, err := p.parseExpressionList()
-				if err != nil {
-					return nil, err
-				}
-				fn.Args = args
-			}
-
-			if !p.match(TK_RP) {
-				return nil, p.error("expected ) after function arguments")
-			}
-
-			// FILTER clause
-			if p.match(TK_FILTER) {
-				if !p.match(TK_LP) {
-					return nil, p.error("expected ( after FILTER")
-				}
-				if !p.match(TK_WHERE) {
-					return nil, p.error("expected WHERE in FILTER")
-				}
-				filter, err := p.parseExpression()
-				if err != nil {
-					return nil, err
-				}
-				fn.Filter = filter
-				if !p.match(TK_RP) {
-					return nil, p.error("expected ) after FILTER")
-				}
-			}
-
-			return fn, nil
-		}
-
-		// Column reference with optional table qualifier
-		if p.match(TK_DOT) {
-			if !p.check(TK_ID) {
-				return nil, p.error("expected column name after .")
-			}
-			column := Unquote(p.advance().Lexeme)
-			return &IdentExpr{
-				Table: name,
-				Name:  column,
-			}, nil
-		}
-
-		return &IdentExpr{Name: name}, nil
+		return p.parseIdentOrFunction()
 	}
 
 	// CASE expression
 	if p.match(TK_CASE) {
-		caseExpr := &CaseExpr{}
-
-		// Optional case expression
-		if !p.check(TK_WHEN) {
-			expr, err := p.parseExpression()
-			if err != nil {
-				return nil, err
-			}
-			caseExpr.Expr = expr
-		}
-
-		// WHEN clauses
-		for p.match(TK_WHEN) {
-			condition, err := p.parseExpression()
-			if err != nil {
-				return nil, err
-			}
-			if !p.match(TK_THEN) {
-				return nil, p.error("expected THEN after WHEN condition")
-			}
-			result, err := p.parseExpression()
-			if err != nil {
-				return nil, err
-			}
-			caseExpr.WhenClauses = append(caseExpr.WhenClauses, WhenClause{
-				Condition: condition,
-				Result:    result,
-			})
-		}
-
-		// ELSE clause
-		if p.match(TK_ELSE) {
-			elseExpr, err := p.parseExpression()
-			if err != nil {
-				return nil, err
-			}
-			caseExpr.ElseClause = elseExpr
-		}
-
-		if !p.match(TK_END) {
-			return nil, p.error("expected END after CASE")
-		}
-
-		return caseExpr, nil
+		return p.parseCaseExpr()
 	}
 
 	// CAST expression
 	if p.match(TK_CAST) {
-		if !p.match(TK_LP) {
-			return nil, p.error("expected ( after CAST")
-		}
-		expr, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		if !p.match(TK_AS) {
-			return nil, p.error("expected AS in CAST")
-		}
-		if !p.check(TK_ID) {
-			return nil, p.error("expected type name")
-		}
-		typeName := p.parseTypeName()
-		if !p.match(TK_RP) {
-			return nil, p.error("expected ) after CAST")
-		}
-		return &CastExpr{
-			Expr: expr,
-			Type: typeName,
-		}, nil
+		return p.parseCastExpr()
 	}
 
 	// Parenthesized expression or subquery
 	if p.match(TK_LP) {
-		if p.match(TK_SELECT) {
-			sel, err := p.parseSelect()
-			if err != nil {
-				return nil, err
-			}
-			if !p.match(TK_RP) {
-				return nil, p.error("expected ) after subquery")
-			}
-			return &SubqueryExpr{Select: sel}, nil
-		}
+		return p.parseParenOrSubquery()
+	}
 
+	return nil, p.error("expected expression, got %s", p.peek().Type)
+}
+
+// tryParseLiteral attempts to parse a literal expression, returns nil if not a literal.
+func (p *Parser) tryParseLiteral() Expression {
+	switch {
+	case p.check(TK_INTEGER):
+		tok := p.advance()
+		return &LiteralExpr{Type: LiteralInteger, Value: tok.Lexeme}
+	case p.check(TK_FLOAT):
+		tok := p.advance()
+		return &LiteralExpr{Type: LiteralFloat, Value: tok.Lexeme}
+	case p.check(TK_STRING):
+		tok := p.advance()
+		return &LiteralExpr{Type: LiteralString, Value: Unquote(tok.Lexeme)}
+	case p.check(TK_BLOB):
+		tok := p.advance()
+		return &LiteralExpr{Type: LiteralBlob, Value: tok.Lexeme}
+	case p.match(TK_NULL):
+		return &LiteralExpr{Type: LiteralNull, Value: "NULL"}
+	default:
+		return nil
+	}
+}
+
+// parseIdentOrFunction parses an identifier or function call.
+func (p *Parser) parseIdentOrFunction() (Expression, error) {
+	name := Unquote(p.advance().Lexeme)
+
+	// Function call
+	if p.match(TK_LP) {
+		return p.parseFunctionCall(name)
+	}
+
+	// Column reference with optional table qualifier
+	if p.match(TK_DOT) {
+		if !p.check(TK_ID) {
+			return nil, p.error("expected column name after .")
+		}
+		column := Unquote(p.advance().Lexeme)
+		return &IdentExpr{Table: name, Name: column}, nil
+	}
+
+	return &IdentExpr{Name: name}, nil
+}
+
+// parseFunctionCall parses a function call after the opening paren.
+func (p *Parser) parseFunctionCall(name string) (Expression, error) {
+	fn := &FunctionExpr{Name: name}
+
+	if p.match(TK_DISTINCT) {
+		fn.Distinct = true
+	}
+
+	if p.match(TK_STAR) {
+		fn.Star = true
+	} else if !p.check(TK_RP) {
+		args, err := p.parseExpressionList()
+		if err != nil {
+			return nil, err
+		}
+		fn.Args = args
+	}
+
+	if !p.match(TK_RP) {
+		return nil, p.error("expected ) after function arguments")
+	}
+
+	if err := p.parseFunctionFilter(fn); err != nil {
+		return nil, err
+	}
+
+	return fn, nil
+}
+
+// parseFunctionFilter parses the optional FILTER clause for a function.
+func (p *Parser) parseFunctionFilter(fn *FunctionExpr) error {
+	if !p.match(TK_FILTER) {
+		return nil
+	}
+	if !p.match(TK_LP) {
+		return p.error("expected ( after FILTER")
+	}
+	if !p.match(TK_WHERE) {
+		return p.error("expected WHERE in FILTER")
+	}
+	filter, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	fn.Filter = filter
+	if !p.match(TK_RP) {
+		return p.error("expected ) after FILTER")
+	}
+	return nil
+}
+
+// parseCaseExpr parses a CASE expression after the CASE keyword.
+func (p *Parser) parseCaseExpr() (Expression, error) {
+	caseExpr := &CaseExpr{}
+
+	// Optional case expression
+	if !p.check(TK_WHEN) {
 		expr, err := p.parseExpression()
 		if err != nil {
 			return nil, err
 		}
-		if !p.match(TK_RP) {
-			return nil, p.error("expected ) after expression")
-		}
-		return &ParenExpr{Expr: expr}, nil
+		caseExpr.Expr = expr
 	}
 
-	return nil, p.error("expected expression, got %s", p.peek().Type)
+	// WHEN clauses
+	for p.match(TK_WHEN) {
+		condition, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		if !p.match(TK_THEN) {
+			return nil, p.error("expected THEN after WHEN condition")
+		}
+		result, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		caseExpr.WhenClauses = append(caseExpr.WhenClauses, WhenClause{
+			Condition: condition,
+			Result:    result,
+		})
+	}
+
+	// ELSE clause
+	if p.match(TK_ELSE) {
+		elseExpr, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		caseExpr.ElseClause = elseExpr
+	}
+
+	if !p.match(TK_END) {
+		return nil, p.error("expected END after CASE")
+	}
+
+	return caseExpr, nil
+}
+
+// parseCastExpr parses a CAST expression after the CAST keyword.
+func (p *Parser) parseCastExpr() (Expression, error) {
+	if !p.match(TK_LP) {
+		return nil, p.error("expected ( after CAST")
+	}
+	expr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	if !p.match(TK_AS) {
+		return nil, p.error("expected AS in CAST")
+	}
+	if !p.check(TK_ID) {
+		return nil, p.error("expected type name")
+	}
+	typeName := p.parseTypeName()
+	if !p.match(TK_RP) {
+		return nil, p.error("expected ) after CAST")
+	}
+	return &CastExpr{Expr: expr, Type: typeName}, nil
+}
+
+// parseParenOrSubquery parses a parenthesized expression or subquery.
+func (p *Parser) parseParenOrSubquery() (Expression, error) {
+	if p.match(TK_SELECT) {
+		sel, err := p.parseSelect()
+		if err != nil {
+			return nil, err
+		}
+		if !p.match(TK_RP) {
+			return nil, p.error("expected ) after subquery")
+		}
+		return &SubqueryExpr{Select: sel}, nil
+	}
+
+	expr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	if !p.match(TK_RP) {
+		return nil, p.error("expected ) after expression")
+	}
+	return &ParenExpr{Expr: expr}, nil
 }
 
 // =============================================================================

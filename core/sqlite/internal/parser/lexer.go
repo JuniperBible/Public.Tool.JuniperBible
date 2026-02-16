@@ -56,196 +56,261 @@ func (l *Lexer) peekAhead(n int) byte {
 	return l.input[pos]
 }
 
+// simpleTokenMap maps single characters to their token types.
+var simpleTokenMap = map[byte]TokenType{
+	';': TK_SEMI,
+	'(': TK_LP,
+	')': TK_RP,
+	',': TK_COMMA,
+	'+': TK_PLUS,
+	'*': TK_STAR,
+	'%': TK_REM,
+	'~': TK_BITNOT,
+	'&': TK_BITAND,
+}
+
+// tokenScanner is a function type for scanning complex tokens.
+type tokenScanner func(*Lexer) Token
+
+// complexTokenScanners maps characters to their scanner functions.
+var complexTokenScanners = map[byte]tokenScanner{
+	'.':  (*Lexer).scanDot,
+	'-':  (*Lexer).scanMinus,
+	'/':  (*Lexer).scanSlash,
+	'|':  (*Lexer).scanPipe,
+	'=':  (*Lexer).scanEquals,
+	'<':  (*Lexer).scanLessThan,
+	'>':  (*Lexer).scanGreaterThan,
+	'!':  (*Lexer).scanBang,
+	'\'': (*Lexer).scanSingleQuote,
+	'"':  (*Lexer).scanDoubleQuote,
+	'`':  (*Lexer).scanBacktick,
+	'[':  (*Lexer).scanBracket,
+	'?':  (*Lexer).scanQuestion,
+	'@':  (*Lexer).scanNamedVar,
+	'#':  (*Lexer).scanNamedVar,
+	':':  (*Lexer).scanNamedVar,
+	'$':  (*Lexer).scanDollar,
+}
+
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
-	var tok Token
-
 	l.skipWhitespace()
 
-	tok.Pos = l.pos
-	tok.Line = l.line
-	tok.Col = l.col
-
-	switch l.ch {
-	case 0:
-		tok.Type = TK_EOF
-		tok.Lexeme = ""
-	case ';':
-		tok.Type = TK_SEMI
-		tok.Lexeme = string(l.ch)
-		l.readChar()
-	case '(':
-		tok.Type = TK_LP
-		tok.Lexeme = string(l.ch)
-		l.readChar()
-	case ')':
-		tok.Type = TK_RP
-		tok.Lexeme = string(l.ch)
-		l.readChar()
-	case ',':
-		tok.Type = TK_COMMA
-		tok.Lexeme = string(l.ch)
-		l.readChar()
-	case '.':
-		if isDigit(l.peekChar()) {
-			tok = l.readNumber()
-		} else {
-			tok.Type = TK_DOT
-			tok.Lexeme = string(l.ch)
-			l.readChar()
-		}
-	case '+':
-		tok.Type = TK_PLUS
-		tok.Lexeme = string(l.ch)
-		l.readChar()
-	case '*':
-		tok.Type = TK_STAR
-		tok.Lexeme = string(l.ch)
-		l.readChar()
-	case '%':
-		tok.Type = TK_REM
-		tok.Lexeme = string(l.ch)
-		l.readChar()
-	case '~':
-		tok.Type = TK_BITNOT
-		tok.Lexeme = string(l.ch)
-		l.readChar()
-	case '&':
-		tok.Type = TK_BITAND
-		tok.Lexeme = string(l.ch)
-		l.readChar()
-	case '-':
-		if l.peekChar() == '-' {
-			tok = l.readLineComment()
-		} else if l.peekChar() == '>' {
-			l.readChar()
-			if l.peekChar() == '>' {
-				tok.Type = TK_PTR
-				tok.Lexeme = "->>"
-				l.readChar()
-				l.readChar()
-			} else {
-				tok.Type = TK_PTR
-				tok.Lexeme = "->"
-				l.readChar()
-			}
-		} else {
-			tok.Type = TK_MINUS
-			tok.Lexeme = string(l.ch)
-			l.readChar()
-		}
-	case '/':
-		if l.peekChar() == '*' {
-			tok = l.readBlockComment()
-		} else {
-			tok.Type = TK_SLASH
-			tok.Lexeme = string(l.ch)
-			l.readChar()
-		}
-	case '|':
-		if l.peekChar() == '|' {
-			tok.Type = TK_CONCAT
-			tok.Lexeme = "||"
-			l.readChar()
-			l.readChar()
-		} else {
-			tok.Type = TK_BITOR
-			tok.Lexeme = string(l.ch)
-			l.readChar()
-		}
-	case '=':
-		if l.peekChar() == '=' {
-			tok.Type = TK_EQ
-			tok.Lexeme = "=="
-			l.readChar()
-			l.readChar()
-		} else {
-			tok.Type = TK_EQ
-			tok.Lexeme = string(l.ch)
-			l.readChar()
-		}
-	case '<':
-		if l.peekChar() == '=' {
-			tok.Type = TK_LE
-			tok.Lexeme = "<="
-			l.readChar()
-			l.readChar()
-		} else if l.peekChar() == '>' {
-			tok.Type = TK_NE
-			tok.Lexeme = "<>"
-			l.readChar()
-			l.readChar()
-		} else if l.peekChar() == '<' {
-			tok.Type = TK_LSHIFT
-			tok.Lexeme = "<<"
-			l.readChar()
-			l.readChar()
-		} else {
-			tok.Type = TK_LT
-			tok.Lexeme = string(l.ch)
-			l.readChar()
-		}
-	case '>':
-		if l.peekChar() == '=' {
-			tok.Type = TK_GE
-			tok.Lexeme = ">="
-			l.readChar()
-			l.readChar()
-		} else if l.peekChar() == '>' {
-			tok.Type = TK_RSHIFT
-			tok.Lexeme = ">>"
-			l.readChar()
-			l.readChar()
-		} else {
-			tok.Type = TK_GT
-			tok.Lexeme = string(l.ch)
-			l.readChar()
-		}
-	case '!':
-		if l.peekChar() == '=' {
-			tok.Type = TK_NE
-			tok.Lexeme = "!="
-			l.readChar()
-			l.readChar()
-		} else {
-			tok.Type = TK_ILLEGAL
-			tok.Lexeme = string(l.ch)
-			l.readChar()
-		}
-	case '\'':
-		tok = l.readString('\'')
-	case '"':
-		tok = l.readQuotedIdentifier('"')
-	case '`':
-		tok = l.readQuotedIdentifier('`')
-	case '[':
-		tok = l.readBracketedIdentifier()
-	case '?':
-		tok = l.readVariable()
-	case '@', '#', ':':
-		tok = l.readNamedVariable()
-	case '$':
-		if isLetter(l.peekChar()) || l.peekChar() == '_' {
-			tok = l.readNamedVariable()
-		} else {
-			tok.Type = TK_ILLEGAL
-			tok.Lexeme = string(l.ch)
-			l.readChar()
-		}
-	default:
-		if isLetter(l.ch) || l.ch == '_' {
-			tok = l.readIdentifierOrKeyword()
-			return tok
-		} else if isDigit(l.ch) {
-			tok = l.readNumber()
-			return tok
-		} else {
-			tok.Type = TK_ILLEGAL
-			tok.Lexeme = string(l.ch)
-			l.readChar()
-		}
+	// Handle EOF
+	if l.ch == 0 {
+		return Token{Type: TK_EOF, Lexeme: "", Pos: l.pos, Line: l.line, Col: l.col}
 	}
 
+	// Check for simple single-character tokens
+	if tokType, ok := simpleTokenMap[l.ch]; ok {
+		tok := Token{Type: tokType, Lexeme: string(l.ch), Pos: l.pos, Line: l.line, Col: l.col}
+		l.readChar()
+		return tok
+	}
+
+	// Check for complex tokens
+	if scanner, ok := complexTokenScanners[l.ch]; ok {
+		return scanner(l)
+	}
+
+	// Default handling (identifiers, numbers)
+	return l.scanDefault()
+}
+
+// scanSingleQuote handles single-quoted strings.
+func (l *Lexer) scanSingleQuote() Token {
+	return l.readString('\'')
+}
+
+// scanDoubleQuote handles double-quoted identifiers.
+func (l *Lexer) scanDoubleQuote() Token {
+	return l.readQuotedIdentifier('"')
+}
+
+// scanBacktick handles backtick-quoted identifiers.
+func (l *Lexer) scanBacktick() Token {
+	return l.readQuotedIdentifier('`')
+}
+
+// scanBracket handles bracketed identifiers.
+func (l *Lexer) scanBracket() Token {
+	return l.readBracketedIdentifier()
+}
+
+// scanQuestion handles variable placeholders.
+func (l *Lexer) scanQuestion() Token {
+	return l.readVariable()
+}
+
+// scanNamedVar handles named variable placeholders (@, #, :).
+func (l *Lexer) scanNamedVar() Token {
+	return l.readNamedVariable()
+}
+
+// scanDot handles the '.' character which may start a number.
+func (l *Lexer) scanDot() Token {
+	if isDigit(l.peekChar()) {
+		return l.readNumber()
+	}
+	tok := Token{Type: TK_DOT, Lexeme: string(l.ch), Pos: l.pos, Line: l.line, Col: l.col}
+	l.readChar()
+	return tok
+}
+
+// scanMinus handles '-', '--', '->', and '->>'.
+func (l *Lexer) scanMinus() Token {
+	tok := Token{Pos: l.pos, Line: l.line, Col: l.col}
+	if l.peekChar() == '-' {
+		return l.readLineComment()
+	}
+	if l.peekChar() == '>' {
+		l.readChar()
+		if l.peekChar() == '>' {
+			tok.Type = TK_PTR
+			tok.Lexeme = "->>"
+			l.readChar()
+			l.readChar()
+		} else {
+			tok.Type = TK_PTR
+			tok.Lexeme = "->"
+			l.readChar()
+		}
+		return tok
+	}
+	tok.Type = TK_MINUS
+	tok.Lexeme = string(l.ch)
+	l.readChar()
+	return tok
+}
+
+// scanSlash handles '/' and block comments '/*'.
+func (l *Lexer) scanSlash() Token {
+	if l.peekChar() == '*' {
+		return l.readBlockComment()
+	}
+	tok := Token{Type: TK_SLASH, Lexeme: string(l.ch), Pos: l.pos, Line: l.line, Col: l.col}
+	l.readChar()
+	return tok
+}
+
+// scanPipe handles '|' and '||'.
+func (l *Lexer) scanPipe() Token {
+	tok := Token{Pos: l.pos, Line: l.line, Col: l.col}
+	if l.peekChar() == '|' {
+		tok.Type = TK_CONCAT
+		tok.Lexeme = "||"
+		l.readChar()
+		l.readChar()
+	} else {
+		tok.Type = TK_BITOR
+		tok.Lexeme = string(l.ch)
+		l.readChar()
+	}
+	return tok
+}
+
+// scanEquals handles '=' and '=='.
+func (l *Lexer) scanEquals() Token {
+	tok := Token{Pos: l.pos, Line: l.line, Col: l.col}
+	if l.peekChar() == '=' {
+		tok.Type = TK_EQ
+		tok.Lexeme = "=="
+		l.readChar()
+		l.readChar()
+	} else {
+		tok.Type = TK_EQ
+		tok.Lexeme = string(l.ch)
+		l.readChar()
+	}
+	return tok
+}
+
+// scanLessThan handles '<', '<=', '<>', and '<<'.
+func (l *Lexer) scanLessThan() Token {
+	tok := Token{Pos: l.pos, Line: l.line, Col: l.col}
+	switch l.peekChar() {
+	case '=':
+		tok.Type = TK_LE
+		tok.Lexeme = "<="
+		l.readChar()
+		l.readChar()
+	case '>':
+		tok.Type = TK_NE
+		tok.Lexeme = "<>"
+		l.readChar()
+		l.readChar()
+	case '<':
+		tok.Type = TK_LSHIFT
+		tok.Lexeme = "<<"
+		l.readChar()
+		l.readChar()
+	default:
+		tok.Type = TK_LT
+		tok.Lexeme = string(l.ch)
+		l.readChar()
+	}
+	return tok
+}
+
+// scanGreaterThan handles '>', '>=', and '>>'.
+func (l *Lexer) scanGreaterThan() Token {
+	tok := Token{Pos: l.pos, Line: l.line, Col: l.col}
+	switch l.peekChar() {
+	case '=':
+		tok.Type = TK_GE
+		tok.Lexeme = ">="
+		l.readChar()
+		l.readChar()
+	case '>':
+		tok.Type = TK_RSHIFT
+		tok.Lexeme = ">>"
+		l.readChar()
+		l.readChar()
+	default:
+		tok.Type = TK_GT
+		tok.Lexeme = string(l.ch)
+		l.readChar()
+	}
+	return tok
+}
+
+// scanBang handles '!' and '!='.
+func (l *Lexer) scanBang() Token {
+	tok := Token{Pos: l.pos, Line: l.line, Col: l.col}
+	if l.peekChar() == '=' {
+		tok.Type = TK_NE
+		tok.Lexeme = "!="
+		l.readChar()
+		l.readChar()
+	} else {
+		tok.Type = TK_ILLEGAL
+		tok.Lexeme = string(l.ch)
+		l.readChar()
+	}
+	return tok
+}
+
+// scanDollar handles '$' which may start a named variable.
+func (l *Lexer) scanDollar() Token {
+	if isLetter(l.peekChar()) || l.peekChar() == '_' {
+		return l.readNamedVariable()
+	}
+	tok := Token{Type: TK_ILLEGAL, Lexeme: string(l.ch), Pos: l.pos, Line: l.line, Col: l.col}
+	l.readChar()
+	return tok
+}
+
+// scanDefault handles identifiers, numbers, and illegal characters.
+func (l *Lexer) scanDefault() Token {
+	if isLetter(l.ch) || l.ch == '_' {
+		return l.readIdentifierOrKeyword()
+	}
+	if isDigit(l.ch) {
+		return l.readNumber()
+	}
+	tok := Token{Type: TK_ILLEGAL, Lexeme: string(l.ch), Pos: l.pos, Line: l.line, Col: l.col}
+	l.readChar()
 	return tok
 }
 
@@ -294,49 +359,13 @@ func (l *Lexer) readNumber() Token {
 	startPos := l.pos
 	startLine := l.line
 	startCol := l.col
-	tokType := TK_INTEGER
 
 	// Handle hexadecimal: 0x...
 	if l.ch == '0' && (l.peekChar() == 'x' || l.peekChar() == 'X') {
-		l.readChar() // consume '0'
-		l.readChar() // consume 'x' or 'X'
-		for isHexDigit(l.ch) || l.ch == '_' {
-			l.readChar()
-		}
-		return Token{
-			Type:   TK_INTEGER,
-			Lexeme: l.input[startPos:l.pos],
-			Pos:    startPos,
-			Line:   startLine,
-			Col:    startCol,
-		}
+		return l.readHexNumber(startPos, startLine, startCol)
 	}
 
-	// Read integer part
-	for isDigit(l.ch) || l.ch == '_' {
-		l.readChar()
-	}
-
-	// Check for decimal point
-	if l.ch == '.' && isDigit(l.peekChar()) {
-		tokType = TK_FLOAT
-		l.readChar() // consume '.'
-		for isDigit(l.ch) || l.ch == '_' {
-			l.readChar()
-		}
-	}
-
-	// Check for scientific notation
-	if l.ch == 'e' || l.ch == 'E' {
-		tokType = TK_FLOAT
-		l.readChar()
-		if l.ch == '+' || l.ch == '-' {
-			l.readChar()
-		}
-		for isDigit(l.ch) || l.ch == '_' {
-			l.readChar()
-		}
-	}
+	tokType := l.readDecimalNumber()
 
 	return Token{
 		Type:   tokType,
@@ -344,6 +373,61 @@ func (l *Lexer) readNumber() Token {
 		Pos:    startPos,
 		Line:   startLine,
 		Col:    startCol,
+	}
+}
+
+// readHexNumber reads a hexadecimal number literal.
+func (l *Lexer) readHexNumber(startPos, startLine, startCol int) Token {
+	l.readChar() // consume '0'
+	l.readChar() // consume 'x' or 'X'
+	for isHexDigit(l.ch) || l.ch == '_' {
+		l.readChar()
+	}
+	return Token{
+		Type:   TK_INTEGER,
+		Lexeme: l.input[startPos:l.pos],
+		Pos:    startPos,
+		Line:   startLine,
+		Col:    startCol,
+	}
+}
+
+// readDecimalNumber reads the decimal part of a number and returns the token type.
+func (l *Lexer) readDecimalNumber() TokenType {
+	tokType := TK_INTEGER
+
+	// Read integer part
+	l.consumeDigits()
+
+	// Check for decimal point
+	if l.ch == '.' && isDigit(l.peekChar()) {
+		tokType = TK_FLOAT
+		l.readChar() // consume '.'
+		l.consumeDigits()
+	}
+
+	// Check for scientific notation
+	if l.ch == 'e' || l.ch == 'E' {
+		tokType = TK_FLOAT
+		l.readChar()
+		l.consumeExponentSign()
+		l.consumeDigits()
+	}
+
+	return tokType
+}
+
+// consumeDigits reads consecutive digits and underscores.
+func (l *Lexer) consumeDigits() {
+	for isDigit(l.ch) || l.ch == '_' {
+		l.readChar()
+	}
+}
+
+// consumeExponentSign consumes an optional + or - sign.
+func (l *Lexer) consumeExponentSign() {
+	if l.ch == '+' || l.ch == '-' {
+		l.readChar()
 	}
 }
 
@@ -570,289 +654,154 @@ func isHexDigit(ch byte) bool {
 	return isDigit(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
 }
 
+// keywordMap maps uppercase keyword strings to their token types.
+var keywordMap = map[string]TokenType{
+	"SELECT":        TK_SELECT,
+	"FROM":          TK_FROM,
+	"WHERE":         TK_WHERE,
+	"INSERT":        TK_INSERT,
+	"INTO":          TK_INTO,
+	"VALUES":        TK_VALUES,
+	"UPDATE":        TK_UPDATE,
+	"SET":           TK_SET,
+	"DELETE":        TK_DELETE,
+	"CREATE":        TK_CREATE,
+	"TABLE":         TK_TABLE,
+	"INDEX":         TK_INDEX,
+	"VIEW":          TK_VIEW,
+	"TRIGGER":       TK_TRIGGER,
+	"DROP":          TK_DROP,
+	"ALTER":         TK_ALTER,
+	"RENAME":        TK_RENAME,
+	"ADD":           TK_ADD,
+	"COLUMN":        TK_COLUMN,
+	"ORDER":         TK_ORDER,
+	"BY":            TK_BY,
+	"GROUP":         TK_GROUP,
+	"HAVING":        TK_HAVING,
+	"LIMIT":         TK_LIMIT,
+	"OFFSET":        TK_OFFSET,
+	"DISTINCT":      TK_DISTINCT,
+	"ALL":           TK_ALL,
+	"ASC":           TK_ASC,
+	"DESC":          TK_DESC,
+	"JOIN":          TK_JOIN,
+	"LEFT":          TK_LEFT,
+	"RIGHT":         TK_RIGHT,
+	"INNER":         TK_INNER,
+	"OUTER":         TK_OUTER,
+	"CROSS":         TK_CROSS,
+	"NATURAL":       TK_NATURAL,
+	"ON":            TK_ON,
+	"USING":         TK_USING,
+	"AND":           TK_AND,
+	"OR":            TK_OR,
+	"NOT":           TK_NOT,
+	"IS":            TK_IS,
+	"IN":            TK_IN,
+	"LIKE":          TK_LIKE,
+	"GLOB":          TK_GLOB,
+	"BETWEEN":       TK_BETWEEN,
+	"CASE":          TK_CASE,
+	"WHEN":          TK_WHEN,
+	"THEN":          TK_THEN,
+	"ELSE":          TK_ELSE,
+	"END":           TK_END,
+	"NULL":          TK_NULL,
+	"INTEGER":       TK_INTEGER_TYPE,
+	"REAL":          TK_REAL,
+	"TEXT":          TK_TEXT,
+	"BLOB":          TK_BLOB_TYPE,
+	"NUMERIC":       TK_NUMERIC,
+	"PRIMARY":       TK_PRIMARY,
+	"KEY":           TK_KEY,
+	"UNIQUE":        TK_UNIQUE,
+	"CHECK":         TK_CHECK,
+	"DEFAULT":       TK_DEFAULT,
+	"CONSTRAINT":    TK_CONSTRAINT,
+	"FOREIGN":       TK_FOREIGN,
+	"REFERENCES":    TK_REFERENCES,
+	"AUTOINCREMENT": TK_AUTOINCREMENT,
+	"COLLATE":       TK_COLLATE,
+	"AS":            TK_AS,
+	"IF":            TK_IF,
+	"EXISTS":        TK_EXISTS,
+	"TEMPORARY":     TK_TEMP,
+	"TEMP":          TK_TEMP,
+	"VIRTUAL":       TK_VIRTUAL,
+	"BEGIN":         TK_BEGIN,
+	"COMMIT":        TK_COMMIT,
+	"ROLLBACK":      TK_ROLLBACK,
+	"TRANSACTION":   TK_TRANSACTION,
+	"SAVEPOINT":     TK_SAVEPOINT,
+	"RELEASE":       TK_RELEASE,
+	"DEFERRED":      TK_DEFERRED,
+	"IMMEDIATE":     TK_IMMEDIATE,
+	"EXCLUSIVE":     TK_EXCLUSIVE,
+	"EXPLAIN":       TK_EXPLAIN,
+	"QUERY":         TK_QUERY,
+	"PLAN":          TK_PLAN,
+	"PRAGMA":        TK_PRAGMA,
+	"ANALYZE":       TK_ANALYZE,
+	"ATTACH":        TK_ATTACH,
+	"DETACH":        TK_DETACH,
+	"DATABASE":      TK_DATABASE,
+	"VACUUM":        TK_VACUUM,
+	"REINDEX":       TK_REINDEX,
+	"ISNULL":        TK_ISNULL,
+	"NOTNULL":       TK_NOTNULL,
+	"OVER":          TK_OVER,
+	"PARTITION":     TK_PARTITION,
+	"ROWS":          TK_ROWS,
+	"RANGE":         TK_RANGE,
+	"UNBOUNDED":     TK_UNBOUNDED,
+	"CURRENT":       TK_CURRENT,
+	"FOLLOWING":     TK_FOLLOWING,
+	"PRECEDING":     TK_PRECEDING,
+	"FILTER":        TK_FILTER,
+	"WINDOW":        TK_WINDOW,
+	"GROUPS":        TK_GROUPS,
+	"EXCLUDE":       TK_EXCLUDE,
+	"TIES":          TK_TIES,
+	"OTHERS":        TK_OTHERS,
+	"UNION":         TK_UNION,
+	"EXCEPT":        TK_EXCEPT,
+	"INTERSECT":     TK_INTERSECT,
+	"CAST":          TK_CAST,
+	"ESCAPE":        TK_ESCAPE,
+	"MATCH":         TK_MATCH,
+	"REGEXP":        TK_REGEXP,
+	"ABORT":         TK_ABORT,
+	"ACTION":        TK_ACTION,
+	"AFTER":         TK_AFTER,
+	"BEFORE":        TK_BEFORE,
+	"CASCADE":       TK_CASCADE,
+	"CONFLICT":      TK_CONFLICT,
+	"FAIL":          TK_FAIL,
+	"IGNORE":        TK_IGNORE,
+	"REPLACE":       TK_REPLACE,
+	"RESTRICT":      TK_RESTRICT,
+	"NO":            TK_NO,
+	"EACH":          TK_EACH,
+	"FOR":           TK_FOR,
+	"ROW":           TK_ROW,
+	"INITIALLY":     TK_INITIALLY,
+	"DEFERRABLE":    TK_DEFERRABLE,
+	"INDEXED":       TK_INDEXED,
+	"WITHOUT":       TK_WITHOUT,
+	"ROWID":         TK_ROWID,
+	"STRICT":        TK_STRICT,
+	"GENERATED":     TK_GENERATED,
+	"ALWAYS":        TK_ALWAYS,
+	"STORED":        TK_STORED,
+}
+
 // lookupKeyword returns the token type for a keyword, or TK_ID if not a keyword.
 func lookupKeyword(ident string) TokenType {
-	// Convert to uppercase for case-insensitive comparison
-	upper := strings.ToUpper(ident)
-
-	switch upper {
-	case "SELECT":
-		return TK_SELECT
-	case "FROM":
-		return TK_FROM
-	case "WHERE":
-		return TK_WHERE
-	case "INSERT":
-		return TK_INSERT
-	case "INTO":
-		return TK_INTO
-	case "VALUES":
-		return TK_VALUES
-	case "UPDATE":
-		return TK_UPDATE
-	case "SET":
-		return TK_SET
-	case "DELETE":
-		return TK_DELETE
-	case "CREATE":
-		return TK_CREATE
-	case "TABLE":
-		return TK_TABLE
-	case "INDEX":
-		return TK_INDEX
-	case "VIEW":
-		return TK_VIEW
-	case "TRIGGER":
-		return TK_TRIGGER
-	case "DROP":
-		return TK_DROP
-	case "ALTER":
-		return TK_ALTER
-	case "RENAME":
-		return TK_RENAME
-	case "ADD":
-		return TK_ADD
-	case "COLUMN":
-		return TK_COLUMN
-	case "ORDER":
-		return TK_ORDER
-	case "BY":
-		return TK_BY
-	case "GROUP":
-		return TK_GROUP
-	case "HAVING":
-		return TK_HAVING
-	case "LIMIT":
-		return TK_LIMIT
-	case "OFFSET":
-		return TK_OFFSET
-	case "DISTINCT":
-		return TK_DISTINCT
-	case "ALL":
-		return TK_ALL
-	case "ASC":
-		return TK_ASC
-	case "DESC":
-		return TK_DESC
-	case "JOIN":
-		return TK_JOIN
-	case "LEFT":
-		return TK_LEFT
-	case "RIGHT":
-		return TK_RIGHT
-	case "INNER":
-		return TK_INNER
-	case "OUTER":
-		return TK_OUTER
-	case "CROSS":
-		return TK_CROSS
-	case "NATURAL":
-		return TK_NATURAL
-	case "ON":
-		return TK_ON
-	case "USING":
-		return TK_USING
-	case "AND":
-		return TK_AND
-	case "OR":
-		return TK_OR
-	case "NOT":
-		return TK_NOT
-	case "IS":
-		return TK_IS
-	case "IN":
-		return TK_IN
-	case "LIKE":
-		return TK_LIKE
-	case "GLOB":
-		return TK_GLOB
-	case "BETWEEN":
-		return TK_BETWEEN
-	case "CASE":
-		return TK_CASE
-	case "WHEN":
-		return TK_WHEN
-	case "THEN":
-		return TK_THEN
-	case "ELSE":
-		return TK_ELSE
-	case "END":
-		return TK_END
-	case "NULL":
-		return TK_NULL
-	case "INTEGER":
-		return TK_INTEGER_TYPE
-	case "REAL":
-		return TK_REAL
-	case "TEXT":
-		return TK_TEXT
-	case "BLOB":
-		return TK_BLOB_TYPE
-	case "NUMERIC":
-		return TK_NUMERIC
-	case "PRIMARY":
-		return TK_PRIMARY
-	case "KEY":
-		return TK_KEY
-	case "UNIQUE":
-		return TK_UNIQUE
-	case "CHECK":
-		return TK_CHECK
-	case "DEFAULT":
-		return TK_DEFAULT
-	case "CONSTRAINT":
-		return TK_CONSTRAINT
-	case "FOREIGN":
-		return TK_FOREIGN
-	case "REFERENCES":
-		return TK_REFERENCES
-	case "AUTOINCREMENT":
-		return TK_AUTOINCREMENT
-	case "COLLATE":
-		return TK_COLLATE
-	case "AS":
-		return TK_AS
-	case "IF":
-		return TK_IF
-	case "EXISTS":
-		return TK_EXISTS
-	case "TEMPORARY", "TEMP":
-		return TK_TEMP
-	case "VIRTUAL":
-		return TK_VIRTUAL
-	case "BEGIN":
-		return TK_BEGIN
-	case "COMMIT":
-		return TK_COMMIT
-	case "ROLLBACK":
-		return TK_ROLLBACK
-	case "TRANSACTION":
-		return TK_TRANSACTION
-	case "SAVEPOINT":
-		return TK_SAVEPOINT
-	case "RELEASE":
-		return TK_RELEASE
-	case "DEFERRED":
-		return TK_DEFERRED
-	case "IMMEDIATE":
-		return TK_IMMEDIATE
-	case "EXCLUSIVE":
-		return TK_EXCLUSIVE
-	case "EXPLAIN":
-		return TK_EXPLAIN
-	case "QUERY":
-		return TK_QUERY
-	case "PLAN":
-		return TK_PLAN
-	case "PRAGMA":
-		return TK_PRAGMA
-	case "ANALYZE":
-		return TK_ANALYZE
-	case "ATTACH":
-		return TK_ATTACH
-	case "DETACH":
-		return TK_DETACH
-	case "DATABASE":
-		return TK_DATABASE
-	case "VACUUM":
-		return TK_VACUUM
-	case "REINDEX":
-		return TK_REINDEX
-	case "ISNULL":
-		return TK_ISNULL
-	case "NOTNULL":
-		return TK_NOTNULL
-	case "OVER":
-		return TK_OVER
-	case "PARTITION":
-		return TK_PARTITION
-	case "ROWS":
-		return TK_ROWS
-	case "RANGE":
-		return TK_RANGE
-	case "UNBOUNDED":
-		return TK_UNBOUNDED
-	case "CURRENT":
-		return TK_CURRENT
-	case "FOLLOWING":
-		return TK_FOLLOWING
-	case "PRECEDING":
-		return TK_PRECEDING
-	case "FILTER":
-		return TK_FILTER
-	case "WINDOW":
-		return TK_WINDOW
-	case "GROUPS":
-		return TK_GROUPS
-	case "EXCLUDE":
-		return TK_EXCLUDE
-	case "TIES":
-		return TK_TIES
-	case "OTHERS":
-		return TK_OTHERS
-	case "UNION":
-		return TK_UNION
-	case "EXCEPT":
-		return TK_EXCEPT
-	case "INTERSECT":
-		return TK_INTERSECT
-	case "CAST":
-		return TK_CAST
-	case "ESCAPE":
-		return TK_ESCAPE
-	case "MATCH":
-		return TK_MATCH
-	case "REGEXP":
-		return TK_REGEXP
-	case "ABORT":
-		return TK_ABORT
-	case "ACTION":
-		return TK_ACTION
-	case "AFTER":
-		return TK_AFTER
-	case "BEFORE":
-		return TK_BEFORE
-	case "CASCADE":
-		return TK_CASCADE
-	case "CONFLICT":
-		return TK_CONFLICT
-	case "FAIL":
-		return TK_FAIL
-	case "IGNORE":
-		return TK_IGNORE
-	case "REPLACE":
-		return TK_REPLACE
-	case "RESTRICT":
-		return TK_RESTRICT
-	case "NO":
-		return TK_NO
-	case "EACH":
-		return TK_EACH
-	case "FOR":
-		return TK_FOR
-	case "ROW":
-		return TK_ROW
-	case "INITIALLY":
-		return TK_INITIALLY
-	case "DEFERRABLE":
-		return TK_DEFERRABLE
-	case "INDEXED":
-		return TK_INDEXED
-	case "WITHOUT":
-		return TK_WITHOUT
-	case "ROWID":
-		return TK_ROWID
-	case "STRICT":
-		return TK_STRICT
-	case "GENERATED":
-		return TK_GENERATED
-	case "ALWAYS":
-		return TK_ALWAYS
-	case "STORED":
-		return TK_STORED
-	default:
-		return TK_ID
+	if tokType, ok := keywordMap[strings.ToUpper(ident)]; ok {
+		return tokType
 	}
+	return TK_ID
 }
 
 // TokenizeAll tokenizes the entire input and returns all tokens (excluding whitespace).
@@ -877,20 +826,27 @@ func TokenizeAll(input string) ([]Token, error) {
 	return tokens, nil
 }
 
+// isMatchingQuote checks if a string starts and ends with the same quote character.
+func isMatchingQuote(s string, quote byte) bool {
+	return s[0] == quote && s[len(s)-1] == quote
+}
+
+// unquoteStandard removes standard quotes (', ", `) and unescapes doubled quotes.
+func unquoteStandard(s string) string {
+	inner := s[1 : len(s)-1]
+	quote := string(s[0])
+	return strings.ReplaceAll(inner, quote+quote, quote)
+}
+
 // Unquote removes quotes from a quoted identifier or string.
 func Unquote(s string) string {
 	if len(s) < 2 {
 		return s
 	}
 
-	// Handle different quote types
-	if (s[0] == '\'' && s[len(s)-1] == '\'') ||
-		(s[0] == '"' && s[len(s)-1] == '"') ||
-		(s[0] == '`' && s[len(s)-1] == '`') {
-		inner := s[1 : len(s)-1]
-		// Replace doubled quotes with single quotes
-		quote := string(s[0])
-		return strings.ReplaceAll(inner, quote+quote, quote)
+	// Handle standard quote types
+	if isMatchingQuote(s, '\'') || isMatchingQuote(s, '"') || isMatchingQuote(s, '`') {
+		return unquoteStandard(s)
 	}
 
 	// Handle bracketed identifiers

@@ -1398,8 +1398,8 @@ func TestIngestVerifyBlobDirectory(t *testing.T) {
 		t.Errorf("blob file does not exist at %s", blobPath)
 	}
 
-	if info.Mode().Perm() != 0644 {
-		t.Errorf("blob file has permissions %o, want 0644", info.Mode().Perm())
+	if info.Mode().Perm() != 0600 {
+		t.Errorf("blob file has permissions %o, want 0600", info.Mode().Perm())
 	}
 }
 

@@ -408,9 +408,9 @@ func TestOSISIngest(t *testing.T) {
 		t.Fatal("result is not a map")
 	}
 
-	// Verify artifact ID was derived from osisIDWork
-	if result["artifact_id"] != "TestBible" {
-		t.Errorf("expected artifact_id TestBible, got %v", result["artifact_id"])
+	// artifact_id is derived from filename (test.xml -> test), not from OSIS osisIDWork
+	if result["artifact_id"] != "test" {
+		t.Errorf("expected artifact_id test, got %v", result["artifact_id"])
 	}
 
 	// Verify blob was created

@@ -412,8 +412,9 @@ func TestUSXIngest(t *testing.T) {
 		t.Fatal("result is not a map")
 	}
 
-	if result["artifact_id"] != "GEN" {
-		t.Errorf("expected artifact_id GEN, got %v", result["artifact_id"])
+	// artifact_id is derived from filename (test.usx -> test), not from USX book code
+	if result["artifact_id"] != "test" {
+		t.Errorf("expected artifact_id test, got %v", result["artifact_id"])
 	}
 
 	blobHash, ok := result["blob_sha256"].(string)

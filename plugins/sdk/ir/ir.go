@@ -144,6 +144,7 @@ func NewCorpus(id, moduleType, language string) *Corpus {
 		ModuleType: moduleType,
 		Language:   language,
 		Documents:  []*Document{},
+		Attributes: make(map[string]string),
 	}
 }
 
@@ -154,6 +155,7 @@ func NewDocument(id, title string, order int) *Document {
 		Title:         title,
 		Order:         order,
 		ContentBlocks: []*ContentBlock{},
+		Attributes:    make(map[string]string),
 	}
 }
 

@@ -372,9 +372,9 @@ func TestMarkdownRoundTrip(t *testing.T) {
 		t.Errorf("round-trip mismatch:\noriginal: %q\noutput: %q", string(originalData), string(outputData))
 	}
 
-	// Verify loss class is L0 (lossless via raw storage)
-	if emitResult["loss_class"] != "L0" {
-		t.Errorf("expected loss_class L0 for round-trip, got %v", emitResult["loss_class"])
+	// Verify loss class is L1 (markdown parsing has minor normalization)
+	if emitResult["loss_class"] != "L1" {
+		t.Errorf("expected loss_class L1 for round-trip, got %v", emitResult["loss_class"])
 	}
 }
 

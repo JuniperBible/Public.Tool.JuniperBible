@@ -123,6 +123,8 @@ help:
 	@echo "  make verify                 Verify example capsule"
 	@echo "  make plugins-list           List available plugins"
 	@echo "  make check-stray            Check for stray binaries in root"
+	@echo "  make verify-standalone      Verify all standalone plugins build"
+	@echo "  make lint-wrappers          Ensure wrappers remain thin (<20 lines)"
 	@echo ""
 	@echo "SAMPLE DATA"
 	@echo "  make sample-data            Generate sample capsules from ~/.sword"
@@ -281,10 +283,16 @@ build-legacy-all: build-legacy build-legacy-extract
 # Tests
 # =============================================================================
 
-.PHONY: test test-full test-v test-coverage test-cgo test-integration test-functional test-functional-quick test-dist test-dist-quick test-sqlite-divergence
+.PHONY: test test-full test-v test-coverage test-cgo test-integration test-functional test-functional-quick test-dist test-dist-quick test-sqlite-divergence ci
 
 test:
 	CGO_ENABLED=0 $(GO) test -short ./...
+
+ci: test lint-wrappers verify-standalone
+	@echo ""
+	@echo "=========================================="
+	@echo "CI checks passed successfully!"
+	@echo "=========================================="
 
 test-full:
 	CGO_ENABLED=0 $(GO) test -timeout 10m ./...
@@ -552,7 +560,7 @@ dist-package:
 # Dev / Utilities
 # =============================================================================
 
-.PHONY: fmt lint dev-deps dev-nix-shell selfcheck verify plugins-list check-stray
+.PHONY: fmt lint dev-deps dev-nix-shell selfcheck verify plugins-list check-stray verify-standalone lint-wrappers
 
 fmt:
 	gofmt -w .
@@ -598,6 +606,12 @@ check-stray:
 	else \
 		echo "OK: No stray binaries in project root"; \
 	fi
+
+verify-standalone:
+	@./scripts/verify-standalone-builds.sh
+
+lint-wrappers:
+	@./scripts/lint-wrappers.sh
 
 # =============================================================================
 # Sample Data Generation

@@ -1,0 +1,40 @@
+name: Code Deduplication Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dedup-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Lint wrappers
+        run: make lint-wrappers
+        continue-on-error: false
+
+      - name: Verify standalone builds
+        run: make verify-standalone
+        continue-on-error: false
+
+      - name: Report results
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "Deduplication enforcement checks complete"
+          echo "=========================================="
+          echo ""
+          echo "This workflow ensures:"
+          echo "  1. All format-* wrappers remain thin (<20 lines)"
+          echo "  2. All standalone plugins build successfully"
+          echo "  3. All standalone plugins respond to IPC commands"
+          echo ""
+          echo "See docs/DEDUPLICATION_PLAN.md for details"

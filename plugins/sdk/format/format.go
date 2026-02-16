@@ -43,6 +43,25 @@ type Config struct {
 	// IngestTransform optionally transforms content before blob storage.
 	// If nil, stores file content as-is.
 	IngestTransform func(path string) ([]byte, map[string]string, error)
+
+	// PluginID for embedded registration (e.g., "format.json")
+	// Required for RegisterEmbedded() to work.
+	PluginID string
+
+	// Version for manifest (e.g., "1.0.0")
+	Version string
+
+	// LossClass default (L0, L1, L2, L3, L4)
+	// Indicates expected data loss during conversions.
+	LossClass string
+
+	// CanExtractIR indicates if this format supports extract-ir.
+	// Automatically set to true if Parse is non-nil.
+	CanExtractIR bool
+
+	// CanEmitNative indicates if this format supports emit-native.
+	// Automatically set to true if Emit is non-nil.
+	CanEmitNative bool
 }
 
 // Run starts a format plugin with the given configuration.
@@ -260,4 +279,13 @@ func determineLossClass(corpus *ir.Corpus) string {
 		return corpus.LossClass
 	}
 	return "L1" // Default to semantically lossless
+}
+
+// RegisterEmbedded registers this format as an embedded plugin.
+// This allows the format to be used without a separate plugin process.
+// The Config must have PluginID, Name, and Version set.
+func (c *Config) RegisterEmbedded() {
+	// This implementation is in embedded.go (for !standalone builds)
+	// or embedded_stub.go (for standalone builds)
+	registerEmbedded(c)
 }

@@ -54,6 +54,7 @@ Book.Chapter.Verse!Versification
 ```
 
 Examples:
+
 - `Gen.1.1!KJV` - Genesis 1:1 in KJV system
 - `Ps.51.1!MT` - Psalm 51:1 in Masoretic numbering
 - `Sir.1.1!Vulgate` - Sirach 1:1 in Vulgate system

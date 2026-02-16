@@ -11,6 +11,7 @@ The Juniper Bible REST API provides HTTP endpoints for managing capsules, conver
 The API supports optional API key authentication. When enabled, all requests must include a valid API key.
 
 **Configuration:**
+
 - `Auth.Enabled`: Enable/disable authentication (default: false)
 - `Auth.APIKeys`: List of valid API keys
 
@@ -54,6 +55,7 @@ api.Start(config)
 The API implements token bucket rate limiting per client IP address. Rate limits are configured when starting the server.
 
 **Configuration:**
+
 - `RateLimitRequests`: Maximum requests per minute (0 = disabled)
 - `RateLimitBurst`: Maximum burst size (number of tokens in bucket)
 
@@ -90,6 +92,7 @@ X-RateLimit-Reset: 1704672000
 **IP Detection:**
 
 The rate limiter identifies clients by IP address, checking headers in order:
+
 1. `X-Forwarded-For` (proxy/load balancer)
 2. `X-Real-IP` (reverse proxy)
 3. `RemoteAddr` (direct connection)
@@ -110,6 +113,7 @@ api.Start(config)
 The API supports optional TLS/HTTPS encryption for secure communication.
 
 **Configuration:**
+
 - `TLS.Enabled`: Enable/disable TLS (default: false)
 - `TLS.CertFile`: Path to TLS certificate file
 - `TLS.KeyFile`: Path to TLS private key file
@@ -166,6 +170,7 @@ The WebSocket sends JSON messages with different event types:
 ```
 
 **Event Types:**
+
 - `progress` - Operation in progress with percentage complete
 - `complete` - Operation completed successfully
 - `error` - Operation failed with error message
@@ -226,6 +231,7 @@ Response:
 ```
 
 **Job Statuses:**
+
 - `queued` - Job is waiting to be processed
 - `running` - Job is currently executing
 - `completed` - Job finished successfully

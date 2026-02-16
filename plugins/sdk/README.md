@@ -128,6 +128,7 @@ SDK-based plugins use Go build tags to enable conditional compilation:
 ```
 
 This allows maintaining both SDK and direct IPC implementations:
+
 - `main.go` - Direct IPC implementation (build tag: `//go:build !sdk`)
 - `main_sdk.go` - SDK implementation (build tag: `//go:build sdk`)
 

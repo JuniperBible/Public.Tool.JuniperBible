@@ -77,6 +77,7 @@ The SDK requires specific function signatures. Wrapper functions convert between
 - **enumerateWrapper**: Converts `enumerate(path) ([]*ipc.EnumerateEntry, error)` to SDK signature `func(path string) (*ipc.EnumerateResult, error)`
 
 The SDK handles:
+
 - IPC protocol communication (JSON stdin/stdout)
 - Command routing and argument parsing
 - Response formatting and error handling
@@ -128,9 +129,11 @@ Error:
 Determines if this plugin can handle the given file.
 
 **Arguments:**
+
 - `path` (string, required): Path to file or directory
 
 **Returns:**
+
 - `detected` (bool): Whether this plugin can handle the input
 - `format` (string): Format name if detected
 - `reason` (string): Human-readable explanation
@@ -145,10 +148,12 @@ echo '{"command":"detect","args":{"path":"bible.example"}}' | ./format-example
 Stores file bytes verbatim in content-addressed storage.
 
 **Arguments:**
+
 - `path` (string, required): Path to file to ingest
 - `output_dir` (string, required): Directory for content-addressed storage
 
 **Returns:**
+
 - `artifact_id` (string): Identifier derived from filename
 - `blob_sha256` (string): SHA-256 hash of file contents
 - `size_bytes` (int64): File size in bytes
@@ -167,12 +172,15 @@ echo '{"command":"ingest","args":{"path":"bible.example","output_dir":"/tmp/blob
 Lists components within an archive or container.
 
 **Arguments:**
+
 - `path` (string, required): Path to file/directory to enumerate
 
 **Returns:**
+
 - `entries` (array): List of files/components
 
 Each entry contains:
+
 - `path` (string): Relative path within archive
 - `size_bytes` (int64): Size in bytes
 - `is_dir` (bool): Whether this is a directory
@@ -189,16 +197,19 @@ echo '{"command":"enumerate","args":{"path":"archive.example"}}' | ./format-exam
 Converts native format to Intermediate Representation (IR).
 
 **Arguments:**
+
 - `path` (string, required): Path to source file
 - `output_dir` (string, required): Directory for output files
 
 **Returns:**
+
 - `ir_path` (string): Path to IR JSON file (for large corpuses)
 - `ir` (object): Inline IR data (for small corpuses)
 - `loss_class` (string): L0-L4 classification
 - `loss_report` (object, optional): Detailed loss information
 
 **Loss Classes:**
+
 - **L0**: Byte-for-byte round-trip (lossless)
 - **L1**: Semantically lossless (formatting may differ)
 - **L2**: Minor loss (some metadata/structure)
@@ -215,11 +226,13 @@ echo '{"command":"extract-ir","args":{"path":"bible.example","output_dir":"/tmp/
 Converts Intermediate Representation (IR) to native format.
 
 **Arguments:**
+
 - `ir_path` (string, required): Path to IR JSON file
 - `output_dir` (string, required): Directory for output files
 - `format` (string, optional): Specific format variant to emit
 
 **Returns:**
+
 - `output_path` (string): Path to generated native file
 - `format` (string): Output format name
 - `loss_class` (string): L0-L4 classification

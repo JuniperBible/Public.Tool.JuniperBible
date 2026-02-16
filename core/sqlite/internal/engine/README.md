@@ -62,6 +62,7 @@ The engine package is the main entry point for using the SQLite database. It coo
 The main database engine that coordinates all components.
 
 **Key Methods:**
+
 - `Open(filename)` - Open or create a database
 - `Close()` - Close the database
 - `Execute(sql)` - Execute a SQL statement
@@ -82,6 +83,7 @@ Compiles SQL AST to VDBE bytecode.
 4. Optimize bytecode (future)
 
 **Supported Statements:**
+
 - `SELECT` - Query data
 - `INSERT` - Insert rows
 - `UPDATE` - Update rows
@@ -120,6 +122,7 @@ Iterator over query results (similar to database/sql.Rows).
 Represents a database transaction.
 
 **Methods:**
+
 - `Commit()` - Commit the transaction
 - `Rollback()` - Rollback the transaction
 - `Execute(sql)` - Execute within transaction
@@ -131,6 +134,7 @@ Represents a database transaction.
 Represents a prepared statement for reuse.
 
 **Methods:**
+
 - `Execute(params...)` - Execute with parameters
 - `Query(params...)` - Query with parameters
 - `Close()` - Close and release resources
@@ -259,6 +263,7 @@ fmt.Printf("Total users: %d\n", count)
 - ✅ Prepared statements (basic)
 
 ### Partial
+
 - ⚠️ SELECT with WHERE clause (needs expression compilation)
 - ⚠️ UPDATE compilation (stub)
 - ⚠️ DELETE compilation (stub)
@@ -266,6 +271,7 @@ fmt.Printf("Total users: %d\n", count)
 - ⚠️ Parameter binding (not implemented)
 
 ### TODO
+
 - ❌ JOIN compilation
 - ❌ Subquery compilation
 - ❌ GROUP BY / HAVING compilation
@@ -283,6 +289,7 @@ fmt.Printf("Total users: %d\n", count)
 
 ### 1. Separation of Concerns
 Each component has a clear responsibility:
+
 - **Engine**: Coordination and API
 - **Compiler**: SQL to bytecode translation
 - **VDBE**: Bytecode execution
@@ -309,6 +316,7 @@ Errors are propagated up the stack. The VDBE halts on error, and the error is re
 ## Testing
 
 The package includes comprehensive integration tests covering:
+
 - Database creation and opening
 - Table creation and dropping
 - Data insertion and querying
@@ -327,12 +335,14 @@ go test -v ./core/sqlite/internal/engine
 ## Performance Considerations
 
 ### Current Limitations
+
 1. **No Query Optimization**: Queries use simple table scans
 2. **No Index Usage**: Indexes are created but not used in queries
 3. **Inefficient Sorting**: No sorter implementation yet
 4. **Limited Caching**: Basic page cache only
 
 ### Future Optimizations
+
 1. Query planning and optimization
 2. Index selection and usage
 3. Join algorithms (nested loop, hash, merge)

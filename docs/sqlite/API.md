@@ -17,9 +17,11 @@ func Open(dataSourceName string) (*sql.DB, error)
 Opens a SQLite database using the appropriate driver. This is the preferred way to open SQLite databases.
 
 **Parameters:**
+
 - `dataSourceName`: Path to the database file, or `:memory:` for in-memory database
 
 **Returns:**
+
 - `*sql.DB`: Standard database handle from `database/sql`
 - `error`: Error if the database cannot be opened
 
@@ -66,9 +68,11 @@ func OpenReadOnly(path string) (*sql.DB, error)
 Opens a SQLite database in read-only mode. The database file must already exist.
 
 **Parameters:**
+
 - `path`: Path to the database file
 
 **Returns:**
+
 - `*sql.DB`: Standard database handle in read-only mode
 - `error`: Error if the database cannot be opened
 
@@ -98,12 +102,15 @@ Opens a SQLite database and panics on error. Use `Open` instead if you need to h
 This is intended for use in tests or initialization code where database access failure is unrecoverable.
 
 **Parameters:**
+
 - `dataSourceName`: Path to the database file
 
 **Returns:**
+
 - `*sql.DB`: Standard database handle
 
 **Panics:**
+
 - If the database cannot be opened
 
 **Example:**
@@ -124,6 +131,7 @@ func DriverName() string
 Returns the SQL driver name to use. This is always "sqlite" for the pure Go driver and "sqlite3" for the CGO driver.
 
 **Returns:**
+
 - `string`: Driver name ("sqlite" or "sqlite3")
 
 **Example:**
@@ -143,6 +151,7 @@ func DriverType() string
 Returns a string identifying the underlying implementation.
 
 **Returns:**
+
 - `"purego"`: Pure Go implementation (default)
 - `"cgo"`: CGO implementation with mattn/go-sqlite3
 
@@ -163,6 +172,7 @@ func IsCGO() bool
 Returns true if the CGO implementation is being used.
 
 **Returns:**
+
 - `bool`: true if using CGO driver, false if using pure Go driver
 
 **Example:**
@@ -185,6 +195,7 @@ func GetInfo() Info
 Returns information about the current SQLite configuration.
 
 **Returns:**
+
 - `Info`: Structure containing driver information
 
 **Example:**

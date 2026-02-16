@@ -225,6 +225,7 @@ go test ./tests/integration/... -v
 ```
 
 These tests verify:
+
 - Capsule existence and integrity
 - Artifact hash regression (detects unintended changes)
 - Module data structure (conf files, data directories)
@@ -296,6 +297,7 @@ go build ./... && go test ./... && ./capsule test testdata/fixtures
 ### CI Workflow
 
 ```yaml
+
 - name: Run unit tests
   run: go test ./... -v
 

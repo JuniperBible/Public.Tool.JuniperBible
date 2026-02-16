@@ -76,6 +76,7 @@ Successfully wired the built-in SQL functions to the VDBE (Virtual Database Engi
 **Purpose**: Executable examples demonstrating function usage
 
 **Examples**:
+
 - Scalar function execution (UPPER, LENGTH, SUBSTR)
 - Aggregate function execution (COUNT, SUM)
 - Complex queries with WHERE clauses
@@ -113,6 +114,7 @@ Successfully wired the built-in SQL functions to the VDBE (Virtual Database Engi
 ### 1. `/core/sqlite/internal/vdbe/vdbe.go`
 
 **Changes**:
+
 - Added `funcCtx *FunctionContext` field to VDBE struct
 - Initialized function context in `New()` constructor
 
@@ -121,6 +123,7 @@ Successfully wired the built-in SQL functions to the VDBE (Virtual Database Engi
 ### 2. `/core/sqlite/internal/vdbe/exec.go`
 
 **Changes**:
+
 - Updated `execFunction()` to call `opFunction()`
 - Updated `execAggStep()` to call `opAggStep()`
 - Updated `execAggFinal()` to call `opAggFinal()`
@@ -144,10 +147,12 @@ The implementation leverages existing function code from `/core/sqlite/internal/
 ### VDBE Integration
 
 The new code provides a thin adapter layer between:
+
 - VDBE's register-based execution model (Mem structures)
 - Function package's value-based interface (Value interface)
 
 This separation ensures:
+
 - Clean architecture with clear responsibilities
 - Testability of functions independent of VDBE
 - Easy addition of new functions without VDBE changes
@@ -184,24 +189,28 @@ count, count(*), sum, total, avg, min, max, group_concat
 - Aggregate functions skip NULLs
 
 ### 2. Type Coercion
+
 - Automatic numeric conversions
 - String to number parsing
 - Number to string formatting
 - Type affinity support
 
 ### 3. Aggregate State Management
+
 - Per-cursor state tracking
 - Multiple concurrent aggregates
 - Proper reset between queries
 - Group key support for GROUP BY
 
 ### 4. Performance Optimizations
+
 - Function name lookup cached in registry
 - Direct Mem-to-Value conversion (no intermediate allocations)
 - Efficient aggregate state storage
 - Reflection-based instance creation for aggregates
 
 ### 5. Error Handling
+
 - Graceful error propagation
 - Descriptive error messages
 - NULL results for error conditions (SQL-compliant)
@@ -209,18 +218,21 @@ count, count(*), sum, total, avg, min, max, group_concat
 ## Testing Strategy
 
 ### Unit Tests
+
 - Individual function execution
 - NULL handling
 - Type conversions
 - Edge cases
 
 ### Integration Tests
+
 - Opcode execution
 - Register management
 - Multi-row aggregation
 - Nested function calls
 
 ### Example Tests
+
 - Real-world usage patterns
 - Documentation examples
 - Executable code samples
@@ -238,11 +250,13 @@ count, count(*), sum, total, avg, min, max, group_concat
 ## Performance Characteristics
 
 ### Scalar Functions
+
 - **Lookup**: O(1) hash map lookup
 - **Execution**: O(1) to O(n) depending on function
 - **Memory**: Minimal allocations per call
 
 ### Aggregate Functions
+
 - **Step**: O(1) per row
 - **Finalization**: O(1) to O(n) depending on function
 - **Memory**: O(rows) for functions like group_concat
@@ -288,11 +302,13 @@ WHERE LENGTH(name) > 5;
 ## Future Enhancements
 
 ### Short Term
+
 1. Window functions (OVER clause)
 2. User-defined functions (UDF) API
 3. Function result caching for pure functions
 
 ### Medium Term
+
 1. Compiled function optimization
 2. Custom aggregate functions
 3. Extension loading mechanism
@@ -306,10 +322,12 @@ WHERE LENGTH(name) > 5;
 ## Dependencies
 
 ### Internal
+
 - `core/sqlite/internal/functions` - Function implementations
 - `core/sqlite/internal/vdbe` - VDBE engine
 
 ### External (via functions package)
+
 - `math` - Mathematical operations
 - `strings` - String manipulation
 - `time` - Date/time handling

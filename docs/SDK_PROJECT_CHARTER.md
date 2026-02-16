@@ -8,6 +8,7 @@ Introduce a Plugin SDK layer between existing IPC protocol and plugin implementa
 
 ## Problem Statement
 The current plugin architecture requires each of 94 plugins to implement repetitive boilerplate for:
+
 - Command dispatch (~30 lines per plugin)
 - Detection logic (~40 lines per plugin)
 - Ingest/blob storage (~50 lines per plugin)
@@ -17,12 +18,14 @@ The current plugin architecture requires each of 94 plugins to implement repetit
 This results in ~56% code duplication (~31,450 lines of similar code), increasing maintenance burden and bug surface area.
 
 ## Objectives
+
 1. Reduce plugin code by 68% (~21,650 lines eliminated, net ~800 SDK added)
 2. Maintain 100% backward compatibility with existing IPC protocol
 3. Create clear, documented SDK API for plugin authors
 4. Enable new plugin creation in <10 minutes
 
 ## Success Criteria
+
 - ✓ 87 of 87 plugins migrated pass parity tests (identical behavior before/after)
 - ✓ Line count reduction ≥50% per plugin achieved
 - ✓ Zero breaking changes to IPC wire protocol maintained
@@ -32,6 +35,7 @@ This results in ~56% code duplication (~31,450 lines of similar code), increasin
 ## Scope
 
 ### In Scope
+
 - SDK package creation (`plugins/sdk/`)
 - Migration of 42 format plugins
 - Migration of 10 tool plugins
@@ -41,17 +45,20 @@ This results in ~56% code duplication (~31,450 lines of similar code), increasin
 - Optional codegen scaffolding tool
 
 ### Out of Scope
+
 - Changes to IPC wire protocol
 - New plugin features (separate project)
 - Performance optimizations (separate project)
 - UI/CLI changes
 
 ## Stakeholders
+
 - Plugin authors (primary beneficiary)
 - Core maintainers (SDK ownership)
 - CI/CD systems (must remain green throughout)
 
 ## Constraints
+
 - IPC protocol must not change
 - Existing tests must pass unchanged
 - **No runtime dependency on code generation**: Generated files are committed to the repo; runtime does not import the generator module
@@ -68,6 +75,7 @@ This results in ~56% code duplication (~31,450 lines of similar code), increasin
 | Internal handler breakage | Core functionality loss | Wrap-first adapter strategy |
 
 ## Non-Negotiable Rules
+
 1. **IPC is the wire protocol** - transport, serialization, framing. Keep it boring.
 2. **SDK is the developer API** - types, helpers, ergonomics. Thin wrapper over IPC.
 3. **Codegen is scaffolding only** - one-time generation. Runtime must not require `go generate`.
@@ -81,6 +89,7 @@ Any change to `plugins/sdk/` requires approval from the "SDK owner" (or CODEOWNE
 This makes the "freeze SDK during migrations" rule enforceable.
 
 ## Timeline (PR-based)
+
 1. ✓ DONE - Phase 1: IPC PROTOCOL.md + golden tests
 2. ✓ DONE - Phase 2: SDK runtime + txt migration (reference implementation)
 3. ✓ DONE - Phase 3: Plugin batch migrations (87 plugins migrated)
@@ -100,11 +109,13 @@ This makes the "freeze SDK during migrations" rule enforceable.
 | **Total** | ~31,450 lines | ~9,800 lines + ~800 SDK | **~68% (~21,650 net saved)** |
 
 ## Approval
+
 - [ ] Project sponsor approval
 - [ ] Technical lead review
 - [ ] CI/CD verification plan confirmed
 
 ## Related Documents
+
 - [Full Implementation Plan](../.claude/plans/frolicking-shimmying-comet.md)
 - [Plugin Development Guide](PLUGIN_DEVELOPMENT.md)
 - [IPC Protocol Specification](../plugins/ipc/PROTOCOL.md) (to be created)

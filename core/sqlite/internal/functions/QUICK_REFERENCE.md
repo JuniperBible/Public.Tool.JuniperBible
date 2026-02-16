@@ -195,6 +195,7 @@ f(x, NULL) = NULL (for most f)
 ```
 
 Exceptions:
+
 - `coalesce(...)`: Returns first non-NULL
 - `ifnull(NULL, y)`: Returns y
 - `typeof(NULL)`: Returns 'null'
@@ -203,6 +204,7 @@ Exceptions:
 ## Error Behavior
 
 Functions return:
+
 - **NULL** for invalid input (parse errors, domain errors)
 - **Error** for wrong argument count
 - **Error** for type conversion failures

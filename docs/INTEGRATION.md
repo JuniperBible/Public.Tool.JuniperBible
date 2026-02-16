@@ -218,6 +218,7 @@ const path = require('path');
 
 class CapsuleCLI {
   /**
+
    * Node.js wrapper for Juniper Bible CLI.
    * @param {string} binaryPath - Path to capsule binary
    */
@@ -226,6 +227,7 @@ class CapsuleCLI {
   }
 
   /**
+
    * Convert file to target format.
    * @param {string} inputPath - Input file path
    * @param {string} toFormat - Target format (osis, epub, etc.)
@@ -238,6 +240,7 @@ class CapsuleCLI {
   }
 
   /**
+
    * Extract IR from file.
    * @param {string} inputPath - Input file path
    * @param {string} outputPath - Output IR file path
@@ -249,6 +252,7 @@ class CapsuleCLI {
   }
 
   /**
+
    * Emit native format from IR.
    * @param {string} irPath - IR file path
    * @param {string} format - Target format
@@ -261,6 +265,7 @@ class CapsuleCLI {
   }
 
   /**
+
    * Detect file format.
    * @param {string} filePath - File to detect
    * @returns {string} Detected format
@@ -270,6 +275,7 @@ class CapsuleCLI {
   }
 
   /**
+
    * List available plugins.
    * @returns {string} Plugin listing
    */
@@ -278,6 +284,7 @@ class CapsuleCLI {
   }
 
   /**
+
    * Ingest file into capsule.
    * @param {string} inputPath - Input file or directory
    * @param {string} outputPath - Output capsule path
@@ -289,6 +296,7 @@ class CapsuleCLI {
   }
 
   /**
+
    * Verify capsule integrity.
    * @param {string} capsulePath - Capsule file path
    * @returns {boolean} True if valid
@@ -303,6 +311,7 @@ class CapsuleCLI {
   }
 
   /**
+
    * Convert file asynchronously (streaming).
    * @param {string} inputPath - Input file path
    * @param {string} toFormat - Target format
@@ -327,6 +336,7 @@ class CapsuleCLI {
   }
 
   /**
+
    * Batch convert files concurrently.
    * @param {string[]} files - Input files
    * @param {string} toFormat - Target format
@@ -627,6 +637,7 @@ See the Go example above for a basic implementation.
 ## Error Handling
 
 The CLI uses standard exit codes:
+
 - `0`: Success
 - `1`: General error
 - `2`: Invalid arguments

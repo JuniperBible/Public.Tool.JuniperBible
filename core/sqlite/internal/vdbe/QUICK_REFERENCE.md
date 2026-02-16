@@ -89,6 +89,7 @@ v.AddOp(OpAggFinal, cursor, outReg, funcIdx)
 | P5 | Number of arguments |
 
 **Example**: `AggStep 0 1 0 "sum" 1`
+
 - Step SUM (index 0) with arg from r1
 
 ### OP_AggFinal (Aggregate Finalize)

@@ -82,6 +82,7 @@ The new pure Go implementation is in `plugins/juniper/`:
 - `plugins/juniper/hugo` - Hugo JSON generation
 
 The new implementation:
+
 - Has no CGO dependencies
 - Has 113 tests with full coverage
 - Fixes versification bugs

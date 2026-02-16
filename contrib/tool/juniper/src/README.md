@@ -12,17 +12,20 @@ CLI toolkit for Bible module management.
 ## Supported Formats
 
 ### SWORD Modules
+
 - zText (compressed Bible text)
 - zCom (compressed commentary)
 - zLD (compressed lexicon/dictionary)
 - RawGenBook (general books)
 
 ### e-Sword Modules
+
 - .bblx (Bible modules)
 - .cmtx (Commentary modules)
 - .dctx (Dictionary modules)
 
 ### Versification Systems
+
 - KJV (Protestant standard)
 - KJVA (KJV with Apocrypha)
 - Vulgate (Catholic Latin)

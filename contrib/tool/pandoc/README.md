@@ -5,6 +5,7 @@ Universal document converter for markup formats.
 ## Formats Supported
 
 Pandoc is the reference tool for these Juniper Bible format plugins:
+
 - format-markdown (Markdown)
 - format-html (HTML)
 - format-epub (EPUB)

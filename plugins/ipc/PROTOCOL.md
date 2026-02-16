@@ -190,6 +190,7 @@ Extracts Intermediate Representation from source format.
 | `loss_report` | object | Detailed loss information (optional) |
 
 **Loss Classes:**
+
 - **L0**: Byte-for-byte round-trip (lossless)
 - **L1**: Semantically lossless (formatting may differ)
 - **L2**: Minor loss (some metadata/structure)
@@ -327,6 +328,7 @@ Errors are indicated by `status: "error"` with a human-readable message.
 Future versions may add structured error codes.
 
 **Standard Error Categories:**
+
 - `"<arg> argument required"` - Missing required argument
 - `"failed to read file: <error>"` - File I/O error
 - `"failed to store blob: <error>"` - Storage error

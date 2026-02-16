@@ -18,12 +18,14 @@ The driver integrates the following internal packages:
 ## Components
 
 ### Driver (`driver.go`)
+
 - Implements `database/sql/driver.Driver`
 - Registers with `sql.Register("sqlite", ...)`
 - Manages connection pool
 - Handles database file opening
 
 ### Connection (`conn.go`)
+
 - Implements `database/sql/driver.Conn`
 - Manages pager and btree instances
 - Handles transaction lifecycle
@@ -43,6 +45,7 @@ The driver integrates the following internal packages:
 - Converts VDBE memory cells to Go values
 
 ### Transaction (`tx.go`)
+
 - Implements `database/sql/driver.Tx`
 - Manages atomic commits and rollbacks
 - Integrates with pager journaling
@@ -99,6 +102,7 @@ rows.Next()
 VDBE.Step() → Executes one instruction
   ↓
 VDBE instructions:
+
   - OpOpenRead → Open B-tree cursor
   - OpRewind → Position at first record
   - OpColumn → Extract column values

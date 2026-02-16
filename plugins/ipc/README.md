@@ -5,23 +5,27 @@ This package provides shared types and utilities for plugin development, elimina
 ## Contents
 
 ### Protocol Types (`protocol.go`)
+
 - `Request/Response`: Core IPC message structure
 - `DetectResult`, `IngestResult`, `EnumerateResult`, `EnumerateEntry`: Standard command results
 - `ReadRequest()`, `Respond()`, `RespondError()`, `MustRespond()`: IPC helpers
 
 ### IR Types (`ir.go`)
 Shared Intermediate Representation types used across all plugins:
+
 - `Corpus`, `Document`, `ContentBlock`: Core IR structure
 - `Token`, `Anchor`, `Span`, `Ref`: Stand-off markup types
 - `ParallelCorpus`, `Alignment`, `InterlinearLine`: Advanced IR types
 
 ### Result Types (`results.go`)
 IR conversion result types:
+
 - `ExtractIRResult`: Result of extract-ir command
 - `EmitNativeResult`: Result of emit-native command
 - `LossReport`, `LostElement`: Loss classification (L0-L4)
 
 ### Argument Helpers (`args.go`)
+
 - `StringArg()`, `StringArgOr()`: Extract string arguments
 - `BoolArg()`, `IntArg()`: Extract typed arguments
 - `PathAndOutputDir()`: Extract common path/output_dir pair
@@ -32,12 +36,14 @@ IR conversion result types:
 Standardized detection utilities that reduce detect handler code from 40+ lines to 5-10 lines:
 
 **Check Functions** (return bool):
+
 - `CheckExtension(path, extensions...)`: Check file extension (case-insensitive)
 - `CheckMagicBytes(path, magic)`: Check file header bytes
 - `CheckContentContains(path, substrings...)`: Check for all substrings in file
 - `CheckContentContainsAny(path, substrings...)`: Check for any substring in file
 
 **Detect Functions** (return `*DetectResult`):
+
 - `DetectByExtension(path, format, extensions...)`: Extension-only detection
 - `DetectByMagicBytes(path, format, magic)`: Magic byte detection
 - `DetectByContent(path, format, substrings...)`: Content detection (all patterns)
@@ -45,6 +51,7 @@ Standardized detection utilities that reduce detect handler code from 40+ lines 
 - `StandardDetect(path, format, extensions, contentPatterns)`: Two-stage detection (most common pattern)
 
 **Result Constructors**:
+
 - `DetectSuccess(format, reason)`: Create successful detection
 - `DetectFailure(reason)`: Create failed detection
 
@@ -90,6 +97,7 @@ func handleDetect(args map[string]interface{}) {
 
 ### Common Handlers (`handlers.go`)
 Reusable handler patterns:
+
 - `HandleDetect()`: Generic file detection
 - `HandleIngest()`: Generic file ingestion
 - `HandleEnumerateSingleFile()`: Generic enumeration
@@ -97,6 +105,7 @@ Reusable handler patterns:
 
 ### Escaping (`escape.go`)
 XML/HTML entity encoding:
+
 - `EscapeHTML()`, `UnescapeHTML()`
 - `EscapeXML()`, `UnescapeXML()`
 
@@ -107,12 +116,14 @@ The IPC package provides the foundational protocol types used by all plugins, wh
 ### Architecture Overview
 
 **IPC Package (`plugins/ipc`)**: Core protocol layer
+
 - Defines protocol types: `Request`, `Response`, `DetectResult`, `IngestResult`, `EnumerateResult`, `EnumerateEntry`
 - Provides IR types: `Corpus`, `Document`, `ContentBlock`, `Token`, etc.
 - Offers helper functions: `ReadRequest()`, `Respond()`, argument extraction, detection helpers
 - Used by both SDK-based and non-SDK plugins
 
 **SDK Package (`plugins/sdk/format`)**: High-level wrapper
+
 - Wraps IPC types for easier plugin development
 - Provides `FormatHandler` interface with simplified method signatures
 - Handles IPC communication automatically
@@ -122,6 +133,7 @@ The IPC package provides the foundational protocol types used by all plugins, wh
 ### Key Types
 
 **Protocol Types** (defined in `protocol.go`):
+
 - `Request`: IPC request with command and arguments
 - `Response`: IPC response with success/error status and data
 - `DetectResult`: Detection result with format name and confidence
@@ -130,11 +142,13 @@ The IPC package provides the foundational protocol types used by all plugins, wh
 - `EnumerateEntry`: Single enumerable entry (path, type, size)
 
 **IR Types** (defined in `ir.go`):
+
 - See "IR Types" section above for complete list
 
 ### Plugin Development Approaches
 
 **Option 1: Direct IPC Usage** (non-SDK plugins)
+
 - Implement protocol directly using IPC package types
 - Use `main.go` with build tag `//go:build !sdk`
 - Full control over protocol handling
@@ -164,6 +178,7 @@ func main() {
 ```
 
 **Option 2: SDK-Based Plugins** (recommended for new plugins)
+
 - Implement `FormatHandler` interface from SDK package
 - Use `main_sdk.go` with build tag `//go:build sdk`
 - SDK handles IPC communication automatically

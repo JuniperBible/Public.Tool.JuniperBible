@@ -10,11 +10,13 @@ This document summarizes the implementation of the Virtual Database Engine (VDBE
 Defines all VDBE opcodes and related constants.
 
 **Key Components:**
+
 - `Opcode` type: uint8 enumeration of all 146 opcodes
 - `OpcodeNames` map: String representations for debugging
 - `P4Type` type: Defines types for the polymorphic P4 parameter
 
 **Opcode Categories:**
+
 - Control Flow (12 opcodes): Init, Goto, Gosub, Return, Halt, If, IfNot, etc.
 - Register Operations (9 opcodes): Integer, Real, String, Copy, Move, etc.
 - Cursor Operations (17 opcodes): OpenRead, OpenWrite, Rewind, Next, Seek*, etc.
@@ -37,6 +39,7 @@ Implements the memory cell structure that holds values.
 **Key Components:**
 
 **Mem Structure:**
+
 - Type flags (MemNull, MemInt, MemReal, MemStr, MemBlob)
 - Value storage (i: int64, r: float64, z: []byte)
 - Metadata (flags, n, subtype, nZero)
@@ -55,6 +58,7 @@ Implements the memory cell structure that holds values.
 - `IsNull()`, `IsInt()`, `IsReal()`, `IsStr()`, `IsBlob()`, `IsNumeric()`
 
 **Type Conversion Methods:**
+
 - `Integerify()` - Convert to integer
 - `Realify()` - Convert to real
 - `Stringify()` - Convert to string
@@ -62,15 +66,18 @@ Implements the memory cell structure that holds values.
 - `ApplyAffinity(byte)` - Apply SQLite type affinity
 
 **Value Access Methods:**
+
 - `IntValue()` - Get as integer
 - `RealValue()` - Get as real
 - `StrValue()` - Get as string
 - `BlobValue()` - Get as blob
 
 **Setter Methods:**
+
 - `SetNull()`, `SetInt()`, `SetReal()`, `SetStr()`, `SetBlob()`
 
 **Arithmetic Operations:**
+
 - `Add(other)` - this = this + other
 - `Subtract(other)` - this = this - other
 - `Multiply(other)` - this = this * other
@@ -78,14 +85,17 @@ Implements the memory cell structure that holds values.
 - `Remainder(other)` - this = this % other
 
 **Copy/Move Operations:**
+
 - `Copy(src)` - Deep copy
 - `ShallowCopy(src)` - Shallow copy (shares data)
 - `Move(src)` - Transfer ownership
 
 **Comparison:**
+
 - `Compare(other)` - Returns -1, 0, or 1
 
 **Utility:**
+
 - `String()` - Debug representation
 - `Release()` - Free resources
 
@@ -105,6 +115,7 @@ Implements the main VDBE virtual machine structure.
 - Error handling and statistics
 
 **Instruction Structure:**
+
 - Opcode: Opcode
 - P1, P2, P3: int - Integer operands
 - P4: P4Union - Polymorphic operand
@@ -113,6 +124,7 @@ Implements the main VDBE virtual machine structure.
 - Comment: string - Debug comment
 
 **Cursor Structure:**
+
 - CurType: CursorType - Type (BTree, Sorter, VTab, Pseudo)
 - IsTable: bool - Table vs index
 - NullRow: bool - Points to NULL row
@@ -131,24 +143,29 @@ Program Building:
 - `SetComment(addr, comment)` - Set debug comment
 
 Memory Management:
+
 - `AllocMemory(n)` - Allocate registers
 - `GetMem(index)` - Get register
 
 Cursor Management:
+
 - `AllocCursors(n)` - Allocate cursors
 - `OpenCursor()` - Open cursor
 - `CloseCursor()` - Close cursor
 - `GetCursor()` - Get cursor
 
 Execution Control:
+
 - `Reset()` - Reset for re-execution
 - `Finalize()` - Clean up
 
 Error Handling:
+
 - `SetError(msg)` - Set error
 - `GetError()` - Get error
 
 Debugging:
+
 - `Explain()` - Format program for EXPLAIN
 - `NumOps()` - Get instruction count
 - `GetInstruction(addr)` - Get instruction
@@ -159,6 +176,7 @@ Implements the execution engine that runs bytecode.
 **Key Components:**
 
 **Main Execution Loop:**
+
 - `Step()` - Execute one instruction
 - `Run()` - Execute until halt
 - `execInstruction(instr)` - Dispatch to opcode handlers
@@ -166,6 +184,7 @@ Implements the execution engine that runs bytecode.
 **Implemented Opcode Handlers:**
 
 Control Flow (7 handlers):
+
 - `execInit()` - Initialize, jump to P2
 - `execGoto()` - Unconditional jump to P2
 - `execGosub()` - Save PC in P1, jump to P2
@@ -175,6 +194,7 @@ Control Flow (7 handlers):
 - `execIfNot()` - Jump to P2 if P1 is false
 
 Register Operations (8 handlers):
+
 - `execInteger()` - r[P2] = P1
 - `execInt64()` - r[P2] = P4 (64-bit)
 - `execReal()` - r[P2] = P4 (real)
@@ -197,15 +217,18 @@ Cursor Operations (8 handlers):
 - `execSeekLE()` - Seek cursor P1 to <= key
 
 Data Retrieval (3 handlers):
+
 - `execColumn()` - r[P3] = cursor[P1].column[P2]
 - `execRowid()` - r[P2] = cursor[P1].rowid
 - `execResultRow()` - Output r[P1..P1+P2-1] as result
 
 Data Modification (2 handlers):
+
 - `execInsert()` - Insert r[P2] into cursor P1
 - `execDelete()` - Delete from cursor P1
 
 Comparison (6 handlers):
+
 - `execEq()` - Jump to P2 if r[P1] == r[P3]
 - `execNe()` - Jump to P2 if r[P1] != r[P3]
 - `execLt()` - Jump to P2 if r[P1] < r[P3]
@@ -244,6 +267,7 @@ Comprehensive test suite with 17 test functions.
 - Blob storage and retrieval
 
 **Type Conversion Tests (TestMemConversions):**
+
 - Integer to Real conversion
 - String to Integer conversion
 - String to Real conversion
@@ -259,11 +283,13 @@ Comprehensive test suite with 17 test functions.
 - Remainder operation
 
 **Comparison Tests (TestMemComparison):**
+
 - Integer comparisons (less, greater, equal)
 - String comparisons
 - NULL comparisons
 
 **Copy/Move Tests (TestMemCopyMove):**
+
 - Deep copy operations
 - Move operations
 - Shallow copy operations
@@ -276,14 +302,17 @@ Comprehensive test suite with 17 test functions.
 - Loop program (counter 0 to 10)
 
 **Comparison Tests (TestVdbeComparison):**
+
 - Eq, Ne, Lt, Le, Gt, Ge opcodes
 - 14 test cases covering all comparison operations
 
 **Debug Tests (TestVdbeExplain):**
+
 - EXPLAIN output formatting
 - Opcode name verification
 
 **Cursor Tests (TestVdbeCursorOperations):**
+
 - Opening cursors
 - Closing cursors
 - Cursor type verification
@@ -295,6 +324,7 @@ Comprehensive test suite with 17 test functions.
 
 ### 6. README.md (8,622 bytes)
 Comprehensive documentation including:
+
 - Architecture overview
 - Usage examples
 - API reference
@@ -316,6 +346,7 @@ Comprehensive documentation including:
 - Coverage: 28%
 
 **Core Functionality:**
+
 - ✅ Type system (5 types: NULL, Int, Real, String, Blob)
 - ✅ Type conversions
 - ✅ Arithmetic operations
@@ -333,28 +364,33 @@ Comprehensive documentation including:
 ## Key Design Decisions
 
 ### 1. Go-Idiomatic Implementation
+
 - Used Go slices instead of C arrays
 - Leveraged Go's garbage collection instead of manual memory management
 - Used Go's error handling instead of return codes
 - Employed interfaces and type assertions where appropriate
 
 ### 2. Memory Management
+
 - Memory cells use copy-on-write where beneficial
 - Deep copy vs shallow copy distinction maintained
 - Resource cleanup through `Release()` methods
 
 ### 3. Type System
+
 - Flags-based type representation (like SQLite)
 - Support for multiple representations (e.g., integer stored as real)
 - Automatic type conversions with error handling
 
 ### 4. Extensibility
+
 - Opcode dispatch through switch statement (fast)
 - Easy to add new opcodes
 - Modular handler functions
 - Clear separation of concerns
 
 ### 5. Testing
+
 - Unit tests for each component
 - Integration tests for bytecode execution
 - Test cases cover edge cases (NULL, overflow, etc.)
@@ -364,26 +400,31 @@ Comprehensive documentation including:
 To complete the VDBE implementation, the following integrations are needed:
 
 ### 1. B-tree Layer Integration
+
 - Cursor operations need actual B-tree cursor implementation
 - Column extraction requires record format decoder
 - Insert/Delete need B-tree modification functions
 
 ### 2. Record Format
+
 - Encoding: Convert Mem values to SQLite record format
 - Decoding: Parse SQLite records into Mem values
 - Serial type handling
 
 ### 3. Function Registry
+
 - Register built-in functions (length, substr, etc.)
 - Support user-defined functions
 - Aggregate function framework
 
 ### 4. Transaction Management
+
 - Transaction begin/commit/rollback
 - Savepoint support
 - Locking integration
 
 ### 5. Virtual Table Support
+
 - Virtual table interface
 - Cursor implementation for vtabs
 
@@ -450,17 +491,20 @@ v.Run()
 ## Performance Characteristics
 
 ### Time Complexity
+
 - Instruction dispatch: O(1) (switch statement)
 - Register access: O(1) (slice indexing)
 - Memory cell operations: O(1) for most operations
 - Type conversions: O(n) where n is string length
 
 ### Space Complexity
+
 - Memory cells: O(m) where m = number of registers
 - Cursors: O(c) where c = number of cursors
 - Program: O(p) where p = number of instructions
 
 ### Optimization Opportunities
+
 1. Register allocation optimization during compilation
 2. Jump threading and peephole optimization
 3. Type affinity inference to reduce conversions
@@ -470,18 +514,21 @@ v.Run()
 ## Future Work
 
 ### High Priority
+
 1. Complete B-tree cursor integration
 2. Implement record encoding/decoding
 3. Add aggregate function support
 4. Implement sorting operations
 
 ### Medium Priority
+
 1. Add scalar function support
 2. Implement transaction opcodes
 3. Add index operations
 4. Virtual table support
 
 ### Low Priority
+
 1. Optimization passes
 2. EXPLAIN QUERY PLAN support
 3. Profiling and instrumentation

@@ -217,6 +217,7 @@ Upload a new capsule.
 **Authentication:** Required (if enabled)
 
 **Request:**
+
 - Content-Type: `multipart/form-data`
 - Field: `file` (the capsule file to upload)
 

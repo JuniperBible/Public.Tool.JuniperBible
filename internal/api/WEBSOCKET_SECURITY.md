@@ -29,6 +29,7 @@ config := WebSocketSecurityConfig{
 ```
 
 **Security Benefits:**
+
 - Prevents Cross-Site WebSocket Hijacking (CSWSH)
 - Ensures only authorized domains can establish WebSocket connections
 - Supports exact matching and subdomain wildcards
@@ -51,12 +52,14 @@ config := WebSocketSecurityConfig{
 ```
 
 **Authentication Methods:**
+
 - **Header-based:** `X-API-Key: your-api-key`
 - **Query parameter:** `ws://host/path?api_key=your-api-key`
 
 Query parameter authentication is provided as a fallback for WebSocket clients that cannot easily set custom headers.
 
 **Security Benefits:**
+
 - Ensures only authenticated clients can connect
 - Uses constant-time comparison to prevent timing attacks
 - Supports both header and query parameter authentication
@@ -73,11 +76,13 @@ config := WebSocketSecurityConfig{
 ```
 
 **Implementation:**
+
 - Token bucket algorithm with burst capacity (2x the rate)
 - Per-client tracking with automatic cleanup
 - Automatic connection closure on rate limit violation
 
 **Security Benefits:**
+
 - Prevents DoS attacks via message flooding
 - Fair resource allocation across clients
 - Automatic cleanup of idle rate limiters
@@ -94,6 +99,7 @@ config := WebSocketSecurityConfig{
 ```
 
 **Security Benefits:**
+
 - Prevents memory exhaustion attacks
 - Protects server resources
 - Enforced at the WebSocket protocol level

@@ -30,12 +30,14 @@ Default page size: 4096 bytes (4 KB)
 ### File Compatibility
 
 **Read Compatibility:**
+
 - ✅ Can read databases created by SQLite 3.x
 - ✅ Can read databases created by modernc.org/sqlite
 - ✅ Can read databases created by mattn/go-sqlite3
 - ⚠️ UTF-16 databases must be converted to UTF-8
 
 **Write Compatibility:**
+
 - ✅ Databases created are readable by SQLite 3.x
 - ✅ Databases created are readable by other SQLite drivers
 - ✅ File format version 4 (legacy format)
@@ -394,6 +396,7 @@ e2fbdfdc9e33fac6b4e2812c044689135c749e4d70f5d2850e1a4ac4205849f5
 ### Validation Tests
 
 Tests validate:
+
 - ✅ File format correctness
 - ✅ B-tree structure integrity
 - ✅ Transaction ACID properties

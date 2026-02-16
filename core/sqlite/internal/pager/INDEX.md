@@ -80,17 +80,20 @@ pager/
 **Purpose:** Implement SQLite database file format specification
 
 **Key Types:**
+
 - `DatabaseHeader` - 100-byte header structure
 - Header parsing/serialization functions
 - Validation functions
 
 **Key Functions:**
+
 - `ParseDatabaseHeader()` - Parse header from bytes
 - `Serialize()` - Convert header to bytes
 - `NewDatabaseHeader()` - Create default header
 - `Validate()` - Validate header fields
 
 **Constants:**
+
 - Database header size and offsets
 - Page size limits
 - Text encoding values
@@ -101,17 +104,20 @@ pager/
 **Purpose:** Page structure and caching
 
 **Key Types:**
+
 - `DbPage` - Individual database page
 - `PageCache` - LRU cache for pages
 - `Pgno` - Page number type
 
 **Key Functions:**
+
 - `NewDbPage()` - Create page
 - `Read()` / `Write()` - Page I/O
 - `Ref()` / `Unref()` - Reference counting
 - `Get()` / `Put()` - Cache operations
 
 **Features:**
+
 - Thread-safe page access
 - Dirty page tracking
 - Automatic eviction
@@ -122,15 +128,18 @@ pager/
 **Purpose:** Database I/O and transaction management
 
 **Key Type:**
+
 - `Pager` - Main pager structure
 
 **Key Functions:**
+
 - `Open()` / `Close()` - Database lifecycle
 - `Get()` / `Put()` - Page access
 - `Write()` - Mark page for modification
 - `Commit()` / `Rollback()` - Transactions
 
 **Features:**
+
 - State machine (7 states)
 - Journal-based rollback
 - File locking
@@ -189,6 +198,7 @@ pager/
 ## Key Features
 
 ### SQLite Compatibility
+
 - ✅ Exact file format specification
 - ✅ Compatible header structure
 - ✅ Standard page sizes (512-65536)
@@ -196,24 +206,28 @@ pager/
 - ✅ Magic string validation
 
 ### ACID Properties
+
 - ✅ Atomicity via journaling
 - ✅ Consistency via validation
 - ✅ Isolation via locking
 - ✅ Durability via sync
 
 ### Thread Safety
+
 - ✅ Goroutine-safe operations
 - ✅ Mutex-protected state
 - ✅ Atomic reference counting
 - ✅ Thread-safe cache
 
 ### Performance
+
 - ✅ Page caching
 - ✅ LRU eviction
 - ✅ Dirty page tracking
 - ✅ Reference counting
 
 ### Error Handling
+
 - ✅ Comprehensive error checking
 - ✅ Descriptive error messages
 - ✅ Automatic rollback
@@ -301,17 +315,20 @@ These don't affect correctness, only advanced features.
 ## References
 
 ### Documentation
+
 - `QUICKSTART.md` - Quick start guide
 - `README.md` - User guide
 - `IMPLEMENTATION.md` - Implementation details
 - `doc.go` - Package documentation
 
 ### SQLite Resources
+
 - [SQLite File Format](https://www.sqlite.org/fileformat.html)
 - [SQLite Architecture](https://www.sqlite.org/arch.html)
 - [SQLite Source Code](https://www.sqlite.org/src/doc/trunk/README.md)
 
 ### Reference Implementation
+
 - `/tmp/sqlite-src/sqlite-src-3510200/src/pager.c`
 - `/tmp/sqlite-src/sqlite-src-3510200/src/pager.h`
 - `/tmp/sqlite-src/sqlite-src-3510200/src/pcache.h`

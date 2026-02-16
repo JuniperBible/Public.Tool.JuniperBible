@@ -70,17 +70,20 @@ a.Add(b)  // a = 30
 The VDBE supports a comprehensive set of opcodes organized by category:
 
 **Control Flow:**
+
 - `OpInit` - Initialize program
 - `OpGoto` - Unconditional jump
 - `OpIf/OpIfNot` - Conditional jumps
 - `OpHalt` - Stop execution
 
 **Data Operations:**
+
 - `OpInteger/OpReal/OpString/OpBlob` - Load constants
 - `OpCopy/OpMove` - Register operations
 - `OpNull` - Set NULL value
 
 **Cursor Operations:**
+
 - `OpOpenRead/OpOpenWrite` - Open table cursor
 - `OpRewind/OpNext/OpPrev` - Navigate cursor
 - `OpSeekGE/OpSeekLE` - Seek operations
@@ -99,10 +102,12 @@ The VDBE supports a comprehensive set of opcodes organized by category:
 - `OpUpdate` - Update row
 
 **Comparisons:**
+
 - `OpEq/OpNe` - Equality comparisons
 - `OpLt/OpLe/OpGt/OpGe` - Relational comparisons
 
 **Arithmetic:**
+
 - `OpAdd/OpSubtract/OpMultiply/OpDivide/OpRemainder`
 
 **Functions:**
@@ -285,6 +290,7 @@ fmt.Println(mem.String())  // "NULL"
 ## Implementation Status
 
 ### Implemented
+
 - ✅ Core opcode definitions (146 opcodes)
 - ✅ Memory cell with all basic types (NULL, Int, Real, String, Blob)
 - ✅ Type conversion (Integerify, Realify, Stringify, Numerify)
@@ -297,11 +303,13 @@ fmt.Println(mem.String())  // "NULL"
 - ✅ Comprehensive test suite
 
 ### Partially Implemented
+
 - ⚠️ Cursor navigation (stub implementation)
 - ⚠️ Column extraction (stub implementation)
 - ⚠️ Data modification (stub implementation)
 
 ### Not Yet Implemented
+
 - ❌ Aggregate functions (AggStep, AggFinal)
 - ❌ Scalar functions (Function, PureFunc)
 - ❌ Sorting (Sorter opcodes)

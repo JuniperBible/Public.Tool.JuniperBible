@@ -56,6 +56,7 @@ Scalar functions operate on individual values and return a single result.
 - `iif(X, Y, Z)` - If X then Y else Z
 
 #### Math Functions
+
 - `abs(X)` - Absolute value
 - `round(X [, Y])` - Round to Y decimal places
 - `ceil(X)` / `ceiling(X)` - Round up
@@ -75,6 +76,7 @@ Scalar functions operate on individual values and return a single result.
 - `randomblob(N)` - Random N-byte blob
 
 #### Trigonometric Functions
+
 - `sin(X)`, `cos(X)`, `tan(X)` - Basic trig functions
 - `asin(X)`, `acos(X)`, `atan(X)` - Inverse trig functions
 - `atan2(Y, X)` - Two-argument arctangent
@@ -82,6 +84,7 @@ Scalar functions operate on individual values and return a single result.
 - `asinh(X)`, `acosh(X)`, `atanh(X)` - Inverse hyperbolic functions
 
 #### Date/Time Functions
+
 - `date(...)` - Format as date (YYYY-MM-DD)
 - `time(...)` - Format as time (HH:MM:SS)
 - `datetime(...)` - Format as datetime
@@ -93,6 +96,7 @@ Scalar functions operate on individual values and return a single result.
 - `current_timestamp()` - Current timestamp
 
 #### Blob Functions
+
 - `zeroblob(N)` - Blob of N zero bytes
 
 ### Aggregate Functions
@@ -122,6 +126,7 @@ v.Program[len(v.Program)-1].P5 = 1 // 1 argument
 ```
 
 **Opcode Parameters:**
+
 - **P1**: Constant mask (bit flags for constant arguments)
 - **P2**: First argument register
 - **P3**: Output register
@@ -145,6 +150,7 @@ v.AddOp(OpAggFinal, cursor, outputReg, funcIndex)
 ```
 
 **OP_AggStep Parameters:**
+
 - **P1**: Cursor (for grouping context)
 - **P2**: First argument register
 - **P3**: Aggregate function index
@@ -152,6 +158,7 @@ v.AddOp(OpAggFinal, cursor, outputReg, funcIndex)
 - **P5**: Number of arguments
 
 **OP_AggFinal Parameters:**
+
 - **P1**: Cursor (for grouping context)
 - **P2**: Output register
 - **P3**: Aggregate function index
@@ -168,6 +175,7 @@ The VDBE uses `Mem` structures while functions use `Value` interfaces. Conversio
 ### NULL Handling
 
 Functions follow SQL NULL semantics:
+
 - Most scalar functions return NULL if any argument is NULL
 - `coalesce()` returns the first non-NULL argument
 - Aggregate functions skip NULL values (except `count(*)`)
@@ -175,6 +183,7 @@ Functions follow SQL NULL semantics:
 ### Type Coercion
 
 Functions perform automatic type coercion:
+
 - Numeric operations convert strings to numbers
 - String operations convert numbers to strings
 - Type mismatches result in sensible defaults
@@ -265,6 +274,7 @@ ResultRow 3           # Output r3
 ## Future Enhancements
 
 Potential improvements:
+
 1. User-defined functions (UDFs)
 2. Function result caching for pure functions
 3. Compiled function optimization

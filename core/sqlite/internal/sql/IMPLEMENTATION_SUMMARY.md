@@ -94,6 +94,7 @@ This implementation provides comprehensive support for INSERT, UPDATE, and DELET
 - Full encode/decode support
 
 ✅ **Serial Types**
+
 - NULL (type 0)
 - Integers: 8, 16, 24, 32, 48, 64-bit (types 1-6)
 - Float64 IEEE 754 (type 7)
@@ -112,6 +113,7 @@ This implementation provides comprehensive support for INSERT, UPDATE, and DELET
 ### INSERT Statement Compilation
 
 ✅ **Basic INSERT**
+
 - Single row insertion
 - Multi-row insertion
 - All data types (NULL, INTEGER, REAL, TEXT, BLOB)
@@ -132,6 +134,7 @@ OP_Halt
 ```
 
 ✅ **Advanced Features**
+
 - Auto-increment support (NewRowid opcode)
 - Register allocation
 - Conflict resolution modes
@@ -140,6 +143,7 @@ OP_Halt
 ### UPDATE Statement Compilation
 
 ✅ **Basic UPDATE**
+
 - Column-specific updates
 - WHERE clause support
 - Expression evaluation
@@ -166,6 +170,7 @@ end:
 ```
 
 ✅ **Expression Compilation**
+
 - Column references
 - Literal values
 - Binary operators (=, !=, <, <=, >, >=, +, -, *, /)
@@ -179,6 +184,7 @@ end:
 - Two-pass algorithm (collect rowids, then delete)
 
 ✅ **Optimizations**
+
 - Truncate optimization for DELETE ALL
 - Fast table clearing without row scanning
 
@@ -206,6 +212,7 @@ end:
 ```
 
 ✅ **Advanced Features**
+
 - Index deletion hooks
 - Foreign key constraint checking
 - Cost estimation
@@ -219,21 +226,26 @@ end:
 - OpInit, OpHalt, OpGoto, OpIf, OpIfNot
 
 **Table Operations**
+
 - OpOpenWrite, OpOpenRead, OpClose
 - OpNewRowid, OpInsert, OpDelete
 - OpColumn, OpRowid, OpRowData
 
 **Data Movement**
+
 - OpInteger, OpString, OpReal, OpBlob, OpNull
 - OpCopy, OpMove
 
 **Record Operations**
+
 - OpMakeRecord
 
 **Comparisons**
+
 - OpEq, OpNe, OpLt, OpLe, OpGt, OpGe
 
 **Arithmetic**
+
 - OpAdd, OpSubtract, OpMultiply, OpDivide
 
 **Iteration**
@@ -242,10 +254,12 @@ end:
 - OpNotFound, OpNotExists, OpSeek
 
 **Index Operations**
+
 - OpIdxInsert, OpIdxDelete, OpIdxRowid
 - OpIdxLT, OpIdxGE, OpIdxGT
 
 **Special**
+
 - OpResultRow, OpAddImm, OpMustBeInt
 - OpAffinity, OpTypeCheck, OpFinishSeek, OpFkCheck
 
@@ -294,6 +308,7 @@ type Expression struct {
 ## Testing Coverage
 
 ### Record Format Tests
+
 - ✅ Varint encoding/decoding (all value ranges)
 - ✅ Serial type determination
 - ✅ Record round-trip (encode then decode)
@@ -313,6 +328,7 @@ type Expression struct {
 - ✅ Auto-increment support
 
 ### Expected Additional Tests
+
 - UPDATE compilation
 - DELETE compilation
 - Expression evaluation
@@ -322,6 +338,7 @@ type Expression struct {
 ## Performance Characteristics
 
 ### Record Format
+
 - Varint encoding: 1 byte for small values (0-240)
 - Constants 0 and 1: zero storage overhead
 - Integers: 1-8 bytes depending on value
@@ -351,16 +368,19 @@ BenchmarkCompileInsert       500,000 ops  3200 ns/op  1024 B/op
 - Thread-safe for read-only access
 
 ### 3. Explicit Register Allocation
+
 - Registers allocated during compilation
 - No implicit register reuse
 - Clear data flow
 
 ### 4. Simplified Features
+
 - No virtual table support (yet)
 - No complex trigger support (yet)
 - Focus on core functionality first
 
 ### 5. Comprehensive Testing
+
 - Unit tests for all components
 - Edge case coverage
 - Performance benchmarks
@@ -448,18 +468,21 @@ fmt.Println(prog.Disassemble())
 ## Future Enhancements
 
 ### Short Term
+
 - [ ] UPDATE and DELETE tests
 - [ ] Expression evaluation tests
 - [ ] More complex WHERE clauses
 - [ ] LIMIT and ORDER BY for UPDATE/DELETE
 
 ### Medium Term
+
 - [ ] SELECT statement compilation
 - [ ] JOIN support
 - [ ] Subquery support
 - [ ] Aggregate functions
 
 ### Long Term
+
 - [ ] Full SQL parser integration
 - [ ] Query optimizer
 - [ ] Virtual table support

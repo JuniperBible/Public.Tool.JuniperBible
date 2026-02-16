@@ -11,6 +11,7 @@ The Capsule Lab REST API provides HTTP endpoints for managing capsules, converti
 The API implements token bucket rate limiting per client IP address. Rate limits are configured when starting the server.
 
 **Configuration:**
+
 - `RateLimitRequests`: Maximum requests per minute (0 = disabled)
 - `RateLimitBurst`: Maximum burst size (number of tokens in bucket)
 
@@ -47,6 +48,7 @@ X-RateLimit-Reset: 1704672000
 **IP Detection:**
 
 The rate limiter identifies clients by IP address, checking headers in order:
+
 1. `X-Forwarded-For` (proxy/load balancer)
 2. `X-Real-IP` (reverse proxy)
 3. `RemoteAddr` (direct connection)

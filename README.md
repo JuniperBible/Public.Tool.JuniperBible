@@ -154,6 +154,7 @@ Input Format → extract-ir → Juniper's Sword (IR) → emit-native → Output 
 JuniperBible includes a complete pure Go implementation of SQLite, eliminating external dependencies:
 
 ### Features
+
 - 100% pure Go, no CGO required
 - Compatible with `database/sql` interface
 - Full SQL support: SELECT, INSERT, UPDATE, DELETE, CREATE TABLE
@@ -173,6 +174,7 @@ db, _ := sql.Open("sqlite", "database.db")
 ```
 
 ### Architecture
+
 - `core/sqlite/internal/pager` - Page cache and file I/O
 - `core/sqlite/internal/btree` - B-tree storage
 - `core/sqlite/internal/parser` - SQL parser

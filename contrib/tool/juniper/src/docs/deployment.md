@@ -111,6 +111,7 @@ Connect the Pages Function to the Email Worker:
 ### Automatic Deployment
 
 Every push to `main` triggers:
+
 1. Cloudflare pulls latest code
 2. Runs `npm run build` (Hugo + Tailwind)
 3. Deploys `public/` to CDN
@@ -135,6 +136,7 @@ Or retry from Cloudflare Dashboard.
 ### Preview Deployments
 
 Push to any non-main branch for a preview URL:
+
 - Feature branches get unique URLs
 - PRs automatically get preview deployments
 - Preview URLs expire after 30 days
@@ -192,18 +194,21 @@ npm run build
 ```
 
 **Missing environment variables:**
+
 - Verify `HUGO_TURNSTILE_SITE_KEY` is set in Pages settings
 - Check variable is set for correct environment (Production/Preview)
 
 ### Contact Form Issues
 
 **"Failed to send email":**
+
 1. Verify service binding exists
 2. Check worker is deployed: `npx wrangler deployments list`
 3. Verify Email Routing is enabled
 4. Check destination email is verified
 
 **CAPTCHA errors:**
+
 1. Verify site key matches domain
 2. Check secret key matches between Pages and Worker
 3. Ensure Turnstile widget is rendering (browser console)
@@ -211,11 +216,13 @@ npm run build
 ### 404 Errors
 
 **Missing pages:**
+
 - Check Hugo build output includes expected files
 - Verify module mounts in `hugo.toml`
 - Check content files have `draft: false`
 
 **Functions not found:**
+
 - Verify `functions/` directory structure
 - Check function exports the correct handler
 
@@ -237,6 +244,7 @@ npm run build
 ### SSL Certificate
 
 Cloudflare automatically provisions SSL:
+
 - Certificate issued within minutes
 - Automatic renewal
 - Full (strict) SSL mode recommended
@@ -246,12 +254,14 @@ Cloudflare automatically provisions SSL:
 ### Build Cache
 
 Cloudflare caches:
+
 - `node_modules/` - npm dependencies
 - `.cache/` - Hugo build cache
 
 ### CDN Settings
 
 Recommended settings in Cloudflare:
+
 - **Auto Minify** - HTML, CSS, JS
 - **Brotli** - Enabled
 - **Early Hints** - Enabled
@@ -260,6 +270,7 @@ Recommended settings in Cloudflare:
 ### Cache Rules
 
 Static assets are automatically cached:
+
 - Images: 1 year
 - CSS/JS: 1 year (fingerprinted)
 - HTML: No cache (always fresh)
@@ -267,6 +278,7 @@ Static assets are automatically cached:
 ## Security Headers
 
 Pages Functions can add security headers. Current headers:
+
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
 - `Referrer-Policy: strict-origin-when-cross-origin`

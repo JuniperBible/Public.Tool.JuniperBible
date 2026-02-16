@@ -104,6 +104,7 @@ Complete implementation of SELECT statement compilation to VDBE bytecode for a p
 The compiler generates bytecode using these key opcodes:
 
 ### Table Operations
+
 - `OP_OpenRead` - Open table for reading
 - `OP_Close` - Close cursor
 - `OP_Rewind` - Move to first row
@@ -124,6 +125,7 @@ The compiler generates bytecode using these key opcodes:
 - `OP_SorterNext` - Next sorted record
 
 ### Control Flow
+
 - `OP_Goto` - Unconditional jump
 - `OP_If` / `OP_IfNot` - Conditional jumps
 - `OP_IfPos` - Jump if positive
@@ -288,6 +290,7 @@ SelectCompiler
 ### Test Coverage
 
 The implementation includes comprehensive examples covering:
+
 - Simple SELECT
 - Complex WHERE clauses
 - Multiple tables
@@ -300,6 +303,7 @@ The implementation includes comprehensive examples covering:
 ### Validation
 
 Each example demonstrates:
+
 1. AST construction
 2. Compilation
 3. Generated VDBE bytecode
@@ -357,6 +361,7 @@ These are logical next steps for future enhancement.
 ### Required Types (from other modules)
 
 These types would need to be defined elsewhere:
+
 - Database connection
 - Table definitions
 - Index structures
@@ -367,6 +372,7 @@ These types would need to be defined elsewhere:
 ### Interfaces
 
 The implementation uses these interfaces:
+
 - `Parse` - Compilation context
 - `Vdbe` - Bytecode builder
 - `Table` - Table metadata
@@ -454,6 +460,7 @@ The generated VDBE bytecode is semantically equivalent to SQLite's implementatio
 ## Contact
 
 For questions or enhancements, refer to:
+
 - SELECT_IMPLEMENTATION.md - Detailed implementation guide
 - select_example.go - Usage examples
 - types.go - API reference

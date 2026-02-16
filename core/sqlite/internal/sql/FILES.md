@@ -20,6 +20,7 @@ SQLite record format encoding and decoding
 - `NullValue() Value` - Create null value
 
 **Key Types:**
+
 - `SerialType` - Serial type code (0-13+)
 - `Value` - SQLite value (NULL, INTEGER, REAL, TEXT, BLOB)
 - `Record` - Collection of values
@@ -28,6 +29,7 @@ SQLite record format encoding and decoding
 INSERT statement compilation to VDBE bytecode
 
 **Key Functions:**
+
 - `CompileInsert(stmt *InsertStmt, tableRoot int) (*Program, error)` - Compile INSERT
 - `CompileInsertWithAutoInc(stmt *InsertStmt, tableRoot int, hasAutoInc bool) (*Program, error)` - With auto-increment
 - `ValidateInsert(stmt *InsertStmt) error` - Validate INSERT
@@ -35,6 +37,7 @@ INSERT statement compilation to VDBE bytecode
 - `(p *Program) Disassemble() string` - Disassemble bytecode
 
 **Key Types:**
+
 - `InsertStmt` - INSERT statement
 - `OpCode` - VDBE opcode
 - `Instruction` - VDBE instruction
@@ -44,6 +47,7 @@ INSERT statement compilation to VDBE bytecode
 UPDATE statement compilation to VDBE bytecode
 
 **Key Functions:**
+
 - `CompileUpdate(stmt *UpdateStmt, tableRoot int, numColumns int) (*Program, error)` - Compile UPDATE
 - `CompileUpdateWithIndex(stmt *UpdateStmt, tableRoot int, numColumns int, indexes []int) (*Program, error)` - With indexes
 - `ValidateUpdate(stmt *UpdateStmt) error` - Validate UPDATE
@@ -64,6 +68,7 @@ UPDATE statement compilation to VDBE bytecode
 DELETE statement compilation to VDBE bytecode
 
 **Key Functions:**
+
 - `CompileDelete(stmt *DeleteStmt, tableRoot int) (*Program, error)` - Compile DELETE
 - `CompileDeleteWithTruncateOptimization(stmt *DeleteStmt, tableRoot int) (*Program, error)` - Fast DELETE ALL
 - `CompileDeleteWithIndex(stmt *DeleteStmt, tableRoot int, indexes []IndexInfo) (*Program, error)` - With indexes
@@ -73,6 +78,7 @@ DELETE statement compilation to VDBE bytecode
 - `EstimateDeleteCost(stmt *DeleteStmt, tableRows int) int` - Cost estimation
 
 **Key Types:**
+
 - `DeleteStmt` - DELETE statement
 - `IndexInfo` - Index metadata
 - `ForeignKeyInfo` - Foreign key metadata
@@ -83,6 +89,7 @@ DELETE statement compilation to VDBE bytecode
 Comprehensive tests for record format
 
 **Test Functions:**
+
 - `TestVarint` - Varint encoding/decoding
 - `TestSerialType` - Serial type determination
 - `TestMakeRecord` - Record encoding
@@ -91,6 +98,7 @@ Comprehensive tests for record format
 - `TestInvalidRecords` - Error handling
 
 **Benchmarks:**
+
 - `BenchmarkMakeRecord`
 - `BenchmarkParseRecord`
 - `BenchmarkVarintEncode`
@@ -100,6 +108,7 @@ Comprehensive tests for record format
 Comprehensive tests for INSERT compilation
 
 **Test Functions:**
+
 - `TestCompileInsert` - INSERT compilation
 - `TestValidateInsert` - Validation
 - `TestProgramDisassemble` - Disassembly
@@ -109,6 +118,7 @@ Comprehensive tests for INSERT compilation
 - `TestProgramRegisterAllocation` - Register allocation
 
 **Benchmarks:**
+
 - `BenchmarkCompileInsertSingleRow`
 - `BenchmarkCompileInsertMultipleRows`
 
@@ -116,6 +126,7 @@ Comprehensive tests for INSERT compilation
 Runnable examples for documentation
 
 **Examples:**
+
 - `ExampleMakeRecord` - Record encoding
 - `ExampleParseRecord` - Record decoding
 - `ExampleCompileInsert` - INSERT compilation
@@ -137,6 +148,7 @@ Runnable examples for documentation
 Package documentation with examples
 
 **Sections:**
+
 - Architecture overview
 - Record format specification
 - VDBE bytecode structure
@@ -149,6 +161,7 @@ Package documentation with examples
 Comprehensive usage guide
 
 **Sections:**
+
 - Features overview
 - Architecture details
 - Usage examples (INSERT, UPDATE, DELETE)
@@ -163,6 +176,7 @@ Comprehensive usage guide
 Complete implementation summary
 
 **Sections:**
+
 - Files created
 - Total lines of code
 - Key features implemented
@@ -182,6 +196,7 @@ File structure and organization
 ## Statistics
 
 ### Code Distribution
+
 - **Production Code**: 1,555 lines
   - record.go: 479 lines
   - insert.go: 399 lines
@@ -201,6 +216,7 @@ File structure and organization
 **Total**: ~3,630 lines
 
 ### Features
+
 - ✅ SQLite record format (encode/decode)
 - ✅ Varint encoding/decoding
 - ✅ 13+ serial type codes
@@ -216,6 +232,7 @@ File structure and organization
 - ✅ Program disassembly
 
 ### Test Coverage
+
 - ✅ Varint encoding/decoding
 - ✅ Serial type determination
 - ✅ Record round-trips
@@ -230,6 +247,7 @@ File structure and organization
 ## Dependencies
 
 No external dependencies - uses only Go standard library:
+
 - `encoding/binary` - Big-endian encoding
 - `errors` - Error handling
 - `fmt` - Formatting

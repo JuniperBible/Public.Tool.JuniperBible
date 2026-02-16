@@ -11,12 +11,14 @@ This document describes the Intermediate Representation (IR) system for lossless
 ### Stand-off Markup
 
 The IR uses **stand-off markup** to handle overlapping structures that are common in Bible texts:
+
 - Verses can span across poetry lines
 - Quotations can cross chapter boundaries
 - Red-letter text overlaps with verse boundaries
 - Footnotes attach to arbitrary text ranges
 
 Instead of inline markup (which forces a tree structure), we use:
+
 - **Anchors**: Position markers within content blocks
 - **Spans**: Regions defined by start/end anchors (can overlap freely)
 - **Annotations**: Metadata attached to spans
@@ -36,6 +38,7 @@ Every format conversion is classified by fidelity:
 ### Content Addressing
 
 All IR content is hashed using SHA-256 for:
+
 - Deduplication in content-addressed storage
 - Change detection across conversions
 - Verification of round-trip fidelity

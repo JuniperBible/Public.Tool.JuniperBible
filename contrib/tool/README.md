@@ -116,6 +116,7 @@ cp result/bin/* ../bin/
 ## Tool Requirements
 
 For Juniper Bible, tools must be:
+
 - Deterministic (same input → same output)
 - Available on NixOS for reproducible builds
 - Well-documented with known behavior

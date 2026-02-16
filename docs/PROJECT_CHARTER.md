@@ -7,6 +7,7 @@ A content-addressed capsule system that stores original bytes verbatim and produ
 
 ### Problem Being Solved
 Bible formats and conversion tools are:
+
 - Poorly specified
 - Historically quirky
 - Full of edge cases people rely on
@@ -30,6 +31,7 @@ Re-implementing them by "reading docs" fails. Juniper Bible solves this by measu
 - No normalization. No cleanup. No guessing.
 
 ### Behavioral Authority
+
 - "Correct behavior" is defined by **reference tools**
 - Tools run in a pinned NixOS VM
 - Output is captured as deterministic **transcripts**
@@ -45,6 +47,7 @@ Re-implementing them by "reading docs" fails. Juniper Bible solves this by measu
 ## 3. Scope
 
 ### In-Scope Features
+
 - Content-addressed blob storage (SHA-256 primary, BLAKE3 secondary)
 - Capsule pack/unpack (tar.xz and zip formats)
 - Manifest generation and JSON schema validation
@@ -56,6 +59,7 @@ Re-implementing them by "reading docs" fails. Juniper Bible solves this by measu
 - CLI commands: ingest, enumerate, run, export, verify, selfcheck, test
 
 ### Out-of-Scope (Explicitly)
+
 - Guaranteed byte-identical regeneration from semantic IR for every format
 - Naive file conversion
 - Canonicalization tools
@@ -63,6 +67,7 @@ Re-implementing them by "reading docs" fails. Juniper Bible solves this by measu
 - Best-effort systems
 
 ### Dependencies
+
 - NixOS for deterministic VM
 - SWORD library (libsword) for reference behavior
 - Go standard library for implementation
@@ -86,6 +91,7 @@ Portable container (tar.xz or zip) holding:
 
 ### Engine
 Reproducible execution environment:
+
 - NixOS VM, pinned flake.lock hash
 - Pinned locale/timezone (TZ=UTC, LC_ALL=C.UTF-8)
 - No network
@@ -93,12 +99,14 @@ Reproducible execution environment:
 
 ### Transcript
 Deterministic JSONL event stream emitted by a tool plugin:
+
 - ENGINE_INFO, MODULE_DISCOVERED, KEY_ENUM
 - ENTRY_RENDERED, WARN, ERROR
 - Each event references derived payloads by hash
 
 ### RoundTrip Plan
 Declarative pipeline definition:
+
 - Run tool(s)
 - Export identity
 - Run tool(s) again
@@ -117,6 +125,7 @@ Machine-readable deterministic pass/fail artifact:
 **All Phases Complete** - Fully implemented and tested (1988+ tests passing)
 
 ### Key Metrics
+
 - Architecture: Implemented
 - CAS + manifest schemas: Implemented (SHA-256 + BLAKE3)
 - Deterministic VM engine: Implemented (NixOS with SWORD support)
@@ -126,6 +135,7 @@ Machine-readable deterministic pass/fail artifact:
 - Sample Data: 11 complete Bible modules for integration testing
 
 ### Recent Accomplishments
+
 - All phases 1-19.5 complete
 - All IR success metrics complete
 - NixOS VM integration working with SWORD modules
@@ -139,17 +149,20 @@ Machine-readable deterministic pass/fail artifact:
 ## 6. Roadmap (All Complete)
 
 ### Phase 1: Foundation ✓
+
 - Content-addressed blob store (SHA-256 primary, BLAKE3 secondary)
 - Capsule pack/unpack
 - Manifest generation + schema validation
 - Identity export (prove byte-for-byte round-trip)
 
 ### Phase 2: Deterministic Execution Harness ✓
+
 - Nix flake that builds the engine VM
 - Host-side VM runner (mounts /work/in and /work/out)
 - Enforce TZ/LC_ALL/LANG, no network
 
 ### Phase 3: Plugin System ✓
+
 - Plugin loader + contract enforcement
 - Format plugins: file, dir, zip, tar, SWORD enumerator
 - Tool plugin: tools.libsword (emits transcript JSONL and content blobs)
@@ -161,6 +174,7 @@ Machine-readable deterministic pass/fail artifact:
 - Default plans: identity-bytes, libsword-behavior-identity
 
 ### Phases 5-14: Extended Implementation ✓
+
 - 43 bidirectional format plugins (L0-L3 loss classes)
 - IR (Intermediate Representation) system with lossless round-trips
 - Cross-format conversion via IR pipeline
@@ -169,6 +183,7 @@ Machine-readable deterministic pass/fail artifact:
 - Plugin IPC calls in selfcheck executor
 
 ### Phases 15-19: Advanced Features ✓
+
 - Phases 15-17: Additional format plugins and tools
 - Phase 18: Juniper plugins - Pure Go SWORD/e-Sword parsing (205 tests)
   - juniper-sword: zText, zCom, zLD, RawGenBook, 9 versification systems
@@ -195,6 +210,7 @@ See TODO.txt for detailed phase breakdown.
 | 4 | capsule selfcheck produces stable SelfCheckReport |
 
 ### Quality Metrics
+
 - Tests compare **hashes**, not text
 - Goldens are transcript hashes and selfcheck hashes
 - If a hash changes, it must be explained
@@ -202,6 +218,7 @@ See TODO.txt for detailed phase breakdown.
 
 ### Feature Completeness
 A feature is done when:
+
 - Its outputs are blobs with hashes
 - Its behavior is captured in a transcript
 - There is a self-check plan that verifies it
@@ -220,13 +237,16 @@ A feature is done when:
 ## 9. Stakeholders
 
 ### Owner/Maintainer
+
 - Project lead responsible for architectural decisions
 
 ### Contributors
+
 - Developers following TDD workflow
 - Must match transcripts, not expectations
 
 ### Users
+
 - Bible software developers
 - Religious text researchers
 - Anyone needing forensic-grade format conversion
@@ -235,6 +255,7 @@ A feature is done when:
 
 ### Test-Driven Development (TDD)
 This project follows strict TDD:
+
 1. Write tests FIRST for each feature before implementation
 2. Tests compare **hashes**, not text
 3. Goldens are transcript hashes and selfcheck hashes

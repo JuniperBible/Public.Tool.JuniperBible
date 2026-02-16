@@ -181,6 +181,7 @@ Cost = SeekCost + (RowsScanned * ScanCost) + (RowsFetched * FetchCost)
 ```
 
 Factors considered:
+
 - Number of rows to examine
 - Index vs table I/O
 - Selectivity of constraints
@@ -189,6 +190,7 @@ Factors considered:
 ### 4. Plan Selection
 
 For single table:
+
 - Choose lowest-cost WhereLoop
 
 For joins:
@@ -211,6 +213,7 @@ LogEst(100) = 1024 rows
 ```
 
 Benefits:
+
 - Compact representation (int16)
 - Easy to combine (addition = multiplication)
 - Handles large numbers without overflow
@@ -248,6 +251,7 @@ Cost: nRows * costFullScan
 ```
 
 Used when:
+
 - No usable indexes
 - Very small tables
 - Constraint has low selectivity
@@ -273,6 +277,7 @@ Cost: seek + rowLookup
 ```
 
 Used when:
+
 - All columns of unique index are constrained
 - Returns exactly 1 row
 
@@ -311,6 +316,7 @@ WHERE a = 1 OR a = 2
 ```
 
 Two strategies:
+
 1. Scan both ranges and merge
 2. Convert to `a IN (1, 2)` if possible
 
@@ -420,6 +426,7 @@ This implementation includes:
 - ✅ Range and equality constraints
 
 Not yet implemented:
+
 - ❌ Virtual table support
 - ❌ Subquery optimization
 - ❌ Window functions
@@ -429,6 +436,7 @@ Not yet implemented:
 ## References
 
 Based on SQLite's query planner:
+
 - `where.c` - Main planning logic
 - `wherecode.c` - Code generation
 - `whereexpr.c` - Expression analysis

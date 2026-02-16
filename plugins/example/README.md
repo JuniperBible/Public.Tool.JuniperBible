@@ -20,6 +20,7 @@ cp -r plugins/example/template plugins/mykind/myplugin
 ### 2. Update plugin.json
 
 Edit `plugin.json` and:
+
 - Remove all `_comment_*` and `_*_help` fields
 - Set `plugin_id` to `<kind>.<name>` (e.g., `format.myformat`)
 - Set `kind` to match the parent directory (`format`, `tool`, etc.)

@@ -60,6 +60,7 @@ Implemented real VDBE bytecode generation:
 #### `compileSelect()`
 
 Generates complete SELECT bytecode:
+
 - Looks up table in schema to get root page
 - Resolves column names to indexes
 - Emits OpOpenRead, OpRewind, OpColumn, OpResultRow, OpNext opcodes
@@ -81,6 +82,7 @@ Generates complete SELECT bytecode:
 #### `compileInsert()`
 
 Generates INSERT bytecode:
+
 - Looks up table in schema
 - Validates number of values
 - Emits OpNewRowid, OpInt64/OpString8, OpMakeRecord, OpInsert opcodes
@@ -101,6 +103,7 @@ Generates INSERT bytecode:
 #### `compileUpdate()` and `compileDelete()`
 
 Basic structure implemented:
+
 - Schema lookups for table root page
 - OpOpenWrite for write access
 - TODO: WHERE clause evaluation
@@ -108,6 +111,7 @@ Basic structure implemented:
 #### `compileCreateTable()` and `compileDropTable()`
 
 Framework in place with schema access:
+
 - TODO: sqlite_master manipulation
 - TODO: Page allocation/deallocation
 
@@ -130,6 +134,7 @@ Enhanced documentation explaining btree cursor integration:
 ```
 
 The existing `Next()` implementation already works correctly:
+
 - Calls `vdbe.Step()` to execute bytecode
 - VDBE opcodes manage btree cursors internally
 - Returns data from `vdbe.ResultRow`
@@ -156,15 +161,19 @@ Created comprehensive test suite with 10 test cases:
 ### Complete SELECT Query Path
 
 ```
+
 1. SQL String: "SELECT id, name FROM users"
    ↓
+
 2. driver.Prepare() → parser.Parse()
    → SelectStmt{Columns: [id, name], From: users}
    ↓
+
 3. stmt.compile() with schema lookup:
    - table := conn.schema.GetTable("users")  // Get root page + columns
    - Generate VDBE bytecode using table metadata
    ↓
+
 4. rows.Next() → vdbe.Step():
    - OpOpenRead: Opens btree cursor on table.RootPage
    - OpRewind: cursor.MoveToFirst()
@@ -172,6 +181,7 @@ Created comprehensive test suite with 10 test cases:
    - OpResultRow: Populates vdbe.ResultRow
    - OpNext: cursor.Next() and loop
    ↓
+
 5. Return data to user
 ```
 

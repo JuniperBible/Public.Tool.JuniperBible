@@ -183,6 +183,7 @@ The code generator implements proper short-circuit evaluation for AND and OR ope
 ### AND Short-Circuit
 
 For `A AND B`:
+
 1. Evaluate A
 2. If A is false, skip B and return false
 3. Otherwise, evaluate B and return its value
@@ -190,6 +191,7 @@ For `A AND B`:
 ### OR Short-Circuit
 
 For `A OR B`:
+
 1. Evaluate A
 2. If A is true, skip B and return true
 3. Otherwise, evaluate B and return its value
@@ -306,6 +308,7 @@ go test -cover ./core/sqlite/internal/expr
 ### Parser Integration
 
 The code generator accepts `parser.Expression` interface types and handles all concrete implementations:
+
 - `LiteralExpr`
 - `IdentExpr` (column references)
 - `BinaryExpr`
@@ -320,6 +323,7 @@ The code generator accepts `parser.Expression` interface types and handles all c
 ### VDBE Integration
 
 Generated code uses the VDBE instruction set:
+
 - Instructions are added via `vdbe.AddOp()`
 - P4 operands for strings use `vdbe.AddOpWithP4Str()`
 - Comments aid debugging via `vdbe.SetComment()`
@@ -328,6 +332,7 @@ Generated code uses the VDBE instruction set:
 ### Error Handling
 
 All generation functions return `(int, error)` or `error`:
+
 - Unsupported expressions return descriptive errors
 - Missing table/cursor mappings are caught early
 - Invalid expressions are rejected with context

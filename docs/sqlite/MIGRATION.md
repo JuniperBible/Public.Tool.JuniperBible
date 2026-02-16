@@ -126,6 +126,7 @@ func main() {
 ```
 
 **Benefits:**
+
 - No CGO dependency
 - Easy cross-compilation
 - Simpler builds
@@ -391,10 +392,12 @@ CGO_ENABLED=1 go test -tags cgo_sqlite ./...
 **GitHub Actions:**
 ```yaml
 # Pure Go (default)
+
 - name: Test
   run: go test ./...
 
 # CGO (optional)
+
 - name: Test with CGO
   run: |
     export CGO_ENABLED=1
@@ -536,6 +539,7 @@ if exists == 0 {
 **Cause:** File permissions or disk space
 
 **Solution:**
+
 - Check file permissions
 - Ensure sufficient disk space
 - Verify file path exists

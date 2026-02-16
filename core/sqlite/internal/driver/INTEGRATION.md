@@ -189,6 +189,7 @@ Application
 ## Module Responsibilities
 
 ### Driver (`driver.go`)
+
 - **Purpose**: Entry point for database/sql
 - **Responsibilities**:
   - Register with sql.Register()
@@ -197,6 +198,7 @@ Application
   - Create new connections
 
 ### Connection (`conn.go`)
+
 - **Purpose**: Represents a database connection
 - **Responsibilities**:
   - Own pager and btree instances
@@ -205,6 +207,7 @@ Application
   - Connection lifecycle
 
 ### Statement (`stmt.go`)
+
 - **Purpose**: Represents a prepared SQL statement
 - **Responsibilities**:
   - Compile SQL to VDBE bytecode
@@ -213,6 +216,7 @@ Application
   - Manage result sets
 
 ### Rows (`rows.go`)
+
 - **Purpose**: Iterator over query results
 - **Responsibilities**:
   - Step VDBE to get next row
@@ -221,6 +225,7 @@ Application
   - Resource cleanup
 
 ### Transaction (`tx.go`)
+
 - **Purpose**: Manages transaction boundaries
 - **Responsibilities**:
   - Coordinate with pager for ACID
@@ -229,6 +234,7 @@ Application
   - Lock management
 
 ### Value (`value.go`)
+
 - **Purpose**: Type conversion utilities
 - **Responsibilities**:
   - Convert Go types to SQLite values

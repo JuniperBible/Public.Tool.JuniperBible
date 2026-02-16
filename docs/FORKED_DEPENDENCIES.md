@@ -60,6 +60,7 @@ The kong CLI framework fork includes the following modifications:
    # Resolve conflicts, ensuring custom changes are preserved
    git push origin master
    ```
+
 4. **Update go.mod version** if fork changes
 5. **Run tests** to ensure compatibility: `make test`
 
@@ -70,6 +71,7 @@ The kong CLI framework fork includes the following modifications:
 **Reason**: The custom resolver changes are specific to Juniper Bible's configuration model. Upstream maintainer feedback needed before proposing a pull request.
 
 **Future Plan**:
+
 - Extract generic resolver interface improvements
 - Propose upstream PR with broader use case
 - If accepted, remove fork and use upstream version
@@ -117,6 +119,7 @@ The participle parser library fork includes the following modifications:
    # Resolve conflicts, ensuring USFM parser changes are preserved
    git push origin master
    ```
+
 4. **Update go.mod version** if fork changes
 5. **Run USFM parser tests**: `go test ./plugins/format/usfm/...`
 
@@ -158,12 +161,14 @@ The participle parser library fork includes the following modifications:
 ### Responding to Security Issues
 
 **Timeline**:
+
 - **Critical vulnerabilities**: Merge and update within 24 hours
 - **High severity**: Merge and update within 7 days
 - **Medium severity**: Merge and update within 30 days
 - **Low severity**: Merge during regular monthly sync
 
 **Process**:
+
 1. **Assess Impact**: Determine if the vulnerability affects Juniper Bible's use of the library
 2. **Sync Fork**: Merge upstream security fix into fork immediately
 3. **Update go.mod**: Bump version in go.mod to use patched fork
@@ -194,6 +199,7 @@ After syncing with upstream:
 name: Check Upstream Forks
 on:
   schedule:
+
     - cron: '0 0 * * 1'  # Every Monday at midnight
   workflow_dispatch:
 
@@ -201,6 +207,7 @@ jobs:
   check-upstream:
     runs-on: ubuntu-latest
     steps:
+
       - name: Check kong upstream
         run: |
           curl -s https://api.github.com/repos/alecthomas/kong/releases/latest | \
@@ -234,6 +241,7 @@ jobs:
 ### Regular Maintenance
 
 **Monthly** (1st Monday of each month):
+
 - Review upstream releases
 - Merge non-breaking changes
 - Update go.mod versions
@@ -241,12 +249,14 @@ jobs:
 - Update this document with sync date
 
 **Quarterly** (Every 3 months):
+
 - Major version updates (if any)
 - Performance benchmarking
 - Review fork necessity (can we remove it?)
 - Consider upstream contribution
 
 **Annually**:
+
 - Comprehensive security audit of forks
 - Review fork architecture and necessity
 - Plan upstream contribution roadmap
@@ -255,6 +265,7 @@ jobs:
 ### Emergency Maintenance
 
 **Critical Security Issues**:
+
 - Immediate sync within 24 hours
 - Emergency release if necessary
 - Notify users via security advisory
@@ -288,6 +299,7 @@ To reduce maintenance burden, consider these alternatives:
 **Current Policy**: Use exact version pins for forked dependencies
 
 **Rationale**:
+
 - Ensures reproducible builds
 - Prevents unexpected behavior changes
 - Allows controlled updates with testing

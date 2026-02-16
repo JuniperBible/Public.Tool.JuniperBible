@@ -3,6 +3,7 @@
 ## Goal
 
 Support a universal scripture comparison system that can:
+
 1. Import from multiple source formats (SWORD, plain text, structured JSON)
 2. Auto-discover content structure (books, chapters, verses/sections)
 3. Generate metadata for cross-tradition comparison
@@ -72,10 +73,12 @@ Define the book structure for each tradition:
 name: King James Version
 tradition: protestant
 books:
+
   - id: Gen
     name: Genesis
     testament: OT
     chapters: 50
+
   - id: Exod
     name: Exodus
     testament: OT
@@ -87,11 +90,13 @@ name: Vulgate
 tradition: catholic
 extends: kjv  # Includes all KJV books, plus:
 additional_books:
+
   - id: Tob
     name: Tobit
     testament: DC  # Deuterocanonical
     chapters: 14
     insert_after: Neh
+
   - id: Jdt
     name: Judith
     testament: DC
@@ -103,10 +108,12 @@ additional_books:
 name: Ethiopian Orthodox
 extends: vulgate
 additional_books:
+
   - id: 1En
     name: 1 Enoch
     testament: OT  # Canonical in Ethiopian
     chapters: 108
+
   - id: Jub
     name: Jubilees
     testament: OT
@@ -118,9 +125,11 @@ name: Quranic
 tradition: islamic
 structure: surah  # Not "book"
 books:
+
   - id: 1
     name: Al-Fatihah
     verses: 7
+
   - id: 2
     name: Al-Baqarah
     verses: 286
@@ -279,34 +288,40 @@ data/
 ## Implementation Phases
 
 ### Phase 1: Versification Support ✅
+
 - [x] Define versification YAML files for major traditions
 - [x] Update extract script to use versification systems
 - [x] Auto-discover books from SWORD modules
 
 ### Phase 2: Full Canon Extraction (Current)
+
 - [ ] Run `extract_scriptures.py` to get all deuterocanonical books (Tobit, Judith, Wisdom, Sirach, Baruch, 1-2 Maccabees)
 - [ ] Verify Catholic/Orthodox canon completeness in DRC and Vulgate
 - [ ] Update compressed data files with full canon
 
 ### Phase 3: Multiple Source Types
+
 - [ ] Abstract extraction into pluggable extractors
 - [ ] Add Sefaria API support for Jewish texts (Talmud, Mishnah, Midrash)
 - [ ] Add plain text/Markdown import for custom sources
 - [ ] Support e-Sword format conversion
 
 ### Phase 4: Cross-Tradition Mapping
+
 - [ ] Create `mappings/books.yaml` with cross-references
 - [ ] Map equivalent books across traditions (e.g., Daniel additions in Catholic vs Protestant)
 - [ ] Generate comparison metadata showing which traditions include each book
 - [ ] Link to study guide categories (canonical, deuterocanonical, pseudepigraphal, etc.)
 
 ### Phase 5: Extended Corpora
+
 - [ ] Add Quran support (114 surahs from SWORD modules)
 - [ ] Add Talmud structure support (tractate-based organization)
 - [ ] Add patristic/mystical text structure (Didache, Church Fathers, etc.)
 - [ ] Support Ethiopian unique texts (1 Enoch, Jubilees, Meqabyan)
 
 ### Phase 6: UI for Comparison
+
 - [ ] Create Hugo layout showing canonical status across traditions
 - [ ] Add visual indicators (🟦 canonical, 🟪 deuterocanonical, etc.)
 - [ ] Enable parallel text viewing for comparison

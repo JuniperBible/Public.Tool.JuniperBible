@@ -24,6 +24,7 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 ### 1. Tokenizer (Lexer)
 
 ✅ **Complete token recognition**:
+
 - 200+ token types covering all SQL constructs
 - Keywords (case-insensitive): SELECT, FROM, WHERE, INSERT, UPDATE, DELETE, CREATE, DROP, etc.
 - Operators: =, <>, <, <=, >, >=, +, -, *, /, %, ||, &, |, ~, <<, >>
@@ -34,6 +35,7 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 - Comments: -- line comments, /* block comments */
 
 ✅ **Advanced features**:
+
 - Hexadecimal integers: 0x1A2B
 - Scientific notation: 1.5e10, 2.5E-3
 - Blob literals: X'48656C6C6F'
@@ -43,6 +45,7 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 ### 2. Parser
 
 ✅ **SELECT statements**:
+
 - Column selection: *, column names, table.*, expressions with aliases
 - FROM clause: tables, subqueries, table aliases
 - JOIN: INNER, LEFT, RIGHT, CROSS, NATURAL
@@ -55,6 +58,7 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 - Compound queries: UNION, UNION ALL, EXCEPT, INTERSECT
 
 ✅ **INSERT statements**:
+
 - INSERT INTO table (columns) VALUES (values)
 - Multiple value rows
 - INSERT INTO table SELECT ...
@@ -62,6 +66,7 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 - INSERT OR REPLACE/IGNORE/ABORT/FAIL/ROLLBACK
 
 ✅ **UPDATE statements**:
+
 - UPDATE table SET column = value
 - Multiple column assignments
 - WHERE clause
@@ -69,11 +74,13 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 - OR REPLACE/IGNORE/ABORT/FAIL/ROLLBACK
 
 ✅ **DELETE statements**:
+
 - DELETE FROM table
 - WHERE clause
 - ORDER BY and LIMIT (SQLite extension)
 
 ✅ **CREATE TABLE**:
+
 - Column definitions with types (INTEGER, TEXT, REAL, BLOB, NUMERIC)
 - Column constraints:
   - PRIMARY KEY [ASC|DESC] [AUTOINCREMENT]
@@ -96,6 +103,7 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 - STRICT mode
 
 ✅ **CREATE INDEX**:
+
 - Simple and composite indexes
 - UNIQUE indexes
 - IF NOT EXISTS
@@ -103,10 +111,12 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 - Partial indexes (WHERE clause)
 
 ✅ **DROP statements**:
+
 - DROP TABLE [IF EXISTS]
 - DROP INDEX [IF EXISTS]
 
 ✅ **Transaction statements**:
+
 - BEGIN [DEFERRED|IMMEDIATE|EXCLUSIVE] [TRANSACTION]
 - COMMIT
 - ROLLBACK [TO savepoint]
@@ -114,6 +124,7 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 ### 3. Expressions
 
 ✅ **Binary operators** (with correct precedence):
+
 - Arithmetic: +, -, *, /, %
 - Comparison: =, <>, !=, <, <=, >, >=
 - Logical: AND, OR
@@ -122,12 +133,14 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 - Pattern matching: LIKE, GLOB, REGEXP, MATCH
 
 ✅ **Unary operators**:
+
 - Negation: -expr
 - Unary plus: +expr
 - Bitwise NOT: ~expr
 - Logical NOT: NOT expr
 
 ✅ **Special expressions**:
+
 - IS NULL / IS NOT NULL
 - IN (value1, value2, ...)
 - IN (subquery)
@@ -137,12 +150,14 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 - expr COLLATE collation
 
 ✅ **Functions**:
+
 - Simple calls: COUNT(*), SUM(amount)
 - With DISTINCT: COUNT(DISTINCT category)
 - Nested calls: UPPER(LOWER(name))
 - FILTER clause: aggregate() FILTER (WHERE condition)
 
 ✅ **Other**:
+
 - Parenthesized expressions
 - Subqueries in expressions
 - Table-qualified columns: table.column
@@ -151,12 +166,14 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 ### 4. Abstract Syntax Tree (AST)
 
 ✅ **Well-structured node types**:
+
 - Statement interface with implementations for all SQL statements
 - Expression interface with implementations for all expression types
 - Supporting types: ColumnDef, ConstraintDef, JoinClause, OrderingTerm, etc.
 - Clear hierarchy and type safety
 
 ✅ **Helper functions**:
+
 - IntValue(), FloatValue(), StringValue() - extract literal values
 - Unquote() - remove quotes from identifiers
 - ParseString() - convenient one-liner to parse SQL
@@ -164,6 +181,7 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 ## Testing
 
 ✅ **Comprehensive test suite**:
+
 - **322 lines** of lexer tests covering all token types
 - **1,009 lines** of parser tests covering all statements and expressions
 - **428 lines** of example tests demonstrating usage
@@ -171,6 +189,7 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 - Benchmarks for performance measurement
 
 ✅ **Test coverage areas**:
+
 - Token recognition (keywords, operators, literals, identifiers)
 - Simple and complex SELECT queries
 - INSERT/UPDATE/DELETE statements
@@ -184,10 +203,12 @@ A complete SQL tokenizer and parser for a pure Go SQLite database engine, based 
 ## Reference Implementation
 
 Based on SQLite 3.51.2 source code:
+
 - `/tmp/sqlite-src/sqlite-src-3510200/src/tokenize.c` - Tokenization logic
 - `/tmp/sqlite-src/sqlite-src-3510200/src/parse.y` - Grammar (Lemon parser)
 
 Key concepts adopted:
+
 - Token type system (TK_* constants)
 - Character classification for efficient scanning
 - Keyword lookup strategy
@@ -232,6 +253,7 @@ BenchmarkParseInsert-8    100000    12000 ns/op   (~12µs per query)
 ```
 
 The parser can handle:
+
 - **~35,000 SELECT queries per second** (complex)
 - **~80,000 INSERT queries per second** (simple)
 - **~95,000 tokenizations per second**
@@ -241,30 +263,36 @@ The parser can handle:
 The following SQLite features are not yet supported:
 
 ❌ **CTEs (Common Table Expressions)**
+
 - WITH clause
 - Recursive CTEs
 
 ❌ **UPSERT**
+
 - INSERT ... ON CONFLICT DO UPDATE
 - INSERT ... ON CONFLICT DO NOTHING
 
 ❌ **ALTER TABLE**
+
 - RENAME TABLE/COLUMN
 - ADD COLUMN
 - DROP COLUMN
 
 ❌ **Views and Triggers**
+
 - CREATE VIEW
 - CREATE TRIGGER
 - DROP VIEW/TRIGGER
 
 ❌ **Other DDL**
+
 - ATTACH/DETACH DATABASE
 - PRAGMA statements
 - VACUUM
 - REINDEX
 
 ❌ **Advanced Features**
+
 - Full window function specification (basic parsing exists)
 - Complete FOREIGN KEY options
 - INSTEAD OF triggers

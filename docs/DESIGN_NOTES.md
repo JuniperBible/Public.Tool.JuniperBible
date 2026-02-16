@@ -89,6 +89,7 @@ A content-addressed capsule that stores original bytes verbatim and produces det
 ### Artifact
 
 Immutable record pointing to a content-addressed blob and metadata:
+
 - `kind`: zip, tar, sword-module, sword-conf, sword-data, osis, usfm, pdf, unknown, etc.
 - `hashes`: sha256 + optional blake3
 - `blob path` in capsule
@@ -96,6 +97,7 @@ Immutable record pointing to a content-addressed blob and metadata:
 ### Capsule
 
 Portable container (tar.xz or zip) holding:
+
 - `manifest.json`
 - `blobs/sha256/<2>/<sha256>`
 - Optional `blobs/blake3/<2>/<blake3>.json` pointer files
@@ -104,6 +106,7 @@ Portable container (tar.xz or zip) holding:
 ### Engine
 
 Reproducible execution environment:
+
 - NixOS VM, pinned flake.lock hash
 - Pinned locale/timezone
 - No network
@@ -154,6 +157,7 @@ capsule/
 ### Determinism Requirements
 
 Inside VM runs:
+
 - `TZ=UTC`
 - `LC_ALL=C.UTF-8`
 - `LANG=C.UTF-8`
@@ -165,11 +169,13 @@ Inside VM runs:
 ### Execution Contract
 
 **Host prepares `/work/in` containing:**
+
 - `request.json` (tool run request)
 - `tool` (plugin runner executable)
 - Staged input files if needed (or a mounted read-only blob staging directory)
 
 **VM writes to `/work/out`:**
+
 - `transcript.jsonl`
 - `outputs/` (optional)
 - `stdout`, `stderr`
@@ -183,12 +189,14 @@ Host ingests these outputs into capsule blobs and records them in manifest.
 ### Plugin Types
 
 **Format plugin (kind=format):**
+
 - Detect input
 - Ingest bytes verbatim
 - Enumerate components (optional): e.g., zip → files, sword module → .conf + data files
 - Must not mutate original bytes
 
 **Tool plugin (kind=tool):**
+
 - Provides an EngineSpec (which VM/toolchain to use)
 - Runs reference tool deterministically in VM
 - Produces transcript JSONL and derived artifacts as blobs
@@ -206,6 +214,7 @@ plugins/<name>/
 ### Plugin Discovery
 
 Default search paths:
+
 - `./plugins/**/plugin.json`
 - `$CAPSULE_PLUGIN_PATH/**/plugin.json`
 
@@ -229,13 +238,16 @@ Default search paths:
 ### IPC Protocol (Language-Agnostic)
 
 Plugins communicate via JSON over stdin/stdout:
+
 - Capsule core invokes plugin with a subcommand and passes JSON
 
 **Tool plugin required commands:**
+
 - `engine-spec` → returns EngineSpec JSON
 - `run` with `--request request.json --out <dir>` → writes transcript + outputs
 
 **Format plugin required commands:**
+
 - `detect`
 - `ingest`
 - `enumerate`
@@ -282,6 +294,7 @@ SWORD module directory or archive artifact (zip/tar) that contains `mods.d/*.con
 ### Output Scaling
 
 For large corpora, avoid one file per verse. Prefer:
+
 - Keys list as one blob (text)
 - Rendered outputs as chunked JSONL or content-addressed bundles:
   - `render.jsonl` lines: `{module, key, profile, sha256, bytes}`
@@ -294,23 +307,27 @@ For large corpora, avoid one file per verse. Prefer:
 ### Goldens Are Hashes, Not Huge Files
 
 A "golden" is typically:
+
 - Transcript blob SHA-256, and/or
 - SelfCheckReport blob SHA-256
 
 ### Required Test Classes
 
 **Byte Identity Test (universal):**
+
 1. Ingest artifact A
 2. Export IDENTITY → bytes B
 3. Assert `sha256(B) == sha256(A)` and `blake3(B) == blake3(A)`
 
 **Behavior Identity Test (tool-defined):**
+
 1. Run tool transcript on original
 2. Export IDENTITY
 3. Run tool transcript on exported
 4. Assert transcript hashes match (or per-event payload hashes match)
 
 **Regression Drift Test:**
+
 - Compare new transcript hash to committed golden hash for the pinned engine
 
 ### SelfCheck Is the Standard Test Output
@@ -635,6 +652,7 @@ This is your "IR↔native self-check": your IR base is the capsule, your "to nat
 ## 14. Definition of Done
 
 A developer delivers:
+
 - `capsule ingest` produces capsule with correct blob addressing + manifest
 - `capsule export --mode IDENTITY` produces byte-identical output
 - `capsule run --tool tools.libsword` produces deterministic transcript

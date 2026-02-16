@@ -26,6 +26,7 @@ This directory contains a complete, pure Go implementation of the SQLite databas
 Implements the SQLite database file format specification:
 
 **Key Components:**
+
 - `DatabaseHeader` struct (100-byte header)
 - Header parsing and serialization functions
 - Page size validation (512 to 65536 bytes, power of 2)
@@ -40,6 +41,7 @@ Implements the SQLite database file format specification:
 - Round-trip serialization/deserialization
 
 **Constants:**
+
 - Database header size (100 bytes)
 - All header field offsets (0-99)
 - Page size limits (512-65536)
@@ -50,6 +52,7 @@ Implements the SQLite database file format specification:
 Implements individual pages and the page cache:
 
 **DbPage Structure:**
+
 - Page number (Pgno, 1-based)
 - Page data (byte slice)
 - State flags (clean, dirty, writeable, etc.)
@@ -57,6 +60,7 @@ Implements individual pages and the page cache:
 - Thread-safe read/write operations
 
 **PageCache:**
+
 - Hash map for O(1) page lookup
 - Dirty page linked list
 - LRU eviction for clean pages
@@ -64,6 +68,7 @@ Implements individual pages and the page cache:
 - Thread-safe with RWMutex
 
 **Page Operations:**
+
 - `NewDbPage()` - Create page
 - `Read()` - Read data from page
 - `Write()` - Write data to page
@@ -85,6 +90,7 @@ Implements individual pages and the page cache:
 Implements the complete pager subsystem:
 
 **Pager Structure:**
+
 - File handles (database and journal)
 - Page cache
 - Database header
@@ -116,6 +122,7 @@ Implements the complete pager subsystem:
    - Lock acquisition/release
 
 **State Machine:**
+
 - OPEN - No transaction active
 - READER - Read transaction active
 - WRITER_LOCKED - Write transaction started
@@ -155,6 +162,7 @@ Implements the complete pager subsystem:
 Comprehensive test suites with 100% coverage of core functionality:
 
 ### format_test.go (360 lines)
+
 - Header parsing with valid and invalid data
 - Header validation (all field constraints)
 - Serialization round-trip testing
@@ -163,6 +171,7 @@ Comprehensive test suites with 100% coverage of core functionality:
 - Benchmarks for parsing and serialization
 
 ### page_test.go (507 lines)
+
 - Page creation and initialization
 - Read/write operations
 - Dirty/clean state transitions
@@ -175,6 +184,7 @@ Comprehensive test suites with 100% coverage of core functionality:
 - Benchmarks for page operations
 
 ### pager_test.go (627 lines)
+
 - Database creation and opening
 - Read-only mode
 - Page retrieval and caching
@@ -201,6 +211,7 @@ Comprehensive test suites with 100% coverage of core functionality:
 ## Key Features
 
 ### 1. SQLite Compatibility
+
 - Exact database file format per SQLite specification
 - Compatible header structure
 - Standard page sizes (512-65536 bytes)
@@ -216,6 +227,7 @@ Comprehensive test suites with 100% coverage of core functionality:
 - Thread-safe cache operations
 
 ### 3. ACID Properties
+
 - **Atomicity**: Journal-based rollback
 - **Consistency**: Header and page validation
 - **Isolation**: Lock-based concurrency control
@@ -230,6 +242,7 @@ Comprehensive test suites with 100% coverage of core functionality:
 - Benchmarks included for all operations
 
 ### 5. Error Handling
+
 - Comprehensive error checking
 - Descriptive error messages
 - Automatic rollback on errors
@@ -237,6 +250,7 @@ Comprehensive test suites with 100% coverage of core functionality:
 - Resource cleanup with defer
 
 ### 6. Memory Management
+
 - Controlled memory usage via cache size
 - Page eviction when cache is full
 - Reference counting prevents memory leaks
@@ -279,6 +293,7 @@ These simplifications don't affect correctness, only advanced features.
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test each function in isolation
 - Cover all code paths
 - Test error conditions
@@ -292,11 +307,13 @@ These simplifications don't affect correctness, only advanced features.
 - File persistence across opens
 
 ### Concurrent Tests
+
 - Multiple goroutines accessing pages
 - Concurrent reads and writes
 - Cache eviction under load
 
 ### Benchmarks
+
 - Page I/O performance
 - Cache performance
 - Transaction overhead
@@ -327,6 +344,7 @@ pager.Put(page)
 ## Performance Characteristics
 
 ### Time Complexity
+
 - Page cache lookup: O(1) - hash map
 - Page eviction: O(n) - linear scan for clean pages
 - Dirty page iteration: O(d) - where d = number of dirty pages
@@ -339,6 +357,7 @@ pager.Put(page)
 - Journal file: O(m × p) - where m = modified pages
 
 ### I/O Operations
+
 - Page read: 1 disk read (if not cached)
 - Page write (commit): 1 journal write + 1 disk write
 - Transaction commit: d page writes + 2 syncs
@@ -371,22 +390,26 @@ The implementation has been validated against:
 ## References
 
 ### SQLite Documentation
+
 - [SQLite File Format](https://www.sqlite.org/fileformat.html)
 - [SQLite Architecture](https://www.sqlite.org/arch.html)
 - [SQLite Locking](https://www.sqlite.org/lockingv3.html)
 
 ### Source Code
+
 - `/tmp/sqlite-src/sqlite-src-3510200/src/pager.c` - Reference implementation
 - `/tmp/sqlite-src/sqlite-src-3510200/src/pager.h` - Header definitions
 - `/tmp/sqlite-src/sqlite-src-3510200/src/pcache.h` - Cache definitions
 
 ### Related Resources
+
 - [How SQLite Works](https://jvns.ca/blog/2014/10/02/how-does-sqlite-work-part-2-btrees/)
 - [SQLite Internals](https://www.compileralchemy.com/books/sqlite-internals/)
 
 ## Conclusion
 
 This implementation provides a complete, production-ready pager subsystem that:
+
 - Follows the SQLite file format specification exactly
 - Implements the core pager algorithms from the reference implementation
 - Uses Go idioms for safety and simplicity

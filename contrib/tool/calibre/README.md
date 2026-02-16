@@ -5,6 +5,7 @@ E-book management and conversion toolkit.
 ## Formats Supported
 
 Calibre is a reference tool for the Juniper Bible format plugin:
+
 - format-epub (EPUB creation and validation)
 
 ## Installation

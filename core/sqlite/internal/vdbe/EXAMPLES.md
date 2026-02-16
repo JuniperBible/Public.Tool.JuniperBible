@@ -344,6 +344,7 @@ addr  opcode         p1    p2    p3    p4             p5  comment
 
 ### Registers
 Registers are numbered memory cells that hold values:
+
 - `r[0]` - Usually unused
 - `r[1..n]` - General purpose registers
 - Registers can hold any type (NULL, integer, real, string, blob)
@@ -351,17 +352,20 @@ Registers are numbered memory cells that hold values:
 
 ### Cursors
 Cursors provide access to table/index data:
+
 - Numbered 0..n
 - Each cursor points to a row in a table or index
 - Operations: Open, Close, Rewind, Next, Prev, Seek
 - Column data accessed via cursor number and column index
 
 ### Program Counter (PC)
+
 - Points to the next instruction to execute
 - Incremented automatically after each instruction
 - Can be modified by jump instructions (Goto, If, etc.)
 
 ### Jump Instructions
+
 - Unconditional: `Goto P2` - always jump to address P2
 - Conditional: `If P1, P2` - jump to P2 if r[P1] is true
 - Comparison: `Gt P1, P2, P3` - jump to P2 if r[P1] > r[P3]
@@ -370,6 +374,7 @@ Cursors provide access to table/index data:
 ```
 Opcode P1 P2 P3 P4 P5
 ```
+
 - **Opcode**: What to do
 - **P1**: First operand (often source register or cursor)
 - **P2**: Second operand (often destination register or jump target)

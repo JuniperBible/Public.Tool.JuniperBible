@@ -26,6 +26,7 @@ parser/
 ### 1. Faithful to SQLite
 
 The implementation follows SQLite's design where appropriate:
+
 - Token types match SQLite's TK_* constants
 - Operator precedence matches SQLite's grammar
 - Keyword recognition is case-insensitive
@@ -70,6 +71,7 @@ type Lexer struct {
 ```
 
 **Key Features**:
+
 1. **Single-pass scanning**: Processes input left-to-right
 2. **Line/column tracking**: For error reporting
 3. **Character classification**: Uses character class lookup (inspired by SQLite's aiClass array)
@@ -80,6 +82,7 @@ type Lexer struct {
 8. **Blob literals**: X'...' syntax
 
 **Based on SQLite's tokenize.c**:
+
 - Character class array concept (aiClass)
 - Token type definitions (TK_*)
 - Keyword lookup strategy
@@ -119,6 +122,7 @@ type Parser struct {
 
 **Expression Precedence** (lowest to highest):
 ```
+
 1. OR
 2. AND
 3. NOT
@@ -132,6 +136,7 @@ type Parser struct {
 ```
 
 **Based on SQLite's parse.y**:
+
 - Grammar rules and structure
 - Operator precedence
 - Statement syntax
@@ -168,6 +173,7 @@ type Expression interface {
 4. **Immutable-friendly**: No setters, direct field access
 
 **Node Types**:
+
 - **Statements**: SelectStmt, InsertStmt, UpdateStmt, DeleteStmt, CreateTableStmt, etc.
 - **Expressions**: BinaryExpr, UnaryExpr, LiteralExpr, IdentExpr, FunctionExpr, etc.
 - **Supporting**: ColumnDef, ConstraintDef, JoinClause, etc.
@@ -221,6 +227,7 @@ Defines all token types used in SQL parsing:
 - Compound queries (UNION, EXCEPT, INTERSECT)
 
 ✅ **INSERT Statements**
+
 - INSERT INTO ... VALUES
 - INSERT INTO ... SELECT
 - Multiple value rows
@@ -234,10 +241,12 @@ Defines all token types used in SQL parsing:
 - ORDER BY and LIMIT (SQLite extension)
 
 ✅ **DELETE Statements**
+
 - WHERE clause
 - ORDER BY and LIMIT (SQLite extension)
 
 ✅ **CREATE TABLE**
+
 - Column definitions with types
 - Column constraints (PRIMARY KEY, NOT NULL, UNIQUE, CHECK, DEFAULT, COLLATE)
 - Table constraints (PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY)
@@ -259,6 +268,7 @@ Defines all token types used in SQL parsing:
 - IF EXISTS
 
 ✅ **Transactions**
+
 - BEGIN [DEFERRED|IMMEDIATE|EXCLUSIVE]
 - COMMIT
 - ROLLBACK
@@ -266,6 +276,7 @@ Defines all token types used in SQL parsing:
 ### Partial Support
 
 ⚠️ **Window Functions**
+
 - Basic syntax parsed
 - OVER, PARTITION BY, ORDER BY recognized
 - Frame specs not fully tested
@@ -278,6 +289,7 @@ Defines all token types used in SQL parsing:
 ### Not Yet Implemented
 
 ❌ **CTEs (Common Table Expressions)**
+
 - WITH clause
 
 ❌ **UPSERT**
@@ -285,18 +297,23 @@ Defines all token types used in SQL parsing:
 - INSERT ... ON CONFLICT
 
 ❌ **ALTER TABLE**
+
 - RENAME, ADD COLUMN, DROP COLUMN
 
 ❌ **Views**
+
 - CREATE VIEW, DROP VIEW
 
 ❌ **Triggers**
+
 - CREATE TRIGGER, DROP TRIGGER
 
 ❌ **PRAGMA**
+
 - PRAGMA statements
 
 ❌ **ATTACH/DETACH**
+
 - Database attachment
 
 ## Expression Support
@@ -304,6 +321,7 @@ Defines all token types used in SQL parsing:
 ### Binary Operators
 
 All standard SQL operators:
+
 - Arithmetic: `+`, `-`, `*`, `/`, `%`
 - Comparison: `=`, `<>`, `!=`, `<`, `<=`, `>`, `>=`
 - Logical: `AND`, `OR`
@@ -392,6 +410,7 @@ BenchmarkParseInsert-8    100000    12000 ns/op   ~12µs per query
 ```
 
 These results show:
+
 - Lexing: ~10µs for typical queries
 - Full parsing: ~30µs for complex SELECT
 - Simple statements: ~12µs
@@ -403,6 +422,7 @@ These results show:
 ### Unit Tests
 
 **lexer_test.go** (322 lines):
+
 - Basic token recognition
 - Operators
 - Literals (integers, floats, strings, blobs)
@@ -413,6 +433,7 @@ These results show:
 - Line/column tracking
 
 **parser_test.go** (1009 lines):
+
 - All statement types
 - Complex queries
 - Joins
@@ -425,6 +446,7 @@ These results show:
 ### Example Tests
 
 **example_test.go** (428 lines):
+
 - Usage examples
 - API demonstrations
 - Documentation examples
@@ -515,6 +537,7 @@ The parser aims for high compatibility with SQLite 3.51.2:
 ### Reference Implementation
 
 Based on SQLite 3.51.2 source:
+
 - `tokenize.c` - Tokenization logic
 - `parse.y` - Grammar (Lemon parser generator)
 - Token definitions from generated parse.h
@@ -525,22 +548,26 @@ Approximate memory per query:
 
 ```
 Small query (< 100 chars):
+
   - Tokens: ~500 bytes (10 tokens * 50 bytes)
   - AST: ~1 KB
   Total: ~1.5 KB
 
 Medium query (500 chars):
+
   - Tokens: ~2.5 KB (50 tokens * 50 bytes)
   - AST: ~5 KB
   Total: ~7.5 KB
 
 Large query (5000 chars):
+
   - Tokens: ~25 KB (500 tokens * 50 bytes)
   - AST: ~50 KB
   Total: ~75 KB
 ```
 
 The parser is designed to be memory-efficient with:
+
 - No unnecessary allocations
 - Compact AST structures
 - Shared strings where possible
@@ -566,6 +593,7 @@ SQL String
 ```
 
 The parser's role:
+
 1. Tokenize SQL text
 2. Build AST from tokens
 3. Provide error diagnostics

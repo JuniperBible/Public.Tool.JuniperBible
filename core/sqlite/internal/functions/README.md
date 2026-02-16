@@ -25,6 +25,7 @@ SELECT length('世界');    -- 2
 
 #### `substr(X, Y [, Z])`
 Returns a substring of X starting at position Y with optional length Z.
+
 - Y is 1-indexed
 - Negative Y counts from the end
 - Negative Z returns characters before position Y
@@ -226,6 +227,7 @@ SELECT log2(8);     -- 3.0
 ```
 
 #### Trigonometric Functions
+
 - `sin(X)`, `cos(X)`, `tan(X)` - Basic trig functions (X in radians)
 - `asin(X)`, `acos(X)`, `atan(X)` - Inverse trig functions
 - `atan2(Y, X)` - Two-argument arctangent
@@ -362,6 +364,7 @@ SELECT unixepoch('now', 'subsec');         -- With subsecond precision
 Returns formatted date/time string.
 
 Format specifiers:
+
 - `%Y` - 4-digit year
 - `%m` - Month (01-12)
 - `%d` - Day of month (01-31)
@@ -390,6 +393,7 @@ SELECT current_timestamp;  -- Current datetime
 #### Date/Time Modifiers
 
 Supported modifiers:
+
 - `+N days`, `-N days`
 - `+N hours`, `-N hours`
 - `+N minutes`, `-N minutes`
@@ -464,22 +468,26 @@ fmt.Println(result.AsInt64())  // Total count
 ## Implementation Notes
 
 ### String Encoding
+
 - All string functions are UTF-8 aware
 - Character counts return Unicode character count, not byte count
 - Blob functions work on raw bytes
 
 ### NULL Handling
+
 - Most functions return NULL when given NULL arguments
 - Aggregate functions skip NULL values (except count(*))
 - Type conversion attempts when mixing types
 
 ### Numeric Precision
+
 - Integer operations use int64
 - Floating-point operations use float64
 - Integer overflow in sum() automatically switches to float
 - Special float values (NaN, Inf) are handled appropriately
 
 ### Date/Time Internals
+
 - Dates stored internally as Julian day numbers
 - 1970-01-01 00:00:00 = JD 2440587.5
 - Valid range: 0000-01-01 to 9999-12-31

@@ -91,27 +91,32 @@ go test -fuzz=FuzzOSISConverter -fuzztime=30s ./pkg/markup/
 ### Test Categories
 
 #### Core Infrastructure (Phase 1)
+
 - `pkg/config/config_test.go` - YAML config parsing, path expansion
 - `pkg/sword/conf_test.go` - SWORD .conf parsing, RTF escapes
 - `pkg/sword/versification_test.go` - Book lookups, indices, aliases
 
 #### Markup Converters (Phase 2)
+
 - `pkg/markup/osis_test.go` - OSIS XML to Markdown
 - `pkg/markup/thml_test.go` - ThML markup conversion
 - `pkg/markup/gbf_test.go` - GBF format handling
 - `pkg/markup/tei_test.go` - TEI dictionary entries
 
 #### e-Sword Parsers (Phase 3)
+
 - `pkg/esword/bible_test.go` - SQLite Bible parsing
 - `pkg/esword/commentary_test.go` - Commentary entries
 - `pkg/esword/dictionary_test.go` - Dictionary/lexicon
 
 #### Binary Format Parsers (Phase 4)
+
 - `pkg/sword/ztext_test.go` - Compressed Bible text
 - `pkg/sword/zcom_test.go` - Compressed commentaries
 - `pkg/sword/zld_test.go` - Compressed dictionaries
 
 #### Output Generation (Phase 5)
+
 - `pkg/output/json_test.go` - JSON file generation
 
 #### Migration (Phase 6)
@@ -119,6 +124,7 @@ go test -fuzz=FuzzOSISConverter -fuzztime=30s ./pkg/markup/
 - `pkg/migrate/migrator_test.go` - Module file operations
 
 #### Robustness (Phase 7)
+
 - `pkg/markup/fuzz_test.go` - Fuzz testing for markup
 - `pkg/sword/fuzz_test.go` - Fuzz testing for parsing
 
@@ -134,6 +140,7 @@ SWORD_PATH=~/.sword go test -run Integration ./...
 ```
 
 **Tests included:**
+
 - `TestIntegration_LoadKJV` - Load KJV module
 - `TestIntegration_KJV_Genesis1` - Parse Genesis 1:1
 - `TestIntegration_KJV_John316` - Verify verse content
@@ -259,6 +266,7 @@ path := createTestZTextModule(t, map[string]string{
 ## Edge Cases Covered
 
 ### Unicode
+
 - Hebrew RTL with combining marks: `בְּרֵאשִׁית`
 - Greek polytonic: `Ἐν ἀρχῇ ἦν ὁ λόγος`
 - NFC normalization roundtrip
@@ -271,12 +279,14 @@ path := createTestZTextModule(t, map[string]string{
 - Nested in red-letter markup
 
 ### Binary Formats
+
 - Empty verse entries (Size = 0)
 - Testament boundaries (OT→NT)
 - Corrupted zlib data
 - Truncated index files
 
 ### SQLite
+
 - NULL values, missing tables
 - Schema variations
 - Encoding (Latin-1 vs UTF-8)
@@ -335,10 +345,12 @@ Test sets are configured in `tools/juniper/testdata/bible_sets.yaml`:
 
 ```yaml
 # Quick tests on every push
+
 - run: npm run build
 - run: npm run test:sword
 
 # Full tests on main
+
 - run: go test -coverprofile=coverage.out ./...
 ```
 

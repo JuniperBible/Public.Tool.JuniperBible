@@ -296,6 +296,7 @@ capsule docgen <subcommand> [--output <dir>]
 ```
 
 **Subcommands:**
+
 - `plugins` - Generate PLUGINS.md
 - `formats` - Generate FORMATS.md
 - `cli` - Generate CLI_REFERENCE.md

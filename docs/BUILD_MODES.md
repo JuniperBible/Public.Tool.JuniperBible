@@ -37,6 +37,7 @@ CGO_ENABLED=1 go test -tags cgo_sqlite ./...
 ## Why Two Drivers?
 
 ### Pure Go (Default)
+
 - **Portability**: Works on any platform without C compiler
 - **Cross-compilation**: Easy cross-compilation to any GOOS/GOARCH
 - **Reproducibility**: Deterministic builds
@@ -122,20 +123,25 @@ jobs:
   test-purego:
     runs-on: ubuntu-latest
     steps:
+
       - run: CGO_ENABLED=0 go test ./...
 
   test-cgo:
     runs-on: ubuntu-latest
     steps:
+
       - run: CGO_ENABLED=1 go test -tags cgo_sqlite ./...
 
   verify-divergence:
     runs-on: ubuntu-latest
     steps:
+
       - name: Test Pure Go
         run: go test ./core/sqlite/... -v -run DivergenceHash | tee purego.txt
+
       - name: Test CGO
         run: CGO_ENABLED=1 go test -tags cgo_sqlite ./core/sqlite/... -v -run DivergenceHash | tee cgo.txt
+
       - name: Compare hashes
         run: |
           grep "Divergence hash:" purego.txt > hash1.txt
@@ -158,6 +164,7 @@ By default, all plugins are embedded directly into the main binaries:
 | `capsule-api` | All format and tool plugins |
 
 **Benefits:**
+
 - Single-binary deployment
 - No external dependencies
 - Faster plugin execution (no subprocess overhead)
@@ -184,6 +191,7 @@ CAPSULE_PLUGINS_EXTERNAL=1 ./capsule-web
 ```
 
 When external plugins are enabled:
+
 1. Embedded plugins are still tried first
 2. If no embedded handler found, external plugins in `./plugins/` are used
 3. External plugins communicate via JSON IPC (stdin/stdout)
@@ -223,6 +231,7 @@ dist/
 ```
 
 Each distribution contains:
+
 - **bin/**: Main binaries with all plugins embedded
 - **plugins/**: Noop placeholder for custom/premium plugins
 - **capsules/**: Sample Bible capsules (if available)

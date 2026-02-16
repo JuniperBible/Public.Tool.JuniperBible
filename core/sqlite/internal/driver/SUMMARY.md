@@ -113,32 +113,38 @@ driver
 ### Implemented
 
 ✅ **Driver Registration**
+
 - Registers as "sqlite" driver
 - Compatible with database/sql package
 - Supports connection pooling
 
 ✅ **Connection Management**
+
 - Opens and closes database files
 - Initializes pager and btree
 - Manages connection lifecycle
 - Thread-safe driver instance
 
 ✅ **Statement Preparation**
+
 - Parses SQL to AST
 - Validates syntax
 - Prepares for execution
 
 ✅ **Query Execution Framework**
+
 - Compiles AST to VDBE bytecode
 - Executes bytecode via VDBE
 - Returns result sets
 
 ✅ **Transaction Support**
+
 - BEGIN/COMMIT/ROLLBACK
 - ACID properties via pager journaling
 - Automatic rollback on errors
 
 ✅ **Type Conversion**
+
 - NULL, INTEGER, REAL, TEXT, BLOB
 - Automatic type coercion
 - Go type support
@@ -146,17 +152,20 @@ driver
 ### In Progress
 
 🔄 **Complete Bytecode Generation**
+
 - Basic framework exists
 - Need full implementation for all SQL statements
 - Parameter binding
 - Expression evaluation
 
 🔄 **B-tree Integration**
+
 - Cursor operations
 - Record serialization
 - Page navigation
 
 🔄 **Schema Management**
+
 - CREATE TABLE implementation
 - DROP TABLE implementation
 - System catalog tables
@@ -164,6 +173,7 @@ driver
 ### Future Work
 
 ⏳ **Advanced Features**
+
 - Indexes and query optimization
 - Aggregate functions
 - Subqueries and joins
@@ -171,11 +181,13 @@ driver
 - Triggers and views
 
 ⏳ **Performance Optimization**
+
 - Compiled expressions
 - Better caching
 - Parallel execution
 
 ⏳ **Extended Features**
+
 - Full-text search
 - JSON support
 - Virtual tables
@@ -324,12 +336,14 @@ Application
 ## Development Status
 
 **Current Phase**: Alpha
+
 - Core architecture implemented
 - Basic functionality working
 - Many features incomplete
 - API may change
 
 **Next Milestones**:
+
 1. Complete VDBE bytecode generation
 2. Full B-tree integration
 3. Schema management

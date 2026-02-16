@@ -5,6 +5,7 @@ Tool for creating GoBible applications for J2ME mobile phones.
 ## Formats Supported
 
 GoBible Creator is the reference tool for:
+
 - format-gobible (GoBible .jar/.jad files)
 
 ## About GoBible

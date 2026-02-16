@@ -40,6 +40,7 @@ Unit tests are fast, isolated tests that verify individual functions and modules
 **Location:** `*_test.go` files alongside source code
 
 **Purpose:**
+
 - Verify individual function behavior
 - Provide coverage metrics (target: 80%+)
 - Fast feedback during development
@@ -80,6 +81,7 @@ Integration tests verify that components work together correctly with real depen
 **Location:** `tests/integration/`
 
 **Purpose:**
+
 - Test real tool interactions (SWORD tools, SQLite, etc.)
 - Verify CLI commands work end-to-end
 - Test with real file formats and data
@@ -121,6 +123,7 @@ Runner tests execute complete workflows in a controlled, reproducible environmen
 **Location:** `core/runner/` and CI/CD pipelines
 
 **Purpose:**
+
 - Full workflow validation
 - Reproducible execution environment
 - Behavioral regression testing
@@ -264,11 +267,13 @@ testdata/goldens/
 ### Updating Goldens
 
 **Only update when:**
+
 - Intentional behavior change
 - Change is understood and documented
 - Change has been reviewed
 
 **Never update when:**
+
 - "Tests are failing"
 - You don't understand why
 - To make CI pass
@@ -404,6 +409,7 @@ SDK and non-SDK implementations share the same package but use different build t
 - **SDK:** RPC communication over stdin/stdout
 
 Test files marked with `//go:build !sdk` prevent:
+
 - Linker conflicts (both versions defining same symbols)
 - Test execution against wrong implementation
 - CI/CD confusion about which version is being tested

@@ -150,6 +150,7 @@ Dynamic programming algorithm for multi-table queries:
 ### 1. LogEst Type
 
 Used logarithmic representation for row counts and costs:
+
 - Compact (int16 instead of int64)
 - Natural for multiplication (addition of logs)
 - Prevents overflow on large numbers
@@ -158,6 +159,7 @@ Used logarithmic representation for row counts and costs:
 ### 2. Bitmask for Table Sets
 
 Used uint64 bitmask for table dependencies:
+
 - Fast set operations (AND, OR)
 - Efficient space usage
 - Limits joins to 64 tables (reasonable for most queries)
@@ -165,12 +167,14 @@ Used uint64 bitmask for table dependencies:
 ### 3. Separate Concerns
 
 Clean separation between:
+
 - **Types**: Data structures (types.go)
 - **Cost**: Cost estimation (cost.go)
 - **Generation**: Access path generation (whereloop.go, index.go)
 - **Planning**: Overall orchestration (planner.go)
 
 This modularity enables:
+
 - Easy testing of individual components
 - Flexibility to swap cost models
 - Clear code organization
@@ -230,6 +234,7 @@ These SQLite features are not included:
 ### Benchmarks
 
 Expected performance (on modern hardware):
+
 - Simple query (<10 tables, <5 indexes): < 100μs
 - Complex query (10+ tables, 10+ indexes): < 10ms
 - Very complex query: < 100ms

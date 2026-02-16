@@ -89,6 +89,7 @@ capsule web --port 8080 --capsules ./capsules --sword ~/.sword
 ```
 
 This command:
+
 - Starts an HTTP server on the specified port
 - Serves the embedded web UI from `internal/web/templates/` and `internal/web/static/`
 - Browses capsules in the specified directory
@@ -102,6 +103,7 @@ capsule api --port 8081 --capsules ./capsules
 ```
 
 This command:
+
 - Starts a REST API server on the specified port
 - Provides JSON endpoints for capsule operations
 - Supports plugin discovery and execution
@@ -216,6 +218,7 @@ CAPSULE_PLUGINS_EXTERNAL=1 capsule web --port 8080
 ### Plugin Discovery Order
 
 When external plugins are enabled:
+
 1. Check embedded plugins first
 2. Fall back to external plugins in `--plugins` directory
 3. Log which plugins are loaded from where

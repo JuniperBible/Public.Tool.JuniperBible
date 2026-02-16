@@ -78,10 +78,12 @@ Update your CI pipelines to use the new names:
 
 ```yaml
 # Before
+
 - run: make plugins
 - run: make juniper-test-comprehensive
 
 # After
+
 - run: make build-plugins
 - run: make test-juniper-home
 ```

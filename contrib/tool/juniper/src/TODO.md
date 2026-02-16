@@ -26,12 +26,14 @@ Goal: Achieve high test coverage across all juniper packages.
 | cmd/juniper | 0.0% | Needs improvement (CLI code) |
 
 ### Test Requirements
+
 - All verse comparisons must be done verse-by-verse
 - Each verse must be compared individually against reference output
 - Use Go's table-driven tests for comprehensive verse testing
 - Mock diatheke output for deterministic testing
 
 ### Remaining Work
+
 - [ ] Add more tests for pkg/sword to reach 90%+
 - [ ] Add more tests for pkg/output to reach 90%+
 - [ ] Add more tests for pkg/repository (FTP functions require mocking)
@@ -44,6 +46,7 @@ Goal: Achieve high test coverage across all juniper packages.
 Replace the SWORD `installmgr` tool with a native Go implementation in juniper.
 
 ### Phase 1: Core Infrastructure (Tests First) - COMPLETE
+
 - [x] Write tests for source parsing (source_test.go) - 15 tests
 - [x] Write tests for default sources
 - [x] Implement `Source` struct and parser
@@ -63,6 +66,7 @@ Replace the SWORD `installmgr` tool with a native Go implementation in juniper.
 Total: 84 tests passing in pkg/repository/
 
 ### Phase 2: CLI Commands - IN PROGRESS
+
 - [x] Create `cmd/juniper/repo.go` with repo subcommand
 - [ ] Add `juniper repo list-sources` command
   - [ ] Write test for list-sources output format
@@ -89,6 +93,7 @@ Total: 84 tests passing in pkg/repository/
   - [ ] Compare cleanup 1:1 with `installmgr -u`
 
 ### Phase 3: FTP Client Implementation
+
 - [ ] Add FTP client using github.com/jlaffaye/ftp
 - [ ] Write tests for FTP connection (mock)
 - [ ] Write tests for FTP directory listing
@@ -97,6 +102,7 @@ Total: 84 tests passing in pkg/repository/
 - [ ] Test against real CrossWire FTP server (integration test)
 
 ### Phase 4: Enhanced Features
+
 - [ ] Add checksum verification for downloaded modules
 - [ ] Add module integrity check (verify data files exist)
 - [ ] Add version comparison for updates
@@ -105,6 +111,7 @@ Total: 84 tests passing in pkg/repository/
 - [ ] Incremental index updates (delta downloads)
 
 ### Phase 5: 1:1 Validation
+
 - [ ] Run compare_sources.sh and verify identical output
 - [ ] Run compare_modules.sh and verify identical output
 - [ ] Run test_install.sh and verify identical file installation
@@ -118,6 +125,7 @@ Total: 84 tests passing in pkg/repository/
 
 ### Background
 SWORD modules use different versification systems that affect verse indexing:
+
 - **KJV** - Protestant 66-book canon (default)
 - **KJVA** - KJV with Apocrypha
 - **Vulg** - Latin Vulgate (Catholic, different Psalm numbering, deuterocanon)
@@ -128,6 +136,7 @@ SWORD modules use different versification systems that affect verse indexing:
 - **Synodal/SynodalProt** - Russian Orthodox
 
 ### Key Differences to Handle
+
 1. **Psalm numbering**: LXX/Vulgate Psalm N = Hebrew/KJV Psalm N+1 (for Psalms 10-146)
 2. **Deuterocanonical books**: Tobit, Judith, Wisdom, Sirach, Baruch, 1-2 Maccabees
 3. **Additional LXX books**: 1 Esdras, Prayer of Manasseh, Psalm 151, 3-4 Maccabees
@@ -135,6 +144,7 @@ SWORD modules use different versification systems that affect verse indexing:
 5. **Book order**: Different canonical ordering across traditions
 
 ### Phase 1: Data Structures ✅ COMPLETE
+
 - [x] Create `pkg/sword/versification_systems.go`
 - [x] Define KJV verse counts (versification_kjv.go) - 66 books
 - [x] Define KJVA verse counts (versification_kjva.go) - 81 books
@@ -143,23 +153,27 @@ SWORD modules use different versification systems that affect verse indexing:
 - [x] Add versification_systems_test.go
 
 **Remaining Phase 1 tasks:**
+
 - [ ] Define Catholic/Catholic2 verse counts
 - [ ] Define NRSV/NRSVA verse counts
 - [ ] Define Synodal/SynodalProt verse counts
 - [ ] Define Leningrad/MT verse counts
 
 ### Phase 2: Verse Mapping Functions ✅ COMPLETE
+
 - [x] Create `pkg/sword/verse_mapper.go`
 - [x] Create `pkg/sword/verse_mapper_test.go`
 - [x] Implement Vulg ↔ KJV mappings
 - [x] Implement LXX ↔ KJV mappings
 
 ### Phase 3: Parser Integration ✅ COMPLETE
+
 - [x] Update `pkg/sword/ztext.go` with versification support
 - [x] Add NewZTextParserWithVersification()
 - [x] Add Versification() accessor method
 
 ### Phase 4: Output Normalization - PENDING
+
 - [ ] Update `pkg/output/json.go`
   - Option to normalize all output to KJV versification
   - Include original versification references in JSON
@@ -168,11 +182,13 @@ SWORD modules use different versification systems that affect verse indexing:
 - [ ] Create verse mapping data for frontend cross-reference
 
 ### Phase 5: Testing & Validation ✅ COMPLETE
+
 - [x] Extend versification_systems_test.go
 - [x] Integration tests with real modules
 - [x] Verify all 8 current Bibles parse correctly
 
 ### Phase 6: Documentation - PENDING
+
 - [x] Update README.md with versification support
 - [ ] Create docs/versification-mapping.md
 
@@ -192,6 +208,7 @@ pkg/sword/
 ```
 
 ### Reference Materials
+
 - [CrossWire Alternate Versification](https://wiki.crosswire.org/Alternate_Versification)
 - SWORD source: `include/canon_vulg.h`, `include/canon_lxx.h`
 - [JSword versification classes](https://github.com/crosswire/jsword)
@@ -202,6 +219,7 @@ pkg/sword/
 ## SWORD/e-Sword Converter - COMPLETE
 
 ### Phase 1: Foundation ✅
+
 - [x] Go project structure
 - [x] SWORD .conf INI parser
 - [x] Versification mappings (KJV)
@@ -209,27 +227,32 @@ pkg/sword/
 - [x] CLI with cobra
 
 ### Phase 2: SWORD Parsing ✅
+
 - [x] zText parser (ZIP-compressed Bible text)
 - [x] OSIS → Markdown converter
 - [x] Strong's numbers preservation
 
 ### Phase 3: Markup Converters ✅
+
 - [x] ThML converter
 - [x] GBF converter
 - [x] TEI converter
 
 ### Phase 4: Additional Formats ✅
+
 - [x] RawGenBook parser (for Quran, Ethiopian texts) - 2025-12-30
       - pkg/sword/rawgenbook.go with TreeKey support
       - Tested with KORAN (115 surahs), Enoch (112 entries), Jubilees (52 entries)
 - [ ] e-Sword .bblx parser
 
 ### Phase 5: Hugo Integration ✅
+
 - [x] JSON output for Hugo data files
 - [x] Book/chapter/verse structure
 - [x] Metadata extraction
 
 ### Phase 6: Testing ✅
+
 - [x] Unit tests for all parsers
 - [x] Integration tests with real modules (22 tests)
       - zText: KJV, DRC, Vulgate, Geneva1599, Tyndale (5 Bibles)
@@ -251,6 +274,7 @@ Fixed issue where book selectors showed books with no content.
 - [x] Added tests for ExcludedBook struct
 
 Results:
+
 - OSMHB: 39 OT books (was 66), 27 excluded
 - SBLGNT: 27 NT books, 39 excluded
 - pkg/output coverage: 70.1% → 83.9%
@@ -268,6 +292,7 @@ better cross-platform support, and integration with the juniper pipeline.
 **Reference:** Official diatheke at https://crosswire.org/sword/
 
 ### Phase 1: Core CLI Implementation
+
 - [ ] Add `juniper diatheke` subcommand
   - Mirror official diatheke CLI flags
   - Use existing zText/zCom/zLD parsers
@@ -288,6 +313,7 @@ better cross-platform support, and integration with the juniper pipeline.
   - Route to appropriate parser (zText, zCom, zLD)
 
 ### Phase 2: Output Format Compatibility
+
 - [ ] Implement plain text output (-f plain)
 - [ ] Implement OSIS output (-f OSIS)
 - [ ] Implement HTML output (-f HTML)
@@ -295,6 +321,7 @@ better cross-platform support, and integration with the juniper pipeline.
 - [ ] Add formatting options (-o flags)
 
 ### Phase 3: Search Functionality
+
 - [ ] Implement text search (-s <type>)
   - regex: Regular expression search
   - phrase: Exact phrase search
@@ -302,17 +329,20 @@ better cross-platform support, and integration with the juniper pipeline.
 - [ ] Add search range limiting
 
 ### Phase 4: Additional Module Support
+
 - [ ] Dictionary/Lexicon support
 - [ ] Commentary support
 - [ ] GenBook support
 
 ### Phase 5: 1:1 Validation
+
 - [ ] Create comparison test script
 - [ ] Test with all 8 website Bibles
 - [ ] Test edge cases
 - [ ] Document intentional differences
 
 ### Phase 6: Testing
+
 - [ ] Unit tests for reference parser
 - [ ] Unit tests for formatters
 - [ ] Unit tests for module detection
@@ -334,6 +364,7 @@ better cross-platform support, and integration with the juniper pipeline.
 ## Completed Items
 
 ### Tool Migration to Go (2026-01-01) ✅
+
 - [x] Renamed sword-converter to `juniper`
 - [x] Restructured CLI
 - [x] Moved Python extractors to attic

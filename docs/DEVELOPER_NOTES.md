@@ -5,6 +5,7 @@
 You are not building a Bible converter.
 
 You are building a **forensic harness** that:
+
 - Stores files exactly as they came in
 - Runs the real conversion tools in a locked box
 - Records what those tools actually do
@@ -94,6 +95,7 @@ The Plugin SDK provides a simplified development path for plugins by handling co
 ### SDK Adoption
 
 Currently **87 plugins** have SDK versions, allowing developers to choose between:
+
 - Direct plugin implementation for maximum control
 - SDK-based implementation for faster development
 
@@ -116,6 +118,7 @@ go build -tags=sdk
 ### When Adding Support for a Format
 
 Write a format plugin that only:
+
 - Detects the format
 - Ingests bytes
 - Optionally enumerates components
@@ -150,6 +153,7 @@ Do not parse or reinterpret content unless explicitly told.
 Tests do not compare text files.
 
 Tests compare **hashes**:
+
 - Blob hashes
 - Transcript hashes
 - Self-check report hashes
@@ -174,6 +178,7 @@ No guessing.
 ## What "Done" Looks Like
 
 A feature is done only if:
+
 - Its outputs are stored as blobs
 - Its behavior is recorded in a transcript
 - A self-check plan verifies it
@@ -195,6 +200,7 @@ If any of those are missing, the feature is incomplete.
 ## Why This Makes Your Life Easier
 
 Once this system exists:
+
 - You don't argue about edge cases
 - You don't chase mysterious regressions
 - You don't guess how a tool behaves

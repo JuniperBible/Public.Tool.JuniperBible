@@ -47,10 +47,12 @@ Install the "OpenAPI (Swagger) Editor" extension and open `openapi.yaml`
 The Juniper Bible API provides **11 endpoints** across 6 categories:
 
 ### Information & Health
+
 - `GET /` - API information
 - `GET /health` - Health check
 
 ### Capsule Management
+
 - `GET /capsules` - List all capsules
 - `POST /capsules` - Upload a new capsule
 - `GET /capsules/{id}` - Get capsule details
@@ -61,6 +63,7 @@ The Juniper Bible API provides **11 endpoints** across 6 categories:
 - `POST /convert` - Synchronous conversion (not yet implemented)
 
 ### Asynchronous Jobs
+
 - `POST /jobs` - Create conversion job
 - `GET /jobs/{id}` - Get job status
 - `DELETE /jobs/{id}` - Cancel job

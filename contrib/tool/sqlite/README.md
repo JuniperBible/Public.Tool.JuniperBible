@@ -5,6 +5,7 @@ Lightweight, serverless SQL database engine.
 ## Formats Supported
 
 SQLite is the reference tool for these Juniper Bible format plugins:
+
 - format-sqlite (Generic SQLite Bible databases)
 - format-esword (e-Sword .bblx/.cmtx files use SQLite)
 

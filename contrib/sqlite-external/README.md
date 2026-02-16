@@ -15,12 +15,14 @@ However, for performance-critical applications or when specific SQLite features 
 This is the mature, well-tested CGO SQLite driver that uses the native SQLite C library.
 
 **Advantages:**
+
 - **Performance**: Native C implementation can be 2-5x faster for large databases
 - **Compatibility**: Exact same behavior as system SQLite
 - **Feature Complete**: Full access to all SQLite features and extensions
 - **Battle-Tested**: Widely used in production by many Go projects
 
 **Disadvantages:**
+
 - **CGO Required**: Needs C compiler and `CGO_ENABLED=1`
 - **Cross-Compilation**: More complex to cross-compile to different platforms
 - **Build Time**: Slower compilation due to C code
@@ -29,6 +31,7 @@ This is the mature, well-tested CGO SQLite driver that uses the native SQLite C 
 ## When to Use
 
 ### Use Pure Go (Default)
+
 - General purpose applications
 - Cross-platform distribution
 - Simple deployment (single binary)
@@ -36,6 +39,7 @@ This is the mature, well-tested CGO SQLite driver that uses the native SQLite C 
 - When portability > performance
 
 ### Use CGO Driver (This Package)
+
 - Performance-critical database operations
 - Large database files (>100MB)
 - Need specific SQLite extensions
@@ -220,6 +224,7 @@ CGO_ENABLED=1 go build -tags cgo_sqlite ./...
 ### Tests Fail: "divergence hash mismatch"
 
 This indicates the CGO and pure Go drivers are producing different results. File an issue with:
+
 1. The failing test output
 2. Your platform and SQLite version
 3. Steps to reproduce

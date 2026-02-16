@@ -281,6 +281,7 @@ Configure the homepage carousel arrow and dot navigation styles:
 ### Theatre Mode
 
 When `theatreMode = true`, all settings are overridden with cinematic defaults:
+
 - Tab-style arrows with rounded corners
 - Arrows positioned outside on left/right sides
 - Contained peek mode (partial adjacent slides visible within container)
@@ -535,6 +536,7 @@ Configure markdown rendering:
 ```
 
 **Why `unsafe = true`?**
+
 - Needed for custom HTML in markdown (chapter grids, special formatting)
 - Content is trusted (no user-generated content)
 

@@ -12,6 +12,7 @@ This package provides UTF-8 and UTF-16 encoding/decoding utilities, string colla
 - **Case Operations**: ASCII case folding for NOCASE collation
 
 Key Functions:
+
 - `AppendRune()` - Append UTF-8 encoded rune to buffer
 - `EncodeRune()` - Encode rune to fixed buffer
 - `DecodeRune()` - Decode UTF-8 rune with validation
@@ -27,6 +28,7 @@ Key Functions:
 - **Conversion**: Convert between UTF-8 and UTF-16
 
 Key Functions:
+
 - `UTF16ToUTF8()` - Convert UTF-16 to UTF-8
 - `UTF8ToUTF16()` - Convert UTF-8 to UTF-16
 - `DetectBOM()` - Detect byte order mark
@@ -41,10 +43,12 @@ Implements SQLite's standard collation sequences:
 - **RTRIM**: Ignores trailing spaces
 
 Pattern Matching:
+
 - `Like()` - SQL LIKE operator (with % and _ wildcards)
 - `Glob()` - SQL GLOB operator (with * and ? wildcards, character classes)
 
 Key Functions:
+
 - `CompareBinary()` - Binary string comparison
 - `CompareNoCase()` - Case-insensitive comparison
 - `CompareRTrim()` - Compare ignoring trailing spaces
@@ -60,6 +64,7 @@ SQLite's variable-length integer encoding:
 - Compatible with SQLite's binary format
 
 Format:
+
 - **7 bits**: A (0xxxxxxx)
 - **14 bits**: BA (1xxxxxxx 0xxxxxxx)
 - **21 bits**: BBA
@@ -71,6 +76,7 @@ Format:
 - **64 bits**: BBBBBBBBC (9th byte has all 8 bits)
 
 Key Functions:
+
 - `PutVarint()` - Encode uint64 to varint
 - `GetVarint()` - Decode varint to uint64
 - `GetVarint32()` - Decode varint to uint32
@@ -161,6 +167,7 @@ Following SQLite's rules for UTF-8 validation:
 ### NOCASE Collation
 
 SQLite's NOCASE collation is intentionally limited to ASCII:
+
 - Only characters A-Z are folded to a-z
 - Non-ASCII characters (including accented letters) are compared byte-by-byte
 - This ensures consistent behavior across all platforms
@@ -168,6 +175,7 @@ SQLite's NOCASE collation is intentionally limited to ASCII:
 ### Varint Optimization
 
 The varint encoding is optimized for:
+
 - **Fast path**: 1-byte and 2-byte varints use simple conditionals
 - **Slow path**: Larger varints use the full algorithm
 - **9-byte encoding**: Values with the high 8 bits set use a special 9-byte format
@@ -197,6 +205,7 @@ go test -bench=.
 ```
 
 Key performance characteristics:
+
 - UTF-8 encoding/decoding: ~10-50 ns/op
 - Varint encoding: ~5-20 ns/op depending on size
 - String comparison: ~20-100 ns/op depending on length

@@ -45,6 +45,7 @@ nix-shell
 ```
 
 The `shell.nix` provides:
+
 - Hugo (extended version)
 - Node.js 22
 - Go toolchain
@@ -391,6 +392,7 @@ themes/airfold/
 Follow this process for all changes:
 
 ```
+
 1. Document Behavior  →  Describe what the feature should do in docs/
 2. Write Tests        →  Create tests that verify the documented behavior
 3. Write Code         →  Implement the feature to pass the tests
@@ -627,6 +629,7 @@ All JavaScript is self-hosted (no CDN dependencies):
 ### Lightbox Feature
 
 Tables and Mermaid diagrams get automatic lightbox support:
+
 - Hover shows expand arrow
 - Click opens fullscreen with zoom/rotate
 - Touch gestures: pinch-to-zoom, two-finger rotate
@@ -753,6 +756,7 @@ footer (optional)
 ```
 
 Types:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation

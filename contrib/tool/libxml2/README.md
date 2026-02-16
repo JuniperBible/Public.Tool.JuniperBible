@@ -5,6 +5,7 @@ XML parsing and transformation toolkit.
 ## Formats Supported
 
 libxml2 tools are references for these Juniper Bible format plugins:
+
 - format-osis (OSIS XML)
 - format-usx (USX XML)
 - format-zefania (Zefania XML)

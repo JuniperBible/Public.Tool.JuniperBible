@@ -9,6 +9,7 @@ This directory contains an optional CGO-based SQLite driver implementation using
 ## When to Use This Driver
 
 Use this CGO driver if you:
+
 - Need maximum SQLite performance and are willing to deal with CGO complexity
 - Have specific requirements that necessitate the C-based SQLite implementation
 - Are comfortable managing CGO dependencies and build requirements
@@ -22,6 +23,7 @@ To use this driver, you need to:
    ```bash
    go get github.com/mattn/go-sqlite3
    ```
+
 3. Build with CGO enabled and the appropriate build tag:
    ```bash
    CGO_ENABLED=1 go build -tags cgo_sqlite
@@ -36,6 +38,7 @@ To use this driver, you need to:
 ## Performance
 
 The CGO driver typically offers:
+
 - Faster query execution for complex queries
 - Better performance on large datasets
 - Lower memory overhead in some scenarios

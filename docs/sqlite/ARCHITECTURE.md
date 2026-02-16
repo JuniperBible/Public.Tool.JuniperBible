@@ -84,42 +84,51 @@ core/sqlite (public API)
 ### Query Execution Flow
 
 ```
+
 1. Application calls db.Query("SELECT ...")
                 ↓
+
 2. Driver receives query string
                 ↓
+
 3. Parser converts SQL to AST
    - Lexer tokenizes input
    - Parser builds syntax tree
    - Semantic analysis validates references
                 ↓
+
 4. Planner optimizes query
    - Analyzes WHERE clauses
    - Chooses indexes
    - Determines join order
    - Estimates costs
                 ↓
+
 5. Code Generator emits VDBE bytecode
    - Translates AST to opcodes
    - Allocates registers
    - Generates jump labels
                 ↓
+
 6. VDBE executes bytecode
    - Opens B-tree cursors
    - Evaluates expressions
    - Calls functions
    - Returns result rows
                 ↓
+
 7. B-tree layer accesses data
    - Positions cursors
    - Reads cells from pages
    - Handles overflow pages
                 ↓
+
 8. Pager retrieves pages
    - Checks page cache
    - Reads from disk if needed
    - Manages dirty pages
                 ↓
+
 9. Results returned to application
    - VDBE memory cells converted to driver.Value
    - Rows iterator provides sequential access
@@ -128,34 +137,44 @@ core/sqlite (public API)
 ### Write Transaction Flow
 
 ```
+
 1. Application calls db.Begin()
                 ↓
+
 2. Pager begins transaction
    - Acquires locks
    - Opens rollback journal
                 ↓
+
 3. Application executes INSERT/UPDATE/DELETE
                 ↓
+
 4. Parser → Planner → Code Generator
                 ↓
+
 5. VDBE executes write operations
    - Opens B-tree cursors for writing
    - Modifies pages in memory
                 ↓
+
 6. Pager journals original pages
    - Before modifying, writes original page to journal
    - Marks pages as dirty in cache
                 ↓
+
 7. Application calls tx.Commit()
                 ↓
+
 8. Pager commits transaction
    - Writes all dirty pages to database file
    - Syncs database file to disk
    - Deletes journal file
    - Releases locks
                 ↓
+
 9. OR Application calls tx.Rollback()
                 ↓
+
 10. Pager rolls back transaction
     - Restores pages from journal
     - Discards dirty pages
@@ -168,18 +187,21 @@ core/sqlite (public API)
 ### 1. SQL Interface Layer
 
 **Parser** (`internal/parser`)
+
 - **Lexer**: Tokenizes SQL text into tokens (keywords, identifiers, operators, literals)
 - **Parser**: Builds Abstract Syntax Tree (AST) from token stream
 - **AST**: Represents SQL statements as structured data
 - **Validation**: Performs semantic analysis and type checking
 
 **Planner** (`internal/planner`)
+
 - **Query Analysis**: Analyzes query structure and predicates
 - **Index Selection**: Chooses optimal indexes for table access
 - **Cost Estimation**: Estimates query execution cost
 - **Optimization**: Applies query rewrite rules
 
 **Code Generator** (`internal/sql`, `internal/engine`)
+
 - **Register Allocation**: Assigns VDBE memory cells
 - **Opcode Emission**: Generates bytecode instructions
 - **Label Resolution**: Resolves jump targets
@@ -188,6 +210,7 @@ core/sqlite (public API)
 ### 2. Virtual Database Engine (VDBE)
 
 **Bytecode Interpreter** (`internal/vdbe`)
+
 - **Opcodes**: ~100 bytecode instructions
 - **Memory**: Array of typed memory cells (NULL, INTEGER, FLOAT, TEXT, BLOB)
 - **Program Counter**: Tracks current instruction
@@ -229,18 +252,21 @@ core/sqlite (public API)
 ### 4. Pager Layer
 
 **Page Cache** (`internal/pager`)
+
 - **Cache Management**: LRU eviction for clean pages
 - **Hash Map**: O(1) page lookup by page number
 - **Reference Counting**: Prevents premature eviction
 - **Dirty Tracking**: Maintains list of modified pages
 
 **Transaction Management** (`internal/pager/transaction.go`, `internal/pager/journal.go`)
+
 - **Rollback Journal**: Atomic commit/rollback
 - **State Machine**: Tracks transaction state
 - **File Syncing**: Ensures durability
 - **Lock Management**: Prevents concurrent writers
 
 **File Format** (`internal/format`)
+
 - **Database Header**: 100-byte header with metadata
 - **Page Header**: 8-12 bytes per page
 - **Page Size**: 512 to 65536 bytes (power of 2)
@@ -249,6 +275,7 @@ core/sqlite (public API)
 ### 5. Schema Management
 
 **Schema Layer** (`internal/schema`)
+
 - **sqlite_master Table**: Stores table/index definitions
 - **Schema Parsing**: Extracts schema information
 - **Type Affinity**: Column type rules

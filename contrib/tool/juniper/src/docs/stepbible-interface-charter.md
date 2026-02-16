@@ -33,6 +33,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 - Accessible directly in browser with no download required
 
 **References:**
+
 - [Bible Study Essentials: STEPBible Review](https://www.patheos.com/blogs/leadaquietlife/2025/04/bible-study-essentials-a-look-at-the-step-bible/)
 - [STEPBible.org](https://www.stepbible.org/)
 - [STEP User Guide FAQ](https://stepweb.atlassian.net/wiki/spaces/SUG/pages/8323078/Frequently+Asked+Questions)
@@ -40,6 +41,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 ## Project Goals
 
 ### Primary Objectives
+
 1. **Parallel Translation View**: Display 2-4 Bible translations side-by-side for verse-by-verse comparison
 2. **Interlinear Mode**: Show original Hebrew/Greek text aligned with English translation word-by-word
 3. **Enhanced Strong's Integration**: Expand beyond links to show full definitions, occurrence counts, and related verses
@@ -49,6 +51,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 7. **Paper Aesthetic Compliance**: Ensure all new features maintain the handwritten, organic visual style
 
 ### Secondary Objectives
+
 - Bookmark and highlight system for personal study notes
 - Share verse feature with formatted citations
 - Print-optimized layouts for study guides
@@ -63,6 +66,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Display multiple Bible translations simultaneously for easy comparison.
 
 **Technical Approach:**
+
 - Create new Hugo partial: `partials/bible-parallel.html`
 - CSS Grid layout with 2-4 columns (responsive breakpoints)
 - JavaScript component for dynamic translation selection
@@ -70,6 +74,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 - Synchronized scrolling across all translation columns
 
 **UI/UX Considerations:**
+
 - Wavy borders between translation columns (matching paper aesthetic)
 - Handwritten font (Neucha/Patrick Hand) for all text
 - Translation selector with checkboxes (max 4 selections)
@@ -77,6 +82,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 - Mobile: Stack translations vertically with clear headers
 
 **Data Requirements:**
+
 - Leverage existing `bibles_auxiliary.json` structure
 - Add parallel view metadata to `bibles.json`
 - Create verse-aligned JSON structure for efficient loading
@@ -92,6 +98,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 - Color-coded differences with paper-friendly palette
 
 **UI/UX Considerations:**
+
 - Soft pastel highlighting (not harsh yellow)
 - Dotted underlines for variations
 - Tooltip on hover explaining difference type
@@ -103,6 +110,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Show original language text with word-by-word English gloss.
 
 **Technical Approach:**
+
 - Extend SWORD converter to extract Hebrew/Greek text with morphology
 - Create interlinear data structure in JSON:
   ```json
@@ -120,6 +128,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
     ]
   }
   ```
+
 - Hugo partial: `partials/bible-interlinear.html`
 - Two display modes:
   - Original language order (default)
@@ -137,11 +146,13 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Show grammatical information for each word.
 
 **Technical Approach:**
+
 - Parse morphology codes into human-readable labels
 - Tooltip system for detailed grammar explanations
 - Filter options: show only verbs, nouns, etc.
 
 **UI/UX Considerations:**
+
 - Compact morphology codes in subscript
 - Expandable tooltips with full parsing (tense, voice, mood, etc.)
 - Paper-style tooltip boxes with wavy borders
@@ -153,6 +164,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Expand current Strong's linking to show full definitions inline.
 
 **Technical Approach:**
+
 - Create `data/strongs_lexicon.json` with:
   - Hebrew (H1-H8674) and Greek (G1-G5624) definitions
   - Short gloss + full definition
@@ -162,11 +174,13 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 - Fallback to Blue Letter Bible for detailed study
 
 **Data Sources:**
+
 - Open Scriptures Hebrew/Greek Lexicon (CC BY-SA 4.0)
 - Strong's original public domain content
 - Cross-reference with STEPBible's open data
 
 **UI/UX Considerations:**
+
 - Improved tooltip design with paper aesthetic
 - Two-level system: hover for quick gloss, click for full definition
 - Definition modal with wavy border frame
@@ -183,6 +197,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 - Grouped by Testament, then by book
 
 **UI/UX Considerations:**
+
 - List view with verse snippets
 - Highlight the Strong's word in each verse
 - Filter by book, translation, or Testament
@@ -194,6 +209,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Display biblical cross-references for each verse.
 
 **Technical Approach:**
+
 - Integrate Treasury of Scripture Knowledge (TSK) data (public domain)
 - Create `data/cross_references.json`:
   ```json
@@ -212,9 +228,11 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
     ]
   }
   ```
+
 - Display in sidebar or expandable section per verse
 
 **UI/UX Considerations:**
+
 - Cross-reference icon (⨁) next to verses with references
 - Expandable panel styled as paper note card
 - Click to navigate to reference verse
@@ -233,6 +251,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 - URL: `/religion/reports/gospel-harmony/`
 
 **UI/UX Considerations:**
+
 - Multi-column layout for synoptic comparison
 - Event-based navigation (not chapter-based)
 - Highlight variations between accounts
@@ -257,6 +276,7 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
   - `exact` - exact phrase vs fuzzy match
 
 **UI/UX Considerations:**
+
 - Clean search interface with paper-style input field
 - Advanced options in expandable accordion
 - Results grouped by book or by translation
@@ -267,11 +287,13 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Search Hebrew/Greek text and Strong's numbers.
 
 **Technical Approach:**
+
 - Separate search index for original language words
 - Transliteration search support (e.g., "logos" finds λόγος)
 - Strong's number wildcard search (H* for all Hebrew)
 
 **UI/UX Considerations:**
+
 - Virtual Greek/Hebrew keyboard for input
 - Transliteration auto-conversion
 - Morphology filter sidebar (tense, mood, voice, etc.)
@@ -283,12 +305,14 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Compare one verse across all available translations.
 
 **Technical Approach:**
+
 - Dedicated page: `/religion/compare/?verse=John.3.16`
 - Display all translations in a table or card grid
 - Highlight textual variants
 - Show translation philosophy notes (formal vs dynamic equivalence)
 
 **UI/UX Considerations:**
+
 - Visual hierarchy: most literal → most dynamic
 - Translation year and tradition badges (Protestant, Catholic, Orthodox)
 - Expandable notes on translation decisions
@@ -298,12 +322,14 @@ STEPBible.org (developed by Tyndale House, Cambridge) is considered one of the c
 **Description:** Link verse comparison to Strong's word study.
 
 **Technical Approach:**
+
 - Click on any word in any translation
 - Show original Greek/Hebrew word
 - Display all translation choices for that word
 - Link to full concordance
 
 **UI/UX Considerations:**
+
 - Word-level click handlers
 - Highlight all instances of the same original word in the verse
 - Side panel for word study details
@@ -357,11 +383,13 @@ Create reusable components matching the AirFold theme:
 
 #### 7.2 Typography and Color Palette
 **Fonts:**
+
 - Primary: Neucha (handwritten, informal)
 - Secondary: Patrick Hand (handwritten, slightly more formal)
 - Original Language: SBL Hebrew, SBL Greek (biblical scholarship standard)
 
 **Colors (from hugo.toml):**
+
 - Accent: `#7a00b0` (purple) - for Strong's numbers, links, highlights
 - Paper White: `#b5a48e` (cream background)
 - Paper Bright: `#e6ddc0` (content background)
@@ -373,12 +401,14 @@ Create reusable components matching the AirFold theme:
 
 #### 7.3 Animation and Interaction
 **Subtle Paper Effects:**
+
 - Wavy border animations on hover
 - Gentle shadow offsets for depth
 - Smooth transitions (200ms ease-out)
 - Touch-friendly targets (44px minimum)
 
 **Accessibility:**
+
 - ARIA labels for all interactive elements
 - Keyboard navigation (Tab, Enter, Escape)
 - Screen reader announcements for dynamic content
@@ -388,11 +418,13 @@ Create reusable components matching the AirFold theme:
 
 #### 8.1 Responsive Layouts
 **Breakpoints (Tailwind):**
+
 - Mobile: < 640px (stack all columns, simplified toolbar)
 - Tablet: 640px - 1024px (2-column parallel, compact interlinear)
 - Desktop: > 1024px (3-4 column parallel, full interlinear)
 
 **Mobile-Specific Features:**
+
 - Swipe gestures for chapter navigation (via Hammer.js)
 - Bottom navigation bar for common actions
 - Collapsible sections for cross-references
@@ -400,12 +432,14 @@ Create reusable components matching the AirFold theme:
 
 #### 8.2 Progressive Web App (PWA)
 **Offline Capability:**
+
 - Service worker for caching Bible data
 - Offline-first architecture
 - Background sync for bookmarks
 - Install prompt for home screen
 
 **Performance:**
+
 - Lazy load Bible chapters (load on scroll)
 - Compress JSON with gzip/brotli
 - Code-split JavaScript by feature
@@ -463,6 +497,7 @@ assets/js/
 
 #### SWORD Converter Enhancements
 Extend `tools/juniper/` to extract:
+
 1. Hebrew/Greek text with Strong's numbers
 2. Morphological parsing codes
 3. Interlinear word alignment data
@@ -493,12 +528,14 @@ npm run build
 ### Performance Considerations
 
 #### Data Optimization
+
 - **Chunking:** Split large JSON files by book (66 files vs 1 giant file)
 - **Compression:** Use Brotli compression for JSON (reduce 30MB → 3MB)
 - **Caching:** Service worker cache strategy (cache-first for Bible data)
 - **Lazy Loading:** Load chapters on demand, not entire Bible upfront
 
 #### Rendering Optimization
+
 - **Virtual Scrolling:** Only render visible verses (windowing)
 - **Debounced Search:** Wait 300ms after typing before searching
 - **Web Workers:** Run search indexing in background thread
@@ -510,6 +547,7 @@ npm run build
 **Goal:** Establish parallel translation view infrastructure
 
 **Completed:**
+
 - [x] Design parallel view layout (mobile + desktop wireframes)
 - [x] Create `layouts/religion/compare.html` with responsive CSS Grid
 - [x] Implement translation selector UI (checkboxes, max 4)
@@ -524,6 +562,7 @@ npm run build
 **Goal:** Multi-translation search with Strong's support
 
 **Completed:**
+
 - [x] Create `layouts/religion/search.html` search page
 - [x] Create `assets/js/bible-search.js` with on-demand chapter fetching
 - [x] Implement search with case-sensitive and whole-word options
@@ -540,6 +579,7 @@ npm run build
 **Goal:** Social sharing and verse linking
 
 **Completed:**
+
 - [x] Create share button component (`share.js`)
 - [x] Generate shareable URLs (`/religion/bibles/kjv/gen/1/?v=1`)
 - [x] Copy to clipboard functionality with visual feedback
@@ -553,6 +593,7 @@ npm run build
 **Goal:** Display Hebrew/Greek with word-by-word gloss
 
 **Subtasks:**
+
 1. Extend SWORD converter for Hebrew/Greek extraction
 2. Extract OSHB (Open Scriptures Hebrew Bible) module data
 3. Extract SBLGNT (SBL Greek New Testament) module data
@@ -569,6 +610,7 @@ npm run build
 **Goal:** Full Strong's dictionary with concordance
 
 **Subtasks:**
+
 1. Source Strong's lexicon data (Open Scriptures, public domain)
 2. Create `strongs_lexicon.json` (definitions, transliterations)
 3. Build concordance index (`strongs_concordance.json`)
@@ -585,6 +627,7 @@ npm run build
 **Goal:** Display biblical cross-references using TSK
 
 **Subtasks:**
+
 1. Obtain Treasury of Scripture Knowledge (TSK) data
 2. Parse TSK into `cross_references.json` format
 3. Create `bible-cross-ref-panel.html` component
@@ -601,6 +644,7 @@ npm run build
 **Goal:** Multi-translation search with filters
 
 **Subtasks:**
+
 1. Evaluate search libraries (Lunr.js vs Pagefind vs Fuse.js)
 2. Build search index during Hugo build
 3. Create `/religion/search/` page layout
@@ -618,6 +662,7 @@ npm run build
 **Goal:** Deep-dive single verse comparison tool
 
 **Subtasks:**
+
 1. Design comparison page layout (`/religion/compare/`)
 2. Build verse comparison table/grid
 3. Implement textual variant highlighting
@@ -635,6 +680,7 @@ npm run build
 **Goal:** Mobile optimization, PWA, accessibility
 
 **Subtasks:**
+
 1. Comprehensive mobile testing (iOS, Android)
 2. Implement touch gestures (swipe navigation)
 3. Build service worker for offline capability
@@ -652,6 +698,7 @@ npm run build
 **Goal:** User documentation and public release
 
 **Subtasks:**
+
 1. Create user guide (`/religion/help/`)
 2. Write tutorial articles (blog posts on usage)
 3. Record demo videos (parallel view, interlinear, search)
@@ -668,6 +715,7 @@ npm run build
 
 ### 1. Paper Aesthetic Consistency
 **Maintain the handwritten, organic feel throughout:**
+
 - Wavy borders on all containers (using SVG clip-path)
 - Offset box shadows (4px 4px) for depth, not floating blur shadows
 - Handwritten fonts (Neucha, Patrick Hand) for all UI text
@@ -675,6 +723,7 @@ npm run build
 - Subtle texture overlays on backgrounds
 
 **Avoid:**
+
 - Sharp rectangular boxes
 - Modern flat design aesthetics
 - High-contrast colors
@@ -683,6 +732,7 @@ npm run build
 
 ### 2. Hierarchical Information Display
 **Progressive disclosure of complexity:**
+
 - Level 1: Simple Bible reading (current functionality)
 - Level 2: Parallel translation comparison (visible option)
 - Level 3: Interlinear and Strong's (one click away)
@@ -693,6 +743,7 @@ npm run build
 
 ### 3. Contextual Tooltips and Help
 **Educate users without overwhelming:**
+
 - Hover tooltips explain features on first use
 - "?" help icons with paper-style help cards
 - Inline examples in search filters ("e.g., John 3:16")
@@ -701,6 +752,7 @@ npm run build
 
 ### 4. Mobile-First, Desktop-Enhanced
 **Design for mobile, enhance for desktop:**
+
 - Mobile: Single column, bottom toolbar, swipe gestures
 - Tablet: Two columns, side toolbar, touch + mouse
 - Desktop: 3-4 columns, full toolbar, keyboard shortcuts
@@ -709,6 +761,7 @@ npm run build
 
 ### 5. Accessibility as Core Feature
 **Not an afterthought:**
+
 - ARIA labels on all interactive elements
 - Keyboard navigation paths clearly defined
 - Screen reader announcements for dynamic content
@@ -718,18 +771,21 @@ npm run build
 ## Success Metrics
 
 ### User Engagement
+
 - **Time on Page:** Increase from 2 min → 10 min average
 - **Pages per Session:** Increase from 1.5 → 5+ pages
 - **Return Visitors:** 40%+ within 30 days
 - **Feature Adoption:** 30%+ use parallel view, 20%+ use interlinear
 
 ### Technical Performance
+
 - **Lighthouse Score:** 95+ (Performance, Accessibility, Best Practices, SEO)
 - **First Contentful Paint:** < 1.5s
 - **Time to Interactive:** < 3.5s
 - **Total Page Weight:** < 2MB initial load, < 500KB per chapter
 
 ### Quality Metrics
+
 - **Accessibility:** WCAG 2.1 AA compliant (AAA where possible)
 - **Browser Support:** 95%+ of users (Chrome, Firefox, Safari, Edge)
 - **Mobile Responsiveness:** Works on 320px width screens
@@ -781,6 +837,7 @@ npm run build
 ## Dependencies
 
 ### External Data Sources
+
 - **Open Scriptures Hebrew Bible (OSHB):** CC BY 4.0 license
 - **SBL Greek New Testament (SBLGNT):** Free for non-commercial use
 - **Strong's Lexicon:** Public domain (original 1890 edition)
@@ -788,6 +845,7 @@ npm run build
 - **Open Scriptures Greek Lexicon:** CC BY-SA 4.0
 
 ### Software Libraries
+
 - **Hugo:** Static site generator (v0.120+)
 - **Tailwind CSS v4:** Styling framework (already in use)
 - **Lunr.js / Pagefind:** Client-side search indexing
@@ -795,6 +853,7 @@ npm run build
 - **Font: SBL BibLit:** Hebrew/Greek fonts (Open Font License)
 
 ### Development Tools
+
 - **Go:** For SWORD converter enhancements (v1.21+)
 - **Python:** For data processing scripts (v3.9+)
 - **SQLite:** For SWORD module database parsing
@@ -820,23 +879,27 @@ npm run build
 ## Future Expansion (Beyond Charter Scope)
 
 ### Additional Bible Translations
+
 - Modern translations (ESV, NIV, NASB) - requires licensing negotiations
 - Non-English translations (Spanish, French, German, Chinese)
 - Apocryphal/Deuterocanonical books (Catholic canon support)
 
 ### Advanced Study Tools
+
 - Topical Bible index (Nave's Topical Bible)
 - Bible dictionaries (ISBE, Easton's)
 - Commentaries (Matthew Henry, Gill's Exposition)
 - Maps and timelines (biblical geography, chronology)
 
 ### Collaboration Features
+
 - User accounts for synced bookmarks across devices
 - Public study notes and highlighting
 - Group Bible study rooms (real-time collaboration)
 - Sermon prep workspace
 
 ### AI Integration
+
 - Semantic search ("verses about faith and works")
 - Passage summarization
 - Greek/Hebrew word study assistant

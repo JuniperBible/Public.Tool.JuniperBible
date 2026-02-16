@@ -142,6 +142,7 @@ The implementation includes comprehensive tests covering:
 ## Key Design Decisions
 
 ### 1. Pure Go Implementation
+
 - No CGO dependencies
 - Fully portable across platforms
 - Type-safe with Go's type system
@@ -153,6 +154,7 @@ The implementation includes comprehensive tests covering:
 - Clear type coercion rules
 
 ### 3. Simplified VDBE Model
+
 - Focused on expression evaluation
 - Register-based architecture
 - Instruction abstraction
@@ -164,6 +166,7 @@ The implementation includes comprehensive tests covering:
 - NULL propagation in arithmetic
 
 ### 5. Memory Efficiency
+
 - Register reuse in code generation
 - Minimal allocations for constants
 - Lazy evaluation where possible
@@ -187,6 +190,7 @@ NULL < INTEGER < REAL < TEXT < BLOB
 ```
 
 ### Pattern Matching
+
 - LIKE: case-insensitive, `%` = any chars, `_` = one char
 - GLOB: case-sensitive, `*` = any chars, `?` = one char
 
@@ -293,11 +297,13 @@ Potential improvements:
 ## Reference Implementation
 
 Based on SQLite 3.51.2 source code:
+
 - `src/expr.c` (6,500+ lines)
 - `src/sqliteInt.h` (type definitions)
 - SQLite documentation
 
 Key differences from C implementation:
+
 - Go idioms (interfaces, methods)
 - Explicit type handling (vs. void*)
 - Simplified VDBE model
@@ -315,6 +321,7 @@ This is a production-ready, comprehensive implementation of SQLite expression ev
 - ✅ Ready for integration
 
 The implementation demonstrates deep understanding of:
+
 - SQLite's type system
 - Expression evaluation semantics
 - VDBE code generation

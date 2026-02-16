@@ -4,6 +4,7 @@
 Comprehensive implementation of SELECT statement processing and code generation for a pure Go SQLite database engine.
 
 ## Reference Source
+
 - **C Reference**: `/tmp/sqlite-src/sqlite-src-3510200/src/select.c` (8,849 lines)
 - **Implementation**: Pure Go translation with idiomatic Go patterns
 
@@ -13,6 +14,7 @@ Comprehensive implementation of SELECT statement processing and code generation 
 **Main SELECT compilation engine**
 
 Key functions:
+
 - `CompileSelect()` - Main entry point for SELECT compilation
 - `compileSimpleSelect()` - Handles non-compound SELECT
 - `compileCompoundSelect()` - Handles UNION, INTERSECT, EXCEPT
@@ -36,6 +38,7 @@ OP_Close       - Close cursor
 **Result column handling and resolution**
 
 Key functions:
+
 - `ExpandResultColumns()` - Expands * and table.* wildcards
 - `expandStar()` - Expands * to all columns
 - `expandTableStar()` - Expands table.* to table columns
@@ -46,6 +49,7 @@ Key functions:
 - `ComputeColumnAffinity()` - Determines column type affinity
 
 Features:
+
 - SQLite-compatible column naming rules
 - AS clause handling
 - Qualified and unqualified column references
@@ -56,6 +60,7 @@ Features:
 **GROUP BY and aggregate function compilation**
 
 Key functions:
+
 - `compileGroupBy()` - Main GROUP BY compilation
 - `analyzeAggregates()` - Finds aggregate functions
 - `findAggregateFuncs()` - Recursively finds aggregates in expressions
@@ -66,6 +71,7 @@ Key functions:
 - `outputAggregateRow()` - Outputs one aggregate result
 
 Supported aggregates:
+
 - COUNT(*) and COUNT(expr)
 - SUM(expr) and TOTAL(expr)
 - AVG(expr)
@@ -87,6 +93,7 @@ Finalize and output results
 **ORDER BY clause processing**
 
 Key functions:
+
 - `setupOrderBy()` - Initializes ORDER BY processing
 - `generateSortTail()` - Generates sorted output loop
 - `pushOntoSorter()` - Inserts row into sorter
@@ -96,6 +103,7 @@ Key functions:
 - `resolveQualifiedColumnInOrderBy()` - Handles table.column
 
 Features:
+
 - Ascending/descending order (ASC/DESC)
 - ORDER BY column number (e.g., ORDER BY 1)
 - ORDER BY column alias
@@ -120,6 +128,7 @@ Loop extracting sorted data:
 **LIMIT and OFFSET handling**
 
 Key functions:
+
 - `applyLimit()` - Applies LIMIT to SELECT
 - `CompileLimitOffset()` - Compiles LIMIT/OFFSET expressions
 - `GenerateLimitCode()` - Generates LIMIT checking code
@@ -130,6 +139,7 @@ Key functions:
 - `GenerateLimitedScan()` - Table scan with early termination
 
 Features:
+
 - LIMIT n - Maximum rows to return
 - OFFSET n - Skip first n rows
 - Combined LIMIT n OFFSET m
@@ -151,6 +161,7 @@ Loop over rows:
 **Core type definitions and VDBE interface**
 
 Key types:
+
 - `Parse` - Parser/compiler context
 - `Select` - SELECT statement AST
 - `Expr` - Expression node
@@ -164,6 +175,7 @@ Key types:
 - `Affinity` - Type affinity
 
 Constants:
+
 - Token types (TK_SELECT, TK_COLUMN, etc.)
 - Opcodes (OP_OpenRead, OP_Column, etc.)
 - SELECT flags (SF_Distinct, SF_Aggregate, etc.)
@@ -173,12 +185,14 @@ Constants:
 **Comprehensive usage examples**
 
 Examples:
+
 1. **Simple SELECT** - Basic SELECT with WHERE
 2. **SELECT with ORDER BY** - Sorting with LIMIT
 3. **SELECT with GROUP BY** - Aggregates and grouping
 4. **SELECT DISTINCT** - Duplicate elimination
 
 Utilities:
+
 - `DisplayVdbeProgram()` - Pretty-prints VDBE bytecode
 - `OpcodeToString()` - Converts opcodes to names
 - `RunExamples()` - Executes all examples
@@ -189,6 +203,7 @@ Utilities:
 SQL text → SELECT AST
 
 ### Stage 2: Expand
+
 - Expand * wildcards
 - Resolve table and column names
 - Validate references
@@ -325,12 +340,14 @@ LIMIT 10
 ## Performance Characteristics
 
 ### Time Complexity
+
 - Simple SELECT: O(n) where n = number of rows
 - SELECT with ORDER BY: O(n log n) for sorting
 - SELECT with GROUP BY: O(n) with single pass
 - SELECT DISTINCT: O(n log n) worst case
 
 ### Space Complexity
+
 - Simple SELECT: O(1) - streaming results
 - ORDER BY: O(n) - sorter storage
 - GROUP BY: O(g) where g = number of groups

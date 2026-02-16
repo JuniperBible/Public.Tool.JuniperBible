@@ -6,12 +6,14 @@
 A pure Go scripture conversion toolkit that replaces external dependencies (diatheke, installmgr) with a unified, well-tested tool for converting SWORD and e-Sword modules to Hugo-compatible JSON.
 
 ### Problem Being Solved
+
 - SWORD's CGo bindings are complex and platform-specific
 - The `diatheke` and `installmgr` tools lack modern features and programmatic access
 - No unified tool handles SWORD, e-Sword, and other formats in one pipeline
 - Cross-versification mapping is poorly documented and implemented
 
 ### Target Users/Audience
+
 - **Focus with Justin website**: Primary consumer of scripture JSON output
 - **Hugo developers**: Anyone needing Bible data in static sites
 - **Scripture scholars**: Those needing reliable format conversion
@@ -32,6 +34,7 @@ A pure Go scripture conversion toolkit that replaces external dependencies (diat
 | **Diatheke Clone** | Planned | CLI-compatible verse lookup |
 
 ### Out-of-Scope Items
+
 - GUI application
 - Web server/API mode
 - Non-scripture content (maps, images)
@@ -65,6 +68,7 @@ A pure Go scripture conversion toolkit that replaces external dependencies (diat
 | pkg/repository | 62.4% | In Progress |
 
 ### Recent Accomplishments
+
 - Renamed tool from sword-converter to Juniper
 - Implemented versification system (KJV, KJVA, Vulgate, LXX)
 - Added RawGenBook parser for Quran and Ethiopian texts
@@ -77,6 +81,7 @@ A pure Go scripture conversion toolkit that replaces external dependencies (diat
 
 ### Phase: InstallMgr Replacement (In Progress)
 Replace SWORD `installmgr` with native Go implementation:
+
 - [x] Core infrastructure (source, client, index, installer) - 84 tests
 - [ ] CLI commands (list-sources, refresh, list, install, uninstall)
 - [ ] FTP client for CrossWire sources
@@ -84,6 +89,7 @@ Replace SWORD `installmgr` with native Go implementation:
 - [ ] 1:1 validation against official installmgr
 
 ### Phase: Versification Expansion (Pending)
+
 - [ ] Add Catholic/Catholic2 verse counts
 - [ ] Add NRSV/NRSVA verse counts
 - [ ] Add Synodal/SynodalProt verse counts
@@ -91,6 +97,7 @@ Replace SWORD `installmgr` with native Go implementation:
 - [ ] Create docs/versification-mapping.md
 
 ### Phase: Diatheke Clone (Scheduled)
+
 - [ ] Add `juniper diatheke` subcommand
 - [ ] Reference parser (Genesis 1:1, Gen 1:1, ranges)
 - [ ] Output format compatibility (plain, OSIS, HTML)
@@ -98,6 +105,7 @@ Replace SWORD `installmgr` with native Go implementation:
 - [ ] 1:1 validation against official diatheke
 
 ### Phase: Test Coverage Goals
+
 - [ ] pkg/sword to 90%+
 - [ ] pkg/output to 90%+
 - [ ] pkg/repository to 80%+
@@ -144,13 +152,16 @@ Replace SWORD `installmgr` with native Go implementation:
 ## 7. Stakeholders
 
 ### Owner/Maintainer
+
 - **Justin Williams** - Primary developer
 
 ### Consumers
+
 - Focus with Justin website (Hugo JSON consumer)
 - Potential external Hugo sites
 
 ### External Dependencies
+
 - CrossWire Bible Society (SWORD modules and format)
 - e-Sword developer (database format)
 
@@ -173,6 +184,7 @@ Replace SWORD `installmgr` with native Go implementation:
 | pysword books.py | https://gitlab.com/tgc-dk/pysword/-/blob/master/pysword/books.py |
 
 ### Parent Project
+
 - [Focus with Justin Project Charter](../../../docs/project-charter.md)
 
 ## 9. Architecture

@@ -432,6 +432,7 @@ capsule web [--port <port>] [--capsules <dir>] [--plugins <dir>] [--sword <dir>]
 ```
 
 **Flags:**
+
 - `--port` - HTTP server port (default: 8080)
 - `--capsules` - Directory containing capsules (default: ./capsules)
 - `--plugins` - Directory containing plugins (default: ./bin/plugins)
@@ -462,12 +463,14 @@ capsule api [--port <port>] [--capsules <dir>] [--plugins <dir>] [--plugins-exte
 ```
 
 **Flags:**
+
 - `--port` - HTTP server port (default: 8081)
 - `--capsules` - Directory containing capsules (default: ./capsules)
 - `--plugins` - Directory containing plugins (default: ./plugins)
 - `--plugins-external` - Enable loading external plugins from plugins directory
 
 **API Endpoints:**
+
 - `GET /health` - Health check
 - `GET /capsules` - List all capsules
 - `POST /capsules` - Create new capsule

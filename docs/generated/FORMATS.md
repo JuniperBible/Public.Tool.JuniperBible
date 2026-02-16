@@ -82,6 +82,7 @@ Source → extract-ir → IR → emit-native → Target
 ```
 
 **Conversion Quality:**
+
 - Same Loss Class: Full fidelity (L0→L0, L1→L1)
 - Higher to Lower: Minimal loss (L0→L3)
 - Lower to Higher: Cannot recover lost data (L3→L0)

@@ -71,6 +71,7 @@ Offset  Size  Description
 ### Page Structure
 
 Each page has:
+
 - **Page number** (Pgno): 1-based page identifier
 - **Data**: Raw page content (size = database page size)
 - **Flags**: State flags (clean, dirty, writeable, etc.)
@@ -79,6 +80,7 @@ Each page has:
 ### Page States
 
 Pages can be in different states:
+
 - **Clean**: Not modified since last disk write
 - **Dirty**: Modified but not yet written to disk
 - **Writeable**: Journaled and ready to be modified
@@ -86,6 +88,7 @@ Pages can be in different states:
 ### Page Cache
 
 The page cache maintains:
+
 - Hash map of page number → page
 - Dirty page list for efficient commit
 - LRU eviction policy for clean pages
@@ -207,6 +210,7 @@ if err := pager.Rollback(); err != nil {
 ## Thread Safety
 
 All public operations on the pager and pages are thread-safe:
+
 - Pager uses RWMutex for state protection
 - Pages use RWMutex for data access
 - Reference counts use atomic operations
@@ -235,6 +239,7 @@ go tool cover -html=coverage.out
 ### Test Coverage
 
 Tests cover:
+
 - Database header parsing and validation
 - Page creation, modification, and reference counting
 - Page cache operations and eviction
@@ -266,6 +271,7 @@ This implementation is a simplified version of SQLite's pager:
 ## Future Enhancements
 
 Potential improvements:
+
 1. Implement WAL (Write-Ahead Logging) mode
 2. Add proper file locking (flock/fcntl)
 3. Support memory-mapped I/O for read performance

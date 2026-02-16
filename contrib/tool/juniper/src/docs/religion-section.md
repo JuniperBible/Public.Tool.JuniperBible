@@ -20,6 +20,7 @@ The religion section at `/religion/` provides a comprehensive multi-tradition Bi
 ### Canonical Comparison
 
 Compare which books are in each tradition's canon across 14 traditions:
+
 - Roman Catholic, Eastern Orthodox, Protestant, Evangelical
 - Ethiopian Orthodox (114 books), Latter-day Saints (89 books)
 - Anglican, Jehovah's Witnesses, Coptic Orthodox
@@ -34,6 +35,7 @@ URL: /religion/bibles/compare/?bibles=kjv,drc,vulgate&ref=Gen.1
 ```
 
 **Features:**
+
 - Auto-load on chapter or translation selection
 - Chapter grid for quick navigation
 - State persistence via URL and localStorage
@@ -42,6 +44,7 @@ URL: /religion/bibles/compare/?bibles=kjv,drc,vulgate&ref=Gen.1
 
 #### Bible Search
 Full-text search across translations at `/religion/bibles/search/`:
+
 - Case-sensitive and whole-word options
 - Results grouped by book with highlighted matches
 - On-demand chapter loading for performance
@@ -50,6 +53,7 @@ Full-text search across translations at `/religion/bibles/search/`:
 
 #### Verse Sharing
 Share verses via URL, clipboard, or social media:
+
 - Format: `/religion/bibles/kjv/gen/1/?v=1`
 - Copy to clipboard with visual feedback
 - Twitter/X and Facebook share buttons
@@ -192,6 +196,7 @@ Verify installed modules without redownloading:
 ```
 
 Checks performed:
+
 - Conf file exists
 - Data directory has files
 - Size matches `InstallSize` metadata (if available)
@@ -227,6 +232,7 @@ The RawGenBook format stores hierarchical content like creeds, commentaries, and
 | `*.dat` | TreeKey structure with entry keys |
 
 **TreeKey Structure:**
+
 - 8-byte marker (`0xFFFFFFFF 0xFFFFFFFF`)
 - Metadata bytes (offset, size, flags)
 - Null-terminated UTF-8 key string
@@ -325,11 +331,13 @@ In `hugo.toml`:
 ### Templates
 
 **Page generation (_content.gotmpl):**
+
 - Reads `data/bibles.json` and `data/bibles_auxiliary/`
 - Generates: Bible overview, book index, chapter pages
 - Uses `$.AddPage` for dynamic page creation
 
 **Layouts:**
+
 - `list.html` - Bible index with canonical comparison table
 - `single.html` - Chapter view with verse display and navigation
 
@@ -385,6 +393,7 @@ cd tools/juniper
 ```
 
 Popular modules:
+
 - `DRC` - Douay-Rheims Catholic Bible
 - `Vulgate` - Latin Vulgate
 - `Geneva` - Geneva Bible 1599
@@ -434,6 +443,7 @@ npm run dev
 
 ### parallel.js
 Handles parallel translation view:
+
 - Dynamic translation switching (auto-updates on change)
 - URL parameter handling (`?bibles=kjv,drc&ref=Gen.1`)
 - On-demand chapter fetching with caching
@@ -443,6 +453,7 @@ Handles parallel translation view:
 
 ### bible-search.js
 Full-text search functionality:
+
 - On-demand chapter loading
 - Search result caching
 - Keyword highlighting
@@ -453,12 +464,14 @@ Full-text search functionality:
 
 ### share.js
 Verse sharing features:
+
 - Generate shareable URLs
 - Copy to clipboard
 - Social media integration
 
 ### strongs.js
 Strong's number integration:
+
 - Detect H#### and G#### patterns
 - Link to Blue Letter Bible
 - Keyboard accessible

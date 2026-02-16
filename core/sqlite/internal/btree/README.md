@@ -22,6 +22,7 @@ SQLite uses four types of B-tree pages:
 #### 1. Variable-Length Integer Encoding (`varint.go`)
 
 SQLite uses a custom variable-length integer format:
+
 - 1-9 bytes per integer
 - Lower 7 bits of each byte store data
 - High bit (0x80) set on all bytes except the last
@@ -29,6 +30,7 @@ SQLite uses a custom variable-length integer format:
 - 9th byte uses all 8 bits
 
 **Functions:**
+
 - `PutVarint(p []byte, v uint64) int` - Encode a 64-bit integer
 - `GetVarint(p []byte) (uint64, int)` - Decode a 64-bit integer
 - `GetVarint32(p []byte) (uint32, int)` - Decode a 32-bit integer (optimized)
@@ -53,12 +55,14 @@ Interior Pages (12 bytes):
 ```
 
 **Page Types:**
+
 - `0x02` - Interior index B-tree page
 - `0x05` - Interior table B-tree page
 - `0x0a` - Leaf index B-tree page
 - `0x0d` - Leaf table B-tree page
 
 **Functions:**
+
 - `ParsePageHeader(data []byte, pageNum uint32) (*PageHeader, error)` - Parse page header
 - `GetCellPointer(data []byte, cellIndex int) (uint16, error)` - Get cell offset
 - `GetCellPointers(data []byte) ([]uint16, error)` - Get all cell offsets
@@ -99,6 +103,7 @@ uint32: overflow page number (if payload > maxLocal)
 ```
 
 **Functions:**
+
 - `ParseCell(pageType byte, cellData []byte, usableSize uint32) (*CellInfo, error)` - Parse any cell type
 
 #### 4. B-Tree Management (`btree.go`)
@@ -106,10 +111,12 @@ uint32: overflow page number (if payload > maxLocal)
 Main B-tree structure providing page management and cell iteration.
 
 **Structures:**
+
 - `Btree` - B-tree instance with page cache
 - `BtShared` - Shared B-tree metadata (page sizes, transaction state)
 
 **Functions:**
+
 - `NewBtree(pageSize uint32) *Btree` - Create new B-tree
 - `GetPage(pageNum uint32) ([]byte, error)` - Retrieve page
 - `SetPage(pageNum uint32, data []byte) error` - Store page
@@ -121,6 +128,7 @@ Main B-tree structure providing page management and cell iteration.
 Cursors provide sequential access to B-tree entries.
 
 **Cursor States:**
+
 - `CursorValid` - Positioned at valid entry
 - `CursorInvalid` - Not positioned at valid entry
 - `CursorSkipNext` - Next operation should be no-op
@@ -128,6 +136,7 @@ Cursors provide sequential access to B-tree entries.
 - `CursorFault` - Unrecoverable error
 
 **Functions:**
+
 - `NewCursor(bt *Btree, rootPage uint32) *BtCursor` - Create cursor
 - `MoveToFirst() error` - Move to first (leftmost) entry
 - `MoveToLast() error` - Move to last (rightmost) entry
@@ -297,6 +306,7 @@ go test -bench=. -benchmem ./...
 ## Limitations
 
 This implementation currently:
+
 - Does not handle overflow pages (reads only local payload)
 - Does not support write operations (read-only)
 - Does not implement auto-vacuum

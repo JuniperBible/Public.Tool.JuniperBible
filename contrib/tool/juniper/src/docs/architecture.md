@@ -215,6 +215,7 @@ The site uses the **AirFold** theme, a custom Hugo theme with a paper aesthetic 
 ### Theme Provides vs Site Overrides
 
 **Theme Provides (`themes/airfold/`):**
+
 - Base layouts: `baseof.html`, `single.html`, `list.html`, `index.html`
 - Page layouts: `about.html`, `contact.html`, `term.html`
 - Core partials: `seo.html`, `header.html`, `footer.html`, `social-icon.html`
@@ -223,6 +224,7 @@ The site uses the **AirFold** theme, a custom Hugo theme with a paper aesthetic 
 - JavaScript: OpenPGP.js, Hammer.js, Mermaid.js
 
 **Site Overrides (`layouts/`):**
+
 - `esoterica/` - Blog/articles section
 - `projects/` - Portfolio projects
 - `resume/` - Resume page and sub-sections
@@ -253,6 +255,7 @@ The site uses the **AirFold** theme, a custom Hugo theme with a paper aesthetic 
 ```
 
 **Visual Elements:**
+
 - Wavy borders using SVG clip-path
 - Offset box shadows (4px 4px) for depth
 - No harsh white or black colors
@@ -268,6 +271,7 @@ The site uses a **data-driven architecture** where structured content types are 
 ### Pattern Overview
 
 ```
+
 1. Metadata File (data/*.json)
    ├── List of items with core fields (id, title, tags, weight)
    └── Used for list pages, filtering, sorting
@@ -597,6 +601,7 @@ The contact form implements defense-in-depth with multiple security layers:
 ### Service Binding vs Environment Variable
 
 The email worker uses a **service binding** (not an environment variable):
+
 - Direct RPC between Pages Function and Worker
 - No public network exposure of worker endpoint
 - Automatic request authentication
@@ -614,6 +619,7 @@ npm run dev                            # Start dev server
 ```
 
 **What `npm run dev` does:**
+
 1. Starts Tailwind CSS watcher (recompiles on CSS changes)
 2. Starts Hugo server with live reload
 3. Serves at http://localhost:1313/
@@ -689,19 +695,23 @@ All JavaScript is vanilla (no framework) and self-hosted.
 Tables and Mermaid diagrams automatically get lightbox functionality:
 
 **Trigger:**
+
 - Hover shows ">" arrow with "click to enlarge" hint
 - Playful bounce animation on arrow
 
 **Controls:**
+
 - Zoom: `+` / `-` keys or buttons
 - Rotate: `R` / `Shift+R` keys or buttons
 - Close: `Escape` key or click outside
 
 **Touch (via Hammer.js):**
+
 - Pinch-to-zoom
 - Two-finger rotate
 
 **Opt-out:**
+
 - Add `no-lightbox` class to disable on specific elements
 
 ---
@@ -759,6 +769,7 @@ other = "Hello, {{ .Name }}!"
 ### Current String Categories
 
 The i18n file contains 80+ strings organized by:
+
 - Navigation (home, about, back, next, previous)
 - Content (read more, min read, tags)
 - Resume (certifications, skills, tools)

@@ -101,6 +101,7 @@ Entry 5: Block=1, Start=565, Len=609 # Genesis 1:2
 
 **Implication:** The simple cumulative verse count calculation does NOT work for
 real SWORD modules. The index must account for:
+
 - 1 placeholder entry per testament
 - 1 module header entry per testament
 - 1 intro entry per book
@@ -149,6 +150,7 @@ This simpler formula assumes no intro entries and is only valid for synthetic te
 
 ```
 verse_index = sum(verses_in_books_before)
+
             + sum(verses_in_chapters_before)
             + verse_number
 ```
@@ -177,6 +179,7 @@ func calculateVerseIndexSimple(book, chapter, verse int, versification []BookInf
 ```
 
 **Example (with intro entries): Genesis 1:1 in KJV**
+
 - Placeholder entry: 1
 - Module header: 1
 - Genesis book intro: 1
@@ -253,6 +256,7 @@ SWORD supports multiple Bible versification systems:
 | Vulg | Vulgate | 73 |
 
 Each versification defines:
+
 - Book order and IDs
 - Number of chapters per book
 - Number of verses per chapter

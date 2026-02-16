@@ -25,6 +25,7 @@ functions/
 
 #### `Value` Interface
 Represents a SQL value with type information:
+
 - Supports 5 SQL types: NULL, INTEGER, REAL, TEXT, BLOB
 - Provides type-safe conversion methods
 - Zero-copy where possible
@@ -67,6 +68,7 @@ type AggregateFunction interface {
 ### Registry Pattern
 
 The `Registry` provides centralized function management:
+
 - Functions registered by name
 - Case-insensitive lookup
 - Support for function overloading (scalar vs aggregate)
@@ -86,11 +88,13 @@ All string functions are **UTF-8 aware**:
 - **instr()**: Character position (1-indexed)
 
 Special implementations:
+
 - **hex()/unhex()**: Fast hexadecimal encoding/decoding
 - **quote()**: SQL literal escaping with proper quote handling
 - **unicode()/char()**: Unicode code point conversion
 
 #### Type Functions
+
 - **typeof()**: Returns SQL type name
 - **coalesce()**: First non-NULL value
 - **ifnull()**: NULL replacement
@@ -107,6 +111,7 @@ type CountFunc struct {
     count int64
 }
 ```
+
 - Counts non-NULL values
 - `count(*)` variant counts all rows
 
@@ -119,6 +124,7 @@ type SumFunc struct {
     isFloat  bool
 }
 ```
+
 - Automatically switches from int to float on overflow
 - `sum()` returns NULL for empty set
 - `total()` returns 0.0 for empty set
@@ -130,6 +136,7 @@ type AvgFunc struct {
     sum   float64
 }
 ```
+
 - Always returns float
 - Returns NULL for empty set
 
@@ -140,6 +147,7 @@ type MinFunc struct {
     minValue Value
 }
 ```
+
 - Works with any comparable type
 - Uses type affinity ordering
 - Also available as variadic scalar functions
@@ -152,6 +160,7 @@ type GroupConcatFunc struct {
     hasSep    bool
 }
 ```
+
 - Default separator: ","
 - Custom separator from second argument
 - Returns NULL for empty set
@@ -159,11 +168,13 @@ type GroupConcatFunc struct {
 ### Math Functions (math.go)
 
 #### Basic Math
+
 - **abs()**: Integer overflow detection
 - **round()**: Precision control, banker's rounding
 - **ceil()/floor()**: Standard ceiling/floor
 
 #### Advanced Math
+
 - **sqrt()**: Square root with domain checking
 - **power()**: Exponentiation
 - **exp()**: Natural exponential
@@ -172,6 +183,7 @@ type GroupConcatFunc struct {
 
 #### Trigonometry
 Full suite of trig functions:
+
 - Basic: sin, cos, tan
 - Inverse: asin, acos, atan, atan2
 - Hyperbolic: sinh, cosh, tanh
@@ -180,6 +192,7 @@ Full suite of trig functions:
 All angles in radians. Domain checking for inverse functions.
 
 #### Other
+
 - **random()**: Cryptographically secure random int64
 - **randomblob()**: Cryptographically secure random bytes
 - **sign()**: Returns -1, 0, or 1
@@ -205,6 +218,7 @@ type DateTime struct {
 ```
 
 Key design decisions:
+
 1. **Julian Day Storage**: All dates stored as Julian day numbers (multiplied by 86,400,000 for millisecond precision)
 2. **Lazy Computation**: YMD and HMS computed only when needed
 3. **Gregorian Calendar**: Used for all dates, even pre-1582
@@ -212,6 +226,7 @@ Key design decisions:
 #### Date Parsing
 
 Supports multiple formats:
+
 - `YYYY-MM-DD`
 - `YYYY-MM-DD HH:MM:SS`
 - `YYYY-MM-DD HH:MM:SS.FFF`
@@ -239,6 +254,7 @@ jd := int64(365.25*float64(year+4716)) +
 #### Modifiers
 
 Implemented modifiers:
+
 - **Arithmetic**: `+N days`, `-N months`, etc.
 - **Start of**: `start of day`, `start of month`, `start of year`
 - **Special**: `auto`, `subsec`
@@ -251,6 +267,7 @@ SELECT date('2024-01-31', '+1 month');  -- 2024-02-29 (leap year)
 #### Format Strings (strftime)
 
 Common format codes:
+
 - `%Y` - 4-digit year
 - `%m` - Month (01-12)
 - `%d` - Day (01-31)
@@ -270,12 +287,14 @@ SQLite's type affinity ordering (NULL < INTEGER < REAL < TEXT < BLOB) is preserv
 ### Type Conversion
 
 Automatic conversions:
+
 - Integer ↔ Float: Direct cast
 - Text → Number: String parsing
 - Number → Text: String formatting
 - Any → Blob: Byte representation
 
 NULL handling:
+
 - Most functions return NULL for NULL input
 - Aggregates skip NULL values
 - Comparison treats NULL as less than any value
@@ -291,6 +310,7 @@ NULL handling:
 ## Testing Strategy
 
 ### Test Coverage
+
 - Unit tests for each function
 - Edge cases (NULL, overflow, invalid input)
 - UTF-8 correctness
@@ -298,6 +318,7 @@ NULL handling:
 - Date/time boundary conditions
 
 ### Test Files
+
 - `functions_test.go`: Comprehensive unit tests
 - `examples_test.go`: Usage examples (runnable)
 
@@ -310,6 +331,7 @@ go test -cover ./core/sqlite/internal/functions/
 ## SQLite Compatibility
 
 ### Fully Compatible
+
 - All core scalar functions
 - All aggregate functions
 - Date/time functions (basic)
@@ -317,11 +339,13 @@ go test -cover ./core/sqlite/internal/functions/
 - Type system
 
 ### Partial Compatibility
+
 - Advanced date modifiers (simplified)
 - Locale-specific behavior
 - Collation sequences
 
 ### Not Implemented
+
 - Extension functions (FTS, JSON, etc.)
 - Window functions (requires separate implementation)
 - Custom collations
@@ -330,10 +354,12 @@ go test -cover ./core/sqlite/internal/functions/
 ## Reference Implementation
 
 The implementation is based on:
+
 - `/tmp/sqlite-src/sqlite-src-3510200/src/func.c` (lines 1-2000+)
 - `/tmp/sqlite-src/sqlite-src-3510200/src/date.c` (lines 1-1823)
 
 Key adaptations for Go:
+
 1. Manual memory management → Go GC
 2. C string handling → Go strings (UTF-8)
 3. C macros → Go functions
@@ -375,12 +401,14 @@ registry.Register(functions.NewScalarFunc(
 ## Error Handling
 
 Errors are returned (not panicked) for:
+
 - Invalid argument count
 - Type conversion failures
 - Domain errors (sqrt of negative, etc.)
 - Overflow/underflow
 
 NULL is returned (not error) for:
+
 - NULL input (most functions)
 - Invalid format strings
 - Out-of-range values
@@ -388,6 +416,7 @@ NULL is returned (not error) for:
 ## Future Enhancements
 
 Potential additions:
+
 1. Window functions
 2. JSON functions
 3. Full-text search
@@ -400,6 +429,7 @@ Potential additions:
 ## Dependencies
 
 Minimal external dependencies:
+
 - Go standard library only
 - `crypto/rand` for secure random
 - `strings`, `bytes` for string operations
@@ -411,6 +441,7 @@ No external packages required.
 ## Memory Management
 
 All allocations are managed by Go's garbage collector:
+
 - Short-lived allocations for string operations
 - Aggregate state kept minimal
 - Value interface allows stack allocation in many cases
@@ -418,6 +449,7 @@ All allocations are managed by Go's garbage collector:
 ## Concurrency
 
 Functions are **not** thread-safe by design:
+
 - Each function call is independent
 - Aggregate functions maintain mutable state
 - Use separate instances per goroutine
@@ -426,6 +458,7 @@ Functions are **not** thread-safe by design:
 ## Benchmarks
 
 Key performance characteristics:
+
 - String operations: O(n) where n = string length
 - Aggregates: O(1) per Step() call
 - Date parsing: O(n) where n = string length
@@ -444,6 +477,7 @@ go test -v ./core/sqlite/internal/functions/
 ```
 
 Common issues:
+
 1. UTF-8 encoding: Ensure input is valid UTF-8
 2. Type conversion: Check Value.Type() before conversion
 3. NULL handling: Always check IsNull() before AsXxx()

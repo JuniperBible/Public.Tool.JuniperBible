@@ -15,6 +15,7 @@ npm run dev                            # Start dev server at localhost:1313
 **All features must be documented and tested.** Follow this process:
 
 ```
+
 1. Document Behavior  →  Describe what the feature should do
 2. Write Tests        →  Create tests that verify the documented behavior
 3. Write Code         →  Implement the feature to pass the tests

@@ -7,6 +7,7 @@ This package provides common functionality for format handlers to reduce code du
 After analyzing multiple format handlers (OSIS, USFM, SWORD, Zefania, JSON, TXT), several patterns emerged:
 
 ### Common Patterns in `Detect()`:
+
 1. Check if path exists with `os.Stat(path)`
 2. Reject directories
 3. Check file extensions
@@ -14,6 +15,7 @@ After analyzing multiple format handlers (OSIS, USFM, SWORD, Zefania, JSON, TXT)
 5. Return `*plugins.DetectResult`
 
 ### Common Patterns in `Ingest()`:
+
 1. Read file with `os.ReadFile(path)`
 2. Compute SHA256 hash
 3. Create blob directory: `outputDir/hash[:2]`
@@ -22,6 +24,7 @@ After analyzing multiple format handlers (OSIS, USFM, SWORD, Zefania, JSON, TXT)
 6. Return `*plugins.IngestResult` with metadata
 
 ### Common Patterns in `Enumerate()`:
+
 1. Call `os.Stat(path)`
 2. Return single-entry result for files
 3. Use base filename and file size

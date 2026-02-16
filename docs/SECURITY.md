@@ -44,6 +44,7 @@ Juniper Bible follows a **defense-in-depth** security model with multiple layers
 ### 3. Deterministic Execution
 
 **Nix VM Harness** (for reference tools):
+
 - Standardized environment: `TZ=UTC`, `LC_ALL=C.UTF-8`
 - Reproducible builds and executions
 - Isolated from host system
@@ -78,18 +79,21 @@ When external plugins are enabled (`--plugins-external`):
 ### Plugin Sandbox Boundaries
 
 **What Plugins CAN Do**:
+
 - Read files passed as arguments
 - Write to designated output directories
 - Execute within their process memory space
 - Return structured JSON responses
 
 **What Plugins CANNOT Do**:
+
 - Access host process memory
 - Modify host state directly
 - Execute indefinitely (timeout enforced)
 - Access files outside provided paths (unless user permissions allow)
 
 **Security Note**: Plugins run with the **same user permissions** as the capsule process. There is no OS-level sandboxing (no chroot, namespaces, or containers). Plugin security relies on:
+
 1. Process isolation
 2. Controlled IPC
 3. User's filesystem permissions
@@ -100,6 +104,7 @@ When external plugins are enabled (`--plugins-external`):
 ### Path Traversal Protection
 
 **Web UI Handlers** (`internal/web/handlers.go`):
+
 - Implements `sanitizePath()` function for all user-supplied paths
 - Validates paths using `filepath.Clean()` and absolute path resolution
 - Rejects paths containing `..` after cleaning
@@ -113,6 +118,7 @@ When external plugins are enabled (`--plugins-external`):
 - Rejects special paths (`.`, `..`) and paths containing `..`
 
 **Archive Extraction** (`internal/juniper/repoman/repoman.go`):
+
 - Validates extracted file paths to prevent zip-slip vulnerabilities
 - Uses `filepath.Clean()` and prefix checking
 - Ensures extraction targets remain within destination directory
@@ -126,6 +132,7 @@ When external plugins are enabled (`--plugins-external`):
 - Directory traversal sequences (`../`) are detected and rejected
 
 **Output Directories**:
+
 - Created with `0755` permissions
 - Files written with `0644` permissions
 - No world-writable directories or files
@@ -158,6 +165,7 @@ w.Header().Set("Access-Control-Allow-Origin", "https://trusted-domain.com")
 ### Input Validation
 
 **API Endpoints**:
+
 - JSON payload validation
 - File upload size limits (100MB max)
 - Filename sanitization (path traversal protection)
@@ -165,6 +173,7 @@ w.Header().Set("Access-Control-Allow-Origin", "https://trusted-domain.com")
 - HTTP method restrictions
 
 **Web Handlers**:
+
 - Form input sanitization
 - Path parameter validation
 - Query parameter filtering
@@ -174,6 +183,7 @@ w.Header().Set("Access-Control-Allow-Origin", "https://trusted-domain.com")
 **Current State**: No built-in rate limiting.
 
 **Recommendation**: For production deployments, add rate limiting middleware to prevent abuse:
+
 - Per-IP request limits
 - Upload size/frequency limits
 - API endpoint throttling
@@ -185,12 +195,14 @@ w.Header().Set("Access-Control-Allow-Origin", "https://trusted-domain.com")
 **Issue**: External plugins run with the same OS-level permissions as the capsule process.
 
 **Impact**: A malicious plugin could:
+
 - Read any file the user can read
 - Write any file the user can write
 - Execute system commands
 - Access network resources
 
 **Mitigation**:
+
 - External plugins are **disabled by default**
 - Only use trusted plugins
 - Run capsule with minimal user permissions
@@ -216,6 +228,7 @@ w.Header().Set("Access-Control-Allow-Origin", "https://trusted-domain.com")
 **Impact**: Anyone with network access can use the service.
 
 **Mitigation**:
+
 - Bind to `localhost` only (`--port 8080` binds to `127.0.0.1`)
 - Use a reverse proxy (nginx, caddy) with authentication for remote access
 - Run in a trusted network environment
@@ -226,10 +239,12 @@ w.Header().Set("Access-Control-Allow-Origin", "https://trusted-domain.com")
 **Issue**: API accepts arbitrary file uploads (up to 100MB).
 
 **Impact**:
+
 - Disk space exhaustion
 - Processing of malicious files
 
 **Mitigation**:
+
 - File size limits enforced (100MB)
 - Files stored in designated capsules directory
 - Filename sanitization prevents path traversal
@@ -243,6 +258,7 @@ w.Header().Set("Access-Control-Allow-Origin", "https://trusted-domain.com")
 **Impact**: Potential SQL injection in plugin implementations.
 
 **Mitigation**:
+
 - Core code uses `core/sqlite` package with parameterized queries
 - Plugin developers should follow secure coding practices
 - Review plugin SQL queries for proper parameterization
@@ -257,6 +273,7 @@ capsule web --port 8080 --capsules ./capsules
 ```
 
 **Security Considerations**:
+
 - Binds to localhost only
 - No external plugin loading
 - Suitable for single-user development
@@ -276,6 +293,7 @@ docker run --read-only --tmpfs /tmp \
 ```
 
 **Additional Hardening**:
+
 1. **Containerization**: Run in Docker/Podman with:
    - Read-only root filesystem
    - Dropped capabilities
@@ -358,6 +376,7 @@ docker run --read-only --tmpfs /tmp \
 **DO NOT** open public GitHub issues for security vulnerabilities.
 
 **Instead**:
+
 1. Email security concerns to the maintainer (see README for contact)
 2. Include:
    - Description of the vulnerability
@@ -368,6 +387,7 @@ docker run --read-only --tmpfs /tmp \
 4. Credit will be given for responsible disclosure
 
 **Response Timeline**:
+
 - Acknowledgment: Within 48 hours
 - Initial assessment: Within 7 days
 - Fix timeline: Depends on severity (critical: days, high: weeks, medium: months)
@@ -439,6 +459,7 @@ docker run --read-only --tmpfs /tmp \
    - **Recommendation**: Keep external plugins disabled by default
 
 **Verified Secure**:
+
 - ✅ Web handlers use `sanitizePath()` with proper path traversal protection
 - ✅ Archive extraction validates paths (zip-slip protection)
 - ✅ Plugin IPC uses structured JSON (no command injection)
@@ -450,6 +471,7 @@ docker run --read-only --tmpfs /tmp \
 ## Conclusion
 
 Juniper Bible is designed for **local/trusted environments**. The security model assumes:
+
 - Single user or trusted users
 - Local network access
 - Trusted plugins

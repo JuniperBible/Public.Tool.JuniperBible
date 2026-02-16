@@ -73,6 +73,7 @@ go test ./tests/integration -run TestToolsAvailable -v
 ### SWORD Tests (`sword_test.go`)
 
 Tests SWORD Bible software tools:
+
 - Module listing via diatheke
 - Verse rendering
 - Module creation with osis2mod
@@ -80,6 +81,7 @@ Tests SWORD Bible software tools:
 ### Calibre Tests (`calibre_test.go`)
 
 Tests Calibre e-book tools:
+
 - HTML to EPUB conversion
 - EPUB to MOBI conversion
 - Metadata extraction
@@ -87,6 +89,7 @@ Tests Calibre e-book tools:
 ### Pandoc Tests (`pandoc_test.go`)
 
 Tests Pandoc document converter:
+
 - Markdown to HTML conversion
 - Markdown to EPUB conversion
 - Metadata extraction with templates
@@ -94,6 +97,7 @@ Tests Pandoc document converter:
 ### libxml2 Tests (`libxml2_test.go`)
 
 Tests XML processing tools:
+
 - XML validation with xmllint
 - XPath queries
 - XSLT transformations with xsltproc
@@ -101,6 +105,7 @@ Tests XML processing tools:
 ### SQLite Tests (`sqlite_test.go`)
 
 Tests SQLite CLI:
+
 - Database creation and queries
 - CSV export
 - Schema inspection

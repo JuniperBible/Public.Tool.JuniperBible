@@ -5,6 +5,7 @@
 We are building a **reproducible conversion lab**, not "just a converter."
 
 The system:
+
 - Stores original files byte-for-byte
 - Runs reference tools in a deterministic VM
 - Records exactly how those tools behave
@@ -102,6 +103,7 @@ If our code disagrees with the reference behavior, tests fail. No arguing about 
 ## Definition of Done
 
 A feature is done when:
+
 - Its outputs are blobs with hashes
 - Its behavior is captured in a transcript
 - There is a self-check plan that verifies it
@@ -123,6 +125,7 @@ If any of those are missing, it's not done.
 ## Why This Architecture Matters for Velocity
 
 Once this is in place:
+
 - Adding a new format = write a plugin, not rewrite the system
 - Reverse-engineering a tool = run it, record it, match it
 - Bugs become diffs with hashes and exact locations

@@ -132,6 +132,7 @@ plugins/
 ```
 
 Each plugin directory contains:
+
 - `plugin.json` - Plugin manifest with metadata
 - Executable binary (named `<kind>-<name>`, e.g., `format-osis`)
 
@@ -206,6 +207,7 @@ Format plugins handle file format detection and byte preservation.
 Check if this plugin can handle the given path.
 
 **Args:**
+
 - `path` (string): Path to the file or directory
 
 **Result:**
@@ -222,6 +224,7 @@ Check if this plugin can handle the given path.
 Store the file bytes verbatim in CAS.
 
 **Args:**
+
 - `path` (string): Path to the file
 - `output_dir` (string): Directory to write blob files
 
@@ -242,6 +245,7 @@ Store the file bytes verbatim in CAS.
 List components within the file (for archives/containers).
 
 **Args:**
+
 - `path` (string): Path to the file
 
 **Result:**
@@ -328,6 +332,7 @@ For a complete, well-documented example showing all plugin features, see:
 **`plugins/format/example/`**
 
 This example demonstrates:
+
 - All required commands (detect, ingest, enumerate, extract-ir, emit-native)
 - Using the `plugins/ipc` package helpers
 - IR structure and conversion
@@ -620,6 +625,7 @@ Juniper Bible discovers plugins from nested directories:
 4. `$CAPSULE_PLUGIN_PATH/tool/*/plugin.json` (custom tool plugins)
 
 The loader also supports flat structure for backwards compatibility:
+
 - `./plugins/format-*/plugin.json`
 - `./plugins/tool-*/plugin.json`
 
@@ -678,6 +684,7 @@ func (w *ZTextWriter) WriteModule(corpus *IRCorpus) (int, error) {
 #### Binary File Generation
 
 For SWORD zText format:
+
 - `.bzs` - Block section index (12 bytes per entry: offset[4], size[4], ucsize[4])
 - `.bzv` - Verse index (10 bytes per entry: block[4], offset[4], size[2])
 - `.bzz` - Compressed text data (zlib compressed blocks)

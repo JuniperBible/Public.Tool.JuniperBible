@@ -50,6 +50,7 @@ Updated with `//go:build !sdk` tag to preserve standalone functionality.
 **Purpose**: Maintains the original standalone executable behavior.
 
 **Changes**:
+
 - Added `//go:build !sdk` at the top of the file
 - No other modifications to existing code
 
@@ -62,6 +63,7 @@ All test files were updated with `//go:build !sdk` tag.
 **Purpose**: Ensures tests only run in standalone mode, avoiding SDK build conflicts.
 
 **Changes**:
+
 - Added `//go:build !sdk` at the top of each `*_test.go` file
 - No other modifications to test logic
 

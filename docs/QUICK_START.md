@@ -176,6 +176,7 @@ Capsules are the core storage format - immutable archives that preserve files by
 ## Supported Formats
 
 ### L0 - Lossless (byte-identical round-trip)
+
 - OSIS XML (`.osis`, `.xml`)
 - USFM (`.usfm`, `.sfm`)
 - USX (`.usx`)
@@ -184,6 +185,7 @@ Capsules are the core storage format - immutable archives that preserve files by
 - JSON
 
 ### L1 - Semantically Lossless
+
 - EPUB (`.epub`)
 - HTML (`.html`)
 - Markdown (`.md`)
@@ -193,12 +195,14 @@ Capsules are the core storage format - immutable archives that preserve files by
 - TEI XML
 
 ### L2 - Minor Metadata Loss
+
 - SWORD modules
 - RTF (`.rtf`)
 - Logos/Libronix
 - Accordance
 
 ### L3 - Text Only
+
 - Plain text (`.txt`)
 - GoBible (`.jar`)
 - Palm Bible (`.pdb`)

@@ -50,6 +50,7 @@ signature = HMAC-SHA256(secret, timestamp + payload)
 ```
 
 The worker verifies:
+
 1. Signature matches
 2. Timestamp within 5-minute window (replay protection)
 
@@ -62,11 +63,13 @@ When configured, messages are encrypted client-side using OpenPGP.js before subm
 ### 1. Get CAPTCHA Keys
 
 **Turnstile (Cloudflare):**
+
 - Go to https://dash.cloudflare.com/ → Turnstile
 - Create a site widget
 - Copy Site Key and Secret Key
 
 **Other providers:**
+
 - reCAPTCHA: https://www.google.com/recaptcha/admin
 - hCaptcha: https://dashboard.hcaptcha.com/
 - Friendly Captcha: https://friendlycaptcha.com/
@@ -111,6 +114,7 @@ npx wrangler deploy
 ### 6. Enable Email Routing
 
 **Cloudflare Dashboard → Email → Email Routing:**
+
 1. Enable Email Routing
 2. Add destination email address
 3. Verify destination via email link

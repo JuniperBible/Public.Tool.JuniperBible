@@ -187,6 +187,7 @@ When the VDBE executes this program:
 4. **Loop starts (3)**: Begin processing current row
 
 #### WHERE Clause Evaluation (3-12):
+
 5. **Column (3)**: Read `age` column → r[1]
 6. **Integer (4)**: Load constant 18 → r[2]
 7. **Gt (5)**: Compare r[1] > r[2] → r[3]
@@ -199,16 +200,19 @@ When the VDBE executes this program:
 14. **IfNot (12)**: If r[4] is false, skip to 19 (WHERE failed)
 
 #### SELECT Expression Evaluation (13-16):
+
 15. **Column (13)**: Read `name` column → r[8]
 16. **Column (14)**: Read `age` column → r[9]
 17. **Integer (15)**: Load constant 2 → r[10]
 18. **Multiply (16)**: r[9] * r[10] → r[11] (age * 2)
 
 #### Output and Iteration (17-18):
+
 19. **ResultRow (17)**: Output r[8] (name) and r[11] (age*2)
 20. **Next (18)**: Move to next row, jump to 3 if not EOF
 
 #### Cleanup (19-20):
+
 21. **Close (19)**: Close cursor 0
 22. **Halt (20)**: End program
 
@@ -226,20 +230,24 @@ Given this data in the users table:
 **Execution trace:**
 
 #### Row 1 (Alice, 25, 1):
+
 - WHERE: age(25) > 18 → TRUE, active(1) = 1 → TRUE, AND → TRUE
 - SELECT: name → "Alice", age*2 → 50
 - OUTPUT: ["Alice", 50]
 
 #### Row 2 (Bob, 15, 1):
+
 - WHERE: age(15) > 18 → FALSE
 - Short-circuit: Skip right side of AND, jump to next row
 - No output
 
 #### Row 3 (Charlie, 30, 0):
+
 - WHERE: age(30) > 18 → TRUE, active(0) = 1 → FALSE, AND → FALSE
 - No output
 
 #### Row 4 (Diana, 22, 1):
+
 - WHERE: age(22) > 18 → TRUE, active(1) = 1 → TRUE, AND → TRUE
 - SELECT: name → "Diana", age*2 → 44
 - OUTPUT: ["Diana", 44]
@@ -395,17 +403,20 @@ gen.GenerateExpr(&parser.BinaryExpr{
 ## Performance Characteristics
 
 ### Time Complexity
+
 - **Simple expression**: O(1) - constant time
 - **Binary expression**: O(n) - linear in expression depth
 - **Complex nested**: O(n) where n = number of nodes in AST
 - **WHERE clause**: O(m) where m = complexity of condition
 
 ### Space Complexity
+
 - **Registers**: O(d) where d = max expression depth
 - **Instructions**: O(n) where n = number of AST nodes
 - **Memory**: Minimal overhead, scales with expression size
 
 ### Optimization Opportunities
+
 1. **Constant folding**: `2 + 3` → `5` at compile time
 2. **Register reuse**: Free temp registers after use
 3. **Jump optimization**: Eliminate redundant jumps

@@ -15,6 +15,104 @@ All plugins communicate with the core system via JSON over stdin/stdout.
 
 ---
 
+## Plugin SDK (Recommended)
+
+The Plugin SDK provides a higher-level abstraction for building format plugins, significantly reducing boilerplate code and providing automatic command routing with standard error handling.
+
+### Benefits
+
+- **Reduced boilerplate** - No manual command routing or IPC handling
+- **Automatic command routing** - Commands are automatically mapped to your handler functions
+- **Standard error handling** - Consistent error responses across all commands
+- **Type-safe interfaces** - Compile-time verification of handler signatures
+- **Easier testing** - Test individual handler functions without IPC setup
+
+### Build Tags
+
+The SDK pattern uses Go build tags to allow a single codebase to support both embedded and standalone plugin modes:
+
+- `//go:build sdk` - Standalone plugin with `main()` function using SDK
+- `//go:build !sdk` - Embedded plugin handler (default)
+
+This allows the same plugin logic to be compiled either as a standalone executable or embedded directly into the core binaries.
+
+### Usage Example
+
+Here's a complete example of a format plugin using the SDK pattern:
+
+```go
+//go:build sdk
+
+package main
+
+import (
+    "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
+)
+
+func main() {
+    format.Run(&format.Config{
+        Name:       "myformat",
+        Extensions: []string{".mf"},
+        Detect:     detect,
+        Parse:      parse,
+        Emit:       emit,
+        Enumerate:  enumerate,
+    })
+}
+
+func detect(path string) (*ipc.DetectResult, error) {
+    // Your detection logic here
+    result := ipc.StandardDetect(path, "myformat",
+        []string{".mf"},
+        []string{"MYFORMAT_MARKER"},
+    )
+    return result, nil
+}
+
+func parse(path string) (*ir.Corpus, error) {
+    // Parse the file and convert to IR
+    corpus := &ir.Corpus{
+        Meta: ir.Metadata{
+            Title: "My Bible",
+        },
+        Books: []ir.Book{
+            // Your book data
+        },
+    }
+    return corpus, nil
+}
+
+func emit(corpus *ir.Corpus, outputDir string) (string, error) {
+    // Convert IR back to native format
+    outputPath := filepath.Join(outputDir, "output.mf")
+    // Write your format here
+    return outputPath, nil
+}
+
+func enumerate(path string) (*ipc.EnumerateResult, error) {
+    // List components within the file
+    return &ipc.EnumerateResult{
+        Entries: []ipc.Entry{
+            {Path: "myformat", SizeBytes: 1024, IsDir: false},
+        },
+    }, nil
+}
+```
+
+### Migration Status
+
+**87 plugins** have been successfully migrated to the SDK pattern, demonstrating its stability and effectiveness across a wide variety of format implementations.
+
+### When to Use
+
+- **New plugins** - Always use the SDK for new format plugins
+- **Existing plugins** - Gradually migrate to SDK as plugins are updated
+- **Complex formats** - SDK handles command routing, letting you focus on format-specific logic
+
+---
+
 ## Plugin Structure
 
 Plugins are organized by kind in nested directories:

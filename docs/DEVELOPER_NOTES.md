@@ -80,6 +80,37 @@ replace github.com/FocuswithJustin/mimicry/test-contrib => ../mimicry-worktrees/
 
 ---
 
+## Plugin SDK
+
+The Plugin SDK provides a simplified development path for plugins by handling common infrastructure tasks automatically.
+
+### What the SDK Provides
+
+- **Simplified Development**: Focus on plugin logic rather than boilerplate
+- **Command Routing**: Automatic dispatch to appropriate plugin methods
+- **Error Handling**: Standardized error reporting and recovery
+- **Lifecycle Management**: Initialization, cleanup, and state management
+
+### SDK Adoption
+
+Currently **87 plugins** have SDK versions, allowing developers to choose between:
+- Direct plugin implementation for maximum control
+- SDK-based implementation for faster development
+
+### Building with SDK Support
+
+```bash
+# Build with SDK mode enabled
+go build -tags=sdk
+```
+
+### References
+
+- SDK implementation: `plugins/sdk/`
+- Development guide: `docs/PLUGIN_DEVELOPMENT.md`
+
+---
+
 ## How to Work Day-to-Day
 
 ### When Adding Support for a Format

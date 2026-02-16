@@ -33,6 +33,57 @@ echo '{"command":"detect","args":{"path":"test.example"}}' | \
 # {"status":"ok","result":{"detected":false,"reason":"noop plugin - for documentation only"}}
 ```
 
+## SDK Version
+
+This plugin provides two implementations:
+
+1. **main.go** - Legacy IPC version (default)
+2. **main_sdk.go** - SDK version using the format SDK
+
+### Building with SDK
+
+```bash
+# Default: Legacy IPC version
+go build .
+
+# SDK version: Uses format SDK
+go build -tags=sdk .
+```
+
+### SDK Implementation
+
+The SDK version uses `format.Run()` with a `Config` struct that simplifies plugin development:
+
+```go
+func main() {
+    format.Run(&format.Config{
+        Name:       "format-example",
+        Extensions: []string{".example"},
+        Detect:     detectWrapper,
+        Parse:      parseWrapper,
+        Emit:       emitWrapper,
+        Enumerate:  enumerateWrapper,
+    })
+}
+```
+
+### Wrapper Functions
+
+The SDK requires specific function signatures. Wrapper functions convert between the internal function signatures and the SDK signatures:
+
+- **detectWrapper**: Converts `detect(path) (bool, string, error)` to SDK signature `func(path string) (*ipc.DetectResult, error)`
+- **parseWrapper**: Converts `parse(path, outputDir) (artifactID, blobHash, corpus, error)` to SDK signature `func(path string) (*ir.Corpus, error)`
+- **emitWrapper**: Converts `emit(corpus, outputDir, formatVariant) (outputPath, error)` to SDK signature `func(corpus *ir.Corpus, outputDir string) (string, error)`
+- **enumerateWrapper**: Converts `enumerate(path) ([]*ipc.EnumerateEntry, error)` to SDK signature `func(path string) (*ipc.EnumerateResult, error)`
+
+The SDK handles:
+- IPC protocol communication (JSON stdin/stdout)
+- Command routing and argument parsing
+- Response formatting and error handling
+- Output directory management
+
+This allows you to focus on format-specific logic rather than protocol details.
+
 ## IPC Protocol
 
 All plugins communicate via JSON over stdin/stdout.

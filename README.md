@@ -562,6 +562,31 @@ Plugins communicate via JSON over stdin/stdout:
 
 ---
 
+## Plugin SDK
+
+87 plugins now support the **Plugin SDK pattern**, which provides simplified development with standardized boilerplate:
+
+### Benefits
+
+- Simplified plugin development with `format.Run()` entry point
+- Automatic IPC protocol handling
+- Consistent error handling and logging
+- Reduced boilerplate code
+
+### Building with SDK
+
+Use the `-tags=sdk` build flag to compile SDK versions of plugins:
+
+```bash
+make build -tags=sdk
+```
+
+### Development
+
+See [docs/PLUGIN_DEVELOPMENT.md](docs/PLUGIN_DEVELOPMENT.md) for complete SDK usage guide and migration instructions.
+
+---
+
 ## Quick start
 
 ```bash

@@ -1,12 +1,34 @@
 # JuniperBible Plugin SDK
 
-The Plugin SDK provides a high-level API for building JuniperBible plugins. It eliminates boilerplate code by providing standard implementations for common plugin operations.
+The Plugin SDK simplifies plugin development by providing high-level helpers that eliminate boilerplate code. It wraps the low-level IPC protocol with intuitive APIs, handling command dispatch, argument extraction, error handling, and blob storage automatically.
+
+## Overview
+
+Instead of manually implementing IPC message handling, plugins built with the SDK can focus on core functionality:
+
+- **Format plugins**: Implement `Parse()` and `Emit()` functions to convert between native formats and the IR (Intermediate Representation)
+- **Tool plugins**: Define metadata and implement `Check()` and execution handlers
+- **Automatic handling**: The SDK handles all IPC communication, blob storage, error marshaling, and lifecycle management
+
+## Package Structure
+
+The SDK is organized into focused packages:
+
+- **`plugins/sdk/format`** - Format plugin helpers (detect, ingest, extract-ir, emit-native, enumerate)
+- **`plugins/sdk/tool`** - Tool plugin helpers (info, check, run)
+- **`plugins/sdk/ir`** - IR corpus read/write utilities
+- **`plugins/sdk/blob`** - Content-addressed blob storage
+- **`plugins/sdk/errors`** - Standard error types with codes
+- **`plugins/sdk/runtime`** - Low-level IPC dispatch and lifecycle
+- **`plugins/sdk/types`** - Type re-exports from IPC package
 
 ## Quick Start
 
-### Format Plugin
+### Format Plugin Example
 
 ```go
+//go:build sdk
+
 package main
 
 import (
@@ -59,6 +81,64 @@ func main() {
 		},
 	})
 }
+```
+
+## Function Signatures
+
+When implementing SDK-based plugins, your handlers should match these signatures:
+
+### Format Plugin Functions
+
+```go
+// Detect performs custom format detection
+// Returns: detection result with format name and confidence
+Detect: func(path string) (*ipc.DetectResult, error)
+
+// Parse reads a native format file and converts to IR
+// Returns: populated IR corpus
+Parse: func(path string) (*ir.Corpus, error)
+
+// Emit converts IR corpus to native format
+// Returns: path to output file
+Emit: func(corpus *ir.Corpus, outputDir string) (string, error)
+
+// Enumerate lists contents of archive formats
+// Returns: list of entries (files/directories)
+Enumerate: func(path string) (*ipc.EnumerateResult, error)
+```
+
+### Tool Plugin Functions
+
+```go
+// Check verifies tool availability
+// Returns: true if tool is available and functional
+Check: func() (bool, error)
+
+// Run executes the tool with given parameters
+// Returns: execution result or error
+Run: func(req *ipc.ToolRunRequest) (interface{}, error)
+```
+
+## Build Tags
+
+SDK-based plugins use Go build tags to enable conditional compilation:
+
+```go
+//go:build sdk
+```
+
+This allows maintaining both SDK and direct IPC implementations:
+- `main.go` - Direct IPC implementation (build tag: `//go:build !sdk`)
+- `main_sdk.go` - SDK implementation (build tag: `//go:build sdk`)
+
+Build with SDK:
+```bash
+go build -tags sdk -o format-myformat main_sdk.go
+```
+
+Build without SDK (direct IPC):
+```bash
+go build -o format-myformat main.go
 ```
 
 ## Package Overview

@@ -100,6 +100,104 @@ XML/HTML entity encoding:
 - `EscapeHTML()`, `UnescapeHTML()`
 - `EscapeXML()`, `UnescapeXML()`
 
+## SDK Integration
+
+The IPC package provides the foundational protocol types used by all plugins, whether they use the SDK or implement the protocol directly.
+
+### Architecture Overview
+
+**IPC Package (`plugins/ipc`)**: Core protocol layer
+- Defines protocol types: `Request`, `Response`, `DetectResult`, `IngestResult`, `EnumerateResult`, `EnumerateEntry`
+- Provides IR types: `Corpus`, `Document`, `ContentBlock`, `Token`, etc.
+- Offers helper functions: `ReadRequest()`, `Respond()`, argument extraction, detection helpers
+- Used by both SDK-based and non-SDK plugins
+
+**SDK Package (`plugins/sdk/format`)**: High-level wrapper
+- Wraps IPC types for easier plugin development
+- Provides `FormatHandler` interface with simplified method signatures
+- Handles IPC communication automatically
+- Offers test helpers for plugin development
+- Built on top of the IPC package
+
+### Key Types
+
+**Protocol Types** (defined in `protocol.go`):
+- `Request`: IPC request with command and arguments
+- `Response`: IPC response with success/error status and data
+- `DetectResult`: Detection result with format name and confidence
+- `IngestResult`: Ingestion result with content hash and artifact ID
+- `EnumerateResult`: Enumeration result with entry list
+- `EnumerateEntry`: Single enumerable entry (path, type, size)
+
+**IR Types** (defined in `ir.go`):
+- See "IR Types" section above for complete list
+
+### Plugin Development Approaches
+
+**Option 1: Direct IPC Usage** (non-SDK plugins)
+- Implement protocol directly using IPC package types
+- Use `main.go` with build tag `//go:build !sdk`
+- Full control over protocol handling
+- More boilerplate code but maximum flexibility
+
+Example structure:
+```go
+//go:build !sdk
+
+package main
+
+import "github.com/FocuswithJustin/mimicry/plugins/ipc"
+
+func main() {
+    req, err := ipc.ReadRequest()
+    if err != nil {
+        ipc.RespondError(err.Error())
+        return
+    }
+
+    switch req.Command {
+    case "detect":
+        handleDetect(req.Args)
+    // ...
+    }
+}
+```
+
+**Option 2: SDK-Based Plugins** (recommended for new plugins)
+- Implement `FormatHandler` interface from SDK package
+- Use `main_sdk.go` with build tag `//go:build sdk`
+- SDK handles IPC communication automatically
+- Less boilerplate, focus on format-specific logic
+
+Example structure:
+```go
+//go:build sdk
+
+package main
+
+import "github.com/FocuswithJustin/mimicry/plugins/sdk/format"
+
+type MyFormatHandler struct{}
+
+func (h *MyFormatHandler) Detect(path string) (bool, string, error) {
+    // Detection logic using IPC helpers
+    return true, "MyFormat", nil
+}
+
+func main() {
+    format.Main(&MyFormatHandler{})
+}
+```
+
+### Build Tag Separation
+
+Build tags ensure proper separation between SDK and non-SDK implementations:
+
+- `main.go` with `//go:build !sdk`: Direct IPC implementation
+- `main_sdk.go` with `//go:build sdk`: SDK wrapper implementation
+
+This allows the same plugin to support both modes, with the build system selecting the appropriate implementation based on build flags.
+
 ## Usage Example
 
 ```go

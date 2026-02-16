@@ -111,16 +111,25 @@ Full Plan: .claude/plans/frolicking-shimmying-comet.md
 [X] Create plugins/sdk/README.md with examples
 [X] Create scripts/parity-test.sh
 
-## Phase 3: Migrate Format Plugins (42 plugins) [IN PROGRESS]
-[ ] Batch 1 (8 simple): txt, zip, tar, xml, file, dir, rtf, html
-[ ] Batch 2 (10 IR-enabled): json, zefania, tei, sfm, pdb, odf, tischendorf, morphgnt, sblgnt, ecm
-[ ] Batch 3 (12 complex): osis, usfm, usx, esword, mysword, mybible, theword, gobible, onlinebible, sqlite, olive, flex
-[ ] Batch 4 (8 proprietary/CGO): sword, sword-pure, crosswire, logos, accordance, dbl, epub, oshb
+## Phase 3: Migrate Format Plugins (42 plugins) [DONE - 2026-02-15]
+[X] Batch 1 (8 simple): txt, zip, tar, xml, file, dir, rtf, html
+[X] Batch 2 (10 IR-enabled): json, zefania, tei, sfm, pdb, odf, tischendorf, morphgnt, sblgnt, ecm
+[X] Batch 3 (12 complex): osis, usfm, usx, esword, mysword, mybible, theword, gobible, onlinebible, sqlite, olive, flex
+[X] Batch 4 (8 proprietary/CGO): sword, sword-pure, crosswire, logos, accordance, dbl, epub, oshb
 [X] Create scripts/parity-test.sh
-[ ] Create plugins/MIGRATION.md checklist
+[X] Create plugins/MIGRATION.md checklist
 
-## Phase 4: Migrate Tool Plugins (10 plugins)
-[ ] pandoc, calibre, unrtf, hugo, libsword, libxml2, sqlite, usfm2osis, gobible-creator, repoman
+NOTE: All 87 plugins now have main_sdk.go files (42 format + 10 tool + 35 external)
+
+## Phase 3.5: SDK Compatibility Fixes [DONE - 2026-02-15]
+[X] Build tags added to 174 files (87 main.go + 87 main_sdk.go)
+[X] Shared types extracted to types.go and repoman.go
+[X] Function signature wrappers added for SDK compatibility
+[X] All SDK builds compile successfully
+[X] Verified all plugins work with both IPC and SDK entry points
+
+## Phase 4: Migrate Tool Plugins (10 plugins) [DONE - 2026-02-15]
+[X] pandoc, calibre, unrtf, hugo, libsword, libxml2, sqlite, usfm2osis, gobible-creator, repoman
 
 ## Phase 5: Migrate Internal Handlers (41 handlers)
 [ ] Create internal/formats/sdk_adapter.go

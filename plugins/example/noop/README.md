@@ -1,6 +1,40 @@
-# Plugins Directory
+# Noop Plugin - SDK Example
 
-This directory is reserved for external and premium plugins.
+This is a placeholder plugin demonstrating the plugin SDK pattern.
+
+## Dual Implementation Pattern
+
+This plugin has two implementations controlled by build tags:
+
+1. **main.go** (`//go:build !sdk`) - Direct IPC implementation
+   - Uses raw JSON encoding/decoding with stdin/stdout
+   - Manually handles the IPC protocol
+   - Suitable for minimal plugins or custom protocols
+
+2. **main_sdk.go** (`//go:build sdk`) - SDK-based implementation
+   - Uses the format SDK package for standardized plugin structure
+   - Demonstrates proper use of `ir.NewCorpus()` with required arguments
+   - Shows the recommended pattern for format plugins
+   - Implements all standard format plugin methods: `detect`, `parse`, `emit`, `enumerate`
+
+## Build Tags
+
+The build tag system ensures only one implementation is compiled:
+
+- Default build (`go build`): Compiles `main.go` (direct IPC)
+- SDK build (`go build -tags=sdk`): Compiles `main_sdk.go` (SDK pattern)
+
+## SDK Pattern Demonstration
+
+The SDK version shows how to properly use the format SDK:
+
+```go
+// Creating a corpus with proper arguments
+ir.NewCorpus("noop", "placeholder", "0.0.0")
+// Arguments: format, source, version
+```
+
+This plugin serves as a reference implementation for external plugin developers.
 
 ## Built-in Plugins
 

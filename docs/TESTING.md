@@ -323,6 +323,107 @@ open coverage.html
 
 ---
 
+## SDK Plugin Testing
+
+Juniper Bible supports both native and SDK-based plugin implementations. Testing must verify both versions work correctly.
+
+### Test Organization
+
+Plugin tests are structured to avoid conflicts between SDK and non-SDK builds:
+
+```go
+//go:build !sdk
+
+package myplugin
+
+func TestPluginLogic(t *testing.T) {
+    // Test implementation
+}
+```
+
+The `//go:build !sdk` tag ensures test files only run during non-SDK builds, preventing linker conflicts.
+
+### Running Non-SDK Tests
+
+Standard plugin tests (non-SDK version):
+
+```bash
+# Test all plugins
+go test ./plugins/...
+
+# Test specific plugin
+go test ./plugins/myplugin/...
+
+# With coverage
+go test -cover ./plugins/...
+```
+
+### SDK Build Verification
+
+Verify SDK versions compile correctly:
+
+```bash
+# Build all SDK plugins
+go build -tags=sdk ./plugins/...
+
+# Build specific SDK plugin
+go build -tags=sdk ./plugins/myplugin/...
+```
+
+The SDK build uses the `-tags=sdk` flag to select SDK implementations instead of native ones.
+
+### Parity Testing
+
+Both SDK and non-SDK versions must produce identical behavior. Verify parity through:
+
+1. **Hash-based output comparison:** Run both versions and compare output hashes
+2. **Integration tests:** Test both versions with real data flows
+3. **Behavioral tests:** Verify both handle edge cases identically
+
+**Example parity test approach:**
+
+```bash
+# Test native version
+go test ./plugins/myplugin/...
+
+# Build SDK version
+go build -tags=sdk -o capsule-sdk ./plugins/myplugin/...
+
+# Compare runtime behavior
+./capsule process input.txt > output-native.txt
+./capsule-sdk process input.txt > output-sdk.txt
+sha256sum output-native.txt output-sdk.txt
+```
+
+### Why Separate Test Files?
+
+SDK and non-SDK implementations share the same package but use different build tags:
+
+- **Non-SDK:** Direct Go function calls
+- **SDK:** RPC communication over stdin/stdout
+
+Test files marked with `//go:build !sdk` prevent:
+- Linker conflicts (both versions defining same symbols)
+- Test execution against wrong implementation
+- CI/CD confusion about which version is being tested
+
+### CI/CD Integration
+
+CI pipelines should verify both versions:
+
+```bash
+# Stage 1: Non-SDK tests
+go test ./plugins/...
+
+# Stage 2: SDK build verification
+go build -tags=sdk ./plugins/...
+
+# Stage 3: Integration tests (both versions)
+./scripts/test-sdk-parity.sh
+```
+
+---
+
 ## Test Dependencies
 
 ### Required for Unit Tests

@@ -54,8 +54,8 @@ func createTestTable() *TableInfo {
 					{Name: "age", Index: 2, Ascending: true},
 				},
 				ColumnStats: []LogEst{
-					NewLogEst(100),  // ~100 rows per city
-					NewLogEst(10),   // ~10 rows per city+age combo
+					NewLogEst(100), // ~100 rows per city
+					NewLogEst(10),  // ~10 rows per city+age combo
 				},
 			},
 		},
@@ -68,9 +68,9 @@ func TestLogEst(t *testing.T) {
 		expected int64
 	}{
 		{1, 1},
-		{10, 8},      // Should be close to 10
-		{100, 64},    // Should be close to 100
-		{1000, 512},  // Should be close to 1000
+		{10, 8},       // Should be close to 10
+		{100, 64},     // Should be close to 100
+		{1000, 512},   // Should be close to 1000
 		{10000, 4096}, // Should be close to 10000
 	}
 
@@ -355,7 +355,7 @@ func TestPlannerMultiTable(t *testing.T) {
 			{
 				Operator:    WO_EQ,
 				LeftCursor:  1,
-				LeftColumn:  1, // orders.user_id
+				LeftColumn:  1,               // orders.user_id
 				PrereqRight: Bitmask(1 << 0), // References users table
 			},
 		},

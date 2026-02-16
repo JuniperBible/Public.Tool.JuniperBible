@@ -246,8 +246,8 @@ func TestExtractZip(t *testing.T) {
 
 	// Add test files
 	files := map[string]string{
-		"mods.d/test.conf":    "[Test]\nDescription=Test\n",
-		"modules/test.txt":    "test content",
+		"mods.d/test.conf":      "[Test]\nDescription=Test\n",
+		"modules/test.txt":      "test content",
 		"modules/data/file.dat": "data content",
 	}
 

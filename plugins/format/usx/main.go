@@ -15,12 +15,13 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 // USX XML types

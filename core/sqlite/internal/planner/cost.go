@@ -7,19 +7,19 @@ import (
 // Cost estimation constants
 const (
 	// Default cost values (in LogEst units)
-	costFullScan      = LogEst(100) // Cost per row for full table scan
-	costIndexSeek     = LogEst(10)  // Cost to seek to a position in index
-	costIndexNext     = LogEst(5)   // Cost to move to next index entry
-	costRowidLookup   = LogEst(19)  // Cost to lookup row by rowid (~19 = log2(500k))
-	costComparison    = LogEst(2)   // Cost of a single comparison
-	costInMemoryScan  = LogEst(1)   // Cost per row when data is in memory
+	costFullScan     = LogEst(100) // Cost per row for full table scan
+	costIndexSeek    = LogEst(10)  // Cost to seek to a position in index
+	costIndexNext    = LogEst(5)   // Cost to move to next index entry
+	costRowidLookup  = LogEst(19)  // Cost to lookup row by rowid (~19 = log2(500k))
+	costComparison   = LogEst(2)   // Cost of a single comparison
+	costInMemoryScan = LogEst(1)   // Cost per row when data is in memory
 
 	// Selectivity estimates (how many rows will match)
-	selectivityEq       = LogEst(-10) // x = const: ~1/1024 rows (highly selective)
-	selectivityRange    = LogEst(-3)  // x > const: ~1/8 rows
-	selectivityIn       = LogEst(-7)  // x IN (...): depends on list size
-	selectivityNull     = LogEst(-20) // x IS NULL: very few nulls
-	selectivityLikePat  = LogEst(-4)  // LIKE with pattern: ~1/16 rows
+	selectivityEq      = LogEst(-10) // x = const: ~1/1024 rows (highly selective)
+	selectivityRange   = LogEst(-3)  // x > const: ~1/8 rows
+	selectivityIn      = LogEst(-7)  // x IN (...): depends on list size
+	selectivityNull    = LogEst(-20) // x IS NULL: very few nulls
+	selectivityLikePat = LogEst(-4)  // LIKE with pattern: ~1/16 rows
 
 	// Heuristic adjustments
 	truthProbDefault    = LogEst(1)   // Default truth probability
@@ -54,9 +54,9 @@ func (c *CostModel) EstimateIndexScan(
 	table *TableInfo,
 	index *IndexInfo,
 	terms []*WhereTerm,
-	nEq int,        // Number of equality constraints
-	hasRange bool,  // Has range constraint (< or >)
-	covering bool,  // Index is covering (doesn't need table lookup)
+	nEq int, // Number of equality constraints
+	hasRange bool, // Has range constraint (< or >)
+	covering bool, // Index is covering (doesn't need table lookup)
 ) (cost LogEst, nOut LogEst) {
 
 	// Start with the total number of rows

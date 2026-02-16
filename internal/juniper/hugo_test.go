@@ -254,17 +254,17 @@ func TestGetLicenseText_FromFile(t *testing.T) {
 
 func TestGenerateBibleTags(t *testing.T) {
 	tests := []struct {
-		name       string
-		module     *Module
-		conf       *swordpure.ConfFile
-		wantTags   []string
-		checkTags  func([]string) bool
+		name      string
+		module    *Module
+		conf      *swordpure.ConfFile
+		wantTags  []string
+		checkTags func([]string) bool
 	}{
 		{
 			name: "English Bible",
 			module: &Module{
-				Name: "KJV",
-				Lang: "en",
+				Name:        "KJV",
+				Lang:        "en",
 				Description: "King James Version",
 			},
 			conf: &swordpure.ConfFile{
@@ -404,8 +404,8 @@ func TestGenerateBibleTags(t *testing.T) {
 		{
 			name: "Modern Translation",
 			module: &Module{
-				Name: "WEB",
-				Lang: "en",
+				Name:        "WEB",
+				Lang:        "en",
 				Description: "World English Bible",
 			},
 			conf: &swordpure.ConfFile{},
@@ -421,8 +421,8 @@ func TestGenerateBibleTags(t *testing.T) {
 		{
 			name: "With Strong's Numbers",
 			module: &Module{
-				Name: "KJVStrongs",
-				Lang: "en",
+				Name:        "KJVStrongs",
+				Lang:        "en",
 				Description: "KJV with Strong's Numbers",
 			},
 			conf: &swordpure.ConfFile{},
@@ -453,7 +453,7 @@ func TestWriteJSON(t *testing.T) {
 		testFile := filepath.Join(tempDir, "test.json")
 
 		data := map[string]interface{}{
-			"key":   "value",
+			"key":    "value",
 			"number": 42,
 		}
 
@@ -483,11 +483,11 @@ func TestWriteJSON(t *testing.T) {
 
 func TestParseVerseRef(t *testing.T) {
 	tests := []struct {
-		name         string
-		ref          string
-		wantBook     string
-		wantChapter  int
-		wantVerse    int
+		name        string
+		ref         string
+		wantBook    string
+		wantChapter int
+		wantVerse   int
 	}{
 		{
 			name:        "simple reference",

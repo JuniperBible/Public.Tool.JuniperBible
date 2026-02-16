@@ -15,26 +15,26 @@ const (
 
 // Page type flags (bit flags in page type byte)
 const (
-	PTF_INTKEY    = 0x01 // True if table b-trees (integer key)
-	PTF_ZERODATA  = 0x02 // True for index b-trees (no data, only keys)
-	PTF_LEAFDATA  = 0x04 // True if data is stored in leaves
-	PTF_LEAF      = 0x08 // True if this is a leaf page
+	PTF_INTKEY   = 0x01 // True if table b-trees (integer key)
+	PTF_ZERODATA = 0x02 // True for index b-trees (no data, only keys)
+	PTF_LEAFDATA = 0x04 // True if data is stored in leaves
+	PTF_LEAF     = 0x08 // True if this is a leaf page
 )
 
 // Page header offsets
 const (
-	PageHeaderOffsetType       = 0  // Page type (1 byte)
-	PageHeaderOffsetFreeblock  = 1  // First freeblock offset (2 bytes)
-	PageHeaderOffsetNumCells   = 3  // Number of cells (2 bytes)
-	PageHeaderOffsetCellStart  = 5  // Start of cell content area (2 bytes)
-	PageHeaderOffsetFragmented = 7  // Fragmented free bytes (1 byte)
-	PageHeaderOffsetRightChild = 8  // Right-most child pointer (4 bytes, interior only)
+	PageHeaderOffsetType       = 0 // Page type (1 byte)
+	PageHeaderOffsetFreeblock  = 1 // First freeblock offset (2 bytes)
+	PageHeaderOffsetNumCells   = 3 // Number of cells (2 bytes)
+	PageHeaderOffsetCellStart  = 5 // Start of cell content area (2 bytes)
+	PageHeaderOffsetFragmented = 7 // Fragmented free bytes (1 byte)
+	PageHeaderOffsetRightChild = 8 // Right-most child pointer (4 bytes, interior only)
 )
 
 // Header sizes
 const (
-	PageHeaderSizeLeaf     = 8  // Leaf pages: 8 bytes
-	PageHeaderSizeInterior = 12 // Interior pages: 12 bytes (includes right child pointer)
+	PageHeaderSizeLeaf     = 8   // Leaf pages: 8 bytes
+	PageHeaderSizeInterior = 12  // Interior pages: 12 bytes (includes right child pointer)
 	FileHeaderSize         = 100 // Database file header on page 1
 )
 
@@ -156,10 +156,10 @@ func (h *PageHeader) String() string {
 
 // BtreePage wraps a raw page buffer and provides write operations
 type BtreePage struct {
-	Data       []byte       // Raw page data
-	PageNum    uint32       // Page number
-	Header     *PageHeader  // Parsed page header
-	UsableSize uint32       // Usable bytes per page
+	Data       []byte      // Raw page data
+	PageNum    uint32      // Page number
+	Header     *PageHeader // Parsed page header
+	UsableSize uint32      // Usable bytes per page
 }
 
 // NewBtreePage creates a new BtreePage wrapper from raw page data

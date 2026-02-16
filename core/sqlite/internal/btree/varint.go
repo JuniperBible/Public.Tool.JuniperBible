@@ -77,8 +77,8 @@ func GetVarint(p []byte) (uint64, int) {
 	// Save original slice for 9-byte case
 	orig := p
 
-	const SLOT_2_0 = 0x001fc07f       // (0x7f<<14) | 0x7f
-	const SLOT_4_2_0 = 0xf01fc07f     // (0xf<<28) | (0x7f<<14) | 0x7f
+	const SLOT_2_0 = 0x001fc07f   // (0x7f<<14) | 0x7f
+	const SLOT_4_2_0 = 0xf01fc07f // (0xf<<28) | (0x7f<<14) | 0x7f
 
 	a := uint32(p[0]) << 14
 	b := uint32(p[1])

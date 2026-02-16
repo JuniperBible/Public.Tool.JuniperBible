@@ -202,7 +202,7 @@ func TestEncodeTableInteriorCell(t *testing.T) {
 func TestBtreePageInsertCell(t *testing.T) {
 	// Create a page (use page 2 to avoid file header at offset 100)
 	pageData := make([]byte, 4096)
-	pageData[0] = PageTypeLeafTable // Leaf table page
+	pageData[0] = PageTypeLeafTable             // Leaf table page
 	binary.BigEndian.PutUint16(pageData[3:], 0) // NumCells = 0
 	binary.BigEndian.PutUint16(pageData[5:], 0) // CellContentStart = 0 (end of page)
 
@@ -291,8 +291,8 @@ func TestBtreePageDefragment(t *testing.T) {
 	offset1 := offset2 - len(cell1) - 10 // Leave a 10-byte gap
 	copy(pageData[offset1:], cell1)
 
-	binary.BigEndian.PutUint16(pageData[5:], uint16(offset1)) // CellContentStart
-	binary.BigEndian.PutUint16(pageData[8:], uint16(offset1)) // Cell 1 pointer
+	binary.BigEndian.PutUint16(pageData[5:], uint16(offset1))  // CellContentStart
+	binary.BigEndian.PutUint16(pageData[8:], uint16(offset1))  // Cell 1 pointer
 	binary.BigEndian.PutUint16(pageData[10:], uint16(offset2)) // Cell 2 pointer
 
 	btreePage, err := NewBtreePage(2, pageData, 4096)

@@ -49,39 +49,39 @@ func TestCORSMiddlewareWithConfigRestrictedOrigins(t *testing.T) {
 	}))
 
 	tests := []struct {
-		name               string
-		origin             string
-		expectStatus       int
-		expectAllowOrigin  string
-		expectCredentials  bool
+		name              string
+		origin            string
+		expectStatus      int
+		expectAllowOrigin string
+		expectCredentials bool
 	}{
 		{
-			name:               "allowed origin",
-			origin:             "https://example.com",
-			expectStatus:       http.StatusOK,
-			expectAllowOrigin:  "https://example.com",
-			expectCredentials:  true,
+			name:              "allowed origin",
+			origin:            "https://example.com",
+			expectStatus:      http.StatusOK,
+			expectAllowOrigin: "https://example.com",
+			expectCredentials: true,
 		},
 		{
-			name:               "another allowed origin",
-			origin:             "https://trusted.com",
-			expectStatus:       http.StatusOK,
-			expectAllowOrigin:  "https://trusted.com",
-			expectCredentials:  true,
+			name:              "another allowed origin",
+			origin:            "https://trusted.com",
+			expectStatus:      http.StatusOK,
+			expectAllowOrigin: "https://trusted.com",
+			expectCredentials: true,
 		},
 		{
-			name:               "disallowed origin",
-			origin:             "https://evil.com",
-			expectStatus:       http.StatusOK,
-			expectAllowOrigin:  "",
-			expectCredentials:  false,
+			name:              "disallowed origin",
+			origin:            "https://evil.com",
+			expectStatus:      http.StatusOK,
+			expectAllowOrigin: "",
+			expectCredentials: false,
 		},
 		{
-			name:               "no origin header",
-			origin:             "",
-			expectStatus:       http.StatusOK,
-			expectAllowOrigin:  "",
-			expectCredentials:  false,
+			name:              "no origin header",
+			origin:            "",
+			expectStatus:      http.StatusOK,
+			expectAllowOrigin: "",
+			expectCredentials: false,
 		},
 	}
 

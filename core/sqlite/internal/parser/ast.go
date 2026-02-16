@@ -24,16 +24,16 @@ type Expression interface {
 
 // SelectStmt represents a SELECT statement.
 type SelectStmt struct {
-	Distinct   bool
-	Columns    []ResultColumn
-	From       *FromClause
-	Where      Expression
-	GroupBy    []Expression
-	Having     Expression
-	OrderBy    []OrderingTerm
-	Limit      Expression
-	Offset     Expression
-	Compound   *CompoundSelect // For UNION, EXCEPT, INTERSECT
+	Distinct bool
+	Columns  []ResultColumn
+	From     *FromClause
+	Where    Expression
+	GroupBy  []Expression
+	Having   Expression
+	OrderBy  []OrderingTerm
+	Limit    Expression
+	Offset   Expression
+	Compound *CompoundSelect // For UNION, EXCEPT, INTERSECT
 }
 
 func (s *SelectStmt) node()      {}
@@ -62,7 +62,7 @@ const (
 type ResultColumn struct {
 	Expr  Expression
 	Alias string
-	Star  bool // true for SELECT *
+	Star  bool   // true for SELECT *
 	Table string // for SELECT table.*
 }
 
@@ -174,12 +174,12 @@ func (d *DeleteStmt) String() string {
 
 // CreateTableStmt represents a CREATE TABLE statement.
 type CreateTableStmt struct {
-	Name        string
-	IfNotExists bool
-	Temp        bool
-	Columns     []ColumnDef
-	Constraints []TableConstraint
-	Select      *SelectStmt
+	Name         string
+	IfNotExists  bool
+	Temp         bool
+	Columns      []ColumnDef
+	Constraints  []TableConstraint
+	Select       *SelectStmt
 	WithoutRowID bool
 	Strict       bool
 }
@@ -199,16 +199,16 @@ type ColumnDef struct {
 
 // ColumnConstraint represents a column constraint.
 type ColumnConstraint struct {
-	Type         ConstraintType
-	Name         string
-	PrimaryKey   *PrimaryKeyConstraint
-	NotNull      bool
-	Unique       bool
-	Check        Expression
-	Default      Expression
-	Collate      string
-	ForeignKey   *ForeignKeyConstraint
-	Generated    *GeneratedConstraint
+	Type       ConstraintType
+	Name       string
+	PrimaryKey *PrimaryKeyConstraint
+	NotNull    bool
+	Unique     bool
+	Check      Expression
+	Default    Expression
+	Collate    string
+	ForeignKey *ForeignKeyConstraint
+	Generated  *GeneratedConstraint
 }
 
 type ConstraintType int
@@ -270,8 +270,8 @@ const (
 
 // GeneratedConstraint represents a GENERATED ALWAYS AS constraint.
 type GeneratedConstraint struct {
-	Expr   Expression
-	Stored bool
+	Expr    Expression
+	Stored  bool
 	Virtual bool
 }
 
@@ -547,9 +547,9 @@ const (
 
 // CaseExpr represents a CASE expression.
 type CaseExpr struct {
-	Expr       Expression // optional CASE expr
+	Expr        Expression // optional CASE expr
 	WhenClauses []WhenClause
-	ElseClause Expression
+	ElseClause  Expression
 }
 
 func (c *CaseExpr) node()       {}

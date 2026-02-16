@@ -260,7 +260,7 @@ func (p *Pager) SetJournalMode(mode int) error {
 	// Validate journal mode
 	switch mode {
 	case JournalModeDelete, JournalModePersist, JournalModeOff,
-	     JournalModeTruncate, JournalModeMemory:
+		JournalModeTruncate, JournalModeMemory:
 		p.journalMode = mode
 		return nil
 	default:

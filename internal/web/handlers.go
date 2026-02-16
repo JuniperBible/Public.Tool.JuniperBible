@@ -4087,7 +4087,6 @@ type ModuleIngestResult struct {
 	Error       string
 }
 
-
 // performJuniperIngest ingests selected SWORD modules as capsules.
 func performJuniperIngest(swordDir string, moduleIDs []string) *JuniperIngestResult {
 	result := &JuniperIngestResult{
@@ -5140,4 +5139,3 @@ func findRepomanPlugin() string {
 	}
 	return ""
 }
-

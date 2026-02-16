@@ -11,7 +11,7 @@ func TestNewVersification(t *testing.T) {
 		want VersificationID
 	}{
 		{VersKJV, VersKJV},
-		{"", VersKJV},         // Empty defaults to KJV
+		{"", VersKJV}, // Empty defaults to KJV
 		{VersNRSV, VersNRSV},
 		{VersVulgate, VersVulgate},
 		{"Unknown", VersKJV}, // Unknown defaults to KJV
@@ -92,8 +92,8 @@ func TestVersificationGetChapterCount(t *testing.T) {
 		{"Ps", 150},
 		{"Matt", 28},
 		{"Rev", 22},
-		{"Obad", 1},     // Single chapter book
-		{"Unknown", 0},  // Invalid book
+		{"Obad", 1},    // Single chapter book
+		{"Unknown", 0}, // Invalid book
 	}
 
 	for _, tt := range tests {
@@ -115,8 +115,8 @@ func TestVersificationGetVerseCount(t *testing.T) {
 	}{
 		{"Gen", 1, 31},
 		{"Gen", 50, 26},
-		{"Ps", 119, 176},  // Longest chapter
-		{"Ps", 117, 2},    // Shortest chapter
+		{"Ps", 119, 176}, // Longest chapter
+		{"Ps", 117, 2},   // Shortest chapter
 		{"Matt", 1, 25},
 		{"Unknown", 1, 0}, // Invalid book
 		{"Gen", 0, 0},     // Invalid chapter (too low)
@@ -141,8 +141,8 @@ func TestVersificationGetTotalVerses(t *testing.T) {
 	}{
 		{"Gen", 1533},
 		{"Ps", 2461},
-		{"Obad", 21},      // Single chapter
-		{"Unknown", 0},    // Invalid book
+		{"Obad", 21},   // Single chapter
+		{"Unknown", 0}, // Invalid book
 	}
 
 	for _, tt := range tests {
@@ -368,11 +368,11 @@ func TestVulgatePsalmVerseCounts(t *testing.T) {
 		psalm int // 1-indexed
 		want  int
 	}{
-		{9, 39},   // Vulg Ps 9 = Hebrew Ps 9-10 combined (39 verses)
-		{50, 21},  // Vulg Ps 50
-		{65, 20},  // Vulg Ps 65 = Hebrew Ps 66 (20 verses, NOT 13 like KJV Ps 65)
-		{66, 8},   // Vulg Ps 66 = Hebrew Ps 67 (8 verses)
-		{113, 26}, // Vulg Ps 113 = Hebrew Ps 114-115 combined
+		{9, 39},    // Vulg Ps 9 = Hebrew Ps 9-10 combined (39 verses)
+		{50, 21},   // Vulg Ps 50
+		{65, 20},   // Vulg Ps 65 = Hebrew Ps 66 (20 verses, NOT 13 like KJV Ps 65)
+		{66, 8},    // Vulg Ps 66 = Hebrew Ps 67 (8 verses)
+		{113, 26},  // Vulg Ps 113 = Hebrew Ps 114-115 combined
 		{118, 176}, // Vulg Ps 118 = Hebrew Ps 119 (176 verses)
 	}
 

@@ -34,8 +34,8 @@ func Example_varintEncoding() {
 func Example_pageHeader() {
 	// Create a simple leaf table page header
 	pageData := make([]byte, 4096)
-	pageData[0] = btree.PageTypeLeafTable // Page type
-	binary.BigEndian.PutUint16(pageData[3:], 3) // 3 cells
+	pageData[0] = btree.PageTypeLeafTable          // Page type
+	binary.BigEndian.PutUint16(pageData[3:], 3)    // 3 cells
 	binary.BigEndian.PutUint16(pageData[5:], 3500) // Cell content starts at offset 3500
 
 	// Parse the header
@@ -209,11 +209,11 @@ func Example_cellParsing() {
 // Example_varintSizes demonstrates how varint size changes with value
 func Example_varintSizes() {
 	values := []uint64{
-		0x7f,                   // Max 1-byte
-		0x3fff,                 // Max 2-byte
-		0x1fffff,               // Max 3-byte
-		0xfffffff,              // Max 4-byte
-		0xffffffffffffffff,     // Max 9-byte
+		0x7f,               // Max 1-byte
+		0x3fff,             // Max 2-byte
+		0x1fffff,           // Max 3-byte
+		0xfffffff,          // Max 4-byte
+		0xffffffffffffffff, // Max 9-byte
 	}
 
 	fmt.Println("Varint encoding sizes:")

@@ -98,11 +98,11 @@ type LostElement struct {
 
 // DBL Metadata structure
 type DBLMetadata struct {
-	XMLName      xml.Name `xml:"DBLMetadata"`
-	ID           string   `xml:"id,attr"`
-	Revision     string   `xml:"revision,attr"`
-	Type         string   `xml:"type,attr"`
-	TypeVersion  string   `xml:"typeVersion,attr"`
+	XMLName        xml.Name `xml:"DBLMetadata"`
+	ID             string   `xml:"id,attr"`
+	Revision       string   `xml:"revision,attr"`
+	Type           string   `xml:"type,attr"`
+	TypeVersion    string   `xml:"typeVersion,attr"`
 	Identification struct {
 		Name        string `xml:"name"`
 		NameLocal   string `xml:"nameLocal"`
@@ -110,18 +110,18 @@ type DBLMetadata struct {
 		Scope       string `xml:"scope"`
 	} `xml:"identification"`
 	Language struct {
-		ISO      string `xml:"iso"`
-		Name     string `xml:"name"`
-		Script   string `xml:"script"`
+		ISO    string `xml:"iso"`
+		Name   string `xml:"name"`
+		Script string `xml:"script"`
 	} `xml:"language"`
 	Copyright struct {
 		Statement string `xml:"statement"`
 	} `xml:"copyright"`
 	Publications struct {
 		Publication []struct {
-			ID       string `xml:"id,attr"`
-			Default  bool   `xml:"default,attr"`
-			Name     string `xml:"name"`
+			ID        string `xml:"id,attr"`
+			Default   bool   `xml:"default,attr"`
+			Name      string `xml:"name"`
 			Canonspec struct {
 				Component []struct {
 					Name string `xml:"name,attr"`

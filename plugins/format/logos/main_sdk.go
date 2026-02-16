@@ -14,7 +14,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"

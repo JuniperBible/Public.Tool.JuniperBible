@@ -133,38 +133,38 @@ const (
 	TK_REINDEX
 
 	// Operators - Comparison
-	TK_EQ     // =, ==
-	TK_NE     // <>, !=
-	TK_LT     // <
-	TK_LE     // <=
-	TK_GT     // >
-	TK_GE     // >=
+	TK_EQ // =, ==
+	TK_NE // <>, !=
+	TK_LT // <
+	TK_LE // <=
+	TK_GT // >
+	TK_GE // >=
 	TK_ISNULL
 	TK_NOTNULL
 
 	// Operators - Arithmetic
-	TK_PLUS   // +
-	TK_MINUS  // -
-	TK_STAR   // *
-	TK_SLASH  // /
-	TK_REM    // %
+	TK_PLUS  // +
+	TK_MINUS // -
+	TK_STAR  // *
+	TK_SLASH // /
+	TK_REM   // %
 
 	// Operators - Bitwise
-	TK_BITAND  // &
-	TK_BITOR   // |
-	TK_BITNOT  // ~
-	TK_LSHIFT  // <<
-	TK_RSHIFT  // >>
+	TK_BITAND // &
+	TK_BITOR  // |
+	TK_BITNOT // ~
+	TK_LSHIFT // <<
+	TK_RSHIFT // >>
 
 	// Operators - String
-	TK_CONCAT  // ||
+	TK_CONCAT // ||
 
 	// Punctuation
-	TK_LP      // (
-	TK_RP      // )
-	TK_COMMA   // ,
-	TK_SEMI    // ;
-	TK_DOT     // .
+	TK_LP    // (
+	TK_RP    // )
+	TK_COMMA // ,
+	TK_SEMI  // ;
+	TK_DOT   // .
 
 	// Keywords - Window functions
 	TK_OVER

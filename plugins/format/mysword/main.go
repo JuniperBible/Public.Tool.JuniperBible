@@ -853,14 +853,14 @@ func isValidTableName(name string) bool {
 
 	// Whitelist of known valid MySword table names
 	validTables := map[string]bool{
-		"Books":        true,
-		"Bible":        true,
-		"info":         true,
-		"Details":      true,
-		"commentaries": true,
-		"Commentary":   true,
-		"dictionary":   true,
-		"Dictionary":   true,
+		"Books":           true,
+		"Bible":           true,
+		"info":            true,
+		"Details":         true,
+		"commentaries":    true,
+		"Commentary":      true,
+		"dictionary":      true,
+		"Dictionary":      true,
 		"sqlite_sequence": true, // SQLite internal table
 	}
 

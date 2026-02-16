@@ -123,24 +123,24 @@ func (s *IndexSelector) termMatchesColumn(term *WhereTerm, col IndexColumn) bool
 
 // AnalyzeIndexUsage analyzes how an index would be used for given terms.
 type IndexUsage struct {
-	Index     *IndexInfo
-	EqTerms   []*WhereTerm // Equality constraints
-	RangeTerms []*WhereTerm // Range constraints (< > <= >=)
-	InTerms   []*WhereTerm // IN constraints
-	StartKey  []interface{} // Start key for index seek
-	EndKey    []interface{} // End key for index seek
-	Covering  bool          // Whether index covers all needed columns
+	Index      *IndexInfo
+	EqTerms    []*WhereTerm  // Equality constraints
+	RangeTerms []*WhereTerm  // Range constraints (< > <= >=)
+	InTerms    []*WhereTerm  // IN constraints
+	StartKey   []interface{} // Start key for index seek
+	EndKey     []interface{} // End key for index seek
+	Covering   bool          // Whether index covers all needed columns
 }
 
 // AnalyzeIndexUsage determines how an index would be used.
 func (s *IndexSelector) AnalyzeIndexUsage(index *IndexInfo, neededColumns []string) *IndexUsage {
 	usage := &IndexUsage{
-		Index:    index,
-		EqTerms:  make([]*WhereTerm, 0),
+		Index:      index,
+		EqTerms:    make([]*WhereTerm, 0),
 		RangeTerms: make([]*WhereTerm, 0),
-		InTerms:  make([]*WhereTerm, 0),
-		StartKey: make([]interface{}, 0),
-		EndKey:   make([]interface{}, 0),
+		InTerms:    make([]*WhereTerm, 0),
+		StartKey:   make([]interface{}, 0),
+		EndKey:     make([]interface{}, 0),
 	}
 
 	// Analyze each index column

@@ -630,10 +630,10 @@ func TestWritePluginsDocVariations(t *testing.T) {
 			IRSupport:   nil,
 		},
 		{
-			PluginID:    "format-ir-loss",
-			Version:     "1.0.0",
-			Kind:        "format",
-			LossClass:   "",
+			PluginID:  "format-ir-loss",
+			Version:   "1.0.0",
+			Kind:      "format",
+			LossClass: "",
 			IRSupport: &IRSupport{
 				CanExtract: false,
 				CanEmit:    false,
@@ -641,11 +641,11 @@ func TestWritePluginsDocVariations(t *testing.T) {
 			},
 		},
 		{
-			PluginID:    "format-no-ir",
-			Version:     "1.0.0",
-			Kind:        "format",
-			LossClass:   "L1",
-			IRSupport:   nil,
+			PluginID:  "format-no-ir",
+			Version:   "1.0.0",
+			Kind:      "format",
+			LossClass: "L1",
+			IRSupport: nil,
 		},
 		{
 			PluginID: "tool-no-requires",

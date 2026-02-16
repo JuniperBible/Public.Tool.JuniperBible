@@ -6,36 +6,36 @@ import (
 
 // AggInfo contains information about aggregate functions and GROUP BY.
 type AggInfo struct {
-	SortingIdx   bool              // True if using index for GROUP BY
-	UseSorter    bool              // True if sorting required for GROUP BY
-	SortingIdxP  int               // Cursor for sorting index
-	AggFuncs     []AggFunc         // Aggregate functions used
-	Cols         []AggColumn       // Columns used in aggregate expressions
-	GroupBySort  int               // Cursor for GROUP BY sorter
-	GroupByIdx   int               // Index that provides GROUP BY ordering
-	NumCols      int               // Number of columns in result
-	NumAggFuncs  int               // Number of aggregate functions
-	NumGroupBy   int               // Number of GROUP BY columns
-	SelectID     int               // SELECT id that owns this AggInfo
+	SortingIdx  bool        // True if using index for GROUP BY
+	UseSorter   bool        // True if sorting required for GROUP BY
+	SortingIdxP int         // Cursor for sorting index
+	AggFuncs    []AggFunc   // Aggregate functions used
+	Cols        []AggColumn // Columns used in aggregate expressions
+	GroupBySort int         // Cursor for GROUP BY sorter
+	GroupByIdx  int         // Index that provides GROUP BY ordering
+	NumCols     int         // Number of columns in result
+	NumAggFuncs int         // Number of aggregate functions
+	NumGroupBy  int         // Number of GROUP BY columns
+	SelectID    int         // SELECT id that owns this AggInfo
 }
 
 // AggFunc represents an aggregate function (SUM, COUNT, AVG, etc).
 type AggFunc struct {
-	Expr       *Expr  // Expression for the function
-	Func       *FuncDef // Function definition
-	Reg        int    // Register holding accumulated value
-	DistinctReg int   // Register for DISTINCT values (if needed)
-	DistinctIdx int   // Index for DISTINCT values (if needed)
-	RegAcc     int    // Register for accumulator
-	FuncFlags  int    // Function flags
+	Expr        *Expr    // Expression for the function
+	Func        *FuncDef // Function definition
+	Reg         int      // Register holding accumulated value
+	DistinctReg int      // Register for DISTINCT values (if needed)
+	DistinctIdx int      // Index for DISTINCT values (if needed)
+	RegAcc      int      // Register for accumulator
+	FuncFlags   int      // Function flags
 }
 
 // AggColumn represents a column used in an aggregate expression.
 type AggColumn struct {
-	Table      int    // Source table cursor
-	Column     int    // Column index in source table
-	SorterCol  int    // Column index in sorter
-	Reg        int    // Register to hold value
+	Table     int // Source table cursor
+	Column    int // Column index in source table
+	SorterCol int // Column index in sorter
+	Reg       int // Register to hold value
 }
 
 // AggregateCompiler compiles GROUP BY and aggregate functions.

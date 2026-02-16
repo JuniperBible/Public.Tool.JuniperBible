@@ -11,10 +11,10 @@ type ErrorCode string
 // Standard error codes
 const (
 	// Request errors
-	CodeMissingArg    ErrorCode = "MISSING_ARG"
-	CodeInvalidArg    ErrorCode = "INVALID_ARG"
-	CodeUnknownCmd    ErrorCode = "UNKNOWN_CMD"
-	CodeInvalidJSON   ErrorCode = "INVALID_JSON"
+	CodeMissingArg  ErrorCode = "MISSING_ARG"
+	CodeInvalidArg  ErrorCode = "INVALID_ARG"
+	CodeUnknownCmd  ErrorCode = "UNKNOWN_CMD"
+	CodeInvalidJSON ErrorCode = "INVALID_JSON"
 
 	// File errors
 	CodeFileNotFound  ErrorCode = "FILE_NOT_FOUND"
@@ -28,16 +28,16 @@ const (
 	CodeInvalidFormat ErrorCode = "INVALID_FORMAT"
 
 	// Storage errors
-	CodeStorageErr    ErrorCode = "STORAGE_ERR"
-	CodeHashMismatch  ErrorCode = "HASH_MISMATCH"
+	CodeStorageErr   ErrorCode = "STORAGE_ERR"
+	CodeHashMismatch ErrorCode = "HASH_MISMATCH"
 
 	// IR errors
-	CodeIRReadErr     ErrorCode = "IR_READ_ERR"
-	CodeIRWriteErr    ErrorCode = "IR_WRITE_ERR"
-	CodeIRInvalid     ErrorCode = "IR_INVALID"
+	CodeIRReadErr  ErrorCode = "IR_READ_ERR"
+	CodeIRWriteErr ErrorCode = "IR_WRITE_ERR"
+	CodeIRInvalid  ErrorCode = "IR_INVALID"
 
 	// Internal errors
-	CodeInternal      ErrorCode = "INTERNAL"
+	CodeInternal ErrorCode = "INTERNAL"
 )
 
 // PluginError represents a structured plugin error.

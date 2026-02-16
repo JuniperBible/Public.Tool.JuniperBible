@@ -16,13 +16,14 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 // EPUB XML types

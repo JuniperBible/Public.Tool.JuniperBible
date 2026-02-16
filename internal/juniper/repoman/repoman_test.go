@@ -18,9 +18,9 @@ import (
 
 func TestSource_ModsIndexURL(t *testing.T) {
 	tests := []struct {
-		name      string
-		source    Source
-		want      string
+		name   string
+		source Source
+		want   string
 	}{
 		{
 			name: "CrossWire source",

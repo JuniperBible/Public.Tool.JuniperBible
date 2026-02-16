@@ -519,10 +519,10 @@ func TestCoerceToNumeric(t *testing.T) {
 
 func TestCoerceToInteger(t *testing.T) {
 	tests := []struct {
-		name      string
-		value     interface{}
-		expected  int64
-		expectOk  bool
+		name     string
+		value    interface{}
+		expected int64
+		expectOk bool
 	}{
 		{
 			name:     "Integer",

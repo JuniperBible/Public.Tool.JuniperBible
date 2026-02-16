@@ -15,12 +15,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 func main() {
@@ -101,15 +102,15 @@ func containsNA28Markers(content string) bool {
 	// - Variant reading markers
 	// - Critical apparatus notation
 	markers := []string{
-		"<app>",           // TEI-based apparatus
-		"<rdg",            // Reading element
-		"<wit>",           // Witness element
-		"txt",             // Text reading marker
-		"vid",             // Videtur (seemingly)
-		"*",               // Corrector marks
-		"א",               // Aleph (Sinaiticus)
-		"ℵ",               // Alternative Aleph
-		"apparatus",       // Generic apparatus marker
+		"<app>",     // TEI-based apparatus
+		"<rdg",      // Reading element
+		"<wit>",     // Witness element
+		"txt",       // Text reading marker
+		"vid",       // Videtur (seemingly)
+		"*",         // Corrector marks
+		"א",         // Aleph (Sinaiticus)
+		"ℵ",         // Alternative Aleph
+		"apparatus", // Generic apparatus marker
 	}
 
 	for _, marker := range markers {

@@ -308,9 +308,9 @@ func TestMarshalIndentCannotFail(t *testing.T) {
 			Executables: map[string]string{"tool": "exe-tool"},
 		},
 		{
-			ToolID:      "complex",
-			Version:     "2.0.0",
-			Platform:    "aarch64-darwin",
+			ToolID:   "complex",
+			Version:  "2.0.0",
+			Platform: "aarch64-darwin",
 			Executables: map[string]string{
 				"tool1": "exe-1",
 				"tool2": "exe-2",

@@ -23,9 +23,11 @@ type CountFunc struct {
 	count int64
 }
 
-func (f *CountFunc) Name() string          { return "count" }
-func (f *CountFunc) NumArgs() int          { return 1 }
-func (f *CountFunc) Call([]Value) (Value, error) { return nil, fmt.Errorf("count() is an aggregate function") }
+func (f *CountFunc) Name() string { return "count" }
+func (f *CountFunc) NumArgs() int { return 1 }
+func (f *CountFunc) Call([]Value) (Value, error) {
+	return nil, fmt.Errorf("count() is an aggregate function")
+}
 
 func (f *CountFunc) Step(args []Value) error {
 	// Count non-NULL values
@@ -50,9 +52,11 @@ type CountStarFunc struct {
 	count int64
 }
 
-func (f *CountStarFunc) Name() string          { return "count(*)" }
-func (f *CountStarFunc) NumArgs() int          { return 0 }
-func (f *CountStarFunc) Call([]Value) (Value, error) { return nil, fmt.Errorf("count(*) is an aggregate function") }
+func (f *CountStarFunc) Name() string { return "count(*)" }
+func (f *CountStarFunc) NumArgs() int { return 0 }
+func (f *CountStarFunc) Call([]Value) (Value, error) {
+	return nil, fmt.Errorf("count(*) is an aggregate function")
+}
 
 func (f *CountStarFunc) Step(args []Value) error {
 	// Count all rows
@@ -78,9 +82,11 @@ type SumFunc struct {
 	isFloat  bool
 }
 
-func (f *SumFunc) Name() string          { return "sum" }
-func (f *SumFunc) NumArgs() int          { return 1 }
-func (f *SumFunc) Call([]Value) (Value, error) { return nil, fmt.Errorf("sum() is an aggregate function") }
+func (f *SumFunc) Name() string { return "sum" }
+func (f *SumFunc) NumArgs() int { return 1 }
+func (f *SumFunc) Call([]Value) (Value, error) {
+	return nil, fmt.Errorf("sum() is an aggregate function")
+}
 
 func (f *SumFunc) Step(args []Value) error {
 	if args[0].IsNull() {
@@ -157,9 +163,11 @@ type TotalFunc struct {
 	sum float64
 }
 
-func (f *TotalFunc) Name() string          { return "total" }
-func (f *TotalFunc) NumArgs() int          { return 1 }
-func (f *TotalFunc) Call([]Value) (Value, error) { return nil, fmt.Errorf("total() is an aggregate function") }
+func (f *TotalFunc) Name() string { return "total" }
+func (f *TotalFunc) NumArgs() int { return 1 }
+func (f *TotalFunc) Call([]Value) (Value, error) {
+	return nil, fmt.Errorf("total() is an aggregate function")
+}
 
 func (f *TotalFunc) Step(args []Value) error {
 	if args[0].IsNull() {
@@ -194,9 +202,11 @@ type AvgFunc struct {
 	sum   float64
 }
 
-func (f *AvgFunc) Name() string          { return "avg" }
-func (f *AvgFunc) NumArgs() int          { return 1 }
-func (f *AvgFunc) Call([]Value) (Value, error) { return nil, fmt.Errorf("avg() is an aggregate function") }
+func (f *AvgFunc) Name() string { return "avg" }
+func (f *AvgFunc) NumArgs() int { return 1 }
+func (f *AvgFunc) Call([]Value) (Value, error) {
+	return nil, fmt.Errorf("avg() is an aggregate function")
+}
 
 func (f *AvgFunc) Step(args []Value) error {
 	if args[0].IsNull() {
@@ -238,9 +248,11 @@ type MinFunc struct {
 	minValue Value
 }
 
-func (f *MinFunc) Name() string          { return "min" }
-func (f *MinFunc) NumArgs() int          { return 1 }
-func (f *MinFunc) Call([]Value) (Value, error) { return nil, fmt.Errorf("min() is an aggregate function") }
+func (f *MinFunc) Name() string { return "min" }
+func (f *MinFunc) NumArgs() int { return 1 }
+func (f *MinFunc) Call([]Value) (Value, error) {
+	return nil, fmt.Errorf("min() is an aggregate function")
+}
 
 func (f *MinFunc) Step(args []Value) error {
 	if args[0].IsNull() {
@@ -280,9 +292,11 @@ type MaxFunc struct {
 	maxValue Value
 }
 
-func (f *MaxFunc) Name() string          { return "max" }
-func (f *MaxFunc) NumArgs() int          { return 1 }
-func (f *MaxFunc) Call([]Value) (Value, error) { return nil, fmt.Errorf("max() is an aggregate function") }
+func (f *MaxFunc) Name() string { return "max" }
+func (f *MaxFunc) NumArgs() int { return 1 }
+func (f *MaxFunc) Call([]Value) (Value, error) {
+	return nil, fmt.Errorf("max() is an aggregate function")
+}
 
 func (f *MaxFunc) Step(args []Value) error {
 	if args[0].IsNull() {

@@ -10,9 +10,9 @@
 //
 // The schema package consists of three main components:
 //
-//   1. Schema Manager (schema.go) - Thread-safe schema tracking and manipulation
-//   2. SQLite Master Table (master.go) - Reading/writing schema from/to sqlite_master
-//   3. Type Affinity (affinity.go) - SQLite type affinity rules and determination
+//  1. Schema Manager (schema.go) - Thread-safe schema tracking and manipulation
+//  2. SQLite Master Table (master.go) - Reading/writing schema from/to sqlite_master
+//  3. Type Affinity (affinity.go) - SQLite type affinity rules and determination
 //
 // # Schema Manager
 //

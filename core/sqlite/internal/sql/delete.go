@@ -18,33 +18,45 @@ type DeleteStmt struct {
 // Generated code structure:
 //
 // Simple delete (no WHERE):
-//   OP_Init         0, end
-//   OP_OpenWrite    0, table_root
-//   OP_Clear        table_root, 0, 0
-//   OP_Close        0
+//
+//	OP_Init         0, end
+//	OP_OpenWrite    0, table_root
+//	OP_Clear        table_root, 0, 0
+//	OP_Close        0
+//
 // end:
-//   OP_Halt
+//
+//	OP_Halt
 //
 // Delete with WHERE:
-//   OP_Init         0, end
-//   OP_OpenWrite    0, table_root
-//   OP_Null         0, reg_rowset
-//   OP_Rewind       0, end
+//
+//	OP_Init         0, end
+//	OP_OpenWrite    0, table_root
+//	OP_Null         0, reg_rowset
+//	OP_Rewind       0, end
+//
 // loop:
-//   OP_Rowid        0, reg_rowid
-//   [WHERE evaluation]
-//   OP_IfNot        reg_where, next
-//   OP_RowSetAdd    reg_rowset, reg_rowid
+//
+//	OP_Rowid        0, reg_rowid
+//	[WHERE evaluation]
+//	OP_IfNot        reg_where, next
+//	OP_RowSetAdd    reg_rowset, reg_rowid
+//
 // next:
-//   OP_Next         0, loop
+//
+//	OP_Next         0, loop
+//
 // delete_loop:
-//   OP_RowSetRead   reg_rowset, end, reg_rowid
-//   OP_NotExists    0, delete_loop, reg_rowid
-//   OP_Delete       0, 0
-//   OP_Goto         delete_loop
+//
+//	OP_RowSetRead   reg_rowset, end, reg_rowid
+//	OP_NotExists    0, delete_loop, reg_rowid
+//	OP_Delete       0, 0
+//	OP_Goto         delete_loop
+//
 // end:
-//   OP_Close        0
-//   OP_Halt
+//
+//	OP_Close        0
+//	OP_Halt
 func CompileDelete(stmt *DeleteStmt, tableRoot int) (*Program, error) {
 	if stmt == nil {
 		return nil, errors.New("nil delete statement")
@@ -283,12 +295,12 @@ func CompileDeleteWithForeignKeys(stmt *DeleteStmt, tableRoot int, foreignKeys [
 
 // ForeignKeyInfo represents foreign key metadata
 type ForeignKeyInfo struct {
-	Name          string
-	Columns       []string
-	RefTable      string
-	RefColumns    []string
-	OnDelete      string
-	OnUpdate      string
+	Name       string
+	Columns    []string
+	RefTable   string
+	RefColumns []string
+	OnDelete   string
+	OnUpdate   string
 }
 
 // ValidateDelete performs validation on a DELETE statement

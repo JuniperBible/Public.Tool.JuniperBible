@@ -16,15 +16,15 @@ type ResultColumn struct {
 
 // ExprListItem represents an item in an expression list.
 type ExprListItem struct {
-	Expr         *Expr  // The expression
-	Name         string // Name assigned via AS clause or generated
-	SortOrder    int    // ASCENDING or DESCENDING for ORDER BY
-	OrderByCol   int    // Index into result set for ORDER BY optimization
-	Done         bool   // Processing complete flag
-	BUsed        bool   // Used flag for nested queries
-	BSorterRef   bool   // Use sorter-reference optimization
-	BNoExpand    bool   // Do not expand * or table.*
-	BUsingTerm   bool   // Part of USING clause
+	Expr       *Expr  // The expression
+	Name       string // Name assigned via AS clause or generated
+	SortOrder  int    // ASCENDING or DESCENDING for ORDER BY
+	OrderByCol int    // Index into result set for ORDER BY optimization
+	Done       bool   // Processing complete flag
+	BUsed      bool   // Used flag for nested queries
+	BSorterRef bool   // Use sorter-reference optimization
+	BNoExpand  bool   // Do not expand * or table.*
+	BUsingTerm bool   // Part of USING clause
 }
 
 // ExprList represents a list of expressions (for SELECT, ORDER BY, GROUP BY).

@@ -7,13 +7,13 @@ import (
 
 // CellInfo contains parsed information about a B-tree cell
 type CellInfo struct {
-	Key           int64  // The integer key for table b-trees, or payload size for index b-trees
-	Payload       []byte // Pointer to start of payload data
-	PayloadSize   uint32 // Total bytes of payload
-	LocalPayload  uint16 // Amount of payload stored locally (not in overflow pages)
-	CellSize      uint16 // Total size of cell on the page
-	OverflowPage  uint32 // First overflow page number (0 if none)
-	ChildPage     uint32 // Child page number (interior pages only)
+	Key          int64  // The integer key for table b-trees, or payload size for index b-trees
+	Payload      []byte // Pointer to start of payload data
+	PayloadSize  uint32 // Total bytes of payload
+	LocalPayload uint16 // Amount of payload stored locally (not in overflow pages)
+	CellSize     uint16 // Total size of cell on the page
+	OverflowPage uint32 // First overflow page number (0 if none)
+	ChildPage    uint32 // Child page number (interior pages only)
 }
 
 // ParseCell parses a cell from a B-tree page

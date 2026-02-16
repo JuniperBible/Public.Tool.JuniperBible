@@ -312,11 +312,11 @@ func ExampleParser_parseMultipleStatements() {
 // ExampleParser_parseExpressions demonstrates various expression types.
 func ExampleParser_parseExpressions() {
 	queries := []string{
-		"SELECT 1 + 2 * 3",                                   // arithmetic
-		"SELECT name FROM users WHERE age > 18 AND active",  // comparison
-		"SELECT * FROM users WHERE id IN (1, 2, 3)",         // IN
-		"SELECT * FROM users WHERE age BETWEEN 18 AND 65",   // BETWEEN
-		"SELECT * FROM users WHERE name LIKE 'John%'",       // LIKE
+		"SELECT 1 + 2 * 3", // arithmetic
+		"SELECT name FROM users WHERE age > 18 AND active",        // comparison
+		"SELECT * FROM users WHERE id IN (1, 2, 3)",               // IN
+		"SELECT * FROM users WHERE age BETWEEN 18 AND 65",         // BETWEEN
+		"SELECT * FROM users WHERE name LIKE 'John%'",             // LIKE
 		"SELECT CASE WHEN age < 18 THEN 'minor' ELSE 'adult' END", // CASE
 	}
 

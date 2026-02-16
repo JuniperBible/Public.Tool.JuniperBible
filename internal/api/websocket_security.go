@@ -35,9 +35,9 @@ type WebSocketSecurityConfig struct {
 func DefaultWebSocketSecurityConfig() WebSocketSecurityConfig {
 	return WebSocketSecurityConfig{
 		AllowedOrigins: []string{"*"}, // Override in production
-		MaxMessageRate: 10,             // 10 messages per second
-		MaxMessageSize: 4096,           // 4KB max message size
-		RequireAuth:    false,          // Set to true in production
+		MaxMessageRate: 10,            // 10 messages per second
+		MaxMessageSize: 4096,          // 4KB max message size
+		RequireAuth:    false,         // Set to true in production
 	}
 }
 

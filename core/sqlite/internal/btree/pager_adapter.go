@@ -20,9 +20,9 @@ type DbPageInterface interface {
 
 // PagerAdapter adapts a pager to the PageProvider interface
 type PagerAdapter struct {
-	pager     PagerInterface
-	pageSize  int
-	nextPage  uint32
+	pager      PagerInterface
+	pageSize   int
+	nextPage   uint32
 	dirtyPages map[uint32]bool
 }
 

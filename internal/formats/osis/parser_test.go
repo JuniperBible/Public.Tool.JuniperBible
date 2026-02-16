@@ -239,12 +239,12 @@ func TestParseOSISToIR_SourceHash(t *testing.T) {
 
 func TestParseOSISRef(t *testing.T) {
 	tests := []struct {
-		name       string
-		osisID     string
-		wantBook   string
-		wantChap   int
-		wantVerse  int
-		wantEnd    int
+		name      string
+		osisID    string
+		wantBook  string
+		wantChap  int
+		wantVerse int
+		wantEnd   int
 	}{
 		{"simple", "Gen.1.1", "Gen", 1, 1, 0},
 		{"verse range", "Matt.5.3-12", "Matt", 5, 3, 12},

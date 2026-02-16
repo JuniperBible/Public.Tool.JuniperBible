@@ -308,12 +308,12 @@ func TestVdbeBasicExecution(t *testing.T) {
 		v.AllocMemory(10)
 
 		// Program: r[1] = 1; if r[1] goto 4; r[2] = 99; r[2] = 42; Halt
-		v.AddOp(OpInteger, 1, 1, 0)       // 0: r[1] = 1
-		v.AddOp(OpIf, 1, 4, 0)            // 1: if r[1] goto 4
-		v.AddOp(OpInteger, 99, 2, 0)      // 2: r[2] = 99 (should skip)
-		v.AddOp(OpInteger, -1, 2, 0)      // 3: r[2] = -1 (should skip)
-		v.AddOp(OpInteger, 42, 2, 0)      // 4: r[2] = 42
-		v.AddOp(OpHalt, 0, 0, 0)          // 5: Halt
+		v.AddOp(OpInteger, 1, 1, 0)  // 0: r[1] = 1
+		v.AddOp(OpIf, 1, 4, 0)       // 1: if r[1] goto 4
+		v.AddOp(OpInteger, 99, 2, 0) // 2: r[2] = 99 (should skip)
+		v.AddOp(OpInteger, -1, 2, 0) // 3: r[2] = -1 (should skip)
+		v.AddOp(OpInteger, 42, 2, 0) // 4: r[2] = 42
+		v.AddOp(OpHalt, 0, 0, 0)     // 5: Halt
 
 		if err := v.Run(); err != nil {
 			t.Fatalf("Execution failed: %v", err)
@@ -330,12 +330,12 @@ func TestVdbeBasicExecution(t *testing.T) {
 		v.AllocMemory(10)
 
 		// Program: r[1] = 0; r[2] = 10; r[1]++; if r[1] < r[2] goto 2; Halt
-		v.AddOp(OpInteger, 0, 1, 0)       // 0: r[1] = 0 (counter)
-		v.AddOp(OpInteger, 10, 2, 0)      // 1: r[2] = 10 (limit)
-		v.AddOp(OpInteger, 1, 3, 0)       // 2: r[3] = 1
-		v.AddOp(OpAdd, 1, 3, 1)           // 3: r[1] = r[1] + 1
-		v.AddOp(OpLt, 1, 2, 2)            // 4: if r[1] < r[2] goto 2
-		v.AddOp(OpHalt, 0, 0, 0)          // 5: Halt
+		v.AddOp(OpInteger, 0, 1, 0)  // 0: r[1] = 0 (counter)
+		v.AddOp(OpInteger, 10, 2, 0) // 1: r[2] = 10 (limit)
+		v.AddOp(OpInteger, 1, 3, 0)  // 2: r[3] = 1
+		v.AddOp(OpAdd, 1, 3, 1)      // 3: r[1] = r[1] + 1
+		v.AddOp(OpLt, 1, 2, 2)       // 4: if r[1] < r[2] goto 2
+		v.AddOp(OpHalt, 0, 0, 0)     // 5: Halt
 
 		if err := v.Run(); err != nil {
 			t.Fatalf("Execution failed: %v", err)
@@ -381,9 +381,9 @@ func TestVdbeComparison(t *testing.T) {
 			v.AddOp(OpInteger, int(tt.b), 3, 0)
 			v.AddOp(OpInteger, 0, 4, 0)
 			v.AddOp(tt.opcode, 1, 6, 3) // Jump to instruction 6 if condition true
-			v.AddOp(OpInteger, 1, 4, 0)  // r[4] = 1 (not jumped)
+			v.AddOp(OpInteger, 1, 4, 0) // r[4] = 1 (not jumped)
 			v.AddOp(OpHalt, 0, 0, 0)
-			v.AddOp(OpInteger, 2, 4, 0)  // r[4] = 2 (jumped)
+			v.AddOp(OpInteger, 2, 4, 0) // r[4] = 2 (jumped)
 			v.AddOp(OpHalt, 0, 0, 0)
 
 			if err := v.Run(); err != nil {
@@ -499,7 +499,7 @@ func TestResultRowHandling(t *testing.T) {
 		// Program: r[1] = 42; r[2] = "hello"; ResultRow(r[1], r[2]); Halt
 		v.AddOp(OpInteger, 42, 1, 0)
 		v.AddOpWithP4Str(OpString8, 0, 2, 0, "hello") // P2=2 is the destination register
-		v.AddOp(OpResultRow, 1, 2, 0) // Output registers 1-2
+		v.AddOp(OpResultRow, 1, 2, 0)                 // Output registers 1-2
 		v.AddOp(OpHalt, 0, 0, 0)
 
 		// First step should execute until ResultRow
@@ -613,5 +613,5 @@ func TestResultRowHandling(t *testing.T) {
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) &&
 		(s == substr || len(s) > len(substr) &&
-		(s[:len(substr)] == substr || contains(s[1:], substr)))
+			(s[:len(substr)] == substr || contains(s[1:], substr)))
 }

@@ -110,10 +110,10 @@ type Corpus struct {
 }
 
 type Document struct {
-	ID            string          `json:"id"`
-	Title         string          `json:"title,omitempty"`
-	Order         int             `json:"order"`
-	ContentBlocks []*ContentBlock `json:"content_blocks,omitempty"`
+	ID            string            `json:"id"`
+	Title         string            `json:"title,omitempty"`
+	Order         int               `json:"order"`
+	ContentBlocks []*ContentBlock   `json:"content_blocks,omitempty"`
 	Attributes    map[string]string `json:"attributes,omitempty"`
 }
 
@@ -161,19 +161,19 @@ type Ref struct {
 
 // OSIS XML Types
 type OSISDoc struct {
-	XMLName   xml.Name    `xml:"osis"`
-	Namespace string      `xml:"xmlns,attr,omitempty"`
-	OsisText  OSISText    `xml:"osisText"`
-	RawXML    string      `xml:"-"` // Store original for L0 round-trip
+	XMLName   xml.Name `xml:"osis"`
+	Namespace string   `xml:"xmlns,attr,omitempty"`
+	OsisText  OSISText `xml:"osisText"`
+	RawXML    string   `xml:"-"` // Store original for L0 round-trip
 }
 
 type OSISText struct {
-	OsisIDWork  string       `xml:"osisIDWork,attr"`
-	OsisRefWork string       `xml:"osisRefWork,attr,omitempty"`
-	Lang        string       `xml:"lang,attr,omitempty"`
-	XMLLang     string       `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
-	Header      *OSISHeader  `xml:"header,omitempty"`
-	Divs        []OSISDiv    `xml:"div"`
+	OsisIDWork  string      `xml:"osisIDWork,attr"`
+	OsisRefWork string      `xml:"osisRefWork,attr,omitempty"`
+	Lang        string      `xml:"lang,attr,omitempty"`
+	XMLLang     string      `xml:"http://www.w3.org/XML/1998/namespace lang,attr,omitempty"`
+	Header      *OSISHeader `xml:"header,omitempty"`
+	Divs        []OSISDiv   `xml:"div"`
 }
 
 type OSISHeader struct {
@@ -193,16 +193,16 @@ type OSISWork struct {
 }
 
 type OSISDiv struct {
-	Type    string     `xml:"type,attr,omitempty"`
-	OsisID  string     `xml:"osisID,attr,omitempty"`
-	Title   string     `xml:"title,omitempty"`
-	Divs    []OSISDiv  `xml:"div"`
+	Type     string        `xml:"type,attr,omitempty"`
+	OsisID   string        `xml:"osisID,attr,omitempty"`
+	Title    string        `xml:"title,omitempty"`
+	Divs     []OSISDiv     `xml:"div"`
 	Chapters []OSISChapter `xml:"chapter"`
-	Verses  []OSISVerse `xml:"verse"`
-	Ps      []OSISP     `xml:"p"`
-	Lgs     []OSISLg    `xml:"lg"`
-	Ls      []OSISL     `xml:"l"`
-	Content string     `xml:",chardata"`
+	Verses   []OSISVerse   `xml:"verse"`
+	Ps       []OSISP       `xml:"p"`
+	Lgs      []OSISLg      `xml:"lg"`
+	Ls       []OSISL       `xml:"l"`
+	Content  string        `xml:",chardata"`
 }
 
 type OSISChapter struct {

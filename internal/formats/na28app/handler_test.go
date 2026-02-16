@@ -629,5 +629,5 @@ func TestRoundTrip(t *testing.T) {
 func containsString(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
 		(len(s) > 0 && (s[0:len(substr)] == substr ||
-		containsString(s[1:], substr))))
+			containsString(s[1:], substr))))
 }

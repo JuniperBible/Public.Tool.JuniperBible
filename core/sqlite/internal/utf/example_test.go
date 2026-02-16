@@ -60,8 +60,8 @@ func ExampleCompareNoCase() {
 // Example demonstrates SQL LIKE pattern matching
 func ExampleLike() {
 	// Percent wildcard matches zero or more characters
-	fmt.Println(utf.Like("h%", "hello", 0))         // true
-	fmt.Println(utf.Like("h%o", "hello", 0))        // true
+	fmt.Println(utf.Like("h%", "hello", 0))          // true
+	fmt.Println(utf.Like("h%o", "hello", 0))         // true
 	fmt.Println(utf.Like("hello%", "helloworld", 0)) // true
 
 	// Underscore matches exactly one character
@@ -83,7 +83,7 @@ func ExampleLike() {
 // Example demonstrates SQL GLOB pattern matching
 func ExampleGlob() {
 	// Star wildcard matches zero or more characters
-	fmt.Println(utf.Glob("*.txt", "readme.txt"))  // true
+	fmt.Println(utf.Glob("*.txt", "readme.txt"))   // true
 	fmt.Println(utf.Glob("test*", "test_file.go")) // true
 
 	// Question mark matches exactly one character

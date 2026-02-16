@@ -48,11 +48,11 @@ The page cache maintains frequently accessed pages in memory:
 
 Write transactions use a rollback journal for atomicity:
 
-  1. Begin: Acquire locks, open journal file
-  2. Journal: Record original page content before modification
-  3. Modify: Update pages in cache
-  4. Commit: Write dirty pages, sync file, delete journal
-  5. Rollback: Restore pages from journal, delete journal
+ 1. Begin: Acquire locks, open journal file
+ 2. Journal: Record original page content before modification
+ 3. Modify: Update pages in cache
+ 4. Commit: Write dirty pages, sync file, delete journal
+ 5. Rollback: Restore pages from journal, delete journal
 
 This ensures atomic, durable commits even in the event of crashes or
 power failures.
@@ -61,8 +61,8 @@ power failures.
 
 The pager implements a state machine:
 
-  OPEN -> READER -> WRITER_LOCKED -> WRITER_CACHEMOD ->
-  WRITER_DBMOD -> WRITER_FINISHED -> OPEN
+	OPEN -> READER -> WRITER_LOCKED -> WRITER_CACHEMOD ->
+	WRITER_DBMOD -> WRITER_FINISHED -> OPEN
 
 Error conditions transition to the ERROR state, requiring rollback.
 

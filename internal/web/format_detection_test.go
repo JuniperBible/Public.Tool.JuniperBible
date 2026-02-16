@@ -67,10 +67,10 @@ func TestFormatDetector_DetectCapsuleFormat(t *testing.T) {
 
 func TestFormatDetector_DetectSourceFormat(t *testing.T) {
 	tests := []struct {
-		name         string
-		capsulePath  string
-		manifest     *CapsuleManifest
-		expected     string
+		name        string
+		capsulePath string
+		manifest    *CapsuleManifest
+		expected    string
 	}{
 		{
 			name:        "manifest with source format",

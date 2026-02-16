@@ -55,23 +55,30 @@ type OrderByColumn struct {
 // CompileUpdate compiles an UPDATE statement into VDBE bytecode
 //
 // Generated code structure (simplified one-pass update):
-//   OP_Init         0, end
-//   OP_OpenWrite    0, table_root
-//   OP_Rewind       0, end
+//
+//	OP_Init         0, end
+//	OP_OpenWrite    0, table_root
+//	OP_Rewind       0, end
+//
 // loop:
-//   OP_Rowid        0, reg_rowid
-//   [WHERE evaluation if present]
-//   [OP_IfNot       reg_where, next]
-//   OP_Column       0, col_idx, reg_old_val
-//   [Compute new values]
-//   OP_MakeRecord   reg_cols, num_cols, reg_record
-//   OP_Insert       0, reg_record, reg_rowid
-//   OP_Delete       0, reg_old_rowid
+//
+//	OP_Rowid        0, reg_rowid
+//	[WHERE evaluation if present]
+//	[OP_IfNot       reg_where, next]
+//	OP_Column       0, col_idx, reg_old_val
+//	[Compute new values]
+//	OP_MakeRecord   reg_cols, num_cols, reg_record
+//	OP_Insert       0, reg_record, reg_rowid
+//	OP_Delete       0, reg_old_rowid
+//
 // next:
-//   OP_Next         0, loop
+//
+//	OP_Next         0, loop
+//
 // end:
-//   OP_Close        0
-//   OP_Halt
+//
+//	OP_Close        0
+//	OP_Halt
 func CompileUpdate(stmt *UpdateStmt, tableRoot int, numColumns int) (*Program, error) {
 	if stmt == nil {
 		return nil, errors.New("nil update statement")

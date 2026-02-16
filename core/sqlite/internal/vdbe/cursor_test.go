@@ -57,14 +57,14 @@ func createTestBtree() *btree.Btree {
 
 	// Page header starts at offset 100 for page 1 (13 bytes)
 	hdr := 100
-	pageData[hdr+0] = 0x0d  // Page type: table leaf
-	pageData[hdr+1] = 0x00  // First freeblock offset (high byte)
-	pageData[hdr+2] = 0x00  // First freeblock offset (low byte)
-	pageData[hdr+3] = 0x00  // Number of cells (high byte)
-	pageData[hdr+4] = 0x03  // Number of cells (low byte) = 3 cells
-	pageData[hdr+5] = 0x00  // Cell content offset (high byte)
-	pageData[hdr+6] = 0xc8  // Cell content offset (low byte) = 200
-	pageData[hdr+7] = 0x00  // Fragmented free bytes
+	pageData[hdr+0] = 0x0d // Page type: table leaf
+	pageData[hdr+1] = 0x00 // First freeblock offset (high byte)
+	pageData[hdr+2] = 0x00 // First freeblock offset (low byte)
+	pageData[hdr+3] = 0x00 // Number of cells (high byte)
+	pageData[hdr+4] = 0x03 // Number of cells (low byte) = 3 cells
+	pageData[hdr+5] = 0x00 // Cell content offset (high byte)
+	pageData[hdr+6] = 0xc8 // Cell content offset (low byte) = 200
+	pageData[hdr+7] = 0x00 // Fragmented free bytes
 
 	// Cell pointer array (2 bytes per cell, 3 cells = 6 bytes)
 	// Starts after page header at offset 108
@@ -170,13 +170,13 @@ func TestCursorRewindAndNext(t *testing.T) {
 	//       Next cursor 0, jump back to Loop if more rows
 	// Halt
 
-	v.AddOp(OpOpenRead, 0, 1, 2)     // 0: OpenRead cursor 0, page 1
-	v.AddOp(OpRewind, 0, 9, 0)       // 1: Rewind cursor 0, jump to 9 if empty
+	v.AddOp(OpOpenRead, 0, 1, 2) // 0: OpenRead cursor 0, page 1
+	v.AddOp(OpRewind, 0, 9, 0)   // 1: Rewind cursor 0, jump to 9 if empty
 	// Loop starts at 2
-	v.AddOp(OpColumn, 0, 0, 1)       // 2: r1 = cursor[0].col[0]
-	v.AddOp(OpColumn, 0, 1, 2)       // 3: r2 = cursor[0].col[1]
-	v.AddOp(OpNext, 0, 2, 0)         // 4: Next cursor 0, jump to 2 if more
-	v.AddOp(OpHalt, 0, 0, 0)         // 5: Halt
+	v.AddOp(OpColumn, 0, 0, 1) // 2: r1 = cursor[0].col[0]
+	v.AddOp(OpColumn, 0, 1, 2) // 3: r2 = cursor[0].col[1]
+	v.AddOp(OpNext, 0, 2, 0)   // 4: Next cursor 0, jump to 2 if more
+	v.AddOp(OpHalt, 0, 0, 0)   // 5: Halt
 
 	err := v.Run()
 	if err != nil {
@@ -216,9 +216,9 @@ func TestCursorRowid(t *testing.T) {
 
 	v.AddOp(OpOpenRead, 0, 1, 2)
 	v.AddOp(OpRewind, 0, 8, 0)
-	v.AddOp(OpRowid, 0, 1, 0)       // r1 = rowid
+	v.AddOp(OpRowid, 0, 1, 0) // r1 = rowid
 	v.AddOp(OpNext, 0, 4, 0)
-	v.AddOp(OpRowid, 0, 2, 0)       // r2 = rowid
+	v.AddOp(OpRowid, 0, 2, 0) // r2 = rowid
 	v.AddOp(OpHalt, 0, 0, 0)
 
 	err := v.Run()
@@ -258,14 +258,14 @@ func TestCursorSeekRowid(t *testing.T) {
 	// NotFound: Integer -1 -> r2
 	// End: Halt
 
-	v.AddOp(OpOpenRead, 0, 1, 2)     // 0
-	v.AddOp(OpInteger, 2, 1, 0)      // 1: r1 = 2
-	v.AddOp(OpSeekRowid, 0, 6, 1)    // 2: seek cursor 0 to rowid in r1, jump to 6 if not found
-	v.AddOp(OpColumn, 0, 0, 2)       // 3: r2 = col 0
-	v.AddOp(OpColumn, 0, 1, 3)       // 4: r3 = col 1
-	v.AddOp(OpGoto, 0, 7, 0)         // 5: goto 7
-	v.AddOp(OpInteger, -1, 2, 0)     // 6: r2 = -1 (not found)
-	v.AddOp(OpHalt, 0, 0, 0)         // 7
+	v.AddOp(OpOpenRead, 0, 1, 2)  // 0
+	v.AddOp(OpInteger, 2, 1, 0)   // 1: r1 = 2
+	v.AddOp(OpSeekRowid, 0, 6, 1) // 2: seek cursor 0 to rowid in r1, jump to 6 if not found
+	v.AddOp(OpColumn, 0, 0, 2)    // 3: r2 = col 0
+	v.AddOp(OpColumn, 0, 1, 3)    // 4: r3 = col 1
+	v.AddOp(OpGoto, 0, 7, 0)      // 5: goto 7
+	v.AddOp(OpInteger, -1, 2, 0)  // 6: r2 = -1 (not found)
+	v.AddOp(OpHalt, 0, 0, 0)      // 7
 
 	err := v.Run()
 	if err != nil {
@@ -296,11 +296,11 @@ func TestCursorSeekRowidNotFound(t *testing.T) {
 
 	// Seek for non-existent rowid 99
 	v.AddOp(OpOpenRead, 0, 1, 2)
-	v.AddOp(OpInteger, 99, 1, 0)     // r1 = 99 (doesn't exist)
-	v.AddOp(OpSeekRowid, 0, 5, 1)    // jump to 5 if not found
-	v.AddOp(OpInteger, 1, 2, 0)      // r2 = 1 (found)
-	v.AddOp(OpGoto, 0, 6, 0)         // goto 6
-	v.AddOp(OpInteger, 0, 2, 0)      // r2 = 0 (not found)
+	v.AddOp(OpInteger, 99, 1, 0)  // r1 = 99 (doesn't exist)
+	v.AddOp(OpSeekRowid, 0, 5, 1) // jump to 5 if not found
+	v.AddOp(OpInteger, 1, 2, 0)   // r2 = 1 (found)
+	v.AddOp(OpGoto, 0, 6, 0)      // goto 6
+	v.AddOp(OpInteger, 0, 2, 0)   // r2 = 0 (not found)
 	v.AddOp(OpHalt, 0, 0, 0)
 
 	err := v.Run()
@@ -354,13 +354,13 @@ func TestCursorPrev(t *testing.T) {
 	// Program:
 	// Open cursor, seek to rowid 3, then go backwards
 	v.AddOp(OpOpenRead, 0, 1, 2)
-	v.AddOp(OpInteger, 3, 1, 0)      // r1 = 3
-	v.AddOp(OpSeekRowid, 0, 10, 1)   // seek to rowid 3
-	v.AddOp(OpRowid, 0, 2, 0)        // r2 = rowid (should be 3)
-	v.AddOp(OpPrev, 0, 6, 0)         // prev, jump to 6 if more
-	v.AddOp(OpGoto, 0, 8, 0)         // goto end
-	v.AddOp(OpRowid, 0, 3, 0)        // r3 = rowid (should be 2)
-	v.AddOp(OpPrev, 0, 10, 0)        // prev again
+	v.AddOp(OpInteger, 3, 1, 0)    // r1 = 3
+	v.AddOp(OpSeekRowid, 0, 10, 1) // seek to rowid 3
+	v.AddOp(OpRowid, 0, 2, 0)      // r2 = rowid (should be 3)
+	v.AddOp(OpPrev, 0, 6, 0)       // prev, jump to 6 if more
+	v.AddOp(OpGoto, 0, 8, 0)       // goto end
+	v.AddOp(OpRowid, 0, 3, 0)      // r3 = rowid (should be 2)
+	v.AddOp(OpPrev, 0, 10, 0)      // prev again
 	v.AddOp(OpHalt, 0, 0, 0)
 
 	err := v.Run()
@@ -398,10 +398,10 @@ func TestCursorEmptyTable(t *testing.T) {
 
 	// Rewind should jump to halt when empty
 	v.AddOp(OpOpenRead, 0, 1, 0)
-	v.AddOp(OpRewind, 0, 4, 0)      // jump to 4 if empty
-	v.AddOp(OpInteger, 1, 1, 0)     // r1 = 1 (shouldn't execute)
+	v.AddOp(OpRewind, 0, 4, 0)  // jump to 4 if empty
+	v.AddOp(OpInteger, 1, 1, 0) // r1 = 1 (shouldn't execute)
 	v.AddOp(OpGoto, 0, 5, 0)
-	v.AddOp(OpInteger, 0, 1, 0)     // r1 = 0 (should execute)
+	v.AddOp(OpInteger, 0, 1, 0) // r1 = 0 (should execute)
 	v.AddOp(OpHalt, 0, 0, 0)
 
 	err := v.Run()

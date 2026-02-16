@@ -94,10 +94,10 @@ func TestParsePageHeader(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:     "invalid page type",
-			pageNum:  2,
-			data:     []byte{0xff, 0, 0, 0, 0, 0, 0, 0},
-			wantErr:  true,
+			name:    "invalid page type",
+			pageNum: 2,
+			data:    []byte{0xff, 0, 0, 0, 0, 0, 0, 0},
+			wantErr: true,
 		},
 	}
 

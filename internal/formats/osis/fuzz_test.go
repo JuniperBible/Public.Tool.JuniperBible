@@ -216,14 +216,14 @@ func FuzzEscapeXML(f *testing.F) {
 // Helper function to create a test corpus
 func createTestCorpus(id, title, lang, versification string) *ir.Corpus {
 	corpus := &ir.Corpus{
-		ID:             id,
-		Version:        "1.0.0",
-		ModuleType:     ir.ModuleBible,
-		LossClass:      ir.LossL0,
-		Title:          title,
-		Language:       lang,
-		Versification:  versification,
-		Documents:      []*ir.Document{},
+		ID:            id,
+		Version:       "1.0.0",
+		ModuleType:    ir.ModuleBible,
+		LossClass:     ir.LossL0,
+		Title:         title,
+		Language:      lang,
+		Versification: versification,
+		Documents:     []*ir.Document{},
 	}
 
 	// Add a simple document

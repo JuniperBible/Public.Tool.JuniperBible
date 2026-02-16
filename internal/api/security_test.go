@@ -12,10 +12,10 @@ func TestValidatePath_PathTraversal(t *testing.T) {
 	baseDir := t.TempDir()
 
 	tests := []struct {
-		name     string
-		path     string
-		wantErr  bool
-		errType  error
+		name    string
+		path    string
+		wantErr bool
+		errType error
 	}{
 		{
 			name:    "simple path traversal with ..",
@@ -216,9 +216,9 @@ func TestValidatePath_EdgeCases(t *testing.T) {
 	baseDir := t.TempDir()
 
 	tests := []struct {
-		name     string
-		path     string
-		wantErr  bool
+		name    string
+		path    string
+		wantErr bool
 	}{
 		{
 			name:    "single dot",
@@ -374,7 +374,7 @@ func TestValidatePath_RealWorldAttacks(t *testing.T) {
 		description string
 		// shouldPass indicates if this is expected to pass validation
 		// (e.g., URL-encoded paths should be decoded by web framework first)
-		shouldPass  bool
+		shouldPass bool
 	}{
 		{
 			name:        "classic etc passwd",
@@ -468,8 +468,8 @@ func TestValidatePath_ValidPaths(t *testing.T) {
 		"my_file.txt",
 		"file with spaces.txt",
 		"file.multiple.dots.txt",
-		"日本語.txt", // Unicode filename
-		"Файл.txt",  // Cyrillic filename
+		"日本語.txt",  // Unicode filename
+		"Файл.txt", // Cyrillic filename
 	}
 
 	for _, path := range validPaths {

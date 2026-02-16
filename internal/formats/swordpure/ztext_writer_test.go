@@ -41,8 +41,8 @@ func TestZTextWriterWriteModule(t *testing.T) {
 
 	// Create a minimal IR corpus
 	corpus := &IRCorpus{
-		ID:             "TEST",
-		Versification:  "KJV",
+		ID:            "TEST",
+		Versification: "KJV",
 		Documents: []*IRDocument{
 			{
 				ID: "Gen",
@@ -119,10 +119,10 @@ func TestEmitZText(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	corpus := &IRCorpus{
-		ID:             "TESTBIBLE",
-		Versification:  "KJV",
-		Title:          "Test Bible",
-		Language:       "en",
+		ID:            "TESTBIBLE",
+		Versification: "KJV",
+		Title:         "Test Bible",
+		Language:      "en",
 		Documents: []*IRDocument{
 			{
 				ID: "Gen",
@@ -361,4 +361,3 @@ func TestZTextWriterWriteFiles(t *testing.T) {
 		t.Errorf("verse entry = {%d, %d, %d}, want {0, 0, %d}", blockNum, offset, size, len(testData))
 	}
 }
-

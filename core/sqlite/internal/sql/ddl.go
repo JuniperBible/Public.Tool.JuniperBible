@@ -11,8 +11,8 @@ import (
 
 // Schema represents the database schema containing tables and indexes.
 type Schema struct {
-	Tables  map[string]*Table  // Table name -> Table definition
-	Indexes map[string]*Index  // Index name -> Index definition
+	Tables  map[string]*Table // Table name -> Table definition
+	Indexes map[string]*Index // Index name -> Index definition
 }
 
 // NewSchema creates a new empty schema.
@@ -130,11 +130,11 @@ func CompileCreateTable(stmt *parser.CreateTableStmt, schema *Schema, bt *btree.
 	v.AllocMemory(6) // Allocate 6 registers (0-5)
 
 	// Load values into registers
-	v.AddOpWithP4Str(vdbe.OpString, 0, 1, 0, "table")                    // R[1] = "table"
-	v.AddOpWithP4Str(vdbe.OpString, 0, 2, 0, table.Name)                 // R[2] = table name
-	v.AddOpWithP4Str(vdbe.OpString, 0, 3, 0, table.Name)                 // R[3] = table name
+	v.AddOpWithP4Str(vdbe.OpString, 0, 1, 0, "table")                      // R[1] = "table"
+	v.AddOpWithP4Str(vdbe.OpString, 0, 2, 0, table.Name)                   // R[2] = table name
+	v.AddOpWithP4Str(vdbe.OpString, 0, 3, 0, table.Name)                   // R[3] = table name
 	v.AddOpWithP4Int(vdbe.OpInteger, int(rootPage), 4, 0, int32(rootPage)) // R[4] = rootpage
-	v.AddOpWithP4Str(vdbe.OpString, 0, 5, 0, createSQL)                  // R[5] = SQL
+	v.AddOpWithP4Str(vdbe.OpString, 0, 5, 0, createSQL)                    // R[5] = SQL
 
 	// Open cursor 0 on sqlite_master for writing
 	// sqlite_master is always at root page 1
@@ -181,7 +181,7 @@ func CompileDropTable(stmt *parser.DropTableStmt, schema *Schema, bt *btree.Btre
 	v.AddOp(vdbe.OpInit, 0, 0, 0)
 
 	// Allocate registers and cursors
-	v.AllocMemory(3) // R[0..2]
+	v.AllocMemory(3)  // R[0..2]
 	v.AllocCursors(2) // Cursor 0 for sqlite_master, cursor 1 for the table
 
 	// Open cursor 1 on the table to be dropped
@@ -307,11 +307,11 @@ func CompileCreateIndex(stmt *parser.CreateIndexStmt, schema *Schema, bt *btree.
 	v.AllocMemory(6)
 
 	// Load values into registers
-	v.AddOpWithP4Str(vdbe.OpString, 0, 1, 0, "index")        // R[1] = "index"
-	v.AddOpWithP4Str(vdbe.OpString, 0, 2, 0, index.Name)     // R[2] = index name
-	v.AddOpWithP4Str(vdbe.OpString, 0, 3, 0, index.Table)    // R[3] = table name
+	v.AddOpWithP4Str(vdbe.OpString, 0, 1, 0, "index")                      // R[1] = "index"
+	v.AddOpWithP4Str(vdbe.OpString, 0, 2, 0, index.Name)                   // R[2] = index name
+	v.AddOpWithP4Str(vdbe.OpString, 0, 3, 0, index.Table)                  // R[3] = table name
 	v.AddOpWithP4Int(vdbe.OpInteger, int(rootPage), 4, 0, int32(rootPage)) // R[4] = rootpage
-	v.AddOpWithP4Str(vdbe.OpString, 0, 5, 0, createSQL)      // R[5] = SQL
+	v.AddOpWithP4Str(vdbe.OpString, 0, 5, 0, createSQL)                    // R[5] = SQL
 
 	// Open cursor on sqlite_master
 	v.AllocCursors(2)

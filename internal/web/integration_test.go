@@ -98,7 +98,7 @@ func TestWebUIIntegration(t *testing.T) {
 			name:         "bible index redirects to first bible",
 			path:         "/bible",
 			method:       "GET",
-			wantStatus:   http.StatusFound, // 302 redirect
+			wantStatus:   http.StatusFound,       // 302 redirect
 			wantContains: []string{"/bible/KJV"}, // Location header contains KJV
 		},
 		{

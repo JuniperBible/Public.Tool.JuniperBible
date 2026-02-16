@@ -63,9 +63,10 @@ func (v *Version) String() string {
 
 // Compare compares two versions.
 // Returns:
-//   -1 if v < other
-//    0 if v == other
-//   +1 if v > other
+//
+//	-1 if v < other
+//	 0 if v == other
+//	+1 if v > other
 func (v *Version) Compare(other *Version) int {
 	if v.Major != other.Major {
 		if v.Major < other.Major {
@@ -111,7 +112,7 @@ func (v *Version) IsCompatibleWith(required *Version) bool {
 
 // Constraint represents a version constraint (e.g., ">=1.2.0", "<2.0.0").
 type Constraint struct {
-	Operator string   // ">=", ">", "=", "<", "<="
+	Operator string // ">=", ">", "=", "<", "<="
 	Version  *Version
 }
 

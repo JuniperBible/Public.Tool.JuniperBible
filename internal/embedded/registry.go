@@ -6,17 +6,8 @@ import (
 	// Import all embedded format plugins to trigger their init() registration
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/accordance"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/bibletime"
+
 	// Import all embedded tool plugins to trigger their init() registration
-	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/calibre"
-	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/gobiblecreator"
-	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/hugo"
-	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/libsword"
-	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/libxml2"
-	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/pandoc"
-	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/repoman"
-	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/sqlite"
-	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/unrtf"
-	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/usfm2osis"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/dbl"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/dir"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/ecm"
@@ -52,6 +43,16 @@ import (
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/usx"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/xml"
 	_ "github.com/FocuswithJustin/JuniperBible/internal/formats/zefania"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/calibre"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/gobiblecreator"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/hugo"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/libsword"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/libxml2"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/pandoc"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/repoman"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/sqlite"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/unrtf"
+	_ "github.com/FocuswithJustin/JuniperBible/internal/tools/usfm2osis"
 
 	"github.com/FocuswithJustin/JuniperBible/core/plugins"
 )
@@ -74,4 +75,3 @@ func IsInitialized() bool {
 func PluginCount() int {
 	return len(plugins.ListEmbeddedPlugins())
 }
-

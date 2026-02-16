@@ -167,9 +167,9 @@ func TestDetectVersificationDifference(t *testing.T) {
 
 func TestStripMarkup(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  string
-		want   string
+		name  string
+		input string
+		want  string
 	}{
 		{"plain text", "Hello world", "Hello world"},
 		{"text with tags", "<b>Hello</b> world", "Hello world"},
@@ -194,11 +194,11 @@ func TestStripMarkup(t *testing.T) {
 func TestVersificationEdgeCases(t *testing.T) {
 	// Real examples from DRC Bible
 	tests := []struct {
-		name           string
-		rawMarkup      string
-		expectEmpty    bool
-		expectChapter  bool
-		description    string
+		name          string
+		rawMarkup     string
+		expectEmpty   bool
+		expectChapter bool
+		description   string
 	}{
 		{
 			name:          "DRC 1Pet.4.15 - chapter boundary",
@@ -289,10 +289,10 @@ func TestComputeHash(t *testing.T) {
 
 func TestExtractAttr(t *testing.T) {
 	tests := []struct {
-		name  string
-		tag   string
-		attr  string
-		want  string
+		name string
+		tag  string
+		attr string
+		want string
 	}{
 		{"simple attribute", `<w lemma="strong:G2316">`, "lemma", "strong:G2316"},
 		{"no attribute", `<w>test</w>`, "lemma", ""},
@@ -312,12 +312,12 @@ func TestExtractAttr(t *testing.T) {
 
 func TestParseVerseContent(t *testing.T) {
 	tests := []struct {
-		name        string
-		id          string
-		rawText     string
-		wantText    string
-		wantMarkup  bool
-		wantHash    bool
+		name       string
+		id         string
+		rawText    string
+		wantText   string
+		wantMarkup bool
+		wantHash   bool
 	}{
 		{
 			name:       "simple text",
@@ -408,12 +408,12 @@ func TestExtractCorpus(t *testing.T) {
 
 func TestGenerateConfFromIR(t *testing.T) {
 	corpus := &IRCorpus{
-		ID:             "TESTBIBLE",
-		Version:        "1.0.0",
-		ModuleType:     "BIBLE",
-		Versification:  "KJV",
-		Language:       "en",
-		Title:          "Test Bible",
+		ID:            "TESTBIBLE",
+		Version:       "1.0.0",
+		ModuleType:    "BIBLE",
+		Versification: "KJV",
+		Language:      "en",
+		Title:         "Test Bible",
 		Attributes: map[string]string{
 			"about":       "Test about",
 			"copyright":   "Test copyright",
@@ -549,9 +549,9 @@ func TestTokenizePlainText(t *testing.T) {
 
 func TestParseTokensFromMarkup(t *testing.T) {
 	tests := []struct {
-		name      string
-		markup    string
-		wantCount int
+		name       string
+		markup     string
+		wantCount  int
 		checkFirst bool
 		firstText  string
 		firstLemma string

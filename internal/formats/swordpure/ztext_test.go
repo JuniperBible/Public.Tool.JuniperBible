@@ -66,7 +66,7 @@ Versification=KJV
 	// Write .bzs (block index)
 	// Single block entry: offset=0, compressedSize=len(compressed), uncompSize=len(verseText)
 	bzsData := make([]byte, 12)
-	binary.LittleEndian.PutUint32(bzsData[0:4], 0) // offset
+	binary.LittleEndian.PutUint32(bzsData[0:4], 0)                       // offset
 	binary.LittleEndian.PutUint32(bzsData[4:8], uint32(len(compressed))) // compressed size
 	binary.LittleEndian.PutUint32(bzsData[8:12], uint32(len(verseText))) // uncompressed size
 
@@ -82,9 +82,9 @@ Versification=KJV
 	bzvData := make([]byte, numEntries*10)
 
 	// [0] = empty
-	binary.LittleEndian.PutUint32(bzvData[0:4], 0)   // blockNum
-	binary.LittleEndian.PutUint32(bzvData[4:8], 0)   // offset
-	binary.LittleEndian.PutUint16(bzvData[8:10], 0)  // size
+	binary.LittleEndian.PutUint32(bzvData[0:4], 0)  // blockNum
+	binary.LittleEndian.PutUint32(bzvData[4:8], 0)  // offset
+	binary.LittleEndian.PutUint16(bzvData[8:10], 0) // size
 
 	// [1] = module header (empty)
 	binary.LittleEndian.PutUint32(bzvData[10:14], 0)
@@ -102,8 +102,8 @@ Versification=KJV
 	binary.LittleEndian.PutUint16(bzvData[38:40], 0)
 
 	// [4] = actual verse (Genesis 1:1)
-	binary.LittleEndian.PutUint32(bzvData[40:44], 0)                    // blockNum=0
-	binary.LittleEndian.PutUint32(bzvData[44:48], 0)                    // offset=0
+	binary.LittleEndian.PutUint32(bzvData[40:44], 0)                      // blockNum=0
+	binary.LittleEndian.PutUint32(bzvData[44:48], 0)                      // offset=0
 	binary.LittleEndian.PutUint16(bzvData[48:50], uint16(len(verseText))) // size
 
 	bzvPath := filepath.Join(dataDir, "ot.bzv")

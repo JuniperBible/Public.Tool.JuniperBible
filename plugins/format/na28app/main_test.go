@@ -3,11 +3,12 @@
 package main
 
 import (
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 func TestDetect(t *testing.T) {

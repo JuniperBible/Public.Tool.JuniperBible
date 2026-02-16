@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 // =============================================================================

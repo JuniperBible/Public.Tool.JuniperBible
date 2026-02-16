@@ -12,7 +12,6 @@ import (
 	"archive/zip"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"

@@ -29,14 +29,14 @@ func NewSchema() *Schema {
 
 // Table represents a database table definition.
 type Table struct {
-	Name         string           // Table name
-	RootPage     uint32           // B-tree root page number
-	SQL          string           // CREATE TABLE statement
-	Columns      []*Column        // Column definitions
-	PrimaryKey   []string         // Primary key column names
-	WithoutRowID bool             // True for WITHOUT ROWID tables
-	Strict       bool             // True for STRICT tables
-	Temp         bool             // True for temporary tables
+	Name         string            // Table name
+	RootPage     uint32            // B-tree root page number
+	SQL          string            // CREATE TABLE statement
+	Columns      []*Column         // Column definitions
+	PrimaryKey   []string          // Primary key column names
+	WithoutRowID bool              // True for WITHOUT ROWID tables
+	Strict       bool              // True for STRICT tables
+	Temp         bool              // True for temporary tables
 	Constraints  []TableConstraint // Table-level constraints
 }
 

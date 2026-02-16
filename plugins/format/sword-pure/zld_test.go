@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 // Phase 18: Tests for zLD (SWORD Lexicon/Dictionary) parser

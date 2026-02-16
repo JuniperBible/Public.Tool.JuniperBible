@@ -186,9 +186,9 @@ func TestLoggerFromContext(t *testing.T) {
 	InitLogger(LevelInfo, FormatJSON)
 
 	tests := []struct {
-		name      string
-		ctx       context.Context
-		hasReqID  bool
+		name     string
+		ctx      context.Context
+		hasReqID bool
 	}{
 		{
 			name:     "Context with request ID",
@@ -558,11 +558,11 @@ func TestSecurityEventWithArgs(t *testing.T) {
 
 func TestResponseWriter_WriteHeader(t *testing.T) {
 	tests := []struct {
-		name           string
-		initialCode    int
-		writeCode      int
-		expectedCode   int
-		callTwice      bool
+		name         string
+		initialCode  int
+		writeCode    int
+		expectedCode int
+		callTwice    bool
 	}{
 		{
 			name:         "Write header once",

@@ -31,9 +31,10 @@ var BuiltinCollations = map[string]Collation{
 
 // Compare compares two strings using the specified collation.
 // Returns:
-//   -1 if a < b
-//    0 if a == b
-//   +1 if a > b
+//
+//	-1 if a < b
+//	 0 if a == b
+//	+1 if a > b
 func (c Collation) Compare(a, b string) int {
 	switch c.Type {
 	case BINARY:

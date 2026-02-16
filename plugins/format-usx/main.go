@@ -97,10 +97,10 @@ type LostElement struct {
 
 // USX XML types
 type USX struct {
-	XMLName xml.Name    `xml:"usx"`
-	Version string      `xml:"version,attr"`
-	Book    *USXBook    `xml:"book"`
-	Content []USXNode   `xml:",any"`
+	XMLName xml.Name  `xml:"usx"`
+	Version string    `xml:"version,attr"`
+	Book    *USXBook  `xml:"book"`
+	Content []USXNode `xml:",any"`
 }
 
 type USXBook struct {

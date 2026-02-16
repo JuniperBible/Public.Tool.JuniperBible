@@ -658,10 +658,10 @@ func createPDBFromCorpus(corpus *Corpus) []byte {
 	offset := uint32(dataStart)
 	for i, rec := range records {
 		binary.Write(&buf, binary.BigEndian, offset)
-		buf.WriteByte(0)        // attributes
-		buf.WriteByte(0)        // unique ID byte 1
-		buf.WriteByte(0)        // unique ID byte 2
-		buf.WriteByte(byte(i))  // unique ID byte 3
+		buf.WriteByte(0)       // attributes
+		buf.WriteByte(0)       // unique ID byte 1
+		buf.WriteByte(0)       // unique ID byte 2
+		buf.WriteByte(byte(i)) // unique ID byte 3
 		offset += uint32(len(rec))
 	}
 

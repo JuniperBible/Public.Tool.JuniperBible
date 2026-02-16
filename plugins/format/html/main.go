@@ -13,12 +13,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 // Parallel Corpus Types

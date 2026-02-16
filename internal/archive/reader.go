@@ -19,9 +19,9 @@ import (
 // This is especially important for .tar.xz files which are slow to decompress.
 var tocCache struct {
 	sync.RWMutex
-	entries   map[string]*tocEntry
-	maxSize   int           // Maximum number of entries
-	ttl       time.Duration // Time-to-live for cache entries
+	entries map[string]*tocEntry
+	maxSize int           // Maximum number of entries
+	ttl     time.Duration // Time-to-live for cache entries
 }
 
 type tocEntry struct {

@@ -12,32 +12,32 @@ type SelectCompiler struct {
 
 // SelectDest describes where SELECT results should go.
 type SelectDest struct {
-	Dest     SelectDestType // Destination type
-	SDParm   int            // First parameter (meaning depends on Dest)
-	SDParm2  int            // Second parameter
-	AffSdst  string         // Affinity string for SRT_Set destination
-	Sdst     int            // Base register to hold results
-	NSdst    int            // Number of result columns
+	Dest    SelectDestType // Destination type
+	SDParm  int            // First parameter (meaning depends on Dest)
+	SDParm2 int            // Second parameter
+	AffSdst string         // Affinity string for SRT_Set destination
+	Sdst    int            // Base register to hold results
+	NSdst   int            // Number of result columns
 }
 
 // SelectDestType defines how to dispose of query results.
 type SelectDestType int
 
 const (
-	SRT_Output     SelectDestType = iota + 1 // Output to callback/result row
-	SRT_Mem                                   // Store result in a memory cell
-	SRT_Set                                   // Store results as keys in an index
-	SRT_Union                                 // Store results as keys of union
-	SRT_Except                                // Remove result from union
-	SRT_Exists                                // Store 1 if result is not empty
-	SRT_Table                                 // Store results in a table
-	SRT_EphemTab                              // Store results in ephemeral table
-	SRT_Coroutine                             // Generate a single row of result
-	SRT_Fifo                                  // Store results in FIFO queue
-	SRT_DistFifo                              // Like SRT_Fifo but distinct
-	SRT_Queue                                 // Store results in priority queue
-	SRT_DistQueue                             // Like SRT_Queue but distinct
-	SRT_Upfrom                                // Store results for UPDATE FROM
+	SRT_Output    SelectDestType = iota + 1 // Output to callback/result row
+	SRT_Mem                                 // Store result in a memory cell
+	SRT_Set                                 // Store results as keys in an index
+	SRT_Union                               // Store results as keys of union
+	SRT_Except                              // Remove result from union
+	SRT_Exists                              // Store 1 if result is not empty
+	SRT_Table                               // Store results in a table
+	SRT_EphemTab                            // Store results in ephemeral table
+	SRT_Coroutine                           // Generate a single row of result
+	SRT_Fifo                                // Store results in FIFO queue
+	SRT_DistFifo                            // Like SRT_Fifo but distinct
+	SRT_Queue                               // Store results in priority queue
+	SRT_DistQueue                           // Like SRT_Queue but distinct
+	SRT_Upfrom                              // Store results for UPDATE FROM
 )
 
 // DistinctCtx records information about how to process DISTINCT keyword.
@@ -58,16 +58,16 @@ const (
 
 // SortCtx contains information about ORDER BY or GROUP BY clause.
 type SortCtx struct {
-	OrderBy        *ExprList // The ORDER BY (or GROUP BY clause)
-	NOBSat         int       // Number of ORDER BY terms satisfied by indices
-	ECursor        int       // Cursor number for the sorter
-	RegReturn      int       // Register holding block-output return address
-	LabelBkOut     int       // Start label for the block-output subroutine
-	AddrSortIndex  int       // Address of the OP_SorterOpen or OP_OpenEphemeral
-	LabelDone      int       // Jump here when done, ex: LIMIT reached
-	LabelOBLopt    int       // Jump here when sorter is full
-	SortFlags      uint8     // Zero or more SORTFLAG_* bits
-	DeferredRowLd  *RowLoadInfo
+	OrderBy       *ExprList // The ORDER BY (or GROUP BY clause)
+	NOBSat        int       // Number of ORDER BY terms satisfied by indices
+	ECursor       int       // Cursor number for the sorter
+	RegReturn     int       // Register holding block-output return address
+	LabelBkOut    int       // Start label for the block-output subroutine
+	AddrSortIndex int       // Address of the OP_SorterOpen or OP_OpenEphemeral
+	LabelDone     int       // Jump here when done, ex: LIMIT reached
+	LabelOBLopt   int       // Jump here when sorter is full
+	SortFlags     uint8     // Zero or more SORTFLAG_* bits
+	DeferredRowLd *RowLoadInfo
 }
 
 // SORTFLAG_* bit values
@@ -77,8 +77,8 @@ const (
 
 // RowLoadInfo contains information for loading a result row.
 type RowLoadInfo struct {
-	RegResult      int       // Start of memory holding result
-	EcelFlags      uint8     // ExprCodeExprList flags
+	RegResult int   // Start of memory holding result
+	EcelFlags uint8 // ExprCodeExprList flags
 }
 
 // NewSelectCompiler creates a new SELECT compiler.

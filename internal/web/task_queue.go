@@ -14,30 +14,30 @@ import (
 type TaskType string
 
 const (
-	TaskInstall    TaskType = "install"
-	TaskDelete     TaskType = "delete"
-	TaskConvert    TaskType = "convert"
-	TaskExport     TaskType = "export"
-	TaskIngest     TaskType = "ingest"
-	TaskVerify     TaskType = "verify"
-	TaskSelfcheck  TaskType = "selfcheck"
-	TaskToolRun    TaskType = "tool_run"
+	TaskInstall   TaskType = "install"
+	TaskDelete    TaskType = "delete"
+	TaskConvert   TaskType = "convert"
+	TaskExport    TaskType = "export"
+	TaskIngest    TaskType = "ingest"
+	TaskVerify    TaskType = "verify"
+	TaskSelfcheck TaskType = "selfcheck"
+	TaskToolRun   TaskType = "tool_run"
 )
 
 // Task represents an async task in the queue.
 type Task struct {
-	ID         string                 `json:"id"`
-	Type       TaskType               `json:"type"`
-	Name       string                 `json:"name"`
-	Status     string                 `json:"status"` // "queued", "running", "completed", "failed"
-	Progress   int                    `json:"progress,omitempty"` // 0-100
-	Message    string                 `json:"message,omitempty"`
-	Error      string                 `json:"error,omitempty"`
-	Result     interface{}            `json:"result,omitempty"`
-	Params     map[string]string      `json:"params,omitempty"`
-	QueuedAt   time.Time              `json:"queued_at"`
-	StartedAt  time.Time              `json:"started_at,omitempty"`
-	FinishedAt time.Time              `json:"finished_at,omitempty"`
+	ID         string            `json:"id"`
+	Type       TaskType          `json:"type"`
+	Name       string            `json:"name"`
+	Status     string            `json:"status"`             // "queued", "running", "completed", "failed"
+	Progress   int               `json:"progress,omitempty"` // 0-100
+	Message    string            `json:"message,omitempty"`
+	Error      string            `json:"error,omitempty"`
+	Result     interface{}       `json:"result,omitempty"`
+	Params     map[string]string `json:"params,omitempty"`
+	QueuedAt   time.Time         `json:"queued_at"`
+	StartedAt  time.Time         `json:"started_at,omitempty"`
+	FinishedAt time.Time         `json:"finished_at,omitempty"`
 }
 
 // TaskQueue manages async tasks.

@@ -315,19 +315,19 @@ func TestIsValidPageSize(t *testing.T) {
 		size int
 		want bool
 	}{
-		{256, false},   // too small
-		{512, true},    // min valid
-		{1024, true},   // power of 2
-		{2048, true},   // power of 2
-		{4096, true},   // power of 2
-		{8192, true},   // power of 2
-		{16384, true},  // power of 2
-		{32768, true},  // power of 2
-		{65536, true},  // max valid
+		{256, false},    // too small
+		{512, true},     // min valid
+		{1024, true},    // power of 2
+		{2048, true},    // power of 2
+		{4096, true},    // power of 2
+		{8192, true},    // power of 2
+		{16384, true},   // power of 2
+		{32768, true},   // power of 2
+		{65536, true},   // max valid
 		{131072, false}, // too large
-		{4000, false},  // not power of 2
-		{0, false},     // invalid
-		{-1, false},    // negative
+		{4000, false},   // not power of 2
+		{0, false},      // invalid
+		{-1, false},     // negative
 	}
 
 	for _, tt := range tests {

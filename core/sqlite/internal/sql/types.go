@@ -4,14 +4,14 @@ package sql
 
 // Parse represents the parser and code generator context.
 type Parse struct {
-	DB            *Database // Database connection
-	Vdbe          *Vdbe     // The VDBE being generated
-	Mem           int       // Next available register
-	Tabs          int       // Next available cursor
-	Errs          int       // Number of errors
-	ColNamesSet   bool      // Column names already set
-	Explain       int       // Explain mode
-	NSelect       int       // SELECT statement counter
+	DB          *Database // Database connection
+	Vdbe        *Vdbe     // The VDBE being generated
+	Mem         int       // Next available register
+	Tabs        int       // Next available cursor
+	Errs        int       // Number of errors
+	ColNamesSet bool      // Column names already set
+	Explain     int       // Explain mode
+	NSelect     int       // SELECT statement counter
 }
 
 // GetVdbe returns the VDBE for this parse context.
@@ -53,30 +53,30 @@ func (p *Parse) AllocCursor() int {
 
 // Select represents a SELECT statement.
 type Select struct {
-	Op        int       // Operator (TK_SELECT, TK_UNION, etc)
-	SelFlags  uint32    // SF_* flags
-	EList     *ExprList // Result columns
-	Src       *SrcList  // FROM clause
-	Where     *Expr     // WHERE clause
-	GroupBy   *ExprList // GROUP BY clause
-	Having    *Expr     // HAVING clause
-	OrderBy   *ExprList // ORDER BY clause
-	Prior     *Select   // Prior SELECT for compound queries
-	Next      *Select   // Next SELECT in list
-	Limit     int       // LIMIT value (0 = none)
-	Offset    int       // OFFSET value (0 = none)
-	SelectID  int       // Unique identifier
+	Op       int       // Operator (TK_SELECT, TK_UNION, etc)
+	SelFlags uint32    // SF_* flags
+	EList    *ExprList // Result columns
+	Src      *SrcList  // FROM clause
+	Where    *Expr     // WHERE clause
+	GroupBy  *ExprList // GROUP BY clause
+	Having   *Expr     // HAVING clause
+	OrderBy  *ExprList // ORDER BY clause
+	Prior    *Select   // Prior SELECT for compound queries
+	Next     *Select   // Next SELECT in list
+	Limit    int       // LIMIT value (0 = none)
+	Offset   int       // OFFSET value (0 = none)
+	SelectID int       // Unique identifier
 }
 
 // SELECT flags
 const (
-	SF_Distinct   = 0x0001 // Output should be DISTINCT
-	SF_Resolved   = 0x0002 // Identifiers have been resolved
-	SF_Aggregate  = 0x0004 // Contains aggregate functions
+	SF_Distinct      = 0x0001 // Output should be DISTINCT
+	SF_Resolved      = 0x0002 // Identifiers have been resolved
+	SF_Aggregate     = 0x0004 // Contains aggregate functions
 	SF_UsesEphemeral = 0x0008 // Uses ephemeral table
-	SF_Expanded   = 0x0010 // sqlite3SelectExpand() called
-	SF_HasTypeInfo = 0x0020 // Has column type info
-	SF_Compound   = 0x0040 // Part of compound query
+	SF_Expanded      = 0x0010 // sqlite3SelectExpand() called
+	SF_HasTypeInfo   = 0x0020 // Has column type info
+	SF_Compound      = 0x0040 // Part of compound query
 )
 
 // Token operators
@@ -166,25 +166,25 @@ func (sl *SrcList) Append(item SrcListItem) {
 
 // SrcListItem represents one table in the FROM clause.
 type SrcListItem struct {
-	Database       string  // Database name (if qualified)
-	Name           string  // Table name
-	Alias          string  // Alias name
-	Table          *Table  // Resolved table definition
-	Select         *Select // SELECT for subquery
-	Cursor         int     // Cursor number for this table
-	AddrFillIndex  int     // Address of OP_Rewind (for patching)
-	RegReturn      int     // Register for return address (coroutine)
-	RegResult      int     // Register for result data (coroutine)
+	Database      string  // Database name (if qualified)
+	Name          string  // Table name
+	Alias         string  // Alias name
+	Table         *Table  // Resolved table definition
+	Select        *Select // SELECT for subquery
+	Cursor        int     // Cursor number for this table
+	AddrFillIndex int     // Address of OP_Rewind (for patching)
+	RegReturn     int     // Register for return address (coroutine)
+	RegResult     int     // Register for result data (coroutine)
 }
 
 // Table represents a database table.
 type Table struct {
-	Name        string    // Table name
-	NumColumns  int       // Number of columns
-	Columns     []Column  // Column definitions
-	RootPage    int       // Root page in database file
-	PrimaryKey  int       // Index of PRIMARY KEY column (-1 if none)
-	RowidColumn int       // Column that is the rowid (-1 if none)
+	Name        string   // Table name
+	NumColumns  int      // Number of columns
+	Columns     []Column // Column definitions
+	RootPage    int      // Root page in database file
+	PrimaryKey  int      // Index of PRIMARY KEY column (-1 if none)
+	RowidColumn int      // Column that is the rowid (-1 if none)
 }
 
 // GetColumn returns the column at the given index.
@@ -197,12 +197,12 @@ func (t *Table) GetColumn(idx int) *Column {
 
 // Column represents a table column.
 type Column struct {
-	Name     string   // Column name
-	DeclType string   // Declared type (TEXT, INTEGER, etc)
-	Affinity Affinity // Type affinity
-	NotNull  bool     // NOT NULL constraint
-	PrimaryKey bool   // PRIMARY KEY constraint
-	DefaultValue *Expr // DEFAULT value
+	Name         string   // Column name
+	DeclType     string   // Declared type (TEXT, INTEGER, etc)
+	Affinity     Affinity // Type affinity
+	NotNull      bool     // NOT NULL constraint
+	PrimaryKey   bool     // PRIMARY KEY constraint
+	DefaultValue *Expr    // DEFAULT value
 }
 
 // Affinity represents type affinity.
@@ -220,11 +220,11 @@ const (
 
 // FuncDef represents a function definition.
 type FuncDef struct {
-	Name      string        // Function name
-	NumArgs   int           // Number of arguments (-1 = variable)
-	FuncFlags int           // Function flags
-	UserData  interface{}   // User data
-	Next      *FuncDef      // Next overload
+	Name      string                                     // Function name
+	NumArgs   int                                        // Number of arguments (-1 = variable)
+	FuncFlags int                                        // Function flags
+	UserData  interface{}                                // User data
+	Next      *FuncDef                                   // Next overload
 	Func      func(ctx *FuncContext, args []interface{}) // Implementation
 }
 

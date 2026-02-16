@@ -584,7 +584,6 @@ func TestExecuteWithLongCommand(t *testing.T) {
 	}
 }
 
-
 // TestExecuteInParallel tests that Execute can be called safely from multiple goroutines.
 func TestExecuteInParallel(t *testing.T) {
 	h := &Handler{}

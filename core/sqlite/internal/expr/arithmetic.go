@@ -392,13 +392,14 @@ func EvaluateLogical(op OpCode, left, right interface{}) interface{} {
 
 // evaluateAnd evaluates logical AND with NULL handling.
 // SQLite three-valued logic:
-//   true AND true = true
-//   true AND false = false
-//   true AND NULL = NULL
-//   false AND anything = false
-//   NULL AND false = false
-//   NULL AND true = NULL
-//   NULL AND NULL = NULL
+//
+//	true AND true = true
+//	true AND false = false
+//	true AND NULL = NULL
+//	false AND anything = false
+//	NULL AND false = false
+//	NULL AND true = NULL
+//	NULL AND NULL = NULL
 func evaluateAnd(left, right interface{}) interface{} {
 	// Handle NULL cases first
 	leftIsNull := left == nil
@@ -425,13 +426,14 @@ func evaluateAnd(left, right interface{}) interface{} {
 
 // evaluateOr evaluates logical OR with NULL handling.
 // SQLite three-valued logic:
-//   false OR false = false
-//   false OR true = true
-//   false OR NULL = NULL
-//   true OR anything = true
-//   NULL OR true = true
-//   NULL OR false = NULL
-//   NULL OR NULL = NULL
+//
+//	false OR false = false
+//	false OR true = true
+//	false OR NULL = NULL
+//	true OR anything = true
+//	NULL OR true = true
+//	NULL OR false = NULL
+//	NULL OR NULL = NULL
 func evaluateOr(left, right interface{}) interface{} {
 	// Handle NULL cases first
 	leftIsNull := left == nil

@@ -15,10 +15,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 // PDB Header structure

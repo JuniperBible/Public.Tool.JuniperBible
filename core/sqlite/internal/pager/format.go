@@ -309,16 +309,16 @@ func NewDatabaseHeader(pageSize int) *DatabaseHeader {
 	}
 
 	header := &DatabaseHeader{
-		PageSize:         storedPageSize,
-		FileFormatWrite:  1,
-		FileFormatRead:   1,
-		ReservedSpace:    0,
-		MaxPayloadFrac:   64,
-		MinPayloadFrac:   32,
-		LeafPayloadFrac:  32,
-		SchemaFormat:     4,
-		TextEncoding:     EncodingUTF8,
-		SQLiteVersion:    3051020, // SQLite version 3.51.2
+		PageSize:        storedPageSize,
+		FileFormatWrite: 1,
+		FileFormatRead:  1,
+		ReservedSpace:   0,
+		MaxPayloadFrac:  64,
+		MinPayloadFrac:  32,
+		LeafPayloadFrac: 32,
+		SchemaFormat:    4,
+		TextEncoding:    EncodingUTF8,
+		SQLiteVersion:   3051020, // SQLite version 3.51.2
 	}
 
 	copy(header.Magic[:], MagicHeaderString)

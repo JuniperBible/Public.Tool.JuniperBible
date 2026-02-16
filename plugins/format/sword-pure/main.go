@@ -391,4 +391,3 @@ func handleEmitNative(req *ipc.Request) {
 		"output_dir":     outputDir,
 	})
 }
-

@@ -3,11 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 // TestPluginInfo tests the info command.

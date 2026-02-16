@@ -182,7 +182,7 @@ func TestEvaluateUnary(t *testing.T) {
 		{
 			name:     "BitNot positive",
 			op:       OpBitNot,
-			operand:  int64(5), // 0b101
+			operand:  int64(5),  // 0b101
 			expected: int64(-6), // 0b...11111010
 		},
 	}
@@ -569,11 +569,11 @@ func TestValueToString(t *testing.T) {
 
 func TestArithmeticOverflow(t *testing.T) {
 	tests := []struct {
-		name     string
-		op       OpCode
-		left     interface{}
-		right    interface{}
-		checkFn  func(interface{}) bool
+		name    string
+		op      OpCode
+		left    interface{}
+		right   interface{}
+		checkFn func(interface{}) bool
 	}{
 		{
 			name:  "Addition overflow to float",

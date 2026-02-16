@@ -119,4 +119,3 @@ func RunTool(t *testing.T, tool Tool, args ...string) (string, error) {
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
-

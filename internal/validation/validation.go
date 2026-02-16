@@ -199,20 +199,20 @@ type FileType string
 
 const (
 	// Archive formats
-	FileTypeTarXZ  FileType = "tar.xz"
-	FileTypeTarGZ  FileType = "tar.gz"
-	FileTypeTar    FileType = "tar"
-	FileTypeZip    FileType = "zip"
-	FileTypeGzip   FileType = "gzip"
-	FileTypeXZ     FileType = "xz"
+	FileTypeTarXZ FileType = "tar.xz"
+	FileTypeTarGZ FileType = "tar.gz"
+	FileTypeTar   FileType = "tar"
+	FileTypeZip   FileType = "zip"
+	FileTypeGzip  FileType = "gzip"
+	FileTypeXZ    FileType = "xz"
 
 	// Binary formats
 	FileTypeSQLite FileType = "sqlite"
 
 	// Text/XML formats
-	FileTypeXML    FileType = "xml"
-	FileTypeJSON   FileType = "json"
-	FileTypeText   FileType = "text"
+	FileTypeXML  FileType = "xml"
+	FileTypeJSON FileType = "json"
+	FileTypeText FileType = "text"
 
 	// Unknown
 	FileTypeUnknown FileType = "unknown"
@@ -225,10 +225,10 @@ var magicBytes = []struct {
 	offset   int
 }{
 	// Archive formats
-	{FileTypeTar, []byte("ustar"), 257},           // POSIX tar
-	{FileTypeGzip, []byte{0x1f, 0x8b}, 0},         // Gzip
+	{FileTypeTar, []byte("ustar"), 257},                         // POSIX tar
+	{FileTypeGzip, []byte{0x1f, 0x8b}, 0},                       // Gzip
 	{FileTypeXZ, []byte{0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00}, 0}, // XZ
-	{FileTypeZip, []byte{0x50, 0x4b, 0x03, 0x04}, 0}, // ZIP
+	{FileTypeZip, []byte{0x50, 0x4b, 0x03, 0x04}, 0},            // ZIP
 
 	// SQLite (must check before other binary formats)
 	{FileTypeSQLite, []byte("SQLite format 3"), 0},

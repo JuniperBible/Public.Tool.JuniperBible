@@ -87,9 +87,9 @@ func Parse(path string) (*ir.Corpus, error) {
 		Version:    "1.0",
 		ModuleType: "directory",
 		Attributes: map[string]string{
-			"format":       "dir",
-			"file_count":   fmt.Sprintf("%d", len(files)),
-			"total_bytes":  fmt.Sprintf("%d", totalSize),
+			"format":        "dir",
+			"file_count":    fmt.Sprintf("%d", len(files)),
+			"total_bytes":   fmt.Sprintf("%d", totalSize),
 			"manifest_json": string(manifestData),
 		},
 	}

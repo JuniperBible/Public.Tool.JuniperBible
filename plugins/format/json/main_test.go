@@ -746,4 +746,3 @@ func TestJSONDetectEmptyJSON(t *testing.T) {
 		t.Error("expected detected to be false for empty JSON object")
 	}
 }
-

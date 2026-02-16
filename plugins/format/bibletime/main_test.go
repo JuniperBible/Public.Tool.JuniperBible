@@ -278,7 +278,7 @@ func TestEnumerate_ModuleDirectory(t *testing.T) {
 	}
 }
 
-func TestExtractIR_Createsipc.Corpus(t *testing.T) {
+func TestExtractIR_CreatesCorpus(t *testing.T) {
 	tmpDir := t.TempDir()
 	xbelPath := filepath.Join(tmpDir, "bookmarks.xbel")
 	outputDir := filepath.Join(tmpDir, "ir")

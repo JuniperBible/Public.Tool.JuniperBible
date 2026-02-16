@@ -118,7 +118,7 @@ var manageableBiblesCache struct {
 func init() {
 	bibleCache.ttl = 30 * time.Minute // Cache for 30 minutes (expensive to rebuild)
 	corpusCache.corpora = make(map[string]*corpusCacheEntry)
-	corpusCache.ttl = 60 * time.Minute // Cache corpora for 1 hour since they're very expensive to load
+	corpusCache.ttl = 60 * time.Minute           // Cache corpora for 1 hour since they're very expensive to load
 	manageableBiblesCache.ttl = 10 * time.Minute // Cache manageable bibles list
 }
 
@@ -754,19 +754,19 @@ type BibleIndexData struct {
 	TotalPages     int
 	PerPageOptions []int
 	// Manage tab
-	InstalledBibles       []ManageableBible
-	InstallableBibles     []ManageableBible
-	AllInstalledBibles    []ManageableBible // Unfiltered for counts
-	AllInstallableBibles  []ManageableBible // Unfiltered for counts
-	ManageTagFilter        string   // Selected tag filter (e.g., "sword", "capsule", "tar.gz", "identified")
-	ManageAvailableTags    []string // All unique tags available for filtering
-	ManageLanguageFilter   string   // Selected language filter
-	ManageAvailableLanguages []string // All unique languages available for filtering
-	InstalledPage         int
-	InstalledTotalPages   int
-	InstallablePage       int
-	InstallableTotalPages int
-	ManagePerPage         int
+	InstalledBibles          []ManageableBible
+	InstallableBibles        []ManageableBible
+	AllInstalledBibles       []ManageableBible // Unfiltered for counts
+	AllInstallableBibles     []ManageableBible // Unfiltered for counts
+	ManageTagFilter          string            // Selected tag filter (e.g., "sword", "capsule", "tar.gz", "identified")
+	ManageAvailableTags      []string          // All unique tags available for filtering
+	ManageLanguageFilter     string            // Selected language filter
+	ManageAvailableLanguages []string          // All unique languages available for filtering
+	InstalledPage            int
+	InstalledTotalPages      int
+	InstallablePage          int
+	InstallableTotalPages    int
+	ManagePerPage            int
 }
 
 // BibleViewData is the data for viewing a single Bible.
@@ -1088,35 +1088,35 @@ func handleLibraryBibles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := BibleIndexData{
-		PageData:              PageData{Title: "Bible"},
-		Bibles:                paginatedBibles,
-		AllBibles:             allBibles,
-		Languages:             languages,
-		Features:              features,
-		Tab:                   tab,
-		Query:                 query,
-		BibleID:               bibleID,
-		CaseSensitive:         caseSensitive,
-		WholeWord:             wholeWord,
-		Results:               results,
-		Total:                 total,
-		Page:                  page,
-		PerPage:               perPage,
-		TotalPages:            totalPages,
-		PerPageOptions:        perPageOptions,
-		InstalledBibles:       installedBibles,
-		InstallableBibles:     installableBibles,
-		AllInstalledBibles:    allInstalledBibles,
-		AllInstallableBibles:  allInstallableBibles,
+		PageData:                 PageData{Title: "Bible"},
+		Bibles:                   paginatedBibles,
+		AllBibles:                allBibles,
+		Languages:                languages,
+		Features:                 features,
+		Tab:                      tab,
+		Query:                    query,
+		BibleID:                  bibleID,
+		CaseSensitive:            caseSensitive,
+		WholeWord:                wholeWord,
+		Results:                  results,
+		Total:                    total,
+		Page:                     page,
+		PerPage:                  perPage,
+		TotalPages:               totalPages,
+		PerPageOptions:           perPageOptions,
+		InstalledBibles:          installedBibles,
+		InstallableBibles:        installableBibles,
+		AllInstalledBibles:       allInstalledBibles,
+		AllInstallableBibles:     allInstallableBibles,
 		ManageTagFilter:          manageTagFilter,
 		ManageAvailableTags:      manageAvailableTags,
 		ManageLanguageFilter:     manageLanguageFilter,
 		ManageAvailableLanguages: manageAvailableLanguages,
 		InstalledPage:            installedPage,
-		InstalledTotalPages:   installedTotalPages,
-		InstallablePage:       installablePage,
-		InstallableTotalPages: installableTotalPages,
-		ManagePerPage:         managePerPage,
+		InstalledTotalPages:      installedTotalPages,
+		InstallablePage:          installablePage,
+		InstallableTotalPages:    installableTotalPages,
+		ManagePerPage:            managePerPage,
 	}
 
 	if err := Templates.ExecuteTemplate(w, "bible_index.html", data); err != nil {

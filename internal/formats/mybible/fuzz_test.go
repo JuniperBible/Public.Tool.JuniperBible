@@ -26,7 +26,7 @@ func FuzzStripHTML(f *testing.F) {
 	f.Add("<!-- comment -->text")
 	f.Add("<script>alert('xss')</script>")
 	f.Add("&lt;escaped&gt;")
-	f.Add("<tag>unbalanced") // Missing closing tag
+	f.Add("<tag>unbalanced")  // Missing closing tag
 	f.Add("unbalanced</tag>") // Missing opening tag
 
 	f.Fuzz(func(t *testing.T, input string) {

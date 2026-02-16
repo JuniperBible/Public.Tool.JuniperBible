@@ -16,7 +16,7 @@ func TestVarint(t *testing.T) {
 		{"boundary3", 2287},
 		{"boundary4", 2288},
 		{"large", 67823},
-		{"very_large", 1<<32},
+		{"very_large", 1 << 32},
 		{"max", 1<<63 - 1},
 	}
 
@@ -52,7 +52,7 @@ func TestSerialType(t *testing.T) {
 		{"int8_pos", IntValue(127), SerialTypeInt8, 1},
 		{"int8_neg", IntValue(-128), SerialTypeInt8, 1},
 		{"int16", IntValue(1000), SerialTypeInt16, 2},
-		{"int24", IntValue(100000), SerialTypeInt24, 3}, // 100000 fits in 24 bits
+		{"int24", IntValue(100000), SerialTypeInt24, 3},   // 100000 fits in 24 bits
 		{"int32", IntValue(10000000), SerialTypeInt32, 4}, // 10000000 needs 32 bits
 		{"int64", IntValue(1 << 50), SerialTypeInt64, 8},
 		{"float", FloatValue(3.14), SerialTypeFloat64, 8},
@@ -291,12 +291,12 @@ func TestEdgeCases(t *testing.T) {
 
 	t.Run("int24_boundaries", func(t *testing.T) {
 		tests := []int64{
-			-8388608,  // min int24
+			-8388608, // min int24
 			-8388607,
 			-1,
 			0,
 			1,
-			8388607,   // max int24
+			8388607, // max int24
 		}
 
 		for _, n := range tests {
@@ -319,10 +319,10 @@ func TestEdgeCases(t *testing.T) {
 
 	t.Run("int48_boundaries", func(t *testing.T) {
 		tests := []int64{
-			-140737488355328,  // min int48
+			-140737488355328, // min int48
 			-140737488355327,
 			140737488355326,
-			140737488355327,   // max int48
+			140737488355327, // max int48
 		}
 
 		for _, n := range tests {
@@ -516,15 +516,15 @@ func TestInvalidRecords(t *testing.T) {
 		{"empty", []byte{}},
 		{"truncated_header", []byte{5}}, // Header size 5 but no data
 		// Note: extremely long varints may not error - they just return 0 bytes read
-		{"truncated_int8", []byte{2, 1}}, // Header says int8, but no body
-		{"truncated_int16", []byte{2, 2, 0}}, // Header says int16, body too short
-		{"truncated_int24", []byte{2, 3, 0, 0}}, // Header says int24, body too short
-		{"truncated_int32", []byte{2, 4, 0, 0, 0}}, // Header says int32, body too short
-		{"truncated_int48", []byte{2, 5, 0, 0, 0, 0}}, // Header says int48, body too short
+		{"truncated_int8", []byte{2, 1}},                 // Header says int8, but no body
+		{"truncated_int16", []byte{2, 2, 0}},             // Header says int16, body too short
+		{"truncated_int24", []byte{2, 3, 0, 0}},          // Header says int24, body too short
+		{"truncated_int32", []byte{2, 4, 0, 0, 0}},       // Header says int32, body too short
+		{"truncated_int48", []byte{2, 5, 0, 0, 0, 0}},    // Header says int48, body too short
 		{"truncated_int64", []byte{2, 6, 0, 0, 0, 0, 0}}, // Header says int64, body too short
-		{"truncated_float64", []byte{2, 7, 0, 0, 0}}, // Header says float64, body too short
-		{"truncated_text", []byte{2, 17}}, // Header says 2 byte text, no body at all
-		{"truncated_blob", []byte{2, 16}}, // Header says 2 byte blob, no body at all
+		{"truncated_float64", []byte{2, 7, 0, 0, 0}},     // Header says float64, body too short
+		{"truncated_text", []byte{2, 17}},                // Header says 2 byte text, no body at all
+		{"truncated_blob", []byte{2, 16}},                // Header says 2 byte blob, no body at all
 	}
 
 	for _, tt := range tests {
@@ -552,12 +552,12 @@ func TestSerialTypeLen(t *testing.T) {
 		{SerialTypeFloat64, 8},
 		{SerialTypeZero, 0},
 		{SerialTypeOne, 0},
-		{SerialType(12), 0},  // Empty blob
-		{SerialType(13), 0},  // Empty text
-		{SerialType(14), 1},  // 1-byte blob
-		{SerialType(15), 1},  // 1-byte text
-		{SerialType(20), 4},  // 4-byte blob
-		{SerialType(21), 4},  // 4-byte text
+		{SerialType(12), 0},   // Empty blob
+		{SerialType(13), 0},   // Empty text
+		{SerialType(14), 1},   // 1-byte blob
+		{SerialType(15), 1},   // 1-byte text
+		{SerialType(20), 4},   // 4-byte blob
+		{SerialType(21), 4},   // 4-byte text
 		{SerialType(112), 50}, // 50-byte blob
 		{SerialType(113), 50}, // 50-byte text
 	}

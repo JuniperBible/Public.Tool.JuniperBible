@@ -132,7 +132,7 @@ func TestValidateEmptyTextFields(t *testing.T) {
 				ContentBlocks: []*ContentBlock{
 					{ID: "Gen.1.1", Text: "In the beginning", Attributes: map[string]interface{}{"raw_markup": "In the beginning"}},
 					{ID: "Gen.1.2", Text: "", Attributes: map[string]interface{}{"raw_markup": "<chapter sID='ch1'/>"}},           // Purposeful
-					{ID: "Gen.1.3", Text: "", Attributes: nil},                                                                      // Data loss
+					{ID: "Gen.1.3", Text: "", Attributes: nil},                                                                    // Data loss
 					{ID: "Gen.1.4", Text: "", Attributes: map[string]interface{}{"raw_markup": "Has text but stripped is empty"}}, // Error
 				},
 			},
@@ -175,7 +175,7 @@ func TestValidateNoUnexpectedEmptyText(t *testing.T) {
 				ContentBlocks: []*ContentBlock{
 					{ID: "Gen.1.1", Text: "In the beginning", Attributes: map[string]interface{}{"raw_markup": "In the beginning"}},
 					{ID: "Gen.1.2", Text: "", Attributes: map[string]interface{}{"raw_markup": "<chapter sID='ch1'/>"}}, // OK
-					{ID: "Gen.1.3", Text: "", Attributes: nil}, // Error
+					{ID: "Gen.1.3", Text: "", Attributes: nil},                                                          // Error
 				},
 			},
 		},
@@ -192,10 +192,10 @@ func TestValidateNoUnexpectedEmptyText(t *testing.T) {
 func TestMarkupPatterns(t *testing.T) {
 	// Common patterns from different Bible formats
 	patterns := []struct {
-		name           string
-		markup         string
-		expectText     bool
-		expectChapter  bool
+		name            string
+		markup          string
+		expectText      bool
+		expectChapter   bool
 		expectMilestone bool
 	}{
 		{
@@ -209,8 +209,8 @@ func TestMarkupPatterns(t *testing.T) {
 			expectChapter: true,
 		},
 		{
-			name:           "OSIS milestone",
-			markup:         `<milestone type="x-p"/>`,
+			name:            "OSIS milestone",
+			markup:          `<milestone type="x-p"/>`,
 			expectMilestone: true,
 		},
 		{

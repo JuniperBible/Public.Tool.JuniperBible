@@ -161,9 +161,9 @@ type Ref struct {
 
 // USFM parsing helpers
 var (
-	markerRegex    = regexp.MustCompile(`\\([a-zA-Z0-9]+)\*?(?:\s|$)`)
-	verseNumRegex  = regexp.MustCompile(`^(\d+)(?:-(\d+))?`)
-	chapterRegex   = regexp.MustCompile(`^(\d+)`)
+	markerRegex   = regexp.MustCompile(`\\([a-zA-Z0-9]+)\*?(?:\s|$)`)
+	verseNumRegex = regexp.MustCompile(`^(\d+)(?:-(\d+))?`)
+	chapterRegex  = regexp.MustCompile(`^(\d+)`)
 )
 
 // Common USFM book IDs
@@ -605,7 +605,7 @@ func parseUSFMToIR(data []byte) (*Corpus, error) {
 						Sequence: blockSeq,
 						Text:     value,
 						Attributes: map[string]interface{}{
-							"type": "paragraph",
+							"type":   "paragraph",
 							"marker": marker,
 						},
 					}
@@ -623,7 +623,7 @@ func parseUSFMToIR(data []byte) (*Corpus, error) {
 						Sequence: blockSeq,
 						Text:     value,
 						Attributes: map[string]interface{}{
-							"type": "poetry",
+							"type":   "poetry",
 							"marker": marker,
 						},
 					}

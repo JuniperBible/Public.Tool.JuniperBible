@@ -79,9 +79,9 @@ func TestSimpleArithmetic(t *testing.T) {
 // TestComparisons tests comparison expression code generation.
 func TestComparisons(t *testing.T) {
 	tests := []struct {
-		name     string
-		expr     parser.Expression
-		wantOp   vdbe.Opcode
+		name   string
+		expr   parser.Expression
+		wantOp vdbe.Opcode
 	}{
 		{
 			name: "a = b",

@@ -178,7 +178,7 @@ func TestParseTranscriptScannerErrorLongLine(t *testing.T) {
 
 	// If we get an error, it should be about reading the transcript
 	if !strings.Contains(err.Error(), "error reading transcript") &&
-	   !strings.Contains(err.Error(), "failed to parse") {
+		!strings.Contains(err.Error(), "failed to parse") {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
@@ -275,8 +275,8 @@ func TestCreateToolArchivePackError(t *testing.T) {
 
 // failingReader is a custom reader that fails after reading some data.
 type failingReader struct {
-	data []byte
-	pos  int
+	data   []byte
+	pos    int
 	failAt int
 }
 

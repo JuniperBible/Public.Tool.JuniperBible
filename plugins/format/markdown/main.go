@@ -14,13 +14,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 func main() {

@@ -43,8 +43,8 @@ func TestGetExprAffinity(t *testing.T) {
 		expected Affinity
 	}{
 		{
-			name: "Integer literal",
-			expr: NewIntExpr(42),
+			name:     "Integer literal",
+			expr:     NewIntExpr(42),
 			expected: AFF_NONE,
 		},
 		{

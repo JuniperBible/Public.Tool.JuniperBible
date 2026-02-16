@@ -29,28 +29,28 @@ const (
 	OpAggColumn // Aggregate column reference
 
 	// Binary operators
-	OpPlus     // a + b
-	OpMinus    // a - b
-	OpMultiply // a * b
-	OpDivide   // a / b
+	OpPlus      // a + b
+	OpMinus     // a - b
+	OpMultiply  // a * b
+	OpDivide    // a / b
 	OpRemainder // a % b
-	OpConcat   // a || b (string concatenation)
-	OpBitAnd   // a & b
-	OpBitOr    // a | b
-	OpBitXor   // a ^ b
-	OpLShift   // a << b
-	OpRShift   // a >> b
+	OpConcat    // a || b (string concatenation)
+	OpBitAnd    // a & b
+	OpBitOr     // a | b
+	OpBitXor    // a ^ b
+	OpLShift    // a << b
+	OpRShift    // a >> b
 
 	// Comparison operators
-	OpEq     // a = b
-	OpNe     // a != b or a <> b
-	OpLt     // a < b
-	OpLe     // a <= b
-	OpGt     // a > b
-	OpGe     // a >= b
-	OpIs     // a IS b
-	OpIsNot  // a IS NOT b
-	OpIsNull // a IS NULL
+	OpEq      // a = b
+	OpNe      // a != b or a <> b
+	OpLt      // a < b
+	OpLe      // a <= b
+	OpGt      // a > b
+	OpGe      // a >= b
+	OpIs      // a IS b
+	OpIsNot   // a IS NOT b
+	OpIsNull  // a IS NULL
 	OpNotNull // a IS NOT NULL
 
 	// Logical operators
@@ -59,19 +59,19 @@ const (
 	OpNot // NOT a
 
 	// Unary operators
-	OpNegate   // -a
-	OpBitNot   // ~a
+	OpNegate    // -a
+	OpBitNot    // ~a
 	OpUnaryPlus // +a
 
 	// Pattern matching
-	OpLike  // a LIKE b [ESCAPE c]
-	OpGlob  // a GLOB b
+	OpLike   // a LIKE b [ESCAPE c]
+	OpGlob   // a GLOB b
 	OpRegexp // a REGEXP b
 
 	// Range operators
-	OpIn      // a IN (...)
-	OpNotIn   // a NOT IN (...)
-	OpBetween // a BETWEEN b AND c
+	OpIn         // a IN (...)
+	OpNotIn      // a NOT IN (...)
+	OpBetween    // a BETWEEN b AND c
 	OpNotBetween // a NOT BETWEEN b AND c
 
 	// Special operators
@@ -85,10 +85,10 @@ const (
 	OpVector   // Row value (a, b, c)
 
 	// Other
-	OpRegister      // Result stored in register
-	OpIfNullRow     // Special handling for outer join
-	OpSelectColumn  // Column from subquery result
-	OpError         // Parse error marker
+	OpRegister     // Result stored in register
+	OpIfNullRow    // Special handling for outer join
+	OpSelectColumn // Column from subquery result
+	OpError        // Parse error marker
 )
 
 // String returns the string representation of an OpCode.
@@ -294,38 +294,38 @@ type ExprListItem struct {
 	Alias string // Alias for this expression
 
 	// Flags
-	SortFlags  uint8 // KEYINFO_ORDER_* flags for ORDER BY
-	Done       bool  // Processing finished
-	Reusable   bool  // Constant expression is reusable
-	SorterRef  bool  // Defer evaluation until after sorting
-	Nulls      bool  // Explicit NULLS FIRST/LAST
+	SortFlags  uint8  // KEYINFO_ORDER_* flags for ORDER BY
+	Done       bool   // Processing finished
+	Reusable   bool   // Constant expression is reusable
+	SorterRef  bool   // Defer evaluation until after sorting
+	Nulls      bool   // Explicit NULLS FIRST/LAST
 	OrderByCol uint16 // For ORDER BY, column number in result
 }
 
 // SelectStmt represents a SELECT statement (simplified).
 // This is referenced by subquery expressions.
 type SelectStmt struct {
-	SelectID int          // Unique ID for this SELECT
-	Columns  *ExprList    // SELECT columns
-	From     *TableRef    // FROM clause
-	Where    *Expr        // WHERE clause
-	GroupBy  *ExprList    // GROUP BY clause
-	Having   *Expr        // HAVING clause
-	OrderBy  *ExprList    // ORDER BY clause
-	Limit    *Expr        // LIMIT expression
-	Offset   *Expr        // OFFSET expression
-	Flags    SelectFlags  // SF_* flags
+	SelectID int         // Unique ID for this SELECT
+	Columns  *ExprList   // SELECT columns
+	From     *TableRef   // FROM clause
+	Where    *Expr       // WHERE clause
+	GroupBy  *ExprList   // GROUP BY clause
+	Having   *Expr       // HAVING clause
+	OrderBy  *ExprList   // ORDER BY clause
+	Limit    *Expr       // LIMIT expression
+	Offset   *Expr       // OFFSET expression
+	Flags    SelectFlags // SF_* flags
 }
 
 // SelectFlags defines flags for SELECT statements.
 type SelectFlags uint32
 
 const (
-	SF_Distinct   SelectFlags = 0x0001 // DISTINCT keyword
-	SF_All        SelectFlags = 0x0002 // ALL keyword
-	SF_Resolved   SelectFlags = 0x0004 // Names have been resolved
-	SF_Aggregate  SelectFlags = 0x0008 // Contains aggregate functions
-	SF_HasAgg     SelectFlags = 0x0010 // Contains agg funcs or GROUP BY
+	SF_Distinct      SelectFlags = 0x0001 // DISTINCT keyword
+	SF_All           SelectFlags = 0x0002 // ALL keyword
+	SF_Resolved      SelectFlags = 0x0004 // Names have been resolved
+	SF_Aggregate     SelectFlags = 0x0008 // Contains aggregate functions
+	SF_HasAgg        SelectFlags = 0x0010 // Contains agg funcs or GROUP BY
 	SF_UsesEphemeral SelectFlags = 0x0020 // Uses ephemeral table
 )
 

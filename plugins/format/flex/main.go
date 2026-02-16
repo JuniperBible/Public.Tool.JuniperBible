@@ -15,21 +15,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
-
-
-
-
-
-
-
-
-
 
 func main() {
 	req, err := ipc.ReadRequest()

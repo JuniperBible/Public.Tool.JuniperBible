@@ -45,8 +45,8 @@ func Example_basicQuery() {
 					{Name: "price", Index: 3, Ascending: true},
 				},
 				ColumnStats: []planner.LogEst{
-					planner.NewLogEst(50),   // ~2000 rows per category
-					planner.NewLogEst(5),    // ~32 rows per category+price
+					planner.NewLogEst(50), // ~2000 rows per category
+					planner.NewLogEst(5),  // ~32 rows per category+price
 				},
 			},
 		},
@@ -145,7 +145,7 @@ func Example_joinQuery() {
 			{
 				Operator:    planner.WO_EQ,
 				LeftCursor:  1,
-				LeftColumn:  1, // orders.customer_id
+				LeftColumn:  1,                       // orders.customer_id
 				PrereqRight: planner.Bitmask(1 << 0), // References customers
 			},
 		},
@@ -179,30 +179,30 @@ func Example_indexSelection() {
 		},
 		Indexes: []*planner.IndexInfo{
 			{
-				Name:      "idx_user_id",
-				Table:     "events",
-				Columns:   []planner.IndexColumn{{Name: "user_id", Index: 1}},
-				RowLogEst: planner.NewLogEst(1000000),
+				Name:        "idx_user_id",
+				Table:       "events",
+				Columns:     []planner.IndexColumn{{Name: "user_id", Index: 1}},
+				RowLogEst:   planner.NewLogEst(1000000),
 				ColumnStats: []planner.LogEst{planner.NewLogEst(100)}, // ~100 events per user
 			},
 			{
-				Name:    "idx_timestamp",
-				Table:   "events",
-				Columns: []planner.IndexColumn{{Name: "timestamp", Index: 2}},
-				RowLogEst: planner.NewLogEst(1000000),
+				Name:        "idx_timestamp",
+				Table:       "events",
+				Columns:     []planner.IndexColumn{{Name: "timestamp", Index: 2}},
+				RowLogEst:   planner.NewLogEst(1000000),
 				ColumnStats: []planner.LogEst{planner.NewLogEst(1000)}, // Less selective
 			},
 			{
-				Name:    "idx_user_timestamp",
-				Table:   "events",
+				Name:  "idx_user_timestamp",
+				Table: "events",
 				Columns: []planner.IndexColumn{
 					{Name: "user_id", Index: 1},
 					{Name: "timestamp", Index: 2},
 				},
 				RowLogEst: planner.NewLogEst(1000000),
 				ColumnStats: []planner.LogEst{
-					planner.NewLogEst(100),  // By user
-					planner.NewLogEst(1),    // By user+time
+					planner.NewLogEst(100), // By user
+					planner.NewLogEst(1),   // By user+time
 				},
 			},
 		},
@@ -256,8 +256,8 @@ func Example_costComparison() {
 
 	// Simulate an index with selectivity
 	index := &planner.IndexInfo{
-		Name:      "idx_items",
-		RowLogEst: table.RowLogEst,
+		Name:        "idx_items",
+		RowLogEst:   table.RowLogEst,
 		ColumnStats: []planner.LogEst{planner.NewLogEst(100)}, // 1% selectivity
 	}
 
@@ -290,7 +290,7 @@ func Example_queryOptimization() {
 		},
 		Indexes: []*planner.IndexInfo{
 			{
-				Name:    "idx_dept_salary",
+				Name: "idx_dept_salary",
 				Columns: []planner.IndexColumn{
 					{Name: "dept", Index: 1},
 					{Name: "salary", Index: 2},

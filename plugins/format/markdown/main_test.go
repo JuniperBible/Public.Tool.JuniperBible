@@ -504,8 +504,8 @@ func TestParseMarkdownContent(t *testing.T) {
 			wantBlockCount: 0,
 		},
 		{
-			name: "empty book ID",
-			body: `**1** Some text.`,
+			name:           "empty book ID",
+			body:           `**1** Some text.`,
 			bookID:         "",
 			wantDocCount:   1,
 			wantBlockCount: 1,

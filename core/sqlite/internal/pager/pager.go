@@ -56,18 +56,18 @@ const (
 
 // Common errors
 var (
-	ErrInvalidPageSize  = errors.New("invalid page size")
-	ErrInvalidPageNum   = errors.New("invalid page number")
-	ErrInvalidOffset    = errors.New("invalid offset")
-	ErrPageNotFound     = errors.New("page not found")
-	ErrCacheFull        = errors.New("cache full")
-	ErrReadOnly         = errors.New("pager is read-only")
-	ErrNoTransaction    = errors.New("no transaction active")
-	ErrTransactionOpen  = errors.New("transaction already open")
-	ErrDatabaseLocked   = errors.New("database is locked")
-	ErrDatabaseCorrupt  = errors.New("database file is corrupt")
-	ErrDiskIO           = errors.New("disk I/O error")
-	ErrDiskFull         = errors.New("disk full")
+	ErrInvalidPageSize = errors.New("invalid page size")
+	ErrInvalidPageNum  = errors.New("invalid page number")
+	ErrInvalidOffset   = errors.New("invalid offset")
+	ErrPageNotFound    = errors.New("page not found")
+	ErrCacheFull       = errors.New("cache full")
+	ErrReadOnly        = errors.New("pager is read-only")
+	ErrNoTransaction   = errors.New("no transaction active")
+	ErrTransactionOpen = errors.New("transaction already open")
+	ErrDatabaseLocked  = errors.New("database is locked")
+	ErrDatabaseCorrupt = errors.New("database file is corrupt")
+	ErrDiskIO          = errors.New("disk I/O error")
+	ErrDiskFull        = errors.New("disk full")
 )
 
 // Pager manages reading and writing pages from/to a database file.

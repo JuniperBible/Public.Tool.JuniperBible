@@ -56,8 +56,8 @@ func TestDriverInsertSelect(t *testing.T) {
 		vm.AddOp(vdbe.OpInit, 0, 0, 0)
 		vm.AddOp(vdbe.OpOpenWrite, 0, int(rootPage), 2)
 		vm.AddOp(vdbe.OpNewRowid, 0, 0, 0)
-		vm.AddOp(vdbe.OpInteger, 1, 1, 0)  // id = 1
-		vm.AddOpWithP4Str(vdbe.OpString8, 0, 2, 0, "hello")  // value = "hello"
+		vm.AddOp(vdbe.OpInteger, 1, 1, 0)                   // id = 1
+		vm.AddOpWithP4Str(vdbe.OpString8, 0, 2, 0, "hello") // value = "hello"
 		vm.AddOp(vdbe.OpMakeRecord, 1, 2, 3)
 		vm.AddOp(vdbe.OpInsert, 0, 3, 0)
 		vm.AddOp(vdbe.OpClose, 0, 0, 0)
@@ -94,8 +94,8 @@ func TestDriverInsertSelect(t *testing.T) {
 		vm.AddOp(vdbe.OpInit, 0, 0, 0)
 		vm.AddOp(vdbe.OpOpenRead, 0, int(rootPage), 2)
 		rewindAddr := vm.AddOp(vdbe.OpRewind, 0, 0, 0)
-		vm.AddOp(vdbe.OpColumn, 0, 0, 0)  // column 0 (id) into reg 0
-		vm.AddOp(vdbe.OpColumn, 0, 1, 1)  // column 1 (value) into reg 1
+		vm.AddOp(vdbe.OpColumn, 0, 0, 0) // column 0 (id) into reg 0
+		vm.AddOp(vdbe.OpColumn, 0, 1, 1) // column 1 (value) into reg 1
 		vm.AddOp(vdbe.OpResultRow, 0, 2, 0)
 		vm.AddOp(vdbe.OpNext, 0, rewindAddr+1, 0)
 		vm.AddOp(vdbe.OpClose, 0, 0, 0)

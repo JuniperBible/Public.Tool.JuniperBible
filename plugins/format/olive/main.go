@@ -28,20 +28,20 @@ import (
 
 // Palm Database (PDB) header structure - used by older Olive Tree versions
 type PDBHeader struct {
-	Name          [32]byte // Database name
-	Attributes    uint16   // File attributes
-	Version       uint16   // File version
-	CreationTime  uint32   // Creation time (seconds since 1904)
-	ModTime       uint32   // Modification time
-	BackupTime    uint32   // Backup time
-	ModNumber     uint32   // Modification number
-	AppInfoOffset uint32   // Offset to app info
-	SortInfoOffset uint32  // Offset to sort info
-	Type          [4]byte  // Database type
-	Creator       [4]byte  // Creator ID
-	UniqueIDSeed  uint32   // Unique ID seed
-	NextRecordList uint32  // Next record list ID
-	NumRecords    uint16   // Number of records
+	Name           [32]byte // Database name
+	Attributes     uint16   // File attributes
+	Version        uint16   // File version
+	CreationTime   uint32   // Creation time (seconds since 1904)
+	ModTime        uint32   // Modification time
+	BackupTime     uint32   // Backup time
+	ModNumber      uint32   // Modification number
+	AppInfoOffset  uint32   // Offset to app info
+	SortInfoOffset uint32   // Offset to sort info
+	Type           [4]byte  // Database type
+	Creator        [4]byte  // Creator ID
+	UniqueIDSeed   uint32   // Unique ID seed
+	NextRecordList uint32   // Next record list ID
+	NumRecords     uint16   // Number of records
 }
 
 func main() {

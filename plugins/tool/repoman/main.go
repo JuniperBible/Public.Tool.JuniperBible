@@ -227,4 +227,3 @@ func sendError(msg string) {
 	}
 	json.NewEncoder(os.Stdout).Encode(resp)
 }
-

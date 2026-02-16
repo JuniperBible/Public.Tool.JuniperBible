@@ -3,12 +3,13 @@
 package main
 
 import (
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"encoding/json"
 	"encoding/xml"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 func TestDetectECM(t *testing.T) {

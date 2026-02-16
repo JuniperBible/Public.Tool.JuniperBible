@@ -17,9 +17,9 @@ func RegisterScalarFunctions(r *Registry) {
 	r.Register(NewScalarFunc("substr", -1, substrFunc)) // 2 or 3 args
 	r.Register(NewScalarFunc("upper", 1, upperFunc))
 	r.Register(NewScalarFunc("lower", 1, lowerFunc))
-	r.Register(NewScalarFunc("trim", -1, trimFunc))     // 1 or 2 args
-	r.Register(NewScalarFunc("ltrim", -1, ltrimFunc))   // 1 or 2 args
-	r.Register(NewScalarFunc("rtrim", -1, rtrimFunc))   // 1 or 2 args
+	r.Register(NewScalarFunc("trim", -1, trimFunc))   // 1 or 2 args
+	r.Register(NewScalarFunc("ltrim", -1, ltrimFunc)) // 1 or 2 args
+	r.Register(NewScalarFunc("rtrim", -1, rtrimFunc)) // 1 or 2 args
 	r.Register(NewScalarFunc("replace", 3, replaceFunc))
 	r.Register(NewScalarFunc("instr", 2, instrFunc))
 	r.Register(NewScalarFunc("hex", 1, hexFunc))

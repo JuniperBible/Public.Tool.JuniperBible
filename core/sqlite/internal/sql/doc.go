@@ -20,8 +20,8 @@
 //
 // SQLite uses a specific binary format for storing records. Each record consists of:
 //
-//   1. Header: A varint containing the header size, followed by serial type codes
-//   2. Body: The actual column values in sequence
+//  1. Header: A varint containing the header size, followed by serial type codes
+//  2. Body: The actual column values in sequence
 //
 // Serial type codes indicate the storage class and size of each value:
 //

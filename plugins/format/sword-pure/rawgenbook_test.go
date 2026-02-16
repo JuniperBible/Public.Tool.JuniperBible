@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 // Phase 18: Tests for RawGenBook (SWORD General Books) parser

@@ -15,10 +15,11 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 // ECM XML structures
@@ -108,7 +109,7 @@ func handleDetect(args map[string]interface{}) {
 	// Check for ECM XML markers
 	content := string(data)
 	if strings.Contains(content, "<ECM") &&
-	   (strings.Contains(content, "<apparatus") || strings.Contains(content, "variant")) {
+		(strings.Contains(content, "<apparatus") || strings.Contains(content, "variant")) {
 		ipc.MustRespond(ipc.DetectResult{Detected: true, Format: "ECM"})
 		return
 	}

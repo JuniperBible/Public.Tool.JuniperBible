@@ -17,11 +17,11 @@ func TestValidatePath(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	tests := []struct {
-		name      string
-		baseDir   string
-		userPath  string
-		wantErr   bool
-		errType   error
+		name     string
+		baseDir  string
+		userPath string
+		wantErr  bool
+		errType  error
 	}{
 		{
 			name:     "valid relative path",
@@ -93,7 +93,7 @@ func TestValidatePath(t *testing.T) {
 			name:     "unicode normalization attack",
 			baseDir:  tmpDir,
 			userPath: "file\u202E.txt", // Right-to-left override
-			wantErr:  false,           // This is technically valid, but might be suspicious
+			wantErr:  false,            // This is technically valid, but might be suspicious
 		},
 		{
 			name:     "very long path",

@@ -435,8 +435,8 @@ func TestFormatTranscriptEvent(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "error - channel type",
-			event: make(chan int),
+			name:    "error - channel type",
+			event:   make(chan int),
 			wantErr: true,
 		},
 	}
@@ -600,9 +600,9 @@ func TestRunWithTranscript(t *testing.T) {
 // TestExecuteErrorPaths tests various error conditions in Execute
 func TestExecuteErrorPaths(t *testing.T) {
 	tests := []struct {
-		name     string
-		setup    func(t *testing.T) ExecuteConfig
-		wantErr  string
+		name    string
+		setup   func(t *testing.T) ExecuteConfig
+		wantErr string
 	}{
 		{
 			name: "error - temp dir creation fails",

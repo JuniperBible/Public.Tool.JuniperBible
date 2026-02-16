@@ -1,3 +1,5 @@
+//go:build !sdk
+
 package main
 
 import (

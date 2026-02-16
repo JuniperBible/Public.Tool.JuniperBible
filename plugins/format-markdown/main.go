@@ -14,12 +14,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
 )
 
 // IPCRequest is the incoming JSON request.

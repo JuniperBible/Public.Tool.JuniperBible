@@ -419,8 +419,8 @@ func TestTableGetColumnIndex(t *testing.T) {
 	}
 
 	tests := []struct {
-		name  string
-		want  int
+		name string
+		want int
 	}{
 		{"id", 0},
 		{"ID", 0},

@@ -17,23 +17,23 @@ const (
 
 // Instruction represents a single VDBE instruction.
 type Instruction struct {
-	Opcode Opcode // The opcode to execute
-	P1     int    // First operand
-	P2     int    // Second operand (often jump destination)
-	P3     int    // Third operand
-	P4     P4Union // Fourth operand (various types)
-	P4Type P4Type // Type of P4 operand
-	P5     uint16 // Fifth operand (16-bit unsigned)
-	Comment string // Debug comment (if enabled)
+	Opcode  Opcode  // The opcode to execute
+	P1      int     // First operand
+	P2      int     // Second operand (often jump destination)
+	P3      int     // Third operand
+	P4      P4Union // Fourth operand (various types)
+	P4Type  P4Type  // Type of P4 operand
+	P5      uint16  // Fifth operand (16-bit unsigned)
+	Comment string  // Debug comment (if enabled)
 }
 
 // P4Union represents the fourth operand which can be various types.
 type P4Union struct {
-	I     int32       // Integer value (P4_INT32)
-	I64   int64       // 64-bit integer (P4_INT64)
-	R     float64     // Real value (P4_REAL)
-	Z     string      // String value (P4_STATIC, P4_DYNAMIC)
-	P     interface{} // Generic pointer for other types
+	I   int32       // Integer value (P4_INT32)
+	I64 int64       // 64-bit integer (P4_INT64)
+	R   float64     // Real value (P4_REAL)
+	Z   string      // String value (P4_STATIC, P4_DYNAMIC)
+	P   interface{} // Generic pointer for other types
 }
 
 // CursorType represents the type of a VDBE cursor.
@@ -48,11 +48,11 @@ const (
 
 // Cursor represents a database cursor in the VDBE.
 type Cursor struct {
-	CurType    CursorType  // Type of cursor
-	IsTable    bool        // True for rowid tables, false for indexes
-	Writable   bool        // True if cursor supports write operations
-	NullRow    bool        // True if pointing to a row with no data
-	SeekResult int         // Result of previous seek operation
+	CurType    CursorType // Type of cursor
+	IsTable    bool       // True for rowid tables, false for indexes
+	Writable   bool       // True if cursor supports write operations
+	NullRow    bool       // True if pointing to a row with no data
+	SeekResult int        // Result of previous seek operation
 
 	// B-tree cursor data (for CursorBTree)
 	RootPage    uint32      // Root page of the B-tree
@@ -61,17 +61,17 @@ type Cursor struct {
 	CurrentVal  []byte      // Current value/record being pointed at
 
 	// Pseudo-table cursor data (for CursorPseudo)
-	PseudoReg  int         // Register containing pseudo-table data
+	PseudoReg int // Register containing pseudo-table data
 
 	// Column cache for OP_Column optimization
-	CacheStatus uint32     // Valid if matches VDBE cacheCtr
-	CachedCols  [][]byte   // Cached column values
+	CacheStatus uint32   // Valid if matches VDBE cacheCtr
+	CachedCols  [][]byte // Cached column values
 
 	// For iterating
-	EOF        bool        // True if cursor is at end of file
+	EOF bool // True if cursor is at end of file
 
 	// For rowid generation
-	LastRowid  int64       // Last rowid used by this cursor
+	LastRowid int64 // Last rowid used by this cursor
 }
 
 // VDBEContext holds runtime context for VDBE execution
@@ -83,55 +83,55 @@ type VDBEContext struct {
 // VDBE represents the Virtual Database Engine - a bytecode virtual machine.
 type VDBE struct {
 	// Program and execution state
-	Program    []*Instruction // The bytecode program
-	PC         int            // Program counter
-	State      VdbeState      // Execution state
-	RC         int            // Return code
+	Program []*Instruction // The bytecode program
+	PC      int            // Program counter
+	State   VdbeState      // Execution state
+	RC      int            // Return code
 
 	// Memory and registers
-	Mem        []*Mem         // Array of memory cells (registers)
-	NumMem     int            // Number of memory cells allocated
+	Mem    []*Mem // Array of memory cells (registers)
+	NumMem int    // Number of memory cells allocated
 
 	// Cursors
-	Cursors    []*Cursor      // Array of open cursors
-	NumCursor  int            // Number of cursors allocated
+	Cursors   []*Cursor // Array of open cursors
+	NumCursor int       // Number of cursors allocated
 
 	// Result handling
-	ResultCols []string       // Names of result columns
-	ResultRow  []*Mem         // Current result row
+	ResultCols []string // Names of result columns
+	ResultRow  []*Mem   // Current result row
 
 	// Error handling
-	ErrorMsg   string         // Error message (if any)
-	ErrorAction uint8         // Recovery action on error
+	ErrorMsg    string // Error message (if any)
+	ErrorAction uint8  // Recovery action on error
 
 	// Statistics and counters
-	CacheCtr   uint32         // Cursor cache generation counter
-	NumSteps   int64          // Number of VM steps executed
+	CacheCtr uint32 // Cursor cache generation counter
+	NumSteps int64  // Number of VM steps executed
 
 	// Transaction and change tracking
-	InTxn      bool           // True if in a transaction
-	NumChanges int64          // Number of database changes
+	InTxn      bool  // True if in a transaction
+	NumChanges int64 // Number of database changes
 
 	// Function execution context
-	funcCtx    *FunctionContext // Function registry and aggregate state
+	funcCtx *FunctionContext // Function registry and aggregate state
 
 	// Flags
-	Explain    bool           // True if EXPLAIN mode
-	ReadOnly   bool           // True for read-only statements
+	Explain  bool // True if EXPLAIN mode
+	ReadOnly bool // True for read-only statements
 
 	// Runtime context
-	Ctx        *VDBEContext   // Execution context (btree, schema, etc.)
+	Ctx *VDBEContext // Execution context (btree, schema, etc.)
 }
 
 // New creates a new VDBE instance.
 func New() *VDBE {
 	return &VDBE{
-		Program:    make([]*Instruction, 0, 16),
-		Mem:        make([]*Mem, 0, 16),
-		Cursors:    make([]*Cursor, 0, 4),
-		State:      StateInit,
-		CacheCtr:   1,
-		funcCtx:    NewFunctionContext(),
+		Program:  make([]*Instruction, 0, 16),
+		Mem:      make([]*Mem, 0, 16),
+		Cursors:  make([]*Cursor, 0, 4),
+		State:    StateInit,
+		CacheCtr: 1,
+		funcCtx:  NewFunctionContext(),
 	}
 }
 

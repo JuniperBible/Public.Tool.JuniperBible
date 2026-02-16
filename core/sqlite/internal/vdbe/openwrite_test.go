@@ -115,11 +115,11 @@ func TestInsertRequiresWritableCursor(t *testing.T) {
 	// Create a READ cursor (not writable)
 	v.AddOp(OpOpenRead, 0, 1, 0)
 	// Set up data for insert
-	v.AddOp(OpInteger, 1, 1, 0)  // rowid in register 1
-	v.AddOp(OpBlob, 5, 2, 0)     // data in register 2
+	v.AddOp(OpInteger, 1, 1, 0) // rowid in register 1
+	v.AddOp(OpBlob, 5, 2, 0)    // data in register 2
 	v.Program[len(v.Program)-1].P4.P = []byte("test")
 	// Try to insert
-	v.AddOp(OpInsert, 0, 2, 1)   // cursor 0, data reg 2, rowid reg 1
+	v.AddOp(OpInsert, 0, 2, 1) // cursor 0, data reg 2, rowid reg 1
 
 	// Execute the program
 	v.State = StateReady
@@ -153,7 +153,7 @@ func TestDeleteRequiresWritableCursor(t *testing.T) {
 	// Create a READ cursor (not writable)
 	v.AddOp(OpOpenRead, 0, 1, 0)
 	// Try to delete
-	v.AddOp(OpDelete, 0, 0, 0)   // cursor 0
+	v.AddOp(OpDelete, 0, 0, 0) // cursor 0
 
 	// Execute the program
 	v.State = StateReady
@@ -187,11 +187,11 @@ func TestInsertSucceedsWithWritableCursor(t *testing.T) {
 	// Create a WRITE cursor (writable)
 	v.AddOp(OpOpenWrite, 0, 1, 0)
 	// Set up data for insert
-	v.AddOp(OpInteger, 1, 1, 0)  // rowid in register 1
-	v.AddOp(OpBlob, 5, 2, 0)     // data in register 2
+	v.AddOp(OpInteger, 1, 1, 0) // rowid in register 1
+	v.AddOp(OpBlob, 5, 2, 0)    // data in register 2
 	v.Program[len(v.Program)-1].P4.P = []byte("test")
 	// Insert
-	v.AddOp(OpInsert, 0, 2, 1)   // cursor 0, data reg 2, rowid reg 1
+	v.AddOp(OpInsert, 0, 2, 1) // cursor 0, data reg 2, rowid reg 1
 	v.AddOp(OpHalt, 0, 0, 0)
 
 	// Execute the program

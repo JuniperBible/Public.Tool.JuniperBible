@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -19,7 +18,7 @@ import (
 	_ "github.com/mattn/go-sqlite3" // CGO driver
 
 	"github.com/FocuswithJustin/JuniperBible/core/sqlite"
-	purego "github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/driver" // Pure Go driver
+	// Pure Go driver
 )
 
 // setupComparisonDBs creates two temporary databases - one with CGO, one with pure Go
@@ -309,10 +308,10 @@ func TestComparisonUnicode(t *testing.T) {
 	// Test various Unicode scripts
 	unicodeTexts := []string{
 		"בְּרֵאשִׁית בָּרָא אֱלֹהִים", // Hebrew
-		"Ἐν ἀρχῇ ἦν ὁ λόγος",        // Greek
-		"太初有道",                      // Chinese
-		"В начале было Слово",        // Russian
-		"🙏 ❤️ ✝️",                   // Emoji
+		"Ἐν ἀρχῇ ἦν ὁ λόγος",          // Greek
+		"太初有道",                        // Chinese
+		"В начале было Слово",         // Russian
+		"🙏 ❤️ ✝️",                     // Emoji
 		"",                            // Empty string
 	}
 
@@ -602,12 +601,12 @@ func TestComparisonBlobHandling(t *testing.T) {
 
 	// Test various blob sizes and patterns
 	testBlobs := [][]byte{
-		{},                                  // Empty blob
-		{0x00},                              // Single byte
-		{0xFF},                              // Max byte
-		{0xDE, 0xAD, 0xBE, 0xEF},           // Classic test pattern
-		bytes.Repeat([]byte{0xAA}, 1024),   // 1KB repeated pattern
-		make([]byte, 0),                     // Another empty
+		{},                               // Empty blob
+		{0x00},                           // Single byte
+		{0xFF},                           // Max byte
+		{0xDE, 0xAD, 0xBE, 0xEF},         // Classic test pattern
+		bytes.Repeat([]byte{0xAA}, 1024), // 1KB repeated pattern
+		make([]byte, 0),                  // Another empty
 	}
 
 	for _, blob := range testBlobs {
@@ -855,16 +854,16 @@ func TestComparisonEdgeCases(t *testing.T) {
 
 	// Test edge cases
 	edgeCases := []string{
-		"",                    // Empty string
-		" ",                   // Single space
-		"\n",                  // Newline
-		"\t",                  // Tab
-		"'",                   // Single quote
-		"\"",                  // Double quote
-		"\\",                  // Backslash
+		"",                        // Empty string
+		" ",                       // Single space
+		"\n",                      // Newline
+		"\t",                      // Tab
+		"'",                       // Single quote
+		"\"",                      // Double quote
+		"\\",                      // Backslash
 		strings.Repeat("a", 1000), // Long string
-		"\x00",                // Null byte
-		"Multiple\nLines\nText", // Multi-line
+		"\x00",                    // Null byte
+		"Multiple\nLines\nText",   // Multi-line
 	}
 
 	for _, val := range edgeCases {

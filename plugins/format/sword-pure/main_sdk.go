@@ -293,13 +293,13 @@ func convertFromSDKCorpus(sdk *ir.Corpus) *IRCorpus {
 				if tokenData, ok := sdkBlock.Attributes["tokens"].([]map[string]interface{}); ok {
 					for _, td := range tokenData {
 						token := &IRToken{
-							ID:    getStringField(td, "id"),
-							Index: getIntField(td, "index"),
-							CharStart: getIntField(td, "char_start"),
-							CharEnd:   getIntField(td, "char_end"),
-							Text:      getStringField(td, "text"),
-							Type:      getStringField(td, "type"),
-							Lemma:     getStringField(td, "lemma"),
+							ID:         getStringField(td, "id"),
+							Index:      getIntField(td, "index"),
+							CharStart:  getIntField(td, "char_start"),
+							CharEnd:    getIntField(td, "char_end"),
+							Text:       getStringField(td, "text"),
+							Type:       getStringField(td, "type"),
+							Lemma:      getStringField(td, "lemma"),
 							Morphology: getStringField(td, "morphology"),
 						}
 						if strongs, ok := td["strongs"].([]string); ok {
@@ -313,11 +313,11 @@ func convertFromSDKCorpus(sdk *ir.Corpus) *IRCorpus {
 				if annotData, ok := sdkBlock.Attributes["annotations"].([]map[string]interface{}); ok {
 					for _, ad := range annotData {
 						annot := &IRAnnotation{
-							ID:       getStringField(ad, "id"),
-							Type:     getStringField(ad, "type"),
-							StartPos: getIntField(ad, "start_pos"),
-							EndPos:   getIntField(ad, "end_pos"),
-							Value:    getStringField(ad, "value"),
+							ID:         getStringField(ad, "id"),
+							Type:       getStringField(ad, "type"),
+							StartPos:   getIntField(ad, "start_pos"),
+							EndPos:     getIntField(ad, "end_pos"),
+							Value:      getStringField(ad, "value"),
 							Confidence: getFloat64Field(ad, "confidence"),
 						}
 						block.Annotations = append(block.Annotations, annot)

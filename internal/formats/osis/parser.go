@@ -96,11 +96,11 @@ func parseOSISToIR(data []byte) (*ir.Corpus, error) {
 	doc.RawXML = string(data)
 
 	corpus := &ir.Corpus{
-		ID:          doc.OsisText.OsisIDWork,
-		Version:     "1.0.0",
-		ModuleType:  ir.ModuleBible,
-		LossClass:   ir.LossL0,
-		Documents:   []*ir.Document{},
+		ID:         doc.OsisText.OsisIDWork,
+		Version:    "1.0.0",
+		ModuleType: ir.ModuleBible,
+		LossClass:  ir.LossL0,
+		Documents:  []*ir.Document{},
 	}
 
 	// Extract language

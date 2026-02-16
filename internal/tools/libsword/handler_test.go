@@ -251,8 +251,8 @@ func TestExecuteErrorFormat(t *testing.T) {
 	h := &Handler{}
 
 	testCases := []struct {
-		command      string
-		expectedMsg  string
+		command     string
+		expectedMsg string
 	}{
 		{
 			command:     "search",

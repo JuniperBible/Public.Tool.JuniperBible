@@ -26,7 +26,7 @@ func FuzzStripHTML(f *testing.F) {
 	f.Add("<!-- comment -->text")
 	f.Add("<script>alert('xss')</script>")
 	f.Add("&lt;escaped&gt;")
-	f.Add("<tag>unbalanced") // Missing closing tag
+	f.Add("<tag>unbalanced")  // Missing closing tag
 	f.Add("unbalanced</tag>") // Missing opening tag
 	f.Add("<a href=\"http://example.com\">link</a>")
 	f.Add("<img src=\"image.jpg\" alt=\"description\" />")
@@ -174,10 +174,10 @@ func FuzzDetectModuleType(f *testing.F) {
 
 		// Module type should be one of the expected values or empty
 		validTypes := map[string]bool{
-			"bible":       true,
-			"commentary":  true,
-			"dictionary":  true,
-			"":            true, // Unknown/invalid
+			"bible":      true,
+			"commentary": true,
+			"dictionary": true,
+			"":           true, // Unknown/invalid
 		}
 
 		if !validTypes[moduleType] {

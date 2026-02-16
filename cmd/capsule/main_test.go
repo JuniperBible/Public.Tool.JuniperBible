@@ -855,18 +855,18 @@ func TestGetPluginDir(t *testing.T) {
 	defer func() { CLI.PluginDir = origPluginDir }()
 
 	tests := []struct {
-		name          string
-		cliPluginDir  string
+		name           string
+		cliPluginDir   string
 		expectNonEmpty bool
 	}{
 		{
-			name:          "with CLI flag set",
-			cliPluginDir:  "/custom/plugins",
+			name:           "with CLI flag set",
+			cliPluginDir:   "/custom/plugins",
 			expectNonEmpty: true,
 		},
 		{
-			name:          "without CLI flag",
-			cliPluginDir:  "",
+			name:           "without CLI flag",
+			cliPluginDir:   "",
 			expectNonEmpty: true,
 		},
 	}
@@ -1181,9 +1181,9 @@ func TestCapsuleContainsIR(t *testing.T) {
 
 func TestRenameCapsuleToOld(t *testing.T) {
 	tests := []struct {
-		name         string
-		filename     string
-		wantOldName  string
+		name        string
+		filename    string
+		wantOldName string
 	}{
 		{
 			name:        "capsule.tar.gz",
@@ -2378,19 +2378,18 @@ func createTestZipFile(t *testing.T, path string) {
 	w.Write([]byte("test content"))
 }
 
-
 // Additional tests for JuniperIngestCmd
 
 func TestJuniperIngestCmd_Run_NoSWORDPath(t *testing.T) {
 	tempDir := t.TempDir()
 	// No mods.d directory
-	
+
 	cmd := &JuniperIngestCmd{
 		Path:   tempDir,
 		Output: filepath.Join(tempDir, "output"),
 		All:    true,
 	}
-	
+
 	err := cmd.Run()
 	if err == nil {
 		t.Error("expected error for missing mods.d, got nil")
@@ -2406,13 +2405,13 @@ func TestJuniperIngestCmd_Run_EmptyModsD(t *testing.T) {
 	if err := os.MkdirAll(modsDir, 0755); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	
+
 	cmd := &JuniperIngestCmd{
 		Path:   tempDir,
 		Output: filepath.Join(tempDir, "output"),
 		All:    true,
 	}
-	
+
 	err := cmd.Run()
 	if err == nil {
 		t.Error("expected error for no Bible modules, got nil")
@@ -2428,7 +2427,7 @@ func TestJuniperIngestCmd_Run_NoBibleModules(t *testing.T) {
 	if err := os.MkdirAll(modsDir, 0755); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	
+
 	// Create a non-Bible conf file
 	confContent := `[TestModule]
 Description=Test Commentary
@@ -2438,13 +2437,13 @@ DataPath=./modules/comments/rawcom/test/
 	if err := os.WriteFile(filepath.Join(modsDir, "test.conf"), []byte(confContent), 0644); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
-	
+
 	cmd := &JuniperIngestCmd{
 		Path:   tempDir,
 		Output: filepath.Join(tempDir, "output"),
 		All:    true,
 	}
-	
+
 	err := cmd.Run()
 	if err == nil {
 		t.Error("expected error for no Bible modules, got nil")
@@ -2457,7 +2456,7 @@ func TestJuniperIngestCmd_Run_SpecifyNoModules(t *testing.T) {
 	if err := os.MkdirAll(modsDir, 0755); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	
+
 	// Create a Bible conf file
 	confContent := `[TestBible]
 Description=Test Bible
@@ -2467,14 +2466,14 @@ DataPath=./modules/texts/ztext/testbible/
 	if err := os.WriteFile(filepath.Join(modsDir, "testbible.conf"), []byte(confContent), 0644); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
-	
+
 	cmd := &JuniperIngestCmd{
 		Path:    tempDir,
 		Output:  filepath.Join(tempDir, "output"),
 		Modules: []string{}, // No modules and All=false
 		All:     false,
 	}
-	
+
 	err := cmd.Run()
 	if err == nil {
 		t.Error("expected error when no modules specified, got nil")
@@ -2490,7 +2489,7 @@ func TestJuniperIngestCmd_Run_ModuleNotFound(t *testing.T) {
 	if err := os.MkdirAll(modsDir, 0755); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	
+
 	// Create a Bible conf file
 	confContent := `[TestBible]
 Description=Test Bible
@@ -2500,14 +2499,14 @@ DataPath=./modules/texts/ztext/testbible/
 	if err := os.WriteFile(filepath.Join(modsDir, "testbible.conf"), []byte(confContent), 0644); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
-	
+
 	cmd := &JuniperIngestCmd{
 		Path:    tempDir,
 		Output:  filepath.Join(tempDir, "output"),
 		Modules: []string{"NonExistent"},
 		All:     false,
 	}
-	
+
 	err := cmd.Run()
 	if err == nil {
 		t.Error("expected error for no modules to ingest, got nil")
@@ -2523,7 +2522,7 @@ func TestJuniperIngestCmd_Run_EncryptedModule(t *testing.T) {
 	if err := os.MkdirAll(modsDir, 0755); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	
+
 	// Create encrypted Bible conf file
 	confContent := `[EncryptedBible]
 Description=Encrypted Bible
@@ -2534,13 +2533,13 @@ CipherKey=
 	if err := os.WriteFile(filepath.Join(modsDir, "encrypted.conf"), []byte(confContent), 0644); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
-	
+
 	cmd := &JuniperIngestCmd{
 		Path:   tempDir,
 		Output: filepath.Join(tempDir, "output"),
 		All:    true,
 	}
-	
+
 	// Should skip encrypted modules but not error
 	err := cmd.Run()
 	// This should complete without error, just skipping the encrypted module
@@ -2556,7 +2555,7 @@ func TestJuniperIngestCmd_Run_DefaultPath(t *testing.T) {
 		Output: "/tmp/test-output",
 		All:    true,
 	}
-	
+
 	err := cmd.Run()
 	// Expected to fail since ~/.sword probably doesn't have mods.d
 	// But we're testing the path resolution, not success
@@ -2579,7 +2578,7 @@ DataPath=./modules/texts/ztext/kjv/
 	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
-	
+
 	module := parseConfForList(confPath)
 	if module == nil {
 		t.Fatal("expected non-nil module")
@@ -2613,7 +2612,7 @@ DataPath=./modules/comments/rawcom/test/
 	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
-	
+
 	module := parseConfForList(confPath)
 	if module == nil {
 		t.Fatal("expected non-nil module")
@@ -2627,30 +2626,30 @@ DataPath=./modules/comments/rawcom/test/
 
 func TestCapsuleConvertCmd_Run_NoConvertibleContent(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Create a capsule with no convertible content (just a text file)
 	capsuleDir := filepath.Join(tempDir, "capsule")
 	os.MkdirAll(capsuleDir, 0755)
 	os.WriteFile(filepath.Join(capsuleDir, "readme.txt"), []byte("just text"), 0644)
-	
+
 	// Create manifest
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 	}
 	manifestData, _ := json.Marshal(manifest)
 	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644)
-	
+
 	// Pack it
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.gz")
 	if err := archive.CreateCapsuleTarGz(capsuleDir, capsulePath); err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
-	
+
 	cmd := &CapsuleConvertCmd{
 		Capsule: capsulePath,
 		Format:  "osis",
 	}
-	
+
 	err := cmd.Run()
 	if err == nil {
 		t.Error("expected error for no convertible content, got nil")
@@ -2707,27 +2706,27 @@ func TestCapsuleConvertCmd_Run_WithEmbeddedPlugins(t *testing.T) {
 
 func TestGenerateIRCmd_Run_NoConvertibleContent(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Create a capsule with no convertible content
 	capsuleDir := filepath.Join(tempDir, "capsule")
 	os.MkdirAll(capsuleDir, 0755)
 	os.WriteFile(filepath.Join(capsuleDir, "readme.txt"), []byte("just text"), 0644)
-	
+
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 	}
 	manifestData, _ := json.Marshal(manifest)
 	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644)
-	
+
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.gz")
 	if err := archive.CreateCapsuleTarGz(capsuleDir, capsulePath); err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
-	
+
 	cmd := &GenerateIRCmd{
 		Capsule: capsulePath,
 	}
-	
+
 	err := cmd.Run()
 	if err == nil {
 		t.Error("expected error for no convertible content, got nil")
@@ -2739,30 +2738,30 @@ func TestGenerateIRCmd_Run_NoConvertibleContent(t *testing.T) {
 
 func TestGenerateIRCmd_Run_AlreadyHasIR(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Create a capsule that already has IR
 	capsuleDir := filepath.Join(tempDir, "capsule")
 	os.MkdirAll(capsuleDir, 0755)
-	
+
 	// Create IR file
 	os.WriteFile(filepath.Join(capsuleDir, "test.ir.json"), []byte(`{"format":"ir"}`), 0644)
-	
+
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 		"has_ir":          true,
 	}
 	manifestData, _ := json.Marshal(manifest)
 	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644)
-	
+
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.gz")
 	if err := archive.CreateCapsuleTarGz(capsuleDir, capsulePath); err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
-	
+
 	cmd := &GenerateIRCmd{
 		Capsule: capsulePath,
 	}
-	
+
 	err := cmd.Run()
 	if err == nil {
 		t.Error("expected error for capsule already having IR, got nil")
@@ -2813,33 +2812,31 @@ func TestGenerateIRCmd_Run_WithEmbeddedPlugins(t *testing.T) {
 	}
 }
 
-
-
 // Additional tests for CompareCmd
 
 func TestCompareCmd_Run_RunNotFound(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Create a valid capsule without any runs
 	capsuleDir := filepath.Join(tempDir, "capsule")
 	cap, err := capsule.New(capsuleDir)
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
-	
+
 	// Pack it
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.xz")
 	if err := cap.Pack(capsulePath); err != nil {
 		t.Fatalf("failed to pack capsule: %v", err)
 	}
 	os.RemoveAll(capsuleDir)
-	
+
 	cmd := &CompareCmd{
 		Capsule: capsulePath,
 		Run1:    "nonexistent-run-1",
 		Run2:    "nonexistent-run-2",
 	}
-	
+
 	err = cmd.Run()
 	if err == nil {
 		t.Error("expected error for nonexistent run, got nil")
@@ -2851,14 +2848,14 @@ func TestCompareCmd_Run_RunNotFound(t *testing.T) {
 
 func TestCompareCmd_Run_SecondRunNotFound(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Create a capsule with one run
 	capsuleDir := filepath.Join(tempDir, "capsule")
 	cap, err := capsule.New(capsuleDir)
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
-	
+
 	// Add a run manually
 	run := &capsule.Run{
 		ID:     "run-1",
@@ -2867,20 +2864,20 @@ func TestCompareCmd_Run_SecondRunNotFound(t *testing.T) {
 	cap.Manifest.Runs = make(map[string]*capsule.Run)
 	cap.Manifest.Runs["run-1"] = run
 	cap.SaveManifest()
-	
+
 	// Pack it
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.xz")
 	if err := cap.Pack(capsulePath); err != nil {
 		t.Fatalf("failed to pack capsule: %v", err)
 	}
 	os.RemoveAll(capsuleDir)
-	
+
 	cmd := &CompareCmd{
 		Capsule: capsulePath,
 		Run1:    "run-1",
 		Run2:    "nonexistent-run-2",
 	}
-	
+
 	err = cmd.Run()
 	if err == nil {
 		t.Error("expected error for nonexistent second run, got nil")
@@ -2892,14 +2889,14 @@ func TestCompareCmd_Run_SecondRunNotFound(t *testing.T) {
 
 func TestCompareCmd_Run_NoTranscript(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Create a capsule with two runs but no transcripts
 	capsuleDir := filepath.Join(tempDir, "capsule")
 	cap, err := capsule.New(capsuleDir)
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
-	
+
 	cap.Manifest.Runs = make(map[string]*capsule.Run)
 	cap.Manifest.Runs["run-1"] = &capsule.Run{
 		ID:      "run-1",
@@ -2912,19 +2909,19 @@ func TestCompareCmd_Run_NoTranscript(t *testing.T) {
 		Outputs: nil,
 	}
 	cap.SaveManifest()
-	
+
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.xz")
 	if err := cap.Pack(capsulePath); err != nil {
 		t.Fatalf("failed to pack capsule: %v", err)
 	}
 	os.RemoveAll(capsuleDir)
-	
+
 	cmd := &CompareCmd{
 		Capsule: capsulePath,
 		Run1:    "run-1",
 		Run2:    "run-2",
 	}
-	
+
 	err = cmd.Run()
 	if err == nil {
 		t.Error("expected error for missing transcript, got nil")
@@ -3126,7 +3123,6 @@ func TestRunsListCmd_Run_EmptyRuns(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
-
 
 // TestExtractIRCmd_Run_Success tests successful IR extraction
 func TestExtractIRCmd_Run_Success(t *testing.T) {
@@ -3722,5 +3718,3 @@ func TestGetPluginDir_WithEnvVar(t *testing.T) {
 		t.Errorf("getPluginDir() = %q, want %q", result, customDir)
 	}
 }
-
-

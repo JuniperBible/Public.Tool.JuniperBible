@@ -70,10 +70,12 @@ func main() {
 //   - reason: string - Human-readable explanation
 //
 // Example request:
-//   {"command": "detect", "args": {"path": "/path/to/file.example"}}
+//
+//	{"command": "detect", "args": {"path": "/path/to/file.example"}}
 //
 // Example response:
-//   {"status": "ok", "result": {"detected": true, "format": "example", "reason": "..."}}
+//
+//	{"status": "ok", "result": {"detected": true, "format": "example", "reason": "..."}}
 func handleDetect(args map[string]interface{}) {
 	// Extract the required "path" argument using the ipc helper
 	path, err := ipc.StringArg(args, "path")
@@ -154,10 +156,12 @@ func handleDetect(args map[string]interface{}) {
 // The file is stored in: output_dir/<hash[:2]>/<hash>
 //
 // Example request:
-//   {"command": "ingest", "args": {"path": "/tmp/file.example", "output_dir": "/tmp/blobs"}}
+//
+//	{"command": "ingest", "args": {"path": "/tmp/file.example", "output_dir": "/tmp/blobs"}}
 //
 // Example response:
-//   {"status": "ok", "result": {"artifact_id": "file", "blob_sha256": "abc123...", ...}}
+//
+//	{"status": "ok", "result": {"artifact_id": "file", "blob_sha256": "abc123...", ...}}
 func handleIngest(args map[string]interface{}) {
 	if NoopMode {
 		ipc.RespondError("noop plugin - ingest not supported")
@@ -221,10 +225,12 @@ func handleIngest(args map[string]interface{}) {
 //   - metadata: map[string]string (optional) - Additional metadata
 //
 // Example request:
-//   {"command": "enumerate", "args": {"path": "/path/to/archive.example"}}
+//
+//	{"command": "enumerate", "args": {"path": "/path/to/archive.example"}}
 //
 // Example response:
-//   {"status": "ok", "result": {"entries": [{"path": "file1.txt", "size_bytes": 100, ...}]}}
+//
+//	{"status": "ok", "result": {"entries": [{"path": "file1.txt", "size_bytes": 100, ...}]}}
 func handleEnumerate(args map[string]interface{}) {
 	if NoopMode {
 		ipc.RespondError("noop plugin - enumerate not supported")
@@ -295,10 +301,12 @@ func handleEnumerate(args map[string]interface{}) {
 //   - L4: Text-only (minimal preservation)
 //
 // Example request:
-//   {"command": "extract-ir", "args": {"path": "/tmp/bible.example", "output_dir": "/tmp/ir"}}
+//
+//	{"command": "extract-ir", "args": {"path": "/tmp/bible.example", "output_dir": "/tmp/ir"}}
 //
 // Example response:
-//   {"status": "ok", "result": {"ir_path": "/tmp/ir/bible.json", "loss_class": "L0"}}
+//
+//	{"status": "ok", "result": {"ir_path": "/tmp/ir/bible.json", "loss_class": "L0"}}
 func handleExtractIR(args map[string]interface{}) {
 	if NoopMode {
 		ipc.RespondError("noop plugin - extract-ir not supported")
@@ -328,7 +336,7 @@ func handleExtractIR(args map[string]interface{}) {
 		Description:   "An example Bible for demonstration",
 		Publisher:     "Example Publisher",
 		SourceFormat:  PluginName,
-		Documents:     []*ipc.Document{
+		Documents: []*ipc.Document{
 			// Each book is a Document
 			{
 				ID:    "Gen",
@@ -409,10 +417,12 @@ func handleExtractIR(args map[string]interface{}) {
 //   - loss_report: LossReport (optional) - Detailed loss information
 //
 // Example request:
-//   {"command": "emit-native", "args": {"ir_path": "/tmp/ir/corpus.json", "output_dir": "/tmp/out"}}
+//
+//	{"command": "emit-native", "args": {"ir_path": "/tmp/ir/corpus.json", "output_dir": "/tmp/out"}}
 //
 // Example response:
-//   {"status": "ok", "result": {"output_path": "/tmp/out/bible.example", "format": "example", ...}}
+//
+//	{"status": "ok", "result": {"output_path": "/tmp/out/bible.example", "format": "example", ...}}
 func handleEmitNative(args map[string]interface{}) {
 	if NoopMode {
 		ipc.RespondError("noop plugin - emit-native not supported")

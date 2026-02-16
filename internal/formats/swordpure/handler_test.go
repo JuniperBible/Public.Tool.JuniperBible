@@ -250,10 +250,10 @@ func TestHandlerEmitNative(t *testing.T) {
 
 	// Create a mock IR corpus file
 	corpus := &IRCorpus{
-		ID:             "TESTBIBLE",
-		Versification:  "KJV",
-		Title:          "Test Bible",
-		Language:       "en",
+		ID:            "TESTBIBLE",
+		Versification: "KJV",
+		Title:         "Test Bible",
+		Language:      "en",
 		Documents: []*IRDocument{
 			{
 				ID: "Gen",

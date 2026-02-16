@@ -40,15 +40,15 @@ type CSPConfig struct {
 // - Restricts base URI and form actions to same origin
 func DefaultCSPConfig() CSPConfig {
 	return CSPConfig{
-		DefaultSrc:         []string{"'self'"},
-		ScriptSrc:          []string{"'self'"},
-		StyleSrc:           []string{"'self'"},
-		ImgSrc:             []string{"'self'", "data:"},
-		FontSrc:            []string{"'self'"},
-		ConnectSrc:         []string{"'self'"},
-		FrameAncestors:     []string{"'none'"},
-		BaseURI:            []string{"'self'"},
-		FormAction:         []string{"'self'"},
+		DefaultSrc:              []string{"'self'"},
+		ScriptSrc:               []string{"'self'"},
+		StyleSrc:                []string{"'self'"},
+		ImgSrc:                  []string{"'self'", "data:"},
+		FontSrc:                 []string{"'self'"},
+		ConnectSrc:              []string{"'self'"},
+		FrameAncestors:          []string{"'none'"},
+		BaseURI:                 []string{"'self'"},
+		FormAction:              []string{"'self'"},
 		UpgradeInsecureRequests: false, // Set to true in production with HTTPS
 	}
 }
@@ -57,15 +57,15 @@ func DefaultCSPConfig() CSPConfig {
 // This is more permissive than the API CSP to support dynamic web features.
 func WebUICSPConfig() CSPConfig {
 	return CSPConfig{
-		DefaultSrc:         []string{"'self'"},
-		ScriptSrc:          []string{"'self'"},
-		StyleSrc:           []string{"'self'"},
-		ImgSrc:             []string{"'self'", "data:"},
-		FontSrc:            []string{"'self'"},
-		ConnectSrc:         []string{"'self'"},
-		FrameAncestors:     []string{"'none'"},
-		BaseURI:            []string{"'self'"},
-		FormAction:         []string{"'self'"},
+		DefaultSrc:              []string{"'self'"},
+		ScriptSrc:               []string{"'self'"},
+		StyleSrc:                []string{"'self'"},
+		ImgSrc:                  []string{"'self'", "data:"},
+		FontSrc:                 []string{"'self'"},
+		ConnectSrc:              []string{"'self'"},
+		FrameAncestors:          []string{"'none'"},
+		BaseURI:                 []string{"'self'"},
+		FormAction:              []string{"'self'"},
 		UpgradeInsecureRequests: false,
 	}
 }
@@ -74,10 +74,10 @@ func WebUICSPConfig() CSPConfig {
 // APIs typically don't need to load resources, so this is very restrictive.
 func APICSPConfig() CSPConfig {
 	return CSPConfig{
-		DefaultSrc:         []string{"'none'"},
-		FrameAncestors:     []string{"'none'"},
-		BaseURI:            []string{"'none'"},
-		FormAction:         []string{"'none'"},
+		DefaultSrc:              []string{"'none'"},
+		FrameAncestors:          []string{"'none'"},
+		BaseURI:                 []string{"'none'"},
+		FormAction:              []string{"'none'"},
 		UpgradeInsecureRequests: false,
 	}
 }

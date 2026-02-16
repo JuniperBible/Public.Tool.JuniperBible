@@ -24,9 +24,9 @@ import (
 
 // FLEx XML types
 type FlexText struct {
-	XMLName     xml.Name       `xml:"document"`
-	Title       string         `xml:"interlinear-text>item"`
-	Paragraphs  []FlexPara     `xml:"interlinear-text>paragraphs>paragraph"`
+	XMLName    xml.Name   `xml:"document"`
+	Title      string     `xml:"interlinear-text>item"`
+	Paragraphs []FlexPara `xml:"interlinear-text>paragraphs>paragraph"`
 }
 
 type FlexPara struct {

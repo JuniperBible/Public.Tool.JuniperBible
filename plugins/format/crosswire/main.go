@@ -270,12 +270,12 @@ func handleExtractIR(req *ipc.Request) {
 	// NOTE: For full IR extraction, this should delegate to format-sword-pure plugin
 	// or implement full SWORD parsing. This is a basic stub.
 	corpus := &ir.Corpus{
-		ID:           module,
-		Version:      "1.0.0",
-		ModuleType:   ir.ModuleBible,
-		Language:     "en",
-		Title:        module,
-		Documents:    []*ir.Document{},
+		ID:         module,
+		Version:    "1.0.0",
+		ModuleType: ir.ModuleBible,
+		Language:   "en",
+		Title:      module,
+		Documents:  []*ir.Document{},
 	}
 
 	// Serialize IR to JSON

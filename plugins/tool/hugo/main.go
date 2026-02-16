@@ -8,8 +8,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"os"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 )
 
 // PluginInfo contains plugin metadata.

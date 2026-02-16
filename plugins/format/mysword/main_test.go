@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
 
 	"github.com/FocuswithJustin/JuniperBible/core/sqlite"
 )

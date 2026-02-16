@@ -18,19 +18,19 @@ const MaxBtreeDepth = 20
 
 // BtCursor represents a cursor for traversing a B-tree
 type BtCursor struct {
-	Btree    *Btree    // The B-tree this cursor belongs to
-	RootPage uint32    // Root page number of the tree
-	State    int       // Cursor state (valid, invalid, etc.)
+	Btree    *Btree // The B-tree this cursor belongs to
+	RootPage uint32 // Root page number of the tree
+	State    int    // Cursor state (valid, invalid, etc.)
 
 	// Current position in the tree
-	PageStack   [MaxBtreeDepth]uint32      // Stack of page numbers from root to current
-	IndexStack  [MaxBtreeDepth]int         // Stack of cell indices
-	Depth       int                        // Current depth in tree (0 = root)
+	PageStack  [MaxBtreeDepth]uint32 // Stack of page numbers from root to current
+	IndexStack [MaxBtreeDepth]int    // Stack of cell indices
+	Depth      int                   // Current depth in tree (0 = root)
 
 	// Current cell information
-	CurrentPage   uint32     // Current page number
-	CurrentIndex  int        // Current cell index in page
-	CurrentCell   *CellInfo  // Parsed current cell
+	CurrentPage   uint32      // Current page number
+	CurrentIndex  int         // Current cell index in page
+	CurrentCell   *CellInfo   // Parsed current cell
 	CurrentHeader *PageHeader // Current page header
 
 	// Navigation flags

@@ -7,13 +7,13 @@ import (
 
 // InsertStmt represents a compiled INSERT statement
 type InsertStmt struct {
-	Table       string
-	Columns     []string
-	Values      [][]Value
-	IsOrReplace bool
-	IsOrIgnore  bool
-	IsOrAbort   bool
-	IsOrFail    bool
+	Table        string
+	Columns      []string
+	Values       [][]Value
+	IsOrReplace  bool
+	IsOrIgnore   bool
+	IsOrAbort    bool
+	IsOrFail     bool
 	IsOrRollback bool
 }
 
@@ -76,12 +76,12 @@ const (
 
 // Instruction represents a single VDBE instruction
 type Instruction struct {
-	OpCode OpCode
-	P1     int
-	P2     int
-	P3     int
-	P4     interface{} // Can be string, int, or other data
-	P5     int
+	OpCode  OpCode
+	P1      int
+	P2      int
+	P3      int
+	P4      interface{} // Can be string, int, or other data
+	P5      int
 	Comment string
 }
 
@@ -95,57 +95,57 @@ type Program struct {
 // String returns a string representation of an opcode
 func (op OpCode) String() string {
 	names := map[OpCode]string{
-		OpInit:        "Init",
-		OpHalt:        "Halt",
-		OpOpenWrite:   "OpenWrite",
-		OpOpenRead:    "OpenRead",
-		OpClose:       "Close",
-		OpNewRowid:    "NewRowid",
-		OpInsert:      "Insert",
-		OpDelete:      "Delete",
-		OpRowData:     "RowData",
-		OpColumn:      "Column",
-		OpRowid:       "Rowid",
-		OpMakeRecord:  "MakeRecord",
-		OpInteger:     "Integer",
-		OpString:      "String",
-		OpReal:        "Real",
-		OpBlob:        "Blob",
-		OpNull:        "Null",
-		OpCopy:        "Copy",
-		OpMove:        "Move",
-		OpGoto:        "Goto",
-		OpIf:          "If",
-		OpIfNot:       "IfNot",
-		OpEq:          "Eq",
-		OpNe:          "Ne",
-		OpLt:          "Lt",
-		OpLe:          "Le",
-		OpGt:          "Gt",
-		OpGe:          "Ge",
-		OpAdd:         "Add",
-		OpSubtract:    "Subtract",
-		OpMultiply:    "Multiply",
-		OpDivide:      "Divide",
-		OpNotFound:    "NotFound",
-		OpNotExists:   "NotExists",
-		OpSeek:        "Seek",
-		OpRewind:      "Rewind",
-		OpNext:        "Next",
-		OpPrev:        "Prev",
-		OpIdxInsert:   "IdxInsert",
-		OpIdxDelete:   "IdxDelete",
-		OpIdxRowid:    "IdxRowid",
-		OpIdxLT:       "IdxLT",
-		OpIdxGE:       "IdxGE",
-		OpIdxGT:       "IdxGT",
-		OpResultRow:   "ResultRow",
-		OpAddImm:      "AddImm",
-		OpMustBeInt:   "MustBeInt",
-		OpAffinity:    "Affinity",
-		OpTypeCheck:   "TypeCheck",
-		OpFinishSeek:  "FinishSeek",
-		OpFkCheck:     "FkCheck",
+		OpInit:       "Init",
+		OpHalt:       "Halt",
+		OpOpenWrite:  "OpenWrite",
+		OpOpenRead:   "OpenRead",
+		OpClose:      "Close",
+		OpNewRowid:   "NewRowid",
+		OpInsert:     "Insert",
+		OpDelete:     "Delete",
+		OpRowData:    "RowData",
+		OpColumn:     "Column",
+		OpRowid:      "Rowid",
+		OpMakeRecord: "MakeRecord",
+		OpInteger:    "Integer",
+		OpString:     "String",
+		OpReal:       "Real",
+		OpBlob:       "Blob",
+		OpNull:       "Null",
+		OpCopy:       "Copy",
+		OpMove:       "Move",
+		OpGoto:       "Goto",
+		OpIf:         "If",
+		OpIfNot:      "IfNot",
+		OpEq:         "Eq",
+		OpNe:         "Ne",
+		OpLt:         "Lt",
+		OpLe:         "Le",
+		OpGt:         "Gt",
+		OpGe:         "Ge",
+		OpAdd:        "Add",
+		OpSubtract:   "Subtract",
+		OpMultiply:   "Multiply",
+		OpDivide:     "Divide",
+		OpNotFound:   "NotFound",
+		OpNotExists:  "NotExists",
+		OpSeek:       "Seek",
+		OpRewind:     "Rewind",
+		OpNext:       "Next",
+		OpPrev:       "Prev",
+		OpIdxInsert:  "IdxInsert",
+		OpIdxDelete:  "IdxDelete",
+		OpIdxRowid:   "IdxRowid",
+		OpIdxLT:      "IdxLT",
+		OpIdxGE:      "IdxGE",
+		OpIdxGT:      "IdxGT",
+		OpResultRow:  "ResultRow",
+		OpAddImm:     "AddImm",
+		OpMustBeInt:  "MustBeInt",
+		OpAffinity:   "Affinity",
+		OpTypeCheck:  "TypeCheck",
+		OpFinishSeek: "FinishSeek",
+		OpFkCheck:    "FkCheck",
 	}
 	if name, ok := names[op]; ok {
 		return name
@@ -156,17 +156,20 @@ func (op OpCode) String() string {
 // CompileInsert compiles an INSERT statement into VDBE bytecode
 //
 // Generated code structure:
-//   OP_Init         0, end
-//   OP_OpenWrite    0, table_root
-//   OP_NewRowid     0, reg_rowid
-//   OP_Integer      reg_col1, value1
-//   OP_String       reg_col2, value2
-//   ...
-//   OP_MakeRecord   reg_col1, num_cols, reg_record
-//   OP_Insert       0, reg_record, reg_rowid
-//   OP_Close        0
+//
+//	OP_Init         0, end
+//	OP_OpenWrite    0, table_root
+//	OP_NewRowid     0, reg_rowid
+//	OP_Integer      reg_col1, value1
+//	OP_String       reg_col2, value2
+//	...
+//	OP_MakeRecord   reg_col1, num_cols, reg_record
+//	OP_Insert       0, reg_record, reg_rowid
+//	OP_Close        0
+//
 // end:
-//   OP_Halt
+//
+//	OP_Halt
 func CompileInsert(stmt *InsertStmt, tableRoot int) (*Program, error) {
 	if stmt == nil {
 		return nil, errors.New("nil insert statement")
@@ -207,9 +210,9 @@ func CompileInsert(stmt *InsertStmt, tableRoot int) (*Program, error) {
 		}
 
 		// Allocate registers
-		regRowid := prog.allocReg()      // Register for rowid
+		regRowid := prog.allocReg()        // Register for rowid
 		regCols := prog.allocRegs(numCols) // Registers for column values
-		regRecord := prog.allocReg()     // Register for the record
+		regRecord := prog.allocReg()       // Register for the record
 
 		// OP_NewRowid: Generate new rowid
 		prog.add(OpNewRowid, cursorNum, regRowid, 0, nil, 0,

@@ -7,34 +7,34 @@ type Opcode uint8
 // The order and numbering must match SQLite's internal implementation for compatibility.
 const (
 	// Control flow opcodes
-	OpInit        Opcode = 0  // Initialize the VDBE program
-	OpGoto        Opcode = 1  // Unconditional jump
-	OpGosub       Opcode = 2  // Jump to subroutine
-	OpReturn      Opcode = 3  // Return from subroutine
-	OpYield       Opcode = 4  // Yield to coroutine
-	OpHalt        Opcode = 5  // Halt execution
-	OpHaltIfNull  Opcode = 6  // Halt if register is NULL
-	OpIfPos       Opcode = 7  // Jump if positive
-	OpIfNotZero   Opcode = 8  // Jump if not zero
-	OpIfNullRow   Opcode = 9  // Jump if cursor points to null row
-	OpIfNot       Opcode = 10 // Jump if false
-	OpIf          Opcode = 11 // Jump if true
+	OpInit       Opcode = 0  // Initialize the VDBE program
+	OpGoto       Opcode = 1  // Unconditional jump
+	OpGosub      Opcode = 2  // Jump to subroutine
+	OpReturn     Opcode = 3  // Return from subroutine
+	OpYield      Opcode = 4  // Yield to coroutine
+	OpHalt       Opcode = 5  // Halt execution
+	OpHaltIfNull Opcode = 6  // Halt if register is NULL
+	OpIfPos      Opcode = 7  // Jump if positive
+	OpIfNotZero  Opcode = 8  // Jump if not zero
+	OpIfNullRow  Opcode = 9  // Jump if cursor points to null row
+	OpIfNot      Opcode = 10 // Jump if false
+	OpIf         Opcode = 11 // Jump if true
 
 	// Integer operations
-	OpInteger    Opcode = 12 // Load integer into register
-	OpInt64      Opcode = 13 // Load 64-bit integer into register
-	OpAddImm     Opcode = 14 // Add immediate value to register
-	OpMustBeInt  Opcode = 15 // Assert register contains integer
-	OpIntCopy    Opcode = 16 // Copy integer between registers
+	OpInteger   Opcode = 12 // Load integer into register
+	OpInt64     Opcode = 13 // Load 64-bit integer into register
+	OpAddImm    Opcode = 14 // Add immediate value to register
+	OpMustBeInt Opcode = 15 // Assert register contains integer
+	OpIntCopy   Opcode = 16 // Copy integer between registers
 
 	// Real (floating point) operations
 	OpReal         Opcode = 17 // Load real value into register
 	OpRealAffinity Opcode = 18 // Apply real affinity
 
 	// String operations
-	OpString8  Opcode = 19 // Load UTF-8 string into register
-	OpString   Opcode = 20 // Load string into register (optimized)
-	OpConcat   Opcode = 21 // Concatenate two strings
+	OpString8 Opcode = 19 // Load UTF-8 string into register
+	OpString  Opcode = 20 // Load string into register (optimized)
+	OpConcat  Opcode = 21 // Concatenate two strings
 
 	// Blob operations
 	OpBlob Opcode = 22 // Load blob into register
@@ -47,10 +47,10 @@ const (
 	OpVariable Opcode = 25 // Load bound parameter into register
 
 	// Register operations
-	OpMove   Opcode = 26 // Move value between registers
-	OpCopy   Opcode = 27 // Copy value between registers
-	OpSCopy  Opcode = 28 // Shallow copy between registers
-	OpCast   Opcode = 29 // Cast value to type
+	OpMove  Opcode = 26 // Move value between registers
+	OpCopy  Opcode = 27 // Copy value between registers
+	OpSCopy Opcode = 28 // Shallow copy between registers
+	OpCast  Opcode = 29 // Cast value to type
 
 	// Cursor operations
 	OpOpenRead      Opcode = 30 // Open cursor for reading
@@ -71,39 +71,39 @@ const (
 	OpSequence      Opcode = 45 // Get cursor sequence number
 
 	// Data retrieval opcodes
-	OpColumn       Opcode = 46 // Read column from cursor
-	OpRowid        Opcode = 47 // Get rowid from cursor
-	OpRowData      Opcode = 48 // Get entire row data
-	OpResultRow    Opcode = 49 // Output result row
-	OpMakeRecord   Opcode = 50 // Create a record from registers
-	OpCount        Opcode = 51 // Count entries in cursor
+	OpColumn     Opcode = 46 // Read column from cursor
+	OpRowid      Opcode = 47 // Get rowid from cursor
+	OpRowData    Opcode = 48 // Get entire row data
+	OpResultRow  Opcode = 49 // Output result row
+	OpMakeRecord Opcode = 50 // Create a record from registers
+	OpCount      Opcode = 51 // Count entries in cursor
 
 	// Data modification opcodes
-	OpInsert      Opcode = 52 // Insert record into table
-	OpInsertInt   Opcode = 53 // Insert with integer key
-	OpDelete      Opcode = 54 // Delete current record
-	OpUpdate      Opcode = 55 // Update current record
-	OpNewRowid    Opcode = 56 // Generate new rowid
-	OpRowSetAdd   Opcode = 57 // Add rowid to rowset
-	OpRowSetRead  Opcode = 58 // Read rowid from rowset
-	OpRowSetTest  Opcode = 59 // Test if rowid in rowset
+	OpInsert     Opcode = 52 // Insert record into table
+	OpInsertInt  Opcode = 53 // Insert with integer key
+	OpDelete     Opcode = 54 // Delete current record
+	OpUpdate     Opcode = 55 // Update current record
+	OpNewRowid   Opcode = 56 // Generate new rowid
+	OpRowSetAdd  Opcode = 57 // Add rowid to rowset
+	OpRowSetRead Opcode = 58 // Read rowid from rowset
+	OpRowSetTest Opcode = 59 // Test if rowid in rowset
 
 	// Comparison opcodes
-	OpEq       Opcode = 60 // Equal comparison
-	OpNe       Opcode = 61 // Not equal comparison
-	OpLt       Opcode = 62 // Less than comparison
-	OpLe       Opcode = 63 // Less than or equal comparison
-	OpGt       Opcode = 64 // Greater than comparison
-	OpGe       Opcode = 65 // Greater than or equal comparison
-	OpCompare  Opcode = 66 // Compare two register ranges
-	OpJump     Opcode = 67 // Three-way comparison jump
-	OpElseEq   Opcode = 68 // Else-equal for optimization
+	OpEq      Opcode = 60 // Equal comparison
+	OpNe      Opcode = 61 // Not equal comparison
+	OpLt      Opcode = 62 // Less than comparison
+	OpLe      Opcode = 63 // Less than or equal comparison
+	OpGt      Opcode = 64 // Greater than comparison
+	OpGe      Opcode = 65 // Greater than or equal comparison
+	OpCompare Opcode = 66 // Compare two register ranges
+	OpJump    Opcode = 67 // Three-way comparison jump
+	OpElseEq  Opcode = 68 // Else-equal for optimization
 
 	// Arithmetic opcodes
-	OpAdd      Opcode = 69 // Addition
-	OpSubtract Opcode = 70 // Subtraction
-	OpMultiply Opcode = 71 // Multiplication
-	OpDivide   Opcode = 72 // Division
+	OpAdd       Opcode = 69 // Addition
+	OpSubtract  Opcode = 70 // Subtraction
+	OpMultiply  Opcode = 71 // Multiplication
+	OpDivide    Opcode = 72 // Division
 	OpRemainder Opcode = 73 // Modulo/remainder
 
 	// Bitwise opcodes
@@ -124,8 +124,8 @@ const (
 	OpAggValue Opcode = 84 // Get aggregate intermediate value
 
 	// Scalar function opcodes
-	OpFunction   Opcode = 85 // Call scalar function
-	OpPureFunc   Opcode = 86 // Call pure function (cacheable)
+	OpFunction Opcode = 85 // Call scalar function
+	OpPureFunc Opcode = 86 // Call pure function (cacheable)
 
 	// Transaction opcodes
 	OpTransaction Opcode = 87 // Begin transaction
@@ -148,30 +148,30 @@ const (
 	OpSorterClose  Opcode = 100 // Close sorter
 
 	// Program flow opcodes
-	OpProgram      Opcode = 101 // Execute sub-program
+	OpProgram       Opcode = 101 // Execute sub-program
 	OpInitCoroutine Opcode = 102 // Initialize coroutine
 	OpEndCoroutine  Opcode = 103 // End coroutine
 	OpOnce          Opcode = 104 // Execute once guard
 	OpBeginSubrtn   Opcode = 105 // Begin subroutine
 
 	// Index opcodes
-	OpIdxInsert    Opcode = 106 // Insert into index
-	OpIdxDelete    Opcode = 107 // Delete from index
-	OpIdxRowid     Opcode = 108 // Get rowid from index
-	OpIdxLT        Opcode = 109 // Index less than
-	OpIdxGE        Opcode = 110 // Index greater or equal
-	OpIdxGT        Opcode = 111 // Index greater than
-	OpIdxLE        Opcode = 112 // Index less or equal
+	OpIdxInsert Opcode = 106 // Insert into index
+	OpIdxDelete Opcode = 107 // Delete from index
+	OpIdxRowid  Opcode = 108 // Get rowid from index
+	OpIdxLT     Opcode = 109 // Index less than
+	OpIdxGE     Opcode = 110 // Index greater or equal
+	OpIdxGT     Opcode = 111 // Index greater than
+	OpIdxLE     Opcode = 112 // Index less or equal
 
 	// Virtual table opcodes
-	OpVOpen      Opcode = 113 // Open virtual table cursor
-	OpVFilter    Opcode = 114 // Virtual table filter
-	OpVColumn    Opcode = 115 // Read virtual table column
-	OpVNext      Opcode = 116 // Next row in virtual table
-	OpVCreate    Opcode = 117 // Create virtual table
-	OpVDestroy   Opcode = 118 // Destroy virtual table
-	OpVUpdate    Opcode = 119 // Update virtual table
-	OpVRename    Opcode = 120 // Rename virtual table
+	OpVOpen    Opcode = 113 // Open virtual table cursor
+	OpVFilter  Opcode = 114 // Virtual table filter
+	OpVColumn  Opcode = 115 // Read virtual table column
+	OpVNext    Opcode = 116 // Next row in virtual table
+	OpVCreate  Opcode = 117 // Create virtual table
+	OpVDestroy Opcode = 118 // Destroy virtual table
+	OpVUpdate  Opcode = 119 // Update virtual table
+	OpVRename  Opcode = 120 // Rename virtual table
 
 	// Miscellaneous opcodes
 	OpNoop        Opcode = 121 // No operation
@@ -193,170 +193,170 @@ const (
 	OpMustBeInt64 Opcode = 135 // Assert 64-bit integer
 
 	// Additional cursor opcodes
-	OpLast        Opcode = 136 // Move cursor to last entry
-	OpFirst       Opcode = 137 // Move cursor to first entry (alias)
+	OpLast          Opcode = 136 // Move cursor to last entry
+	OpFirst         Opcode = 137 // Move cursor to first entry (alias)
 	OpSorterCompare Opcode = 138 // Compare sorter keys
 
 	// String operations
-	OpToText      Opcode = 139 // Convert to text
-	OpToBlob      Opcode = 140 // Convert to blob
-	OpToNumeric   Opcode = 141 // Convert to numeric
-	OpToInt       Opcode = 142 // Convert to integer
-	OpToReal      Opcode = 143 // Convert to real
+	OpToText    Opcode = 139 // Convert to text
+	OpToBlob    Opcode = 140 // Convert to blob
+	OpToNumeric Opcode = 141 // Convert to numeric
+	OpToInt     Opcode = 142 // Convert to integer
+	OpToReal    Opcode = 143 // Convert to real
 
 	// Debugging/profiling opcodes
-	OpTrace       Opcode = 144 // Debug trace point
-	OpScanStatus  Opcode = 145 // Scan status tracking
+	OpTrace      Opcode = 144 // Debug trace point
+	OpScanStatus Opcode = 145 // Scan status tracking
 )
 
 // OpcodeNames maps opcodes to their string names for debugging.
 var OpcodeNames = map[Opcode]string{
-	OpInit:        "Init",
-	OpGoto:        "Goto",
-	OpGosub:       "Gosub",
-	OpReturn:      "Return",
-	OpYield:       "Yield",
-	OpHalt:        "Halt",
-	OpHaltIfNull:  "HaltIfNull",
-	OpIfPos:       "IfPos",
-	OpIfNotZero:   "IfNotZero",
-	OpIfNullRow:   "IfNullRow",
-	OpIfNot:       "IfNot",
-	OpIf:          "If",
-	OpInteger:     "Integer",
-	OpInt64:       "Int64",
-	OpAddImm:      "AddImm",
-	OpMustBeInt:   "MustBeInt",
-	OpIntCopy:     "IntCopy",
-	OpReal:        "Real",
-	OpRealAffinity: "RealAffinity",
-	OpString8:     "String8",
-	OpString:      "String",
-	OpConcat:      "Concat",
-	OpBlob:        "Blob",
-	OpNull:        "Null",
-	OpSoftNull:    "SoftNull",
-	OpVariable:    "Variable",
-	OpMove:        "Move",
-	OpCopy:        "Copy",
-	OpSCopy:       "SCopy",
-	OpCast:        "Cast",
-	OpOpenRead:    "OpenRead",
-	OpOpenWrite:   "OpenWrite",
+	OpInit:          "Init",
+	OpGoto:          "Goto",
+	OpGosub:         "Gosub",
+	OpReturn:        "Return",
+	OpYield:         "Yield",
+	OpHalt:          "Halt",
+	OpHaltIfNull:    "HaltIfNull",
+	OpIfPos:         "IfPos",
+	OpIfNotZero:     "IfNotZero",
+	OpIfNullRow:     "IfNullRow",
+	OpIfNot:         "IfNot",
+	OpIf:            "If",
+	OpInteger:       "Integer",
+	OpInt64:         "Int64",
+	OpAddImm:        "AddImm",
+	OpMustBeInt:     "MustBeInt",
+	OpIntCopy:       "IntCopy",
+	OpReal:          "Real",
+	OpRealAffinity:  "RealAffinity",
+	OpString8:       "String8",
+	OpString:        "String",
+	OpConcat:        "Concat",
+	OpBlob:          "Blob",
+	OpNull:          "Null",
+	OpSoftNull:      "SoftNull",
+	OpVariable:      "Variable",
+	OpMove:          "Move",
+	OpCopy:          "Copy",
+	OpSCopy:         "SCopy",
+	OpCast:          "Cast",
+	OpOpenRead:      "OpenRead",
+	OpOpenWrite:     "OpenWrite",
 	OpOpenAutoindex: "OpenAutoindex",
 	OpOpenEphemeral: "OpenEphemeral",
-	OpClose:       "Close",
-	OpRewind:      "Rewind",
-	OpNext:        "Next",
-	OpPrev:        "Prev",
-	OpSeek:        "Seek",
-	OpSeekGE:      "SeekGE",
-	OpSeekGT:      "SeekGT",
-	OpSeekLE:      "SeekLE",
-	OpSeekLT:      "SeekLT",
-	OpSeekRowid:   "SeekRowid",
-	OpNotExists:   "NotExists",
-	OpSequence:    "Sequence",
-	OpColumn:      "Column",
-	OpRowid:       "Rowid",
-	OpRowData:     "RowData",
-	OpResultRow:   "ResultRow",
-	OpMakeRecord:  "MakeRecord",
-	OpCount:       "Count",
-	OpInsert:      "Insert",
-	OpInsertInt:   "InsertInt",
-	OpDelete:      "Delete",
-	OpUpdate:      "Update",
-	OpNewRowid:    "NewRowid",
-	OpRowSetAdd:   "RowSetAdd",
-	OpRowSetRead:  "RowSetRead",
-	OpRowSetTest:  "RowSetTest",
-	OpEq:          "Eq",
-	OpNe:          "Ne",
-	OpLt:          "Lt",
-	OpLe:          "Le",
-	OpGt:          "Gt",
-	OpGe:          "Ge",
-	OpCompare:     "Compare",
-	OpJump:        "Jump",
-	OpElseEq:      "ElseEq",
-	OpAdd:         "Add",
-	OpSubtract:    "Subtract",
-	OpMultiply:    "Multiply",
-	OpDivide:      "Divide",
-	OpRemainder:   "Remainder",
-	OpBitAnd:      "BitAnd",
-	OpBitOr:       "BitOr",
-	OpBitNot:      "BitNot",
-	OpShiftLeft:   "ShiftLeft",
-	OpShiftRight:  "ShiftRight",
-	OpAnd:         "And",
-	OpOr:          "Or",
-	OpNot:         "Not",
-	OpAggStep:     "AggStep",
-	OpAggFinal:    "AggFinal",
-	OpAggValue:    "AggValue",
-	OpFunction:    "Function",
-	OpPureFunc:    "PureFunc",
-	OpTransaction: "Transaction",
-	OpCommit:      "Commit",
-	OpRollback:    "Rollback",
-	OpSavepoint:   "Savepoint",
-	OpRelease:     "Release",
-	OpVerifyCookie: "VerifyCookie",
-	OpSetCookie:   "SetCookie",
-	OpOpenPseudo:  "OpenPseudo",
-	OpSorterOpen:  "SorterOpen",
-	OpSorterInsert: "SorterInsert",
-	OpSorterNext:  "SorterNext",
-	OpSorterSort:  "SorterSort",
-	OpSorterData:  "SorterData",
-	OpSorterClose: "SorterClose",
-	OpProgram:     "Program",
+	OpClose:         "Close",
+	OpRewind:        "Rewind",
+	OpNext:          "Next",
+	OpPrev:          "Prev",
+	OpSeek:          "Seek",
+	OpSeekGE:        "SeekGE",
+	OpSeekGT:        "SeekGT",
+	OpSeekLE:        "SeekLE",
+	OpSeekLT:        "SeekLT",
+	OpSeekRowid:     "SeekRowid",
+	OpNotExists:     "NotExists",
+	OpSequence:      "Sequence",
+	OpColumn:        "Column",
+	OpRowid:         "Rowid",
+	OpRowData:       "RowData",
+	OpResultRow:     "ResultRow",
+	OpMakeRecord:    "MakeRecord",
+	OpCount:         "Count",
+	OpInsert:        "Insert",
+	OpInsertInt:     "InsertInt",
+	OpDelete:        "Delete",
+	OpUpdate:        "Update",
+	OpNewRowid:      "NewRowid",
+	OpRowSetAdd:     "RowSetAdd",
+	OpRowSetRead:    "RowSetRead",
+	OpRowSetTest:    "RowSetTest",
+	OpEq:            "Eq",
+	OpNe:            "Ne",
+	OpLt:            "Lt",
+	OpLe:            "Le",
+	OpGt:            "Gt",
+	OpGe:            "Ge",
+	OpCompare:       "Compare",
+	OpJump:          "Jump",
+	OpElseEq:        "ElseEq",
+	OpAdd:           "Add",
+	OpSubtract:      "Subtract",
+	OpMultiply:      "Multiply",
+	OpDivide:        "Divide",
+	OpRemainder:     "Remainder",
+	OpBitAnd:        "BitAnd",
+	OpBitOr:         "BitOr",
+	OpBitNot:        "BitNot",
+	OpShiftLeft:     "ShiftLeft",
+	OpShiftRight:    "ShiftRight",
+	OpAnd:           "And",
+	OpOr:            "Or",
+	OpNot:           "Not",
+	OpAggStep:       "AggStep",
+	OpAggFinal:      "AggFinal",
+	OpAggValue:      "AggValue",
+	OpFunction:      "Function",
+	OpPureFunc:      "PureFunc",
+	OpTransaction:   "Transaction",
+	OpCommit:        "Commit",
+	OpRollback:      "Rollback",
+	OpSavepoint:     "Savepoint",
+	OpRelease:       "Release",
+	OpVerifyCookie:  "VerifyCookie",
+	OpSetCookie:     "SetCookie",
+	OpOpenPseudo:    "OpenPseudo",
+	OpSorterOpen:    "SorterOpen",
+	OpSorterInsert:  "SorterInsert",
+	OpSorterNext:    "SorterNext",
+	OpSorterSort:    "SorterSort",
+	OpSorterData:    "SorterData",
+	OpSorterClose:   "SorterClose",
+	OpProgram:       "Program",
 	OpInitCoroutine: "InitCoroutine",
 	OpEndCoroutine:  "EndCoroutine",
-	OpOnce:        "Once",
-	OpBeginSubrtn: "BeginSubrtn",
-	OpIdxInsert:   "IdxInsert",
-	OpIdxDelete:   "IdxDelete",
-	OpIdxRowid:    "IdxRowid",
-	OpIdxLT:       "IdxLT",
-	OpIdxGE:       "IdxGE",
-	OpIdxGT:       "IdxGT",
-	OpIdxLE:       "IdxLE",
-	OpVOpen:       "VOpen",
-	OpVFilter:     "VFilter",
-	OpVColumn:     "VColumn",
-	OpVNext:       "VNext",
-	OpVCreate:     "VCreate",
-	OpVDestroy:    "VDestroy",
-	OpVUpdate:     "VUpdate",
-	OpVRename:     "VRename",
-	OpNoop:        "Noop",
-	OpExplain:     "Explain",
-	OpPermutation: "Permutation",
-	OpCollSeq:     "CollSeq",
-	OpTableLock:   "TableLock",
-	OpFkCheck:     "FkCheck",
-	OpFkCounter:   "FkCounter",
-	OpIsNull:      "IsNull",
-	OpNotNull:     "NotNull",
-	OpMaxPgcnt:    "MaxPgcnt",
-	OpMemMax:      "MemMax",
-	OpAutocommit:  "Autocommit",
-	OpIsType:      "IsType",
-	OpIsNumeric:   "IsNumeric",
-	OpMustBeInt64: "MustBeInt64",
-	OpLast:        "Last",
-	OpFirst:       "First",
+	OpOnce:          "Once",
+	OpBeginSubrtn:   "BeginSubrtn",
+	OpIdxInsert:     "IdxInsert",
+	OpIdxDelete:     "IdxDelete",
+	OpIdxRowid:      "IdxRowid",
+	OpIdxLT:         "IdxLT",
+	OpIdxGE:         "IdxGE",
+	OpIdxGT:         "IdxGT",
+	OpIdxLE:         "IdxLE",
+	OpVOpen:         "VOpen",
+	OpVFilter:       "VFilter",
+	OpVColumn:       "VColumn",
+	OpVNext:         "VNext",
+	OpVCreate:       "VCreate",
+	OpVDestroy:      "VDestroy",
+	OpVUpdate:       "VUpdate",
+	OpVRename:       "VRename",
+	OpNoop:          "Noop",
+	OpExplain:       "Explain",
+	OpPermutation:   "Permutation",
+	OpCollSeq:       "CollSeq",
+	OpTableLock:     "TableLock",
+	OpFkCheck:       "FkCheck",
+	OpFkCounter:     "FkCounter",
+	OpIsNull:        "IsNull",
+	OpNotNull:       "NotNull",
+	OpMaxPgcnt:      "MaxPgcnt",
+	OpMemMax:        "MemMax",
+	OpAutocommit:    "Autocommit",
+	OpIsType:        "IsType",
+	OpIsNumeric:     "IsNumeric",
+	OpMustBeInt64:   "MustBeInt64",
+	OpLast:          "Last",
+	OpFirst:         "First",
 	OpSorterCompare: "SorterCompare",
-	OpToText:      "ToText",
-	OpToBlob:      "ToBlob",
-	OpToNumeric:   "ToNumeric",
-	OpToInt:       "ToInt",
-	OpToReal:      "ToReal",
-	OpTrace:       "Trace",
-	OpScanStatus:  "ScanStatus",
+	OpToText:        "ToText",
+	OpToBlob:        "ToBlob",
+	OpToNumeric:     "ToNumeric",
+	OpToInt:         "ToInt",
+	OpToReal:        "ToReal",
+	OpTrace:         "Trace",
+	OpScanStatus:    "ScanStatus",
 }
 
 // String returns the string representation of an opcode.

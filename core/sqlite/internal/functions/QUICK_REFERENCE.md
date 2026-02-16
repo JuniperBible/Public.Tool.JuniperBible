@@ -63,6 +63,7 @@
 | `random()` | 0 | Random int64 | `random()` |
 | `randomblob(N)` | 1 | Random bytes | `randomblob(16)` |
 
+
 ### Aggregate Functions (8 functions)
 | Function | Args | Description | Example |
 |----------|------|-------------|---------|
@@ -88,6 +89,7 @@
 | `current_time` | 0 | Current time | `SELECT current_time` |
 | `current_timestamp` | 0 | Current datetime | `SELECT current_timestamp` |
 
+
 ### Blob Functions (1 function)
 | Function | Args | Description | Example |
 |----------|------|-------------|---------|
@@ -111,6 +113,7 @@ SELECT replace('hello world', 'world', 'SQLite');  -- 'hello SQLite'
 -- Clean whitespace
 SELECT trim('  hello  ');  -- 'hello'
 ```
+
 
 ### Type Checking and Conversion
 ```sql
@@ -154,6 +157,7 @@ SELECT sum(amount), total(amount) FROM sales;
 -- Concatenate strings
 SELECT group_concat(name, ', ') FROM users;
 ```
+
 
 ### Date/Time Operations
 ```sql

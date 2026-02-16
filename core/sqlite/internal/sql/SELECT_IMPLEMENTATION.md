@@ -243,6 +243,7 @@ OP_Found distinct_idx, loop, record_reg
 OP_IdxInsert distinct_idx, record_reg
 ```
 
+
 #### 3.6 ORDER BY (if present)
 ```
 [evaluate ORDER BY expressions]
@@ -274,6 +275,7 @@ OP_Integer limit_value, limit_reg
 OP_AddImm limit_reg, -1
 OP_IfNot limit_reg, done_label
 ```
+
 
 #### 3.10 Loop Control
 ```

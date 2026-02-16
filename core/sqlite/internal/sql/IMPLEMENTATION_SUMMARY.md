@@ -277,6 +277,7 @@ type Value struct {
 }
 ```
 
+
 ### Program Structure
 ```go
 type Program struct {
@@ -292,6 +293,7 @@ type Instruction struct {
     Comment string
 }
 ```
+
 
 ### Expression System
 ```go

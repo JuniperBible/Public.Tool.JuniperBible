@@ -84,6 +84,7 @@ Complete implementation of SELECT statement compilation to VDBE bytecode for a p
 ✅ Column aliases (AS clause)
 ✅ Computed columns (expressions)
 
+
 ### Aggregate Functions
 ✅ COUNT(*) and COUNT(expr)
 ✅ SUM(expr)

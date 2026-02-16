@@ -16,15 +16,19 @@ The implementation is based on the SQLite 3.51.2 reference specification and aim
 ## Documentation
 
 ### [Architecture](./ARCHITECTURE.md)
+
 System architecture, component diagram, data flow, and package dependencies.
 
 ### [API Reference](./API.md)
+
 Public API documentation for the `core/sqlite` package.
 
 ### [Implementation Details](./IMPLEMENTATION.md)
+
 File format compatibility, SQL support matrix, limitations, and performance characteristics.
 
 ### [Migration Guide](./MIGRATION.md)
+
 Guide for migrating from modernc.org/sqlite or mattn/go-sqlite3, with API compatibility notes.
 
 ## Quick Start

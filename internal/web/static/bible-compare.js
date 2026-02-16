@@ -58,10 +58,11 @@ function highlightSearchTermInElement(element, searchTerm) {
   );
 
   const nodesToReplace = [];
-  let node;
+  let node = walker.nextNode();
 
-  while (node = walker.nextNode()) {
+  while (node) {
     nodesToReplace.push(node);
+    node = walker.nextNode();
   }
 
   // ReDoS mitigation: wrap RegExp creation in try-catch
@@ -427,10 +428,11 @@ function highlightDifferences() {
       );
 
       const nodesToReplace = [];
-      let node;
+      let node = walker.nextNode();
 
-      while (node = walker.nextNode()) {
+      while (node) {
         nodesToReplace.push(node);
+        node = walker.nextNode();
       }
 
       nodesToReplace.forEach(textNode => {
@@ -455,8 +457,10 @@ function highlightDifferences() {
             const regex = new RegExp(`\\b${escapeRegex(word)}\\b`, 'gi');
             let match;
             regex.lastIndex = 0;
-            while ((match = regex.exec(text)) !== null) {
+            let match = regex.exec(text);
+            while (match !== null) {
               hasMatch = true;
+              match = regex.exec(text);
             }
           } catch (e) {
             console.error('Invalid word for regex highlighting:', e);

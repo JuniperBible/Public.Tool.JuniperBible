@@ -354,10 +354,11 @@ function highlightSearchTermInElement(element, searchTerm) {
   );
 
   const nodesToReplace = [];
-  let node;
+  let node = walker.nextNode();
 
-  while (node = walker.nextNode()) {
+  while (node) {
     nodesToReplace.push(node);
+    node = walker.nextNode();
   }
 
   const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');

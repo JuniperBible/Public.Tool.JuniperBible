@@ -41,7 +41,7 @@ func TestHandleDetect(t *testing.T) {
 			setupFunc: func(t *testing.T) string {
 				dir := t.TempDir()
 				file := filepath.Join(dir, "test.txt")
-				if err := os.WriteFile(file, []byte("test"), 0644); err != nil {
+				if err := os.WriteFile(file, []byte("test"), 0600); err != nil {
 					t.Fatal(err)
 				}
 				return file
@@ -191,8 +191,8 @@ func TestHandleEnumerate(t *testing.T) {
 			name: "directory with files",
 			setupFunc: func(t *testing.T) string {
 				dir := t.TempDir()
-				os.WriteFile(filepath.Join(dir, "file1.txt"), []byte("content1"), 0644)
-				os.WriteFile(filepath.Join(dir, "file2.txt"), []byte("content2"), 0644)
+				os.WriteFile(filepath.Join(dir, "file1.txt"), []byte("content1"), 0600)
+				os.WriteFile(filepath.Join(dir, "file2.txt"), []byte("content2"), 0600)
 				return dir
 			},
 			args: func() map[string]interface{} {
@@ -236,8 +236,8 @@ func TestHandleEnumerate(t *testing.T) {
 				dir := t.TempDir()
 				subdir := filepath.Join(dir, "subdir")
 				os.MkdirAll(subdir, 0755)
-				os.WriteFile(filepath.Join(dir, "root.txt"), []byte("root"), 0644)
-				os.WriteFile(filepath.Join(subdir, "nested.txt"), []byte("nested"), 0644)
+				os.WriteFile(filepath.Join(dir, "root.txt"), []byte("root"), 0600)
+				os.WriteFile(filepath.Join(subdir, "nested.txt"), []byte("nested"), 0600)
 				return dir
 			},
 			args: func() map[string]interface{} {
@@ -272,7 +272,7 @@ func TestHandleEnumerate(t *testing.T) {
 				level2 := filepath.Join(level1, "level2")
 				level3 := filepath.Join(level2, "level3")
 				os.MkdirAll(level3, 0755)
-				os.WriteFile(filepath.Join(level3, "deep.txt"), []byte("deep"), 0644)
+				os.WriteFile(filepath.Join(level3, "deep.txt"), []byte("deep"), 0600)
 				return dir
 			},
 			args: func() map[string]interface{} {
@@ -407,8 +407,8 @@ func TestHandleIngest(t *testing.T) {
 			setupFunc: func(t *testing.T) (string, string) {
 				dir := t.TempDir()
 				outputDir := t.TempDir()
-				os.WriteFile(filepath.Join(dir, "file1.txt"), []byte("content1"), 0644)
-				os.WriteFile(filepath.Join(dir, "file2.txt"), []byte("content2"), 0644)
+				os.WriteFile(filepath.Join(dir, "file1.txt"), []byte("content1"), 0600)
+				os.WriteFile(filepath.Join(dir, "file2.txt"), []byte("content2"), 0600)
 				return dir, outputDir
 			},
 			args: func() map[string]interface{} {
@@ -453,8 +453,8 @@ func TestHandleIngest(t *testing.T) {
 				outputDir := t.TempDir()
 				subdir := filepath.Join(dir, "subdir")
 				os.MkdirAll(subdir, 0755)
-				os.WriteFile(filepath.Join(dir, "root.txt"), []byte("root content"), 0644)
-				os.WriteFile(filepath.Join(subdir, "nested.txt"), []byte("nested content"), 0644)
+				os.WriteFile(filepath.Join(dir, "root.txt"), []byte("root content"), 0600)
+				os.WriteFile(filepath.Join(subdir, "nested.txt"), []byte("nested content"), 0600)
 				return dir, outputDir
 			},
 			args: func() map[string]interface{} {
@@ -526,7 +526,7 @@ func TestHandleIngest(t *testing.T) {
 			setupFunc: func(t *testing.T) (string, string) {
 				dir := t.TempDir()
 				outputDir := t.TempDir()
-				os.WriteFile(filepath.Join(dir, "file.txt"), []byte("12345"), 0644)
+				os.WriteFile(filepath.Join(dir, "file.txt"), []byte("12345"), 0600)
 				return dir, outputDir
 			},
 			args: func() map[string]interface{} {
@@ -1009,7 +1009,7 @@ func TestSymlinkHandling(t *testing.T) {
 
 	dir := t.TempDir()
 	file := filepath.Join(dir, "original.txt")
-	os.WriteFile(file, []byte("content"), 0644)
+	os.WriteFile(file, []byte("content"), 0600)
 
 	link := filepath.Join(dir, "link.txt")
 	if err := os.Symlink(file, link); err != nil {

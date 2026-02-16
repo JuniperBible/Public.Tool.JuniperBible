@@ -155,7 +155,7 @@ func (c *LocalConfig) SaveInstallConf(sources []Source) error {
 	}
 
 	confPath := filepath.Join(c.ModsDir(), "install.conf")
-	return os.WriteFile(confPath, []byte(sb.String()), 0644)
+	return os.WriteFile(confPath, []byte(sb.String()), 0600)
 }
 
 // LoadInstallConf loads the sources configuration from install.conf

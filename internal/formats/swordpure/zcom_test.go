@@ -36,7 +36,7 @@ CompressType=ZIP
 Versification=KJV
 `
 	confPath := filepath.Join(modsDir, "testcom.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -58,7 +58,7 @@ Versification=KJV
 
 	// Write .bzz (compressed data)
 	bzzPath := filepath.Join(dataDir, "ot.bzz")
-	if err := os.WriteFile(bzzPath, compressed, 0644); err != nil {
+	if err := os.WriteFile(bzzPath, compressed, 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -69,7 +69,7 @@ Versification=KJV
 	binary.LittleEndian.PutUint32(bzsData[8:12], uint32(len(commentaryText)))
 
 	bzsPath := filepath.Join(dataDir, "ot.bzs")
-	if err := os.WriteFile(bzsPath, bzsData, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzsData, 0600); err != nil {
 		t.Fatalf("failed to write bzs: %v", err)
 	}
 
@@ -91,7 +91,7 @@ Versification=KJV
 	binary.LittleEndian.PutUint16(bzvData[48:50], uint16(len(commentaryText)))
 
 	bzvPath := filepath.Join(dataDir, "ot.bzv")
-	if err := os.WriteFile(bzvPath, bzvData, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzvData, 0600); err != nil {
 		t.Fatalf("failed to write bzv: %v", err)
 	}
 
@@ -349,7 +349,7 @@ func TestReadBlock(t *testing.T) {
 	compressed := buf.Bytes()
 
 	bzzPath := filepath.Join(tmpDir, "test.bzz")
-	if err := os.WriteFile(bzzPath, compressed, 0644); err != nil {
+	if err := os.WriteFile(bzzPath, compressed, 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -547,7 +547,7 @@ Description=NT Commentary Module
 CompressType=ZIP
 `
 	confPath := filepath.Join(modsDir, "ntcom.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -567,7 +567,7 @@ CompressType=ZIP
 
 	// Write NT .bzz
 	bzzPath := filepath.Join(dataDir, "nt.bzz")
-	if err := os.WriteFile(bzzPath, compressed, 0644); err != nil {
+	if err := os.WriteFile(bzzPath, compressed, 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -578,7 +578,7 @@ CompressType=ZIP
 	binary.LittleEndian.PutUint32(bzsData[8:12], uint32(len(commentaryText)))
 
 	bzsPath := filepath.Join(dataDir, "nt.bzs")
-	if err := os.WriteFile(bzsPath, bzsData, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzsData, 0600); err != nil {
 		t.Fatalf("failed to write bzs: %v", err)
 	}
 
@@ -598,7 +598,7 @@ CompressType=ZIP
 	binary.LittleEndian.PutUint16(bzvData[48:50], uint16(len(commentaryText)))
 
 	bzvPath := filepath.Join(dataDir, "nt.bzv")
-	if err := os.WriteFile(bzvPath, bzvData, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzvData, 0600); err != nil {
 		t.Fatalf("failed to write bzv: %v", err)
 	}
 
@@ -676,12 +676,12 @@ func TestZComParserLoadBadBzsPath(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzsData[4:8], 100)
 	binary.LittleEndian.PutUint32(bzsData[8:12], 200)
 
-	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzs"), bzsData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzs"), bzsData, 0600); err != nil {
 		t.Fatalf("failed to write bzs: %v", err)
 	}
 
 	// Create invalid .bzv (truncated)
-	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzv"), []byte{1, 2, 3}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzv"), []byte{1, 2, 3}, 0600); err != nil {
 		t.Fatalf("failed to write bzv: %v", err)
 	}
 
@@ -704,7 +704,7 @@ func TestReadBlockSeekError(t *testing.T) {
 
 	// Create a small file
 	bzzPath := filepath.Join(tmpDir, "test.bzz")
-	if err := os.WriteFile(bzzPath, []byte("small"), 0644); err != nil {
+	if err := os.WriteFile(bzzPath, []byte("small"), 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -730,7 +730,7 @@ func TestReadBlockInvalidZlib(t *testing.T) {
 
 	// Create file with invalid zlib data
 	bzzPath := filepath.Join(tmpDir, "test.bzz")
-	if err := os.WriteFile(bzzPath, []byte("not valid zlib data here!"), 0644); err != nil {
+	if err := os.WriteFile(bzzPath, []byte("not valid zlib data here!"), 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 

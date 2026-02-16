@@ -30,7 +30,7 @@ func TestDetect_TheWordFile(t *testing.T) {
 	h := &Handler{}
 
 	file := filepath.Join(tmpDir, "test.ont")
-	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -52,7 +52,7 @@ func TestDetect_NonTheWordFile(t *testing.T) {
 	h := &Handler{}
 
 	file := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -105,7 +105,7 @@ func TestIngest_TheWordFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.ont")
 	content := []byte("test TheWord content")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -155,7 +155,7 @@ func TestEnumerate_TheWordFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.ont")
 	content := []byte("test content")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

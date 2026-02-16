@@ -35,7 +35,7 @@ func TestByteEqualCheck(t *testing.T) {
 	// Create and ingest a test file
 	testContent := []byte("Test content for byte equality check")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -66,7 +66,7 @@ func TestByteEqualCheck(t *testing.T) {
 	}
 
 	// Modify exported file and check again
-	if err := os.WriteFile(exportPath, []byte("Modified content"), 0644); err != nil {
+	if err := os.WriteFile(exportPath, []byte("Modified content"), 0600); err != nil {
 		t.Fatalf("failed to modify file: %v", err)
 	}
 
@@ -97,7 +97,7 @@ func TestPlanExecution(t *testing.T) {
 
 	testContent := []byte("Plan execution test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -168,7 +168,7 @@ func TestReportGeneration(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -514,7 +514,7 @@ func TestIdentityBytesPlanExecution(t *testing.T) {
 
 	testContent := []byte("Identity bytes plan test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -601,7 +601,7 @@ func TestNewExecutorWithPlugins(t *testing.T) {
 	// Verify executor can still run basic plans
 	testContent := []byte("Test with plugins executor")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -925,7 +925,7 @@ func TestExtractIRStep(t *testing.T) {
 
 	testContent := []byte("Test content for IR extraction")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1012,7 +1012,7 @@ func TestEmitNativeStep(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1107,7 +1107,7 @@ func TestCompareIRStep(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1210,7 +1210,7 @@ func TestIRStructureEqualCheck(t *testing.T) {
 
 	testContent := []byte("Test content for IR structure check")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1315,7 +1315,7 @@ func TestIRRoundtripCheck(t *testing.T) {
 
 	testContent := []byte("Test content for IR roundtrip")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1379,7 +1379,7 @@ func TestIRFidelityCheck(t *testing.T) {
 
 	testContent := []byte("Test content for IR fidelity")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1476,7 +1476,7 @@ func TestIRFidelityCheckWithLossBudget(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1541,7 +1541,7 @@ func TestIRFidelityCheckFailsWithHighLossClass(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1557,7 +1557,7 @@ func TestIRFidelityCheckFailsWithHighLossClass(t *testing.T) {
 	}
 	irPath := filepath.Join(irDir, "high_loss.ir.json")
 	irContent := []byte(`{"loss_class": "L3", "data": "test"}`)
-	if err := os.WriteFile(irPath, irContent, 0644); err != nil {
+	if err := os.WriteFile(irPath, irContent, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -1615,13 +1615,13 @@ func TestIRStructureEqualCheckFail(t *testing.T) {
 	// Create two different test files
 	testContent1 := []byte("Content A")
 	testPath1 := filepath.Join(tempDir, "test1.txt")
-	if err := os.WriteFile(testPath1, testContent1, 0644); err != nil {
+	if err := os.WriteFile(testPath1, testContent1, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
 	testContent2 := []byte("Content B - different")
 	testPath2 := filepath.Join(tempDir, "test2.txt")
-	if err := os.WriteFile(testPath2, testContent2, 0644); err != nil {
+	if err := os.WriteFile(testPath2, testContent2, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1695,7 +1695,7 @@ func TestByteEqualCheckWithOutputs(t *testing.T) {
 
 	testContent := []byte("Test content for byte check with outputs")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1756,7 +1756,7 @@ func TestExtractIRStepWithPreviousOutput(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1815,7 +1815,7 @@ func TestExportStepDerivedMode(t *testing.T) {
 
 	testContent := []byte("Test content for derived export")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1862,7 +1862,7 @@ func TestByteEqualCheckMissingFile(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1929,10 +1929,10 @@ func TestTranscriptEqualCheckWithOutputs(t *testing.T) {
 	t1Path := filepath.Join(tempDir, "t1.json")
 	t2Path := filepath.Join(tempDir, "t2.json")
 
-	if err := os.WriteFile(t1Path, transcript1, 0644); err != nil {
+	if err := os.WriteFile(t1Path, transcript1, 0600); err != nil {
 		t.Fatalf("failed to write transcript 1: %v", err)
 	}
-	if err := os.WriteFile(t2Path, transcript2, 0644); err != nil {
+	if err := os.WriteFile(t2Path, transcript2, 0600); err != nil {
 		t.Fatalf("failed to write transcript 2: %v", err)
 	}
 
@@ -2017,7 +2017,7 @@ func TestTranscriptEqualCheckMixedSources(t *testing.T) {
 
 	// Create a transcript file for output
 	tPath := filepath.Join(tempDir, "t.json")
-	if err := os.WriteFile(tPath, transcript, 0644); err != nil {
+	if err := os.WriteFile(tPath, transcript, 0600); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 
@@ -2078,7 +2078,7 @@ func TestIRFidelityCheckInvalidJSON(t *testing.T) {
 
 	// Create an invalid IR file
 	invalidIRPath := filepath.Join(tempDir, "invalid.ir.json")
-	if err := os.WriteFile(invalidIRPath, []byte("not valid json{{{"), 0644); err != nil {
+	if err := os.WriteFile(invalidIRPath, []byte("not valid json{{{"), 0600); err != nil {
 		t.Fatalf("failed to write invalid IR: %v", err)
 	}
 
@@ -2145,12 +2145,12 @@ func TestByteEqualCheckBothArtifacts(t *testing.T) {
 	content := []byte("Identical content")
 
 	path1 := filepath.Join(tempDir, "file1.txt")
-	if err := os.WriteFile(path1, content, 0644); err != nil {
+	if err := os.WriteFile(path1, content, 0600); err != nil {
 		t.Fatalf("failed to write file1: %v", err)
 	}
 
 	path2 := filepath.Join(tempDir, "file2.txt")
-	if err := os.WriteFile(path2, content, 0644); err != nil {
+	if err := os.WriteFile(path2, content, 0600); err != nil {
 		t.Fatalf("failed to write file2: %v", err)
 	}
 
@@ -2206,7 +2206,7 @@ func TestIRStructureEqualCheckReadError(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -2263,7 +2263,7 @@ func TestCompareIRStepReadError(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -2318,7 +2318,7 @@ func TestExtractIRStepWithNoPlugin(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -2369,7 +2369,7 @@ func TestEmitNativeStepWithNoPlugin(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -2515,7 +2515,7 @@ func TestIRFidelityCheckWithLossClassL1(t *testing.T) {
 	// Create an IR file with L1 loss class
 	irContent := []byte(`{"loss_class": "L1", "data": "test"}`)
 	irPath := filepath.Join(tempDir, "l1.ir.json")
-	if err := os.WriteFile(irPath, irContent, 0644); err != nil {
+	if err := os.WriteFile(irPath, irContent, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -2577,7 +2577,7 @@ func TestIRFidelityCheckExceedsLossClass(t *testing.T) {
 	// Create an IR file with L2 loss class
 	irContent := []byte(`{"loss_class": "L2", "data": "test"}`)
 	irPath := filepath.Join(tempDir, "l2.ir.json")
-	if err := os.WriteFile(irPath, irContent, 0644); err != nil {
+	if err := os.WriteFile(irPath, irContent, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -2638,7 +2638,7 @@ func TestByteEqualCheckBothArtifactsRetrieveError(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -2743,7 +2743,7 @@ func TestByteEqualCheckReadOutputError(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -2807,7 +2807,7 @@ func TestIRStructureEqualCheckFirstReadError(t *testing.T) {
 
 	testContent := []byte("Test content")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -2915,7 +2915,7 @@ func createTestPluginWithKind(t *testing.T, baseDir, name, kind string) {
 	}
 
 	manifestPath := filepath.Join(pluginPath, "plugin.json")
-	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
+	if err := os.WriteFile(manifestPath, manifestData, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -3113,7 +3113,7 @@ func TestRunToolStepWithArtifactInput(t *testing.T) {
 
 	// Create a test file and ingest it as artifact
 	testFilePath := filepath.Join(tempDir, "test-input.dat")
-	if err := os.WriteFile(testFilePath, []byte("test artifact data"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test artifact data"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -3235,7 +3235,7 @@ func TestRunToolStepWithTranscript(t *testing.T) {
 		Entrypoint: "plugin.sh",
 	}
 	manifestData, _ := json.Marshal(manifest)
-	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.json"), manifestData, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -3326,7 +3326,7 @@ func TestRunToolStepErrorResponse(t *testing.T) {
 		Entrypoint: "plugin.sh",
 	}
 	manifestData, _ := json.Marshal(manifest)
-	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.json"), manifestData, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -3417,7 +3417,7 @@ func TestRunToolStepInputDirError(t *testing.T) {
 	// Create a file where the input directory should be created
 	// This will cause MkdirAll to fail
 	blockingFile := filepath.Join(execTempDir, "tool_output_inputs")
-	if err := os.WriteFile(blockingFile, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(blockingFile, []byte("blocking"), 0600); err != nil {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
@@ -3487,7 +3487,7 @@ func TestRunToolStepOutputDirError(t *testing.T) {
 	// Create a file where the output directory should be created
 	// This will cause MkdirAll to fail
 	blockingFile := filepath.Join(execTempDir, "tool_output_output")
-	if err := os.WriteFile(blockingFile, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(blockingFile, []byte("blocking"), 0600); err != nil {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
@@ -3550,7 +3550,7 @@ func TestRunToolStepEmptyOriginalName(t *testing.T) {
 
 	// Create a test file and ingest it
 	testFilePath := filepath.Join(tempDir, "test-input.dat")
-	if err := os.WriteFile(testFilePath, []byte("test artifact data"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test artifact data"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -3673,7 +3673,7 @@ func TestRunToolStepPluginExecutionFailure(t *testing.T) {
 		Entrypoint: "plugin.sh",
 	}
 	manifestData, _ := json.Marshal(manifest)
-	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.json"), manifestData, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -3681,7 +3681,7 @@ func TestRunToolStepPluginExecutionFailure(t *testing.T) {
 	scriptContent := `#!/usr/bin/env sh
 echo '{"status":"ok"}'
 `
-	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.sh"), []byte(scriptContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.sh"), []byte(scriptContent), 0600); err != nil {
 		t.Fatalf("failed to write entrypoint: %v", err)
 	}
 
@@ -3748,7 +3748,7 @@ func createTestPluginWithIRSupport(t *testing.T, baseDir, name string, canExtrac
 	}
 
 	manifestPath := filepath.Join(pluginPath, "plugin.json")
-	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
+	if err := os.WriteFile(manifestPath, manifestData, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -3805,7 +3805,7 @@ func TestExtractIRStepWithPlugin(t *testing.T) {
 
 	// Create a test file and ingest it
 	testFilePath := filepath.Join(tempDir, "test-input.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -3899,7 +3899,7 @@ func TestExtractIRStepMkdirError(t *testing.T) {
 
 	// Create a test file and ingest it
 	testFilePath := filepath.Join(tempDir, "test-input.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -3915,7 +3915,7 @@ func TestExtractIRStepMkdirError(t *testing.T) {
 
 	// Create a file where the IR output directory should be created
 	blockingFile := filepath.Join(execTempDir, "ir_output_ir")
-	if err := os.WriteFile(blockingFile, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(blockingFile, []byte("blocking"), 0600); err != nil {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
@@ -3953,7 +3953,7 @@ func TestExtractIRStepWriteError(t *testing.T) {
 
 	// Create a test file and ingest it
 	testFilePath := filepath.Join(tempDir, "test-input.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -4023,12 +4023,12 @@ func TestExtractIRStepPluginExecutionError(t *testing.T) {
 		},
 	}
 	manifestData, _ := json.Marshal(manifest)
-	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.json"), manifestData, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
 	// Create non-executable plugin script
-	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.sh"), []byte("#!/bin/sh\nexit 1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.sh"), []byte("#!/bin/sh\nexit 1"), 0600); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -4045,7 +4045,7 @@ func TestExtractIRStepPluginExecutionError(t *testing.T) {
 
 	// Create a test file and ingest it
 	testFilePath := filepath.Join(tempDir, "test-input.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -4110,7 +4110,7 @@ func TestExtractIRStepPluginParseError(t *testing.T) {
 		},
 	}
 	manifestData, _ := json.Marshal(manifest)
-	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.json"), manifestData, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -4136,7 +4136,7 @@ echo '{"status":"error","error":"intentional test error"}'
 
 	// Create a test file and ingest it
 	testFilePath := filepath.Join(tempDir, "test-input.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -4197,7 +4197,7 @@ func TestEmitNativeStepWithPlugin(t *testing.T) {
 
 	// Create a test file and ingest it
 	testFilePath := filepath.Join(tempDir, "test-input.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -4259,13 +4259,13 @@ func TestEmitNativeStepMkdirError(t *testing.T) {
 
 	// Create an IR file
 	irPath := filepath.Join(execTempDir, "test.ir.json")
-	if err := os.WriteFile(irPath, []byte(`{"type":"document"}`), 0644); err != nil {
+	if err := os.WriteFile(irPath, []byte(`{"type":"document"}`), 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
 	// Create a file where the native output directory should be created
 	blockingFile := filepath.Join(execTempDir, "native_output_native")
-	if err := os.WriteFile(blockingFile, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(blockingFile, []byte("blocking"), 0600); err != nil {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
@@ -4348,7 +4348,7 @@ func TestEmitNativeStepWriteError(t *testing.T) {
 
 	// Create an IR file
 	irPath := filepath.Join(execTempDir, "test.ir.json")
-	if err := os.WriteFile(irPath, []byte(`{"type":"document"}`), 0644); err != nil {
+	if err := os.WriteFile(irPath, []byte(`{"type":"document"}`), 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -4408,12 +4408,12 @@ func TestEmitNativeStepPluginExecutionError(t *testing.T) {
 		},
 	}
 	manifestData, _ := json.Marshal(manifest)
-	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.json"), manifestData, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
 	// Create non-executable plugin script
-	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.sh"), []byte("#!/bin/sh\nexit 1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.sh"), []byte("#!/bin/sh\nexit 1"), 0600); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -4430,7 +4430,7 @@ func TestEmitNativeStepPluginExecutionError(t *testing.T) {
 
 	// Create a test file and ingest it
 	testFilePath := filepath.Join(tempDir, "test-input.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -4502,7 +4502,7 @@ func TestEmitNativeStepPluginParseError(t *testing.T) {
 		},
 	}
 	manifestData, _ := json.Marshal(manifest)
-	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.json"), manifestData, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -4527,7 +4527,7 @@ echo '{"status":"error","error":"intentional test error"}'
 
 	// Create a test file and ingest it
 	testFilePath := filepath.Join(tempDir, "test-input.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -4589,7 +4589,7 @@ func TestCompareIRStepReadErrorA(t *testing.T) {
 
 	// Create IR B file but not IR A
 	irBPath := filepath.Join(execTempDir, "ir_b.json")
-	if err := os.WriteFile(irBPath, []byte(`{"type":"document"}`), 0644); err != nil {
+	if err := os.WriteFile(irBPath, []byte(`{"type":"document"}`), 0600); err != nil {
 		t.Fatalf("failed to write IR B file: %v", err)
 	}
 
@@ -4637,7 +4637,7 @@ func TestCompareIRStepReadErrorB(t *testing.T) {
 
 	// Create IR A file but not IR B
 	irAPath := filepath.Join(execTempDir, "ir_a.json")
-	if err := os.WriteFile(irAPath, []byte(`{"type":"document"}`), 0644); err != nil {
+	if err := os.WriteFile(irAPath, []byte(`{"type":"document"}`), 0600); err != nil {
 		t.Fatalf("failed to write IR A file: %v", err)
 	}
 
@@ -4679,7 +4679,7 @@ func TestByteEqualCheckOutputReadError(t *testing.T) {
 
 	// Create a test file and ingest it as artifact A
 	testFilePath := filepath.Join(tempDir, "test-input.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -4778,7 +4778,7 @@ func TestTranscriptEqualCheckOutputReadErrorB(t *testing.T) {
 
 	// Create a valid transcript file for A
 	transcriptPath := filepath.Join(tempDir, "transcript_a.jsonl")
-	if err := os.WriteFile(transcriptPath, []byte(`{"event":"test"}`), 0644); err != nil {
+	if err := os.WriteFile(transcriptPath, []byte(`{"event":"test"}`), 0600); err != nil {
 		t.Fatalf("failed to write transcript file: %v", err)
 	}
 
@@ -4873,7 +4873,7 @@ func TestIRStructureEqualCheckReadErrorB(t *testing.T) {
 
 	// Create a valid IR A file
 	irAPath := filepath.Join(tempDir, "ir_a.json")
-	if err := os.WriteFile(irAPath, []byte(`{"type":"document","content":[]}`), 0644); err != nil {
+	if err := os.WriteFile(irAPath, []byte(`{"type":"document","content":[]}`), 0600); err != nil {
 		t.Fatalf("failed to write IR A file: %v", err)
 	}
 
@@ -4973,10 +4973,10 @@ func TestCompareIRStepWriteErrorActual(t *testing.T) {
 	// Create IR A and IR B files
 	irAPath := filepath.Join(execTempDir, "ir_a.json")
 	irBPath := filepath.Join(execTempDir, "ir_b.json")
-	if err := os.WriteFile(irAPath, []byte(`{"type":"document"}`), 0644); err != nil {
+	if err := os.WriteFile(irAPath, []byte(`{"type":"document"}`), 0600); err != nil {
 		t.Fatalf("failed to write IR A file: %v", err)
 	}
-	if err := os.WriteFile(irBPath, []byte(`{"type":"document"}`), 0644); err != nil {
+	if err := os.WriteFile(irBPath, []byte(`{"type":"document"}`), 0600); err != nil {
 		t.Fatalf("failed to write IR B file: %v", err)
 	}
 
@@ -5025,7 +5025,7 @@ func TestByteEqualCheckValidatorSuccess(t *testing.T) {
 	// Create a test file and ingest it as an artifact
 	testData := []byte("test content")
 	testFile := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFile, testData, 0644); err != nil {
+	if err := os.WriteFile(testFile, testData, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -5037,7 +5037,7 @@ func TestByteEqualCheckValidatorSuccess(t *testing.T) {
 
 	// Create matching file for comparison
 	comparisonFile := filepath.Join(tempDir, "comparison.txt")
-	if err := os.WriteFile(comparisonFile, testData, 0644); err != nil {
+	if err := os.WriteFile(comparisonFile, testData, 0600); err != nil {
 		t.Fatalf("failed to write comparison file: %v", err)
 	}
 
@@ -5099,7 +5099,7 @@ func TestByteEqualCheckValidatorReadFileError(t *testing.T) {
 
 	// Create and ingest an artifact
 	testFile := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -5140,7 +5140,7 @@ func TestByteEqualCheckTwoArtifacts(t *testing.T) {
 	// Create and ingest first artifact
 	testFileA := filepath.Join(tempDir, "testA.txt")
 	testData := []byte("test content")
-	if err := os.WriteFile(testFileA, testData, 0644); err != nil {
+	if err := os.WriteFile(testFileA, testData, 0600); err != nil {
 		t.Fatalf("failed to write test file A: %v", err)
 	}
 
@@ -5152,7 +5152,7 @@ func TestByteEqualCheckTwoArtifacts(t *testing.T) {
 
 	// Create and ingest second artifact with same content
 	testFileB := filepath.Join(tempDir, "testB.txt")
-	if err := os.WriteFile(testFileB, testData, 0644); err != nil {
+	if err := os.WriteFile(testFileB, testData, 0600); err != nil {
 		t.Fatalf("failed to write test file B: %v", err)
 	}
 
@@ -5206,7 +5206,7 @@ func TestByteEqualCheckArtifactBRetrieveError(t *testing.T) {
 
 	// Create and ingest first artifact
 	testFileA := filepath.Join(tempDir, "testA.txt")
-	if err := os.WriteFile(testFileA, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFileA, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file A: %v", err)
 	}
 
@@ -5262,7 +5262,7 @@ func TestByteEqualCheckArtifactBNotFound(t *testing.T) {
 
 	// Create and ingest first artifact
 	testFileA := filepath.Join(tempDir, "testA.txt")
-	if err := os.WriteFile(testFileA, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFileA, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file A: %v", err)
 	}
 

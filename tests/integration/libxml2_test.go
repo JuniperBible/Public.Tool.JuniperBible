@@ -61,7 +61,7 @@ func TestXMLLintValidate(t *testing.T) {
 </root>`
 
 	validPath := filepath.Join(tempDir, "valid.xml")
-	if err := os.WriteFile(validPath, []byte(validXML), 0644); err != nil {
+	if err := os.WriteFile(validPath, []byte(validXML), 0600); err != nil {
 		t.Fatalf("failed to write XML: %v", err)
 	}
 
@@ -79,7 +79,7 @@ func TestXMLLintValidate(t *testing.T) {
 </root>`
 
 	invalidPath := filepath.Join(tempDir, "invalid.xml")
-	if err := os.WriteFile(invalidPath, []byte(invalidXML), 0644); err != nil {
+	if err := os.WriteFile(invalidPath, []byte(invalidXML), 0600); err != nil {
 		t.Fatalf("failed to write invalid XML: %v", err)
 	}
 
@@ -118,7 +118,7 @@ func TestXMLLintXPath(t *testing.T) {
 </library>`
 
 	xmlPath := filepath.Join(tempDir, "library.xml")
-	if err := os.WriteFile(xmlPath, []byte(xmlContent), 0644); err != nil {
+	if err := os.WriteFile(xmlPath, []byte(xmlContent), 0600); err != nil {
 		t.Fatalf("failed to write XML: %v", err)
 	}
 
@@ -163,7 +163,7 @@ func TestXMLLintFormat(t *testing.T) {
 	uglyXML := `<?xml version="1.0"?><root><item>One</item><item>Two</item></root>`
 
 	xmlPath := filepath.Join(tempDir, "ugly.xml")
-	if err := os.WriteFile(xmlPath, []byte(uglyXML), 0644); err != nil {
+	if err := os.WriteFile(xmlPath, []byte(uglyXML), 0600); err != nil {
 		t.Fatalf("failed to write XML: %v", err)
 	}
 
@@ -204,7 +204,7 @@ func TestXSLTProc(t *testing.T) {
 </books>`
 
 	xmlPath := filepath.Join(tempDir, "books.xml")
-	if err := os.WriteFile(xmlPath, []byte(xmlContent), 0644); err != nil {
+	if err := os.WriteFile(xmlPath, []byte(xmlContent), 0600); err != nil {
 		t.Fatalf("failed to write XML: %v", err)
 	}
 
@@ -227,7 +227,7 @@ func TestXSLTProc(t *testing.T) {
 </xsl:stylesheet>`
 
 	xsltPath := filepath.Join(tempDir, "transform.xslt")
-	if err := os.WriteFile(xsltPath, []byte(xsltContent), 0644); err != nil {
+	if err := os.WriteFile(xsltPath, []byte(xsltContent), 0600); err != nil {
 		t.Fatalf("failed to write XSLT: %v", err)
 	}
 

@@ -47,7 +47,7 @@ In the beginning`,
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			testFile := filepath.Join(tmpDir, "test.txt")
-			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(testFile, []byte(tt.content), 0600); err != nil {
 				t.Fatalf("failed to write test file: %v", err)
 			}
 
@@ -113,7 +113,7 @@ func TestIngest(t *testing.T) {
 1:1 Βίβλος γενέσεως Ἰησοῦ Χριστοῦ`
 
 	testFile := filepath.Join(tmpDir, "tischendorf.txt")
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -181,7 +181,7 @@ func TestExtractIR(t *testing.T) {
 1:2 Ἀβραὰμ ἐγέννησεν τὸν Ἰσαάκ`
 
 	testFile := filepath.Join(tmpDir, "tischendorf.txt")
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -285,7 +285,7 @@ func TestEmitNative(t *testing.T) {
 		t.Fatalf("failed to marshal IR: %v", err)
 	}
 
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 

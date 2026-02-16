@@ -23,7 +23,7 @@ func TestParseTranscriptScannerError(t *testing.T) {
 	content := `{"t":"ENGINE_INFO","seq":0}
 {"t":"MODULE_DISCOVERED","seq":1,"module":"Test"}
 `
-	if err := os.WriteFile(transcriptPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(transcriptPath, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 

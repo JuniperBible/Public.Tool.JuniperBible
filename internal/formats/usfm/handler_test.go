@@ -36,7 +36,7 @@ func TestDetect(t *testing.T) {
 		content := `\id GEN
 \c 1
 \v 1 In the beginning`
-		if err := os.WriteFile(usfmFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usfmFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -54,7 +54,7 @@ func TestDetect(t *testing.T) {
 
 	t.Run("usfm extension detected", func(t *testing.T) {
 		usfmFile := filepath.Join(tmpDir, "test.usfm")
-		if err := os.WriteFile(usfmFile, []byte("plain text"), 0644); err != nil {
+		if err := os.WriteFile(usfmFile, []byte("plain text"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -69,7 +69,7 @@ func TestDetect(t *testing.T) {
 
 	t.Run("sfm extension detected", func(t *testing.T) {
 		sfmFile := filepath.Join(tmpDir, "test.sfm")
-		if err := os.WriteFile(sfmFile, []byte("plain text"), 0644); err != nil {
+		if err := os.WriteFile(sfmFile, []byte("plain text"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -84,7 +84,7 @@ func TestDetect(t *testing.T) {
 
 	t.Run("ptx extension detected", func(t *testing.T) {
 		ptxFile := filepath.Join(tmpDir, "test.ptx")
-		if err := os.WriteFile(ptxFile, []byte("plain text"), 0644); err != nil {
+		if err := os.WriteFile(ptxFile, []byte("plain text"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -99,7 +99,7 @@ func TestDetect(t *testing.T) {
 
 	t.Run("not usfm file", func(t *testing.T) {
 		txtFile := filepath.Join(tmpDir, "test.txt")
-		if err := os.WriteFile(txtFile, []byte("plain text without markers"), 0644); err != nil {
+		if err := os.WriteFile(txtFile, []byte("plain text without markers"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -150,7 +150,7 @@ func TestIngest(t *testing.T) {
 		content := `\id GEN English
 \c 1
 \v 1 In the beginning`
-		if err := os.WriteFile(usfmFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usfmFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -182,7 +182,7 @@ func TestIngest(t *testing.T) {
 		usfmFile := filepath.Join(tmpDir, "noid.usfm")
 		content := `\c 1
 \v 1 Text without id marker`
-		if err := os.WriteFile(usfmFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usfmFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -223,7 +223,7 @@ func TestEnumerate(t *testing.T) {
 	t.Run("enumerate file", func(t *testing.T) {
 		usfmFile := filepath.Join(tmpDir, "genesis.usfm")
 		content := "test content"
-		if err := os.WriteFile(usfmFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usfmFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -270,7 +270,7 @@ func TestExtractIR(t *testing.T) {
 \mt Genesis
 \c 1
 \v 1 In the beginning God created the heaven and the earth.`
-		if err := os.WriteFile(usfmFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usfmFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -339,7 +339,7 @@ func TestEmitNative(t *testing.T) {
 		}
 
 		irFile := filepath.Join(tmpDir, "genesis.ir.json")
-		if err := os.WriteFile(irFile, irData, 0644); err != nil {
+		if err := os.WriteFile(irFile, irData, 0600); err != nil {
 			t.Fatalf("failed to write IR file: %v", err)
 		}
 
@@ -376,7 +376,7 @@ func TestEmitNative(t *testing.T) {
 
 	t.Run("emit native invalid json", func(t *testing.T) {
 		invalidFile := filepath.Join(tmpDir, "invalid.ir.json")
-		if err := os.WriteFile(invalidFile, []byte("not valid json"), 0644); err != nil {
+		if err := os.WriteFile(invalidFile, []byte("not valid json"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -405,7 +405,7 @@ func TestIngestBlobDirError(t *testing.T) {
 
 	// Create USFM file
 	usfmFile := filepath.Join(tmpDir, "test.usfm")
-	if err := os.WriteFile(usfmFile, []byte("\\id GEN\n\\v 1 test"), 0644); err != nil {
+	if err := os.WriteFile(usfmFile, []byte("\\id GEN\n\\v 1 test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -427,7 +427,7 @@ func TestExtractIRWriteError(t *testing.T) {
 
 	// Create USFM file
 	usfmFile := filepath.Join(tmpDir, "test.usfm")
-	if err := os.WriteFile(usfmFile, []byte("\\id GEN\n\\v 1 test"), 0644); err != nil {
+	if err := os.WriteFile(usfmFile, []byte("\\id GEN\n\\v 1 test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -458,7 +458,7 @@ func TestEmitNativeWriteError(t *testing.T) {
 	}
 
 	irFile := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irFile, irData, 0644); err != nil {
+	if err := os.WriteFile(irFile, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 

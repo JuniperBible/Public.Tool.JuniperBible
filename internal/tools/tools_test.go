@@ -188,7 +188,7 @@ func TestRun(t *testing.T) {
 
 				// Create input file
 				inputPath := filepath.Join(dir, "input.txt")
-				if err := os.WriteFile(inputPath, []byte("test input"), 0644); err != nil {
+				if err := os.WriteFile(inputPath, []byte("test input"), 0600); err != nil {
 					t.Fatal(err)
 				}
 
@@ -237,7 +237,7 @@ func TestRun(t *testing.T) {
 
 				// Create input file
 				inputPath := filepath.Join(dir, "input.txt")
-				if err := os.WriteFile(inputPath, []byte("test input"), 0644); err != nil {
+				if err := os.WriteFile(inputPath, []byte("test input"), 0600); err != nil {
 					t.Fatal(err)
 				}
 
@@ -566,7 +566,7 @@ func TestRunWithTranscript(t *testing.T) {
 
 	// Create input file
 	inputPath := filepath.Join(dir, "input.txt")
-	if err := os.WriteFile(inputPath, []byte("test input"), 0644); err != nil {
+	if err := os.WriteFile(inputPath, []byte("test input"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -648,7 +648,7 @@ func TestRunErrorPaths(t *testing.T) {
 
 				// Create a file where we want a directory
 				badOutDir := filepath.Join(dir, "badout")
-				if err := os.WriteFile(badOutDir, []byte("file"), 0644); err != nil {
+				if err := os.WriteFile(badOutDir, []byte("file"), 0600); err != nil {
 					t.Fatal(err)
 				}
 
@@ -723,7 +723,7 @@ func TestRunWithWriteError(t *testing.T) {
 
 	// Create input file
 	inputPath := filepath.Join(dir, "input.txt")
-	if err := os.WriteFile(inputPath, []byte("test input"), 0644); err != nil {
+	if err := os.WriteFile(inputPath, []byte("test input"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -831,7 +831,7 @@ func TestListWithMixedContent(t *testing.T) {
 	}
 
 	// Create a file (should be ignored)
-	if err := os.WriteFile(filepath.Join(dir, "file.txt"), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "file.txt"), []byte("test"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -981,7 +981,7 @@ func TestRunWithRelativeInputPath(t *testing.T) {
 
 	// Create input file
 	inputPath := filepath.Join(dir, "input.txt")
-	if err := os.WriteFile(inputPath, []byte("test input"), 0644); err != nil {
+	if err := os.WriteFile(inputPath, []byte("test input"), 0600); err != nil {
 		t.Fatal(err)
 	}
 

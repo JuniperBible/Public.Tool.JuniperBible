@@ -58,10 +58,10 @@ func TestExecuteRequestOutputBlobsWithSubdirectory(t *testing.T) {
 			subDir := filepath.Join(outDir, "subdir")
 			if mkErr := os.MkdirAll(subDir, 0755); mkErr == nil {
 				// Create a file in the subdirectory
-				os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested"), 0644)
+				os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested"), 0600)
 			}
 			// Create a regular file in output
-			os.WriteFile(filepath.Join(outDir, "output.txt"), []byte("output content"), 0644)
+			os.WriteFile(filepath.Join(outDir, "output.txt"), []byte("output content"), 0600)
 		}
 
 		return err
@@ -130,10 +130,10 @@ func TestExecuteRequestSuccessWithOutputFiles(t *testing.T) {
 	}
 
 	// Create some output files
-	if err := os.WriteFile(filepath.Join(outDir, "output1.txt"), []byte("content1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outDir, "output1.txt"), []byte("content1"), 0600); err != nil {
 		t.Fatalf("failed to write output1: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(outDir, "output2.dat"), []byte("content2"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outDir, "output2.dat"), []byte("content2"), 0600); err != nil {
 		t.Fatalf("failed to write output2: %v", err)
 	}
 	// Create a subdirectory that should be skipped
@@ -141,14 +141,14 @@ func TestExecuteRequestSuccessWithOutputFiles(t *testing.T) {
 	if err := os.MkdirAll(subDir, 0755); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested"), 0600); err != nil {
 		t.Fatalf("failed to write nested file: %v", err)
 	}
 
 	// Create a transcript
 	transcriptContent := `{"event":"start"}
 {"event":"end","exit_code":0}`
-	if err := os.WriteFile(filepath.Join(outDir, "transcript.jsonl"), []byte(transcriptContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outDir, "transcript.jsonl"), []byte(transcriptContent), 0600); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 

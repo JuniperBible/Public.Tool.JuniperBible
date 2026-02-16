@@ -188,7 +188,7 @@ output:
   preserveMorphology: true
   generateSearchIndex: true
 `
-	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(configContent), 0600); err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
 
@@ -230,7 +230,7 @@ swordDir: /path
   this is not: valid yaml
     broken: indentation
 `
-	if err := os.WriteFile(configPath, []byte(badYAML), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(badYAML), 0600); err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
 
@@ -250,7 +250,7 @@ granularity: book
 modules:
   - KJV
 `
-	if err := os.WriteFile(configPath, []byte(partialYAML), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(partialYAML), 0600); err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
 
@@ -286,7 +286,7 @@ func TestLoad_TildeExpansion(t *testing.T) {
 swordDir: ~/.sword
 eswordDir: ~/Documents/e-sword
 `
-	if err := os.WriteFile(configPath, []byte(yamlContent), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(yamlContent), 0600); err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
 
@@ -312,7 +312,7 @@ func TestLoad_EmptyFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "empty.yaml")
 
-	if err := os.WriteFile(configPath, []byte(""), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(""), 0600); err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
 

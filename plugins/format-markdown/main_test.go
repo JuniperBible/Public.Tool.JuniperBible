@@ -29,7 +29,7 @@ book: Gen
 **1** In the beginning God created the heavens and the earth.
 **2** And the earth was without form and void.
 `
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write test markdown: %v", err)
 	}
 }
@@ -77,7 +77,7 @@ func TestMarkdownDetectNonMarkdown(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtPath, []byte("Hello world"), 0644); err != nil {
+	if err := os.WriteFile(txtPath, []byte("Hello world"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -110,7 +110,7 @@ func TestMarkdownDetectNoFrontmatter(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	mdPath := filepath.Join(tmpDir, "test.md")
-	if err := os.WriteFile(mdPath, []byte("# Just a heading\nSome text."), 0644); err != nil {
+	if err := os.WriteFile(mdPath, []byte("# Just a heading\nSome text."), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -256,7 +256,7 @@ func TestMarkdownEmitNative(t *testing.T) {
 	}
 
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 

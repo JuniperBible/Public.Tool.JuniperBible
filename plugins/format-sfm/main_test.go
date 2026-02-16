@@ -16,7 +16,7 @@ func createTestSFM(t *testing.T, path string) {
 \v 1 In the beginning God created the heavens and the earth.
 \v 2 And the earth was without form and void.
 `
-	os.WriteFile(path, []byte(content), 0644)
+	os.WriteFile(path, []byte(content), 0600)
 }
 
 func TestSFMDetect(t *testing.T) {
@@ -34,7 +34,7 @@ func TestSFMDetectNon(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "sfm-test-*")
 	defer os.RemoveAll(tmpDir)
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	os.WriteFile(txtPath, []byte("Hello"), 0644)
+	os.WriteFile(txtPath, []byte("Hello"), 0600)
 	resp := executePlugin(t, &IPCRequest{Command: "detect", Args: map[string]interface{}{"path": txtPath}})
 	if resp.Result.(map[string]interface{})["detected"] == true {
 		t.Error("expected not detected")
@@ -60,7 +60,7 @@ func TestSFMEmitNative(t *testing.T) {
 	corpus := Corpus{ID: "test", Title: "Test", Documents: []*Document{{ID: "GEN", Title: "Genesis", Order: 1, ContentBlocks: []*ContentBlock{{ID: "cb-1", Sequence: 1001, Text: "In the beginning"}}}}}
 	irData, _ := json.MarshalIndent(&corpus, "", "  ")
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	os.WriteFile(irPath, irData, 0644)
+	os.WriteFile(irPath, irData, 0600)
 	outputDir := filepath.Join(tmpDir, "output")
 	os.MkdirAll(outputDir, 0755)
 	resp := executePlugin(t, &IPCRequest{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outputDir}})

@@ -59,7 +59,7 @@ func TestCopyFile(t *testing.T) {
 	srcDir := t.TempDir()
 	srcFile := filepath.Join(srcDir, "source.txt")
 	content := []byte("test content")
-	if err := os.WriteFile(srcFile, content, 0644); err != nil {
+	if err := os.WriteFile(srcFile, content, 0600); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
@@ -111,7 +111,7 @@ func TestCopyDir(t *testing.T) {
 	}
 	for name, content := range files {
 		path := filepath.Join(srcDir, name)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			t.Fatalf("Failed to create %s: %v", name, err)
 		}
 	}
@@ -175,7 +175,7 @@ func TestCopyDir_PreservesStructure(t *testing.T) {
 		}
 		// Create a file in each
 		filePath := filepath.Join(srcDir, dir, "test.txt")
-		if err := os.WriteFile(filePath, []byte(dir), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(dir), 0600); err != nil {
 			t.Fatalf("Failed to create file in %s: %v", dir, err)
 		}
 	}
@@ -278,7 +278,7 @@ func createTestModule(t *testing.T, srcDir, modID string) {
 		"DataPath=./modules/texts/ztext/" + modID + "/\n"
 
 	confPath := filepath.Join(modsDir, modID+".conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("Failed to create conf file: %v", err)
 	}
 
@@ -289,7 +289,7 @@ func createTestModule(t *testing.T, srcDir, modID string) {
 	}
 
 	testFile := filepath.Join(dataDir, "test.bzz")
-	if err := os.WriteFile(testFile, []byte("test data"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test data"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 }
@@ -456,7 +456,7 @@ func TestMigrator_Migrate_VerboseOutput(t *testing.T) {
 func TestCopyFile_CreatesNestedDirectories(t *testing.T) {
 	srcDir := t.TempDir()
 	srcFile := filepath.Join(srcDir, "source.txt")
-	if err := os.WriteFile(srcFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(srcFile, []byte("content"), 0600); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
@@ -540,7 +540,7 @@ func createTestModuleMissingData(t *testing.T, srcDir, modID string) {
 		"DataPath=./modules/texts/ztext/" + modID + "/\n"
 
 	confPath := filepath.Join(modsDir, modID+".conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("Failed to create conf file: %v", err)
 	}
 	// Note: We intentionally don't create the data directory
@@ -603,7 +603,7 @@ func TestCopyFile_DestinationDirNotWritable(t *testing.T) {
 
 	srcDir := t.TempDir()
 	srcFile := filepath.Join(srcDir, "source.txt")
-	if err := os.WriteFile(srcFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(srcFile, []byte("content"), 0600); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
@@ -682,7 +682,7 @@ func createTestModuleUnreadableConf(t *testing.T, srcDir, modID string) {
 		"DataPath=./modules/texts/ztext/" + modID + "/\n"
 
 	confPath := filepath.Join(modsDir, modID+".conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("Failed to create conf file: %v", err)
 	}
 
@@ -692,7 +692,7 @@ func createTestModuleUnreadableConf(t *testing.T, srcDir, modID string) {
 		t.Fatalf("Failed to create data directory: %v", err)
 	}
 	testFile := filepath.Join(dataDir, "test.bzz")
-	if err := os.WriteFile(testFile, []byte("test data"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test data"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -780,7 +780,7 @@ func TestMigrator_Migrate_DataCopyError(t *testing.T) {
 func TestCopyFile_EmptyFile(t *testing.T) {
 	srcDir := t.TempDir()
 	srcFile := filepath.Join(srcDir, "empty.txt")
-	if err := os.WriteFile(srcFile, []byte{}, 0644); err != nil {
+	if err := os.WriteFile(srcFile, []byte{}, 0600); err != nil {
 		t.Fatalf("Failed to create empty source file: %v", err)
 	}
 
@@ -811,7 +811,7 @@ func TestCopyFile_LargeFile(t *testing.T) {
 	for i := range data {
 		data[i] = byte(i % 256)
 	}
-	if err := os.WriteFile(srcFile, data, 0644); err != nil {
+	if err := os.WriteFile(srcFile, data, 0600); err != nil {
 		t.Fatalf("Failed to create large source file: %v", err)
 	}
 

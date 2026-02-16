@@ -224,7 +224,7 @@ ModDrv=RawLD4`,
 				// Create temporary conf file
 				tempDir := t.TempDir()
 				confPath = filepath.Join(tempDir, "test.conf")
-				if err := os.WriteFile(confPath, []byte(tt.confData), 0644); err != nil {
+				if err := os.WriteFile(confPath, []byte(tt.confData), 0600); err != nil {
 					t.Fatalf("Failed to create test conf file: %v", err)
 				}
 			} else {
@@ -303,14 +303,14 @@ Description=King James Version
 Lang=en
 ModDrv=zText
 DataPath=./modules/texts/ztext/kjv/`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0600)
 
 		// Create non-Bible module (should be filtered)
 		commentaryConf := []byte(`[MHC]
 Description=Matthew Henry Commentary
 Lang=en
 ModDrv=RawCom`)
-		os.WriteFile(filepath.Join(modsDir, "mhc.conf"), commentaryConf, 0644)
+		os.WriteFile(filepath.Join(modsDir, "mhc.conf"), commentaryConf, 0600)
 
 		modules, err := ListModules(tempDir)
 		if err != nil {
@@ -330,7 +330,7 @@ ModDrv=RawCom`)
 		os.MkdirAll(modsDir, 0755)
 
 		// Create non-.conf file
-		os.WriteFile(filepath.Join(modsDir, "readme.txt"), []byte("hello"), 0644)
+		os.WriteFile(filepath.Join(modsDir, "readme.txt"), []byte("hello"), 0600)
 
 		// Create subdirectory
 		os.Mkdir(filepath.Join(modsDir, "subdir"), 0755)
@@ -365,14 +365,14 @@ func TestList(t *testing.T) {
 Description=King James Version
 Lang=en
 ModDrv=zText`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0600)
 
 		// Create module with very long description
 		longDescConf := []byte(`[LONGDESC]
 Description=This is a very long description that exceeds forty characters and should be truncated
 Lang=en
 ModDrv=zText`)
-		os.WriteFile(filepath.Join(modsDir, "longdesc.conf"), longDescConf, 0644)
+		os.WriteFile(filepath.Join(modsDir, "longdesc.conf"), longDescConf, 0600)
 
 		// Create encrypted module
 		encConf := []byte(`[ENC]
@@ -380,7 +380,7 @@ Description=Encrypted Module
 Lang=en
 ModDrv=zText
 CipherKey=secret`)
-		os.WriteFile(filepath.Join(modsDir, "enc.conf"), encConf, 0644)
+		os.WriteFile(filepath.Join(modsDir, "enc.conf"), encConf, 0600)
 
 		cfg := ListConfig{Path: tempDir}
 		// We can't easily capture stdout, but we can verify it doesn't error
@@ -418,7 +418,7 @@ func TestIngest(t *testing.T) {
 Description=King James Version
 Lang=en
 ModDrv=zText`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0600)
 
 		cfg := IngestConfig{
 			Path:   tempDir,
@@ -443,7 +443,7 @@ ModDrv=zText`)
 Description=King James Version
 Lang=en
 ModDrv=zText`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0600)
 
 		cfg := IngestConfig{
 			Path:    tempDir,
@@ -468,7 +468,7 @@ func TestIngestModule(t *testing.T) {
 Description=Test
 Lang=en
 ModDrv=zText`)
-		os.WriteFile(confPath, confData, 0644)
+		os.WriteFile(confPath, confData, 0600)
 
 		module := &Module{
 			Name:     "TEST",
@@ -494,7 +494,7 @@ Description=Test
 Lang=en
 ModDrv=zText
 DataPath=./modules/texts/ztext/test/`)
-		os.WriteFile(confPath, confData, 0644)
+		os.WriteFile(confPath, confData, 0600)
 
 		module := &Module{
 			Name:        "TEST",
@@ -533,7 +533,7 @@ func TestCASToSword(t *testing.T) {
 
 		// Create an empty file that isn't a valid capsule
 		capsulePath := filepath.Join(tempDir, "test.capsule.tar.gz")
-		os.WriteFile(capsulePath, []byte("not a capsule"), 0644)
+		os.WriteFile(capsulePath, []byte("not a capsule"), 0600)
 
 		cfg := CASToSwordConfig{
 			Capsule: capsulePath,
@@ -573,7 +573,7 @@ func TestCASToSword(t *testing.T) {
 
 		for _, filename := range tests {
 			capsulePath := filepath.Join(tempDir, filename)
-			os.WriteFile(capsulePath, []byte("not a capsule"), 0644)
+			os.WriteFile(capsulePath, []byte("not a capsule"), 0600)
 
 			cfg := CASToSwordConfig{
 				Capsule: capsulePath,
@@ -619,7 +619,7 @@ Description=Test`,
 		t.Run(tt.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			confPath := filepath.Join(tempDir, "test.conf")
-			os.WriteFile(confPath, []byte(tt.confData), 0644)
+			os.WriteFile(confPath, []byte(tt.confData), 0600)
 
 			got := ParseConf(confPath)
 			if got == nil {
@@ -644,12 +644,12 @@ Lang=en
 ModDrv=zText
 CipherKey=secret
 DataPath=./modules/texts/ztext/enc/`)
-	os.WriteFile(filepath.Join(modsDir, "enc.conf"), encConf, 0644)
+	os.WriteFile(filepath.Join(modsDir, "enc.conf"), encConf, 0600)
 
 	// Create the data directory
 	dataDir := filepath.Join(tempDir, "modules", "texts", "ztext", "enc")
 	os.MkdirAll(dataDir, 0755)
-	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0644)
+	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600)
 
 	cfg := IngestConfig{
 		Path:   tempDir,
@@ -668,7 +668,7 @@ func TestListModules_ReadDirError(t *testing.T) {
 	modsDir := filepath.Join(tempDir, "mods.d")
 
 	// Create mods.d as a file instead of directory
-	os.WriteFile(modsDir, []byte("not a directory"), 0644)
+	os.WriteFile(modsDir, []byte("not a directory"), 0600)
 
 	_, err := ListModules(tempDir)
 	if err == nil {

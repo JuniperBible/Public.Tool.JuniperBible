@@ -274,7 +274,7 @@ func TestHandleCapsulesList(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create test capsule
-	os.WriteFile(filepath.Join(tmpDir, "test.tar.xz"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "test.tar.xz"), []byte("test"), 0600)
 
 	originalDir := ServerConfig.CapsulesDir
 	ServerConfig.CapsulesDir = tmpDir
@@ -545,7 +545,7 @@ func TestHandleCapsuleByIDGet(t *testing.T) {
 
 	// Create test capsule file
 	capsuleFile := filepath.Join(tmpDir, "test.tar.xz")
-	os.WriteFile(capsuleFile, []byte("test content"), 0644)
+	os.WriteFile(capsuleFile, []byte("test content"), 0600)
 
 	originalDir := ServerConfig.CapsulesDir
 	ServerConfig.CapsulesDir = tmpDir
@@ -650,7 +650,7 @@ func TestDeleteCapsuleHandler(t *testing.T) {
 
 	// Create test capsule file
 	capsuleFile := filepath.Join(tmpDir, "test.tar.xz")
-	os.WriteFile(capsuleFile, []byte("test content"), 0644)
+	os.WriteFile(capsuleFile, []byte("test content"), 0600)
 
 	originalDir := ServerConfig.CapsulesDir
 	ServerConfig.CapsulesDir = tmpDir
@@ -725,7 +725,7 @@ func TestDeleteCapsuleHandlerRemoveError(t *testing.T) {
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
 	os.MkdirAll(readOnlyDir, 0755)
 	capsuleFile := filepath.Join(readOnlyDir, "test.tar.xz")
-	os.WriteFile(capsuleFile, []byte("test content"), 0644)
+	os.WriteFile(capsuleFile, []byte("test content"), 0600)
 	os.Chmod(readOnlyDir, 0555)       // Make directory read-only
 	defer os.Chmod(readOnlyDir, 0755) // Restore permissions for cleanup
 
@@ -887,9 +887,9 @@ func TestListCapsules(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create test files
-	os.WriteFile(filepath.Join(tmpDir, "a.tar.xz"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "b.tar.gz"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "c.txt"), []byte("test"), 0644) // Should be ignored
+	os.WriteFile(filepath.Join(tmpDir, "a.tar.xz"), []byte("test"), 0600)
+	os.WriteFile(filepath.Join(tmpDir, "b.tar.gz"), []byte("test"), 0600)
+	os.WriteFile(filepath.Join(tmpDir, "c.txt"), []byte("test"), 0600) // Should be ignored
 
 	originalDir := ServerConfig.CapsulesDir
 	ServerConfig.CapsulesDir = tmpDir
@@ -1121,7 +1121,7 @@ func TestReadCapsuleInvalidXZ(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	capsulePath := filepath.Join(tmpDir, "invalid.tar.xz")
-	os.WriteFile(capsulePath, []byte("not xz data"), 0644)
+	os.WriteFile(capsulePath, []byte("not xz data"), 0600)
 
 	_, _, err = readCapsule(capsulePath)
 	if err == nil {
@@ -1138,7 +1138,7 @@ func TestReadCapsuleInvalidGZ(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	capsulePath := filepath.Join(tmpDir, "invalid.tar.gz")
-	os.WriteFile(capsulePath, []byte("not gzip data"), 0644)
+	os.WriteFile(capsulePath, []byte("not gzip data"), 0600)
 
 	_, _, err = readCapsule(capsulePath)
 	if err == nil {

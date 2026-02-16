@@ -32,7 +32,7 @@ func TestZefaniaDetect(t *testing.T) {
 `
 
 	zefPath := filepath.Join(tmpDir, "test.xml")
-	if err := os.WriteFile(zefPath, []byte(zefaniaContent), 0644); err != nil {
+	if err := os.WriteFile(zefPath, []byte(zefaniaContent), 0600); err != nil {
 		t.Fatalf("failed to write Zefania file: %v", err)
 	}
 
@@ -68,7 +68,7 @@ func TestZefaniaDetectNonZefania(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtPath, []byte("Hello world"), 0644); err != nil {
+	if err := os.WriteFile(txtPath, []byte("Hello world"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -112,7 +112,7 @@ func TestZefaniaExtractIR(t *testing.T) {
 `
 
 	zefPath := filepath.Join(tmpDir, "test.xml")
-	if err := os.WriteFile(zefPath, []byte(zefaniaContent), 0644); err != nil {
+	if err := os.WriteFile(zefPath, []byte(zefaniaContent), 0600); err != nil {
 		t.Fatalf("failed to write Zefania file: %v", err)
 	}
 
@@ -224,7 +224,7 @@ func TestZefaniaEmitNative(t *testing.T) {
 	}
 
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -296,7 +296,7 @@ func TestZefaniaRoundTrip(t *testing.T) {
 `
 
 	zefPath := filepath.Join(tmpDir, "original.xml")
-	if err := os.WriteFile(zefPath, []byte(originalContent), 0644); err != nil {
+	if err := os.WriteFile(zefPath, []byte(originalContent), 0600); err != nil {
 		t.Fatalf("failed to write Zefania file: %v", err)
 	}
 
@@ -379,7 +379,7 @@ func TestZefaniaIngest(t *testing.T) {
 `
 
 	zefPath := filepath.Join(tmpDir, "test.xml")
-	if err := os.WriteFile(zefPath, []byte(zefaniaContent), 0644); err != nil {
+	if err := os.WriteFile(zefPath, []byte(zefaniaContent), 0600); err != nil {
 		t.Fatalf("failed to write Zefania file: %v", err)
 	}
 

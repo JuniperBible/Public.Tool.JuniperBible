@@ -35,7 +35,7 @@ DistributionLicense=Public Domain
 `
 
 	confPath := filepath.Join(tmpDir, "testmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf file: %v", err)
 	}
 
@@ -177,7 +177,7 @@ func TestFindConfFiles(t *testing.T) {
 	confFiles := []string{"kjv.conf", "ESV.CONF", "niv.conf", "readme.txt"}
 	for _, name := range confFiles {
 		path := filepath.Join(tmpDir, name)
-		if err := os.WriteFile(path, []byte("[Test]\n"), 0644); err != nil {
+		if err := os.WriteFile(path, []byte("[Test]\n"), 0600); err != nil {
 			t.Fatalf("failed to create file: %v", err)
 		}
 	}
@@ -224,12 +224,12 @@ func TestLoadModulesFromPath(t *testing.T) {
 ModDrv=zText
 Lang=en
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "valid.conf"), []byte(validConf), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "valid.conf"), []byte(validConf), 0600); err != nil {
 		t.Fatalf("failed to write conf file: %v", err)
 	}
 
 	// Create invalid conf file (empty - should be skipped with warning)
-	if err := os.WriteFile(filepath.Join(modsDir, "invalid.conf"), []byte(""), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "invalid.conf"), []byte(""), 0600); err != nil {
 		t.Fatalf("failed to write invalid conf file: %v", err)
 	}
 

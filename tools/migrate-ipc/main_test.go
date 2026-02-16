@@ -38,7 +38,7 @@ func TestRunSuccess(t *testing.T) {
 func main() {}
 `
 	path := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -73,7 +73,7 @@ func TestRunMixedResults(t *testing.T) {
 func main() {}
 `
 	validPath := filepath.Join(tempDir, "valid.go")
-	if err := os.WriteFile(validPath, []byte(validContent), 0644); err != nil {
+	if err := os.WriteFile(validPath, []byte(validContent), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -112,7 +112,7 @@ func main() {
 }
 `
 	path := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -138,7 +138,7 @@ func main() {
 }
 `
 	path := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -163,7 +163,7 @@ type IPCRequest struct {
 }
 `
 	path := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -225,7 +225,7 @@ func main() {
 }
 `
 	path := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -432,7 +432,7 @@ func main() {
 }
 `
 	path := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -546,7 +546,7 @@ func main() {
 }
 `
 	path := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -600,7 +600,7 @@ func main() {
 }
 `
 	path := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -655,7 +655,7 @@ func main() {
 }
 `
 	path := filepath.Join(tempDir, "main.go")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -702,7 +702,7 @@ func TestMainFunctionSuccess(t *testing.T) {
 func main() {}
 `
 		path := filepath.Join(tempDir, "main.go")
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			os.Exit(1)
 		}
 

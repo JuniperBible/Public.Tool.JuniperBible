@@ -30,7 +30,7 @@ func TestDetect_TEIFile(t *testing.T) {
 	h := &Handler{}
 
 	file := filepath.Join(tmpDir, "test.tei")
-	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -52,7 +52,7 @@ func TestDetect_NonTEIFile(t *testing.T) {
 	h := &Handler{}
 
 	file := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -105,7 +105,7 @@ func TestIngest_TEIFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.tei")
 	content := []byte("test TEI content")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -155,7 +155,7 @@ func TestEnumerate_TEIFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.tei")
 	content := []byte("test content")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

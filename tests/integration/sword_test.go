@@ -135,7 +135,7 @@ func TestOsis2ModCreateModule(t *testing.T) {
 
 	// Write OSIS file
 	osisPath := filepath.Join(tempDir, "test.osis")
-	if err := os.WriteFile(osisPath, []byte(osisContent), 0644); err != nil {
+	if err := os.WriteFile(osisPath, []byte(osisContent), 0600); err != nil {
 		t.Fatalf("failed to write OSIS file: %v", err)
 	}
 

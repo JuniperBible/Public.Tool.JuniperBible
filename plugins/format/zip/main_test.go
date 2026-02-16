@@ -135,7 +135,7 @@ func TestDetectNonZipDirect(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	os.WriteFile(txtPath, []byte("not a zip"), 0644)
+	os.WriteFile(txtPath, []byte("not a zip"), 0600)
 
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
@@ -284,7 +284,7 @@ func TestIPCDetectNonZip(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	os.WriteFile(txtPath, []byte("not a zip file"), 0644)
+	os.WriteFile(txtPath, []byte("not a zip file"), 0600)
 
 	req := ipc.Request{
 		Command: "detect",
@@ -534,7 +534,7 @@ func TestIPCDetectTooSmall(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	smallPath := filepath.Join(tmpDir, "small.zip")
-	os.WriteFile(smallPath, []byte("PK"), 0644)
+	os.WriteFile(smallPath, []byte("PK"), 0600)
 
 	req := ipc.Request{
 		Command: "detect",
@@ -720,7 +720,7 @@ func TestIPCEnumerateNonZip(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	os.WriteFile(txtPath, []byte("not a zip"), 0644)
+	os.WriteFile(txtPath, []byte("not a zip"), 0600)
 
 	req := ipc.Request{
 		Command: "enumerate",
@@ -909,7 +909,7 @@ func TestIPCIngestInvalidOutputDir(t *testing.T) {
 
 	// Use a file as output dir (should fail)
 	invalidDir := filepath.Join(tmpDir, "invalid")
-	os.WriteFile(invalidDir, []byte("file"), 0644)
+	os.WriteFile(invalidDir, []byte("file"), 0600)
 
 	req := ipc.Request{
 		Command: "ingest",
@@ -939,7 +939,7 @@ func TestIPCIngestCorruptedZip(t *testing.T) {
 
 	// Create a file with ZIP magic but corrupted data
 	corruptPath := filepath.Join(tmpDir, "corrupt.zip")
-	os.WriteFile(corruptPath, []byte("PK\x03\x04corrupted data"), 0644)
+	os.WriteFile(corruptPath, []byte("PK\x03\x04corrupted data"), 0600)
 
 	outputDir := filepath.Join(tmpDir, "output")
 	os.MkdirAll(outputDir, 0755)

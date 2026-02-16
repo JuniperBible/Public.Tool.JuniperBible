@@ -29,7 +29,7 @@ func TestGetCapsuleHandler_ReadCapsuleError(t *testing.T) {
 
 	// Create a capsule file that exists but can't be read properly
 	capsuleFile := filepath.Join(tmpDir, "broken.tar.xz")
-	os.WriteFile(capsuleFile, []byte("broken content"), 0644)
+	os.WriteFile(capsuleFile, []byte("broken content"), 0600)
 
 	req := httptest.NewRequest(http.MethodGet, "/capsules/broken.tar.xz", nil)
 	w := httptest.NewRecorder()

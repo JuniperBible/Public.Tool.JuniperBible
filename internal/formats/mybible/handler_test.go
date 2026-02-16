@@ -247,7 +247,7 @@ func TestHandler_Detect(t *testing.T) {
 func TestHandler_Detect_WrongExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(dbPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(dbPath, []byte("test"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -736,7 +736,7 @@ func TestHandler_EmitNative_InvalidIRPath(t *testing.T) {
 func TestHandler_EmitNative_InvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	irPath := filepath.Join(tmpDir, "invalid.ir.json")
-	if err := os.WriteFile(irPath, []byte("invalid json"), 0644); err != nil {
+	if err := os.WriteFile(irPath, []byte("invalid json"), 0600); err != nil {
 		t.Fatal(err)
 	}
 

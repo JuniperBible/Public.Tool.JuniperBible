@@ -30,7 +30,7 @@ func TestDetect_OLBFile(t *testing.T) {
 	h := &Handler{}
 
 	olbFile := filepath.Join(tmpDir, "bible.olb")
-	if err := os.WriteFile(olbFile, []byte("Online Bible content"), 0644); err != nil {
+	if err := os.WriteFile(olbFile, []byte("Online Bible content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -52,7 +52,7 @@ func TestDetect_NonOLBFile(t *testing.T) {
 	h := &Handler{}
 
 	txtFile := filepath.Join(tmpDir, "file.txt")
-	if err := os.WriteFile(txtFile, []byte("not OLB"), 0644); err != nil {
+	if err := os.WriteFile(txtFile, []byte("not OLB"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -107,7 +107,7 @@ func TestDetect_UppercaseExtension(t *testing.T) {
 	h := &Handler{}
 
 	olbFile := filepath.Join(tmpDir, "bible.OLB")
-	if err := os.WriteFile(olbFile, []byte("Online Bible content"), 0644); err != nil {
+	if err := os.WriteFile(olbFile, []byte("Online Bible content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -127,7 +127,7 @@ func TestIngest_OLBFile(t *testing.T) {
 
 	olbFile := filepath.Join(tmpDir, "kjv.olb")
 	content := []byte("Online Bible KJV data")
-	if err := os.WriteFile(olbFile, content, 0644); err != nil {
+	if err := os.WriteFile(olbFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -176,13 +176,13 @@ func TestIngest_BlobDirError(t *testing.T) {
 	h := &Handler{}
 
 	olbFile := filepath.Join(tmpDir, "test.olb")
-	if err := os.WriteFile(olbFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(olbFile, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a file where we need a directory
 	outputDir := filepath.Join(tmpDir, "output")
-	if err := os.WriteFile(outputDir, []byte("block"), 0644); err != nil {
+	if err := os.WriteFile(outputDir, []byte("block"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -201,7 +201,7 @@ func TestEnumerate_OLBFile(t *testing.T) {
 
 	olbFile := filepath.Join(tmpDir, "bible.olb")
 	content := []byte("Online Bible content")
-	if err := os.WriteFile(olbFile, content, 0644); err != nil {
+	if err := os.WriteFile(olbFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

@@ -413,7 +413,7 @@ Version=1.0
 DataPath=./modules/texts/ztext/testmod/
 `
 	confPath := filepath.Join(modsDir, "testmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -459,7 +459,7 @@ func TestVerifyValid(t *testing.T) {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -469,7 +469,7 @@ ModDrv=zText
 DataPath=./modules/texts/ztext/testmod/
 `
 	confPath := filepath.Join(modsDir, "testmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -499,7 +499,7 @@ ModDrv=zText
 DataPath=./modules/texts/ztext/testmod/
 `
 	confPath := filepath.Join(modsDir, "testmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -531,7 +531,7 @@ func TestUninstallModule(t *testing.T) {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -541,7 +541,7 @@ ModDrv=zText
 DataPath=./modules/texts/ztext/testmod/
 `
 	confPath := filepath.Join(modsDir, "testmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 

@@ -30,7 +30,7 @@ func TestDetect_TxtFile(t *testing.T) {
 	h := &Handler{}
 
 	file := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -52,7 +52,7 @@ func TestDetect_TextFile(t *testing.T) {
 	h := &Handler{}
 
 	file := filepath.Join(tmpDir, "test.text")
-	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,7 +74,7 @@ func TestDetect_NonTxtFile(t *testing.T) {
 	h := &Handler{}
 
 	file := filepath.Join(tmpDir, "test.xml")
-	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -127,7 +127,7 @@ func TestIngest_TxtFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.txt")
 	content := []byte("test text content")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -177,7 +177,7 @@ func TestEnumerate_TxtFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.txt")
 	content := []byte("test content")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -220,7 +220,7 @@ func TestExtractIR_TxtFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.txt")
 	content := []byte("Gen 1:1 In the beginning")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -275,7 +275,7 @@ func TestEmitNative_FromIR(t *testing.T) {
 		"documents": []
 	}`
 	irFile := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irFile, []byte(irContent), 0644); err != nil {
+	if err := os.WriteFile(irFile, []byte(irContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -323,7 +323,7 @@ func TestEmitNative_InvalidJSON(t *testing.T) {
 	h := &Handler{}
 
 	irFile := filepath.Join(tmpDir, "invalid.ir.json")
-	if err := os.WriteFile(irFile, []byte("invalid json"), 0644); err != nil {
+	if err := os.WriteFile(irFile, []byte("invalid json"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -399,7 +399,7 @@ func TestEmitNative_GenerateFromIR(t *testing.T) {
 		]
 	}`
 	irFile := filepath.Join(tmpDir, "gen-test.ir.json")
-	if err := os.WriteFile(irFile, []byte(irContent), 0644); err != nil {
+	if err := os.WriteFile(irFile, []byte(irContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 

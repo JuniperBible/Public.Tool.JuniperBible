@@ -58,7 +58,7 @@ func TestValidateProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	os.WriteFile(reqFile, reqData, 0644)
+	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
 	os.MkdirAll(outDir, 0755)
@@ -93,7 +93,7 @@ func TestInfoProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	os.WriteFile(reqFile, reqData, 0644)
+	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
 	os.MkdirAll(outDir, 0755)
@@ -149,7 +149,7 @@ Phone-Image-Height: 128
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	os.WriteFile(reqFile, reqData, 0644)
+	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
 	os.MkdirAll(outDir, 0755)

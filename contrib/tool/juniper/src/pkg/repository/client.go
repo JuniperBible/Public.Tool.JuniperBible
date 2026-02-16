@@ -182,7 +182,7 @@ func (c *Client) DownloadToFile(ctx context.Context, url, destPath string) error
 		return fmt.Errorf("creating directory: %w", err)
 	}
 
-	if err := os.WriteFile(destPath, data, 0644); err != nil {
+	if err := os.WriteFile(destPath, data, 0600); err != nil {
 		return fmt.Errorf("writing file: %w", err)
 	}
 

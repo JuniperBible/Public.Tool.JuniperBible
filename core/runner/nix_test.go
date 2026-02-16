@@ -275,7 +275,7 @@ func TestNixExecutorIntegration(t *testing.T) {
 DataPath=./modules/texts/testmod/
 ModDrv=RawText
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "testmod.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "testmod.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write config: %v", err)
 	}
 
@@ -311,7 +311,7 @@ func TestCopyDir(t *testing.T) {
 	defer os.RemoveAll(srcDir)
 
 	// Create test files and subdirectories
-	if err := os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0600); err != nil {
 		t.Fatalf("failed to write file1: %v", err)
 	}
 
@@ -388,7 +388,7 @@ func TestExecuteRequestWithInputs(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	inputFile := filepath.Join(tmpDir, "input.txt")
-	if err := os.WriteFile(inputFile, []byte("test input"), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte("test input"), 0600); err != nil {
 		t.Fatalf("failed to write input file: %v", err)
 	}
 
@@ -424,7 +424,7 @@ func TestExecuteRequestWithDirectory(t *testing.T) {
 		t.Fatalf("failed to create input dir: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(inputDir, "test.txt"), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(inputDir, "test.txt"), []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -557,7 +557,7 @@ func TestExecuteRequestInjectedReadFileError(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	inputFile := filepath.Join(tmpDir, "input.txt")
-	if err := os.WriteFile(inputFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write input file: %v", err)
 	}
 
@@ -595,7 +595,7 @@ func TestExecuteRequestWriteInputError(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	inputFile := filepath.Join(tmpDir, "input.txt")
-	if err := os.WriteFile(inputFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write input file: %v", err)
 	}
 

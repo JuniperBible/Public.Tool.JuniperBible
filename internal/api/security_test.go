@@ -150,7 +150,7 @@ func TestValidatePath_SymbolicLinkEscape(t *testing.T) {
 	// Create a target directory outside base
 	targetDir := t.TempDir()
 	targetFile := filepath.Join(targetDir, "secret.txt")
-	if err := os.WriteFile(targetFile, []byte("secret data"), 0644); err != nil {
+	if err := os.WriteFile(targetFile, []byte("secret data"), 0600); err != nil {
 		t.Fatalf("Failed to create target file: %v", err)
 	}
 
@@ -504,7 +504,7 @@ func TestValidatePath_Consistency(t *testing.T) {
 	// Create files
 	for _, file := range testFiles {
 		fullPath := filepath.Join(baseDir, file)
-		if err := os.WriteFile(fullPath, []byte("test"), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte("test"), 0600); err != nil {
 			t.Fatalf("Failed to create test file %s: %v", file, err)
 		}
 	}

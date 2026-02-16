@@ -43,7 +43,7 @@ func TestValidateProfile(t *testing.T) {
 
 	// Create valid XML
 	xmlFile := filepath.Join(tempDir, "test.xml")
-	os.WriteFile(xmlFile, []byte(`<?xml version="1.0"?><root><child>text</child></root>`), 0644)
+	os.WriteFile(xmlFile, []byte(`<?xml version="1.0"?><root><child>text</child></root>`), 0600)
 
 	reqFile := filepath.Join(tempDir, "request.json")
 	req := map[string]interface{}{
@@ -52,7 +52,7 @@ func TestValidateProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	os.WriteFile(reqFile, reqData, 0644)
+	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
 	os.MkdirAll(outDir, 0755)
@@ -76,7 +76,7 @@ func TestXPathProfile(t *testing.T) {
 	tempDir := t.TempDir()
 
 	xmlFile := filepath.Join(tempDir, "test.xml")
-	os.WriteFile(xmlFile, []byte(`<?xml version="1.0"?><root><item>one</item><item>two</item></root>`), 0644)
+	os.WriteFile(xmlFile, []byte(`<?xml version="1.0"?><root><item>one</item><item>two</item></root>`), 0600)
 
 	reqFile := filepath.Join(tempDir, "request.json")
 	req := map[string]interface{}{
@@ -85,7 +85,7 @@ func TestXPathProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	os.WriteFile(reqFile, reqData, 0644)
+	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
 	os.MkdirAll(outDir, 0755)
@@ -110,7 +110,7 @@ func TestFormatProfile(t *testing.T) {
 	tempDir := t.TempDir()
 
 	xmlFile := filepath.Join(tempDir, "test.xml")
-	os.WriteFile(xmlFile, []byte(`<root><child>text</child></root>`), 0644)
+	os.WriteFile(xmlFile, []byte(`<root><child>text</child></root>`), 0600)
 
 	reqFile := filepath.Join(tempDir, "request.json")
 	req := map[string]interface{}{
@@ -119,7 +119,7 @@ func TestFormatProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	os.WriteFile(reqFile, reqData, 0644)
+	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
 	os.MkdirAll(outDir, 0755)

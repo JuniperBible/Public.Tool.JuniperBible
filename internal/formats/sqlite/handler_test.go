@@ -27,7 +27,7 @@ func TestDetect_SQLiteFile(t *testing.T) {
 
 	sqliteFile := filepath.Join(tmpDir, "bible.sqlite")
 	// SQLite files start with "SQLite format 3"
-	if err := os.WriteFile(sqliteFile, []byte("SQLite format 3\x00data"), 0644); err != nil {
+	if err := os.WriteFile(sqliteFile, []byte("SQLite format 3\x00data"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -49,7 +49,7 @@ func TestDetect_NonSQLiteFile(t *testing.T) {
 	h := &Handler{}
 
 	txtFile := filepath.Join(tmpDir, "file.txt")
-	if err := os.WriteFile(txtFile, []byte("not SQLite"), 0644); err != nil {
+	if err := os.WriteFile(txtFile, []byte("not SQLite"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -99,7 +99,7 @@ func TestIngest(t *testing.T) {
 
 	sqliteFile := filepath.Join(tmpDir, "bible.sqlite")
 	content := []byte("SQLite format 3\x00data")
-	if err := os.WriteFile(sqliteFile, content, 0644); err != nil {
+	if err := os.WriteFile(sqliteFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -140,7 +140,7 @@ func TestEnumerate(t *testing.T) {
 
 	sqliteFile := filepath.Join(tmpDir, "bible.sqlite")
 	content := []byte("SQLite format 3\x00data")
-	if err := os.WriteFile(sqliteFile, content, 0644); err != nil {
+	if err := os.WriteFile(sqliteFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

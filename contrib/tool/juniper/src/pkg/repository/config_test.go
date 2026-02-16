@@ -37,7 +37,7 @@ ModDrv=zText
 Lang=en
 Description=King James Version
 `
-	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(confContent), 0644)
+	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(confContent), 0600)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -80,7 +80,7 @@ Description=Douay-Rheims
 	}
 
 	for name, content := range confs {
-		os.WriteFile(filepath.Join(modsDir, name), []byte(content), 0644)
+		os.WriteFile(filepath.Join(modsDir, name), []byte(content), 0600)
 	}
 
 	cfg, err := LoadLocalConfig(tmpDir)
@@ -111,7 +111,7 @@ Lang=en
 Description=King James Version
 Version=2.5
 `
-	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(confContent), 0644)
+	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(confContent), 0600)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -155,7 +155,7 @@ func TestLocalConfig_IsModuleInstalled(t *testing.T) {
 DataPath=./modules/texts/ztext/kjv/
 ModDrv=zText
 `
-	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(confContent), 0644)
+	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(confContent), 0600)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -271,7 +271,7 @@ FTPSource=ftp.crosswire.org|/pub/sword/raw|CrossWire
 [eBible]
 FTPSource=ftp.ebible.org|/sword|eBible.org
 `
-	os.WriteFile(filepath.Join(modsDir, "install.conf"), []byte(confContent), 0644)
+	os.WriteFile(filepath.Join(modsDir, "install.conf"), []byte(confContent), 0600)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -372,8 +372,8 @@ func TestLocalConfig_ListInstalledModules_SkipsInvalid(t *testing.T) {
 DataPath=./modules/texts/ztext/kjv/
 ModDrv=zText
 `), 0644)
-	os.WriteFile(filepath.Join(modsDir, "invalid.conf"), []byte("invalid content"), 0644)
-	os.WriteFile(filepath.Join(modsDir, "empty.conf"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(modsDir, "invalid.conf"), []byte("invalid content"), 0600)
+	os.WriteFile(filepath.Join(modsDir, "empty.conf"), []byte(""), 0600)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {

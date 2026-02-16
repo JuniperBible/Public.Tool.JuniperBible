@@ -35,7 +35,7 @@ func TestParsePluginManifest(t *testing.T) {
 	}
 
 	manifestPath := filepath.Join(pluginDir, "plugin.json")
-	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -91,7 +91,7 @@ func TestDiscoverPlugins(t *testing.T) {
 			t.Fatalf("failed to create %s: %v", p.name, err)
 		}
 		manifestPath := filepath.Join(dir, "plugin.json")
-		if err := os.WriteFile(manifestPath, []byte(p.content), 0644); err != nil {
+		if err := os.WriteFile(manifestPath, []byte(p.content), 0600); err != nil {
 			t.Fatalf("failed to write manifest for %s: %v", p.name, err)
 		}
 	}
@@ -139,7 +139,7 @@ func TestLoaderGetPlugin(t *testing.T) {
 
 	manifestContent := `{"plugin_id": "format.zip", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
 	manifestPath := filepath.Join(pluginDir, "plugin.json")
-	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -201,7 +201,7 @@ func TestPluginKindFiltering(t *testing.T) {
 			t.Fatalf("failed to create %s: %v", p.name, err)
 		}
 		manifestPath := filepath.Join(dir, "plugin.json")
-		if err := os.WriteFile(manifestPath, []byte(p.content), 0644); err != nil {
+		if err := os.WriteFile(manifestPath, []byte(p.content), 0600); err != nil {
 			t.Fatalf("failed to write manifest for %s: %v", p.name, err)
 		}
 	}
@@ -256,7 +256,7 @@ func TestPluginManifestWithIRSupport(t *testing.T) {
 	}
 
 	manifestPath := filepath.Join(pluginDir, "plugin.json")
-	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(manifestContent), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -387,7 +387,7 @@ func TestLoaderGetIRCapablePlugins(t *testing.T) {
 			t.Fatalf("failed to create %s: %v", p.name, err)
 		}
 		manifestPath := filepath.Join(dir, "plugin.json")
-		if err := os.WriteFile(manifestPath, []byte(p.content), 0644); err != nil {
+		if err := os.WriteFile(manifestPath, []byte(p.content), 0600); err != nil {
 			t.Fatalf("failed to write manifest for %s: %v", p.name, err)
 		}
 	}
@@ -439,7 +439,7 @@ func TestNestedPluginDiscovery(t *testing.T) {
 			t.Fatalf("failed to create %s: %v", name, err)
 		}
 		content := `{"plugin_id": "format.` + name + `", "version": "1.0.0", "kind": "format", "entrypoint": "format-` + name + `"}`
-		if err := os.WriteFile(filepath.Join(dir, "plugin.json"), []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "plugin.json"), []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write manifest: %v", err)
 		}
 	}
@@ -450,7 +450,7 @@ func TestNestedPluginDiscovery(t *testing.T) {
 		t.Fatalf("failed to create libsword dir: %v", err)
 	}
 	content := `{"plugin_id": "tool.libsword", "version": "1.0.0", "kind": "tool", "entrypoint": "tool-libsword"}`
-	if err := os.WriteFile(filepath.Join(libswordDir, "plugin.json"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(libswordDir, "plugin.json"), []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -526,7 +526,7 @@ func TestExamplePluginKind(t *testing.T) {
 
 	// Create plugin.json with kind="example"
 	content := `{"plugin_id": "example.test", "version": "1.0.0", "kind": "example", "entrypoint": "example-test"}`
-	if err := os.WriteFile(filepath.Join(exampleDir, "plugin.json"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(exampleDir, "plugin.json"), []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -584,7 +584,7 @@ func TestJuniperPluginKind(t *testing.T) {
 		t.Fatalf("failed to create juniper dir: %v", err)
 	}
 	content := `{"plugin_id": "juniper.test", "version": "1.0.0", "kind": "juniper", "entrypoint": "juniper-test"}`
-	if err := os.WriteFile(filepath.Join(juniperDir, "plugin.json"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(juniperDir, "plugin.json"), []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -658,7 +658,7 @@ func TestListPlugins(t *testing.T) {
 			t.Fatalf("failed to create %s: %v", p.name, err)
 		}
 		manifestPath := filepath.Join(dir, "plugin.json")
-		if err := os.WriteFile(manifestPath, []byte(p.content), 0644); err != nil {
+		if err := os.WriteFile(manifestPath, []byte(p.content), 0600); err != nil {
 			t.Fatalf("failed to write manifest for %s: %v", p.name, err)
 		}
 	}
@@ -729,7 +729,7 @@ func TestParsePluginManifestMissingFields(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manifestPath := filepath.Join(tempDir, "plugin.json")
-			if err := os.WriteFile(manifestPath, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(manifestPath, []byte(tt.content), 0600); err != nil {
 				t.Fatalf("failed to write manifest: %v", err)
 			}
 
@@ -750,7 +750,7 @@ func TestParsePluginManifestInvalidJSON(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	manifestPath := filepath.Join(tempDir, "plugin.json")
-	if err := os.WriteFile(manifestPath, []byte("not valid json"), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte("not valid json"), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -795,7 +795,7 @@ func TestDiscoverPluginsWithInvalidPlugins(t *testing.T) {
 		t.Fatalf("failed to create valid dir: %v", err)
 	}
 	validContent := `{"plugin_id": "format.valid", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(validDir, "plugin.json"), []byte(validContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(validDir, "plugin.json"), []byte(validContent), 0600); err != nil {
 		t.Fatalf("failed to write valid manifest: %v", err)
 	}
 
@@ -805,7 +805,7 @@ func TestDiscoverPluginsWithInvalidPlugins(t *testing.T) {
 		t.Fatalf("failed to create invalid dir: %v", err)
 	}
 	invalidContent := `{"version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(invalidDir, "plugin.json"), []byte(invalidContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(invalidDir, "plugin.json"), []byte(invalidContent), 0600); err != nil {
 		t.Fatalf("failed to write invalid manifest: %v", err)
 	}
 
@@ -840,7 +840,7 @@ func TestLoadFromDirAlwaysError(t *testing.T) {
 
 	// Create a file instead of a directory to cause read error
 	filePath := filepath.Join(tempDir, "notadir")
-	if err := os.WriteFile(filePath, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -868,7 +868,7 @@ func TestDiscoverPluginsWithNestedInvalid(t *testing.T) {
 		t.Fatalf("failed to create valid dir: %v", err)
 	}
 	validContent := `{"plugin_id": "format.valid", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(validDir, "plugin.json"), []byte(validContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(validDir, "plugin.json"), []byte(validContent), 0600); err != nil {
 		t.Fatalf("failed to write valid manifest: %v", err)
 	}
 
@@ -878,7 +878,7 @@ func TestDiscoverPluginsWithNestedInvalid(t *testing.T) {
 		t.Fatalf("failed to create invalid dir: %v", err)
 	}
 	invalidContent := `{"plugin_id": "", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(invalidDir, "plugin.json"), []byte(invalidContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(invalidDir, "plugin.json"), []byte(invalidContent), 0600); err != nil {
 		t.Fatalf("failed to write invalid manifest: %v", err)
 	}
 
@@ -956,12 +956,12 @@ func TestDiscoverPluginsWithFiles(t *testing.T) {
 		t.Fatalf("failed to create valid dir: %v", err)
 	}
 	validContent := `{"plugin_id": "format.valid", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(validDir, "plugin.json"), []byte(validContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(validDir, "plugin.json"), []byte(validContent), 0600); err != nil {
 		t.Fatalf("failed to write valid manifest: %v", err)
 	}
 
 	// Create a file (not directory) in plugins dir
-	if err := os.WriteFile(filepath.Join(pluginsDir, "somefile.txt"), []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginsDir, "somefile.txt"), []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -996,12 +996,12 @@ func TestDiscoverPluginsInKindDirWithFiles(t *testing.T) {
 		t.Fatalf("failed to create valid dir: %v", err)
 	}
 	validContent := `{"plugin_id": "format.valid", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(validDir, "plugin.json"), []byte(validContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(validDir, "plugin.json"), []byte(validContent), 0600); err != nil {
 		t.Fatalf("failed to write valid manifest: %v", err)
 	}
 
 	// Create a file (not directory) in format dir
-	if err := os.WriteFile(filepath.Join(formatDir, "README.md"), []byte("readme"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(formatDir, "README.md"), []byte("readme"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -1062,7 +1062,7 @@ func TestLoadFromDirAlwaysIncompatiblePlugins(t *testing.T) {
 	}
 	// Require host version 99.0.0 which will fail compatibility
 	incompatContent := `{"plugin_id": "format.incompat", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin", "min_host_version": "99.0.0"}`
-	if err := os.WriteFile(filepath.Join(incompatDir, "plugin.json"), []byte(incompatContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(incompatDir, "plugin.json"), []byte(incompatContent), 0600); err != nil {
 		t.Fatalf("failed to write incompat manifest: %v", err)
 	}
 
@@ -1072,7 +1072,7 @@ func TestLoadFromDirAlwaysIncompatiblePlugins(t *testing.T) {
 		t.Fatalf("failed to create compat dir: %v", err)
 	}
 	compatContent := `{"plugin_id": "format.compat", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(compatDir, "plugin.json"), []byte(compatContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(compatDir, "plugin.json"), []byte(compatContent), 0600); err != nil {
 		t.Fatalf("failed to write compat manifest: %v", err)
 	}
 
@@ -1117,12 +1117,12 @@ func TestDiscoverPluginsKindDirReadError(t *testing.T) {
 		t.Fatalf("failed to create valid dir: %v", err)
 	}
 	validContent := `{"plugin_id": "test.valid", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(validDir, "plugin.json"), []byte(validContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(validDir, "plugin.json"), []byte(validContent), 0600); err != nil {
 		t.Fatalf("failed to write valid manifest: %v", err)
 	}
 
 	// Create format directory as a file instead of directory to cause read error
-	if err := os.WriteFile(formatDir, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(formatDir, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to write format file: %v", err)
 	}
 
@@ -1165,7 +1165,7 @@ func TestLoadFromDirExternalDisabled(t *testing.T) {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 	content := `{"plugin_id": "format.test", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -1211,7 +1211,7 @@ func TestLoadFromDirExternalEnabled(t *testing.T) {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 	content := `{"plugin_id": "format.enabled", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -1322,7 +1322,7 @@ func TestLoadFromDirIncompatiblePlugins(t *testing.T) {
 		t.Fatalf("failed to create incompat dir: %v", err)
 	}
 	incompatContent := `{"plugin_id": "format.incompat2", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin", "min_host_version": "99.0.0"}`
-	if err := os.WriteFile(filepath.Join(incompatDir, "plugin.json"), []byte(incompatContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(incompatDir, "plugin.json"), []byte(incompatContent), 0600); err != nil {
 		t.Fatalf("failed to write incompat manifest: %v", err)
 	}
 
@@ -1353,7 +1353,7 @@ func TestDiscoverPluginsAbsolutePathConversion(t *testing.T) {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 	content := `{"plugin_id": "format.abs-test", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -1395,7 +1395,7 @@ func TestDiscoverPluginsReadDirError(t *testing.T) {
 
 	// Create a file instead of a directory
 	filePath := filepath.Join(tempDir, "notadirectory")
-	if err := os.WriteFile(filePath, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -1429,7 +1429,7 @@ func TestLoadFromDirDiscoverError(t *testing.T) {
 
 	// Create a file instead of directory to cause error
 	filePath := filepath.Join(tempDir, "notadirectory")
-	if err := os.WriteFile(filePath, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -1456,7 +1456,7 @@ func TestDiscoverPluginsMixedValidInvalid(t *testing.T) {
 		t.Fatalf("failed to create valid flat dir: %v", err)
 	}
 	validContent := `{"plugin_id": "format.valid-flat", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(validFlatDir, "plugin.json"), []byte(validContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(validFlatDir, "plugin.json"), []byte(validContent), 0600); err != nil {
 		t.Fatalf("failed to write valid manifest: %v", err)
 	}
 
@@ -1467,7 +1467,7 @@ func TestDiscoverPluginsMixedValidInvalid(t *testing.T) {
 		t.Fatalf("failed to create valid nested dir: %v", err)
 	}
 	validNestedContent := `{"plugin_id": "format.valid-nested", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
-	if err := os.WriteFile(filepath.Join(validNestedDir, "plugin.json"), []byte(validNestedContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(validNestedDir, "plugin.json"), []byte(validNestedContent), 0600); err != nil {
 		t.Fatalf("failed to write valid nested manifest: %v", err)
 	}
 

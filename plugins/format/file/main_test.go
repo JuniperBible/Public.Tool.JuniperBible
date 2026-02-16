@@ -227,7 +227,7 @@ func TestIngest(t *testing.T) {
 					t.Fatal(err)
 				}
 				tmpFile := filepath.Join(tmpDir, "myfile.txt")
-				if err := os.WriteFile(tmpFile, []byte("hello world"), 0644); err != nil {
+				if err := os.WriteFile(tmpFile, []byte("hello world"), 0600); err != nil {
 					t.Fatal(err)
 				}
 
@@ -252,7 +252,7 @@ func TestIngest(t *testing.T) {
 					t.Fatal(err)
 				}
 				tmpFile := filepath.Join(tmpDir, "README")
-				if err := os.WriteFile(tmpFile, []byte("content"), 0644); err != nil {
+				if err := os.WriteFile(tmpFile, []byte("content"), 0600); err != nil {
 					t.Fatal(err)
 				}
 
@@ -277,7 +277,7 @@ func TestIngest(t *testing.T) {
 					t.Fatal(err)
 				}
 				tmpFile := filepath.Join(tmpDir, "archive.tar.gz")
-				if err := os.WriteFile(tmpFile, []byte("archive"), 0644); err != nil {
+				if err := os.WriteFile(tmpFile, []byte("archive"), 0600); err != nil {
 					t.Fatal(err)
 				}
 
@@ -302,7 +302,7 @@ func TestIngest(t *testing.T) {
 					t.Fatal(err)
 				}
 				tmpFile := filepath.Join(tmpDir, ".gitignore")
-				if err := os.WriteFile(tmpFile, []byte("*.log"), 0644); err != nil {
+				if err := os.WriteFile(tmpFile, []byte("*.log"), 0600); err != nil {
 					t.Fatal(err)
 				}
 
@@ -327,7 +327,7 @@ func TestIngest(t *testing.T) {
 					t.Fatal(err)
 				}
 				tmpFile := filepath.Join(tmpDir, "empty.txt")
-				if err := os.WriteFile(tmpFile, []byte(""), 0644); err != nil {
+				if err := os.WriteFile(tmpFile, []byte(""), 0600); err != nil {
 					t.Fatal(err)
 				}
 
@@ -354,7 +354,7 @@ func TestIngest(t *testing.T) {
 				tmpFile := filepath.Join(tmpDir, "large.bin")
 				// Write 1MB of data
 				data := bytes.Repeat([]byte("A"), 1024*1024)
-				if err := os.WriteFile(tmpFile, data, 0644); err != nil {
+				if err := os.WriteFile(tmpFile, data, 0600); err != nil {
 					t.Fatal(err)
 				}
 
@@ -923,7 +923,7 @@ func TestSpecialCharactersInFilename(t *testing.T) {
 			defer os.RemoveAll(tmpDir)
 
 			tmpFile := filepath.Join(tmpDir, tt.filename)
-			if err := os.WriteFile(tmpFile, []byte("content"), 0644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte("content"), 0600); err != nil {
 				t.Fatal(err)
 			}
 

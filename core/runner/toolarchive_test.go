@@ -178,7 +178,7 @@ func TestLoadToolArchiveErrors(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	invalidArchive := filepath.Join(tempDir, "invalid.tar.xz")
-	if err := os.WriteFile(invalidArchive, []byte("not a valid archive"), 0644); err != nil {
+	if err := os.WriteFile(invalidArchive, []byte("not a valid archive"), 0600); err != nil {
 		t.Fatalf("failed to write invalid archive: %v", err)
 	}
 
@@ -213,7 +213,7 @@ func TestExtractToWithLibraries(t *testing.T) {
 	}
 
 	testLib := filepath.Join(libDir, "libtest.so")
-	if err := os.WriteFile(testLib, []byte("library"), 0644); err != nil {
+	if err := os.WriteFile(testLib, []byte("library"), 0600); err != nil {
 		t.Fatalf("failed to write test library: %v", err)
 	}
 
@@ -506,7 +506,7 @@ func TestToolRegistryLoadToolArchiveError(t *testing.T) {
 	}
 
 	archivePath := filepath.Join(toolCapsuleDir, "badtool.capsule.tar.xz")
-	if err := os.WriteFile(archivePath, []byte("not a valid archive"), 0644); err != nil {
+	if err := os.WriteFile(archivePath, []byte("not a valid archive"), 0600); err != nil {
 		t.Fatalf("failed to write archive: %v", err)
 	}
 

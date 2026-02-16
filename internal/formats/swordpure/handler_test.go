@@ -272,7 +272,7 @@ func TestHandlerEmitNative(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to marshal corpus: %v", err)
 	}
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -320,7 +320,7 @@ func TestHandlerEmitNativeInvalidIR(t *testing.T) {
 
 	// Create invalid IR file
 	irPath := filepath.Join(tmpDir, "invalid.ir.json")
-	if err := os.WriteFile(irPath, []byte("invalid json"), 0644); err != nil {
+	if err := os.WriteFile(irPath, []byte("invalid json"), 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -419,7 +419,7 @@ func TestHandlerEmitNativeCommentary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to marshal corpus: %v", err)
 	}
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -471,7 +471,7 @@ func TestHandlerEmitNativeLexicon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to marshal corpus: %v", err)
 	}
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -523,7 +523,7 @@ func TestHandlerEmitNativeGenBook(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to marshal corpus: %v", err)
 	}
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -564,7 +564,7 @@ Description=Encrypted Module
 Lang=en
 CipherKey=12345
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "encmod.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "encmod.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -605,7 +605,7 @@ ModDrv=zCom
 Description=Test Commentary
 Lang=en
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "testcom.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "testcom.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -646,7 +646,7 @@ ModDrv=RawText
 Description=Uncompressed Bible
 Lang=en
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "rawbible.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "rawbible.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 

@@ -36,7 +36,7 @@ And God said, Let the waters be gathered.
 `
 
 	twPath := filepath.Join(tmpDir, "test.ont")
-	if err := os.WriteFile(twPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(twPath, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write TheWord file: %v", err)
 	}
 
@@ -72,7 +72,7 @@ func TestTheWordDetectNonTheWord(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtPath, []byte("Hello world"), 0644); err != nil {
+	if err := os.WriteFile(txtPath, []byte("Hello world"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -110,7 +110,7 @@ And God said, Let there be light.
 `
 
 	twPath := filepath.Join(tmpDir, "test.nt")
-	if err := os.WriteFile(twPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(twPath, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write TheWord file: %v", err)
 	}
 
@@ -221,7 +221,7 @@ func TestTheWordEmitNative(t *testing.T) {
 	}
 
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -289,7 +289,7 @@ And God said, Let the waters be gathered.
 `
 
 	twPath := filepath.Join(tmpDir, "original.ont")
-	if err := os.WriteFile(twPath, []byte(originalContent), 0644); err != nil {
+	if err := os.WriteFile(twPath, []byte(originalContent), 0600); err != nil {
 		t.Fatalf("failed to write TheWord file: %v", err)
 	}
 
@@ -366,7 +366,7 @@ And the earth was void.
 `
 
 	twPath := filepath.Join(tmpDir, "test.twm")
-	if err := os.WriteFile(twPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(twPath, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write TheWord file: %v", err)
 	}
 

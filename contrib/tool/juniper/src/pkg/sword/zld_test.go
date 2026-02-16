@@ -45,12 +45,12 @@ func createTestZLDModule(t *testing.T, entries map[string]string, compressed boo
 
 	// Write .idx and .dat files
 	idxPath := filepath.Join(tmpDir, "dict.idx")
-	if err := os.WriteFile(idxPath, idxBuffer.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(idxPath, idxBuffer.Bytes(), 0600); err != nil {
 		t.Fatalf("Failed to write idx: %v", err)
 	}
 
 	datPath := filepath.Join(tmpDir, "dict.dat")
-	if err := os.WriteFile(datPath, datBuffer.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(datPath, datBuffer.Bytes(), 0600); err != nil {
 		t.Fatalf("Failed to write dat: %v", err)
 	}
 
@@ -79,12 +79,12 @@ func createTestZLDModule(t *testing.T, entries map[string]string, compressed boo
 		}
 
 		zdxPath := filepath.Join(tmpDir, "dict.zdx")
-		if err := os.WriteFile(zdxPath, zdxBuffer.Bytes(), 0644); err != nil {
+		if err := os.WriteFile(zdxPath, zdxBuffer.Bytes(), 0600); err != nil {
 			t.Fatalf("Failed to write zdx: %v", err)
 		}
 
 		zdtPath := filepath.Join(tmpDir, "dict.zdt")
-		if err := os.WriteFile(zdtPath, zdtBuffer.Bytes(), 0644); err != nil {
+		if err := os.WriteFile(zdtPath, zdtBuffer.Bytes(), 0600); err != nil {
 			t.Fatalf("Failed to write zdt: %v", err)
 		}
 	}
@@ -564,19 +564,19 @@ func TestZLDParser_loadCompressedIndices_EmptyIndex(t *testing.T) {
 
 	// Create empty zdx file
 	zdxPath := filepath.Join(tmpDir, "dict.zdx")
-	if err := os.WriteFile(zdxPath, []byte{}, 0644); err != nil {
+	if err := os.WriteFile(zdxPath, []byte{}, 0600); err != nil {
 		t.Fatalf("Failed to write empty zdx: %v", err)
 	}
 
 	// Create empty idx file (binary format - 8 bytes per entry)
 	idxPath := filepath.Join(tmpDir, "dict.idx")
-	if err := os.WriteFile(idxPath, []byte{}, 0644); err != nil {
+	if err := os.WriteFile(idxPath, []byte{}, 0600); err != nil {
 		t.Fatalf("Failed to write empty idx: %v", err)
 	}
 
 	// Create empty dat file (for key strings)
 	datPath := filepath.Join(tmpDir, "dict.dat")
-	if err := os.WriteFile(datPath, []byte{}, 0644); err != nil {
+	if err := os.WriteFile(datPath, []byte{}, 0600); err != nil {
 		t.Fatalf("Failed to write empty dat: %v", err)
 	}
 
@@ -634,7 +634,7 @@ func TestZLDParser_readUncompressedEntry_Direct(t *testing.T) {
 	// Create a simple uncompressed data file
 	ddtContent := "This is test content for reading"
 	ddtPath := filepath.Join(tmpDir, "test.ddt")
-	if err := os.WriteFile(ddtPath, []byte(ddtContent), 0644); err != nil {
+	if err := os.WriteFile(ddtPath, []byte(ddtContent), 0600); err != nil {
 		t.Fatalf("Failed to write ddt: %v", err)
 	}
 
@@ -666,7 +666,7 @@ func TestZLDParser_readUncompressedEntry_PartialRead(t *testing.T) {
 	// Create a data file with multiple entries
 	ddtContent := "First EntrySecond Entry"
 	ddtPath := filepath.Join(tmpDir, "test.ddt")
-	if err := os.WriteFile(ddtPath, []byte(ddtContent), 0644); err != nil {
+	if err := os.WriteFile(ddtPath, []byte(ddtContent), 0600); err != nil {
 		t.Fatalf("Failed to write ddt: %v", err)
 	}
 

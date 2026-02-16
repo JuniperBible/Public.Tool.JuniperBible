@@ -15,7 +15,7 @@ func TestDetect_ValidMarkdownFile(t *testing.T) {
 	// Create a temporary test file with .md extension
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.md")
-	if err := os.WriteFile(testFile, []byte("# Test Markdown"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("# Test Markdown"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -40,7 +40,7 @@ func TestDetect_InvalidExtension(t *testing.T) {
 	// Create a temporary test file with wrong extension
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("# Test Content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("# Test Content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -99,7 +99,7 @@ func TestIngest_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "sample.md")
 	content := []byte("# Sample Markdown\n\nThis is a test.")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -139,7 +139,7 @@ func TestIngest_BlobCreation(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.md")
 	content := []byte("# Test Content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -190,7 +190,7 @@ func TestIngest_MkdirAllError(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.md")
 	content := []byte("# Test Content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -205,7 +205,7 @@ func TestIngest_MkdirAllError(t *testing.T) {
 
 	// Create a file with the name of what should be a directory
 	blobDirPath := filepath.Join(outputDir, hashHex[:2])
-	if err := os.WriteFile(blobDirPath, []byte("blocking file"), 0644); err != nil {
+	if err := os.WriteFile(blobDirPath, []byte("blocking file"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -224,7 +224,7 @@ func TestIngest_WriteError(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.md")
 	content := []byte("# Test Content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -259,7 +259,7 @@ func TestEnumerate_ValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "document.md")
 	content := []byte("# Document")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

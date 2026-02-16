@@ -84,7 +84,7 @@ func TestCalibreHTMLToEPUB(t *testing.T) {
 </html>`
 
 	htmlPath := filepath.Join(tempDir, "book.html")
-	if err := os.WriteFile(htmlPath, []byte(htmlContent), 0644); err != nil {
+	if err := os.WriteFile(htmlPath, []byte(htmlContent), 0600); err != nil {
 		t.Fatalf("failed to write HTML: %v", err)
 	}
 
@@ -131,7 +131,7 @@ func TestCalibreEPUBToMOBI(t *testing.T) {
 </html>`
 
 	htmlPath := filepath.Join(tempDir, "book.html")
-	if err := os.WriteFile(htmlPath, []byte(htmlContent), 0644); err != nil {
+	if err := os.WriteFile(htmlPath, []byte(htmlContent), 0600); err != nil {
 		t.Fatalf("failed to write HTML: %v", err)
 	}
 
@@ -187,7 +187,7 @@ func TestCalibreMetadata(t *testing.T) {
 </html>`
 
 	htmlPath := filepath.Join(tempDir, "book.html")
-	if err := os.WriteFile(htmlPath, []byte(htmlContent), 0644); err != nil {
+	if err := os.WriteFile(htmlPath, []byte(htmlContent), 0600); err != nil {
 		t.Fatalf("failed to write HTML: %v", err)
 	}
 

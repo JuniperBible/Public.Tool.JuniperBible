@@ -514,7 +514,7 @@ func TestHandlerEmitNative(t *testing.T) {
 	// Write IR file
 	tmpDir := t.TempDir()
 	irPath := filepath.Join(tmpDir, "test-emit.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -605,7 +605,7 @@ func TestHandlerDetect(t *testing.T) {
 	t.Run("mybible file", func(t *testing.T) {
 		dbPath := filepath.Join(tmpDir, "test.mybible")
 		// Just create a simple file with .mybible extension
-		if err := os.WriteFile(dbPath, []byte("test"), 0644); err != nil {
+		if err := os.WriteFile(dbPath, []byte("test"), 0600); err != nil {
 			t.Fatal(err)
 		}
 
@@ -623,7 +623,7 @@ func TestHandlerDetect(t *testing.T) {
 
 	t.Run("non-mybible extension", func(t *testing.T) {
 		txtPath := filepath.Join(tmpDir, "test.txt")
-		if err := os.WriteFile(txtPath, []byte("test"), 0644); err != nil {
+		if err := os.WriteFile(txtPath, []byte("test"), 0600); err != nil {
 			t.Fatal(err)
 		}
 
@@ -726,7 +726,7 @@ func TestHandlerEnumerate(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		dbPath := filepath.Join(tmpDir, "test.mybible")
 		content := []byte("test content for size")
-		if err := os.WriteFile(dbPath, content, 0644); err != nil {
+		if err := os.WriteFile(dbPath, content, 0600); err != nil {
 			t.Fatal(err)
 		}
 
@@ -809,7 +809,7 @@ func TestHandlerEmitNativeCommentary(t *testing.T) {
 
 	irData, _ := json.MarshalIndent(corpus, "", "  ")
 	irPath := filepath.Join(tmpDir, "test-commentary.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -883,7 +883,7 @@ func TestHandlerEmitNativeDictionary(t *testing.T) {
 
 	irData, _ := json.MarshalIndent(corpus, "", "  ")
 	irPath := filepath.Join(tmpDir, "test-dictionary.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -959,7 +959,7 @@ func TestHandlerEmitNativeErrors(t *testing.T) {
 	t.Run("invalid JSON", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		irPath := filepath.Join(tmpDir, "invalid.json")
-		if err := os.WriteFile(irPath, []byte("not valid json"), 0644); err != nil {
+		if err := os.WriteFile(irPath, []byte("not valid json"), 0600); err != nil {
 			t.Fatal(err)
 		}
 
@@ -1050,7 +1050,7 @@ func TestEmitBibleNativeWithOSISID(t *testing.T) {
 
 	irData, _ := json.MarshalIndent(corpus, "", "  ")
 	irPath := filepath.Join(tmpDir, "test-osis.ir.json")
-	os.WriteFile(irPath, irData, 0644)
+	os.WriteFile(irPath, irData, 0600)
 
 	outputDir := filepath.Join(tmpDir, "output")
 	os.MkdirAll(outputDir, 0755)

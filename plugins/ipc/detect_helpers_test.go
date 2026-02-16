@@ -68,7 +68,7 @@ func TestCheckMagicBytes(t *testing.T) {
 	// Create test file with known content
 	testFile := filepath.Join(tmpDir, "test.bin")
 	testData := []byte{0x50, 0x4b, 0x03, 0x04, 0x00, 0x00}
-	if err := os.WriteFile(testFile, testData, 0644); err != nil {
+	if err := os.WriteFile(testFile, testData, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -126,7 +126,7 @@ func TestCheckContentContains(t *testing.T) {
 	// Create test files
 	xmlFile := filepath.Join(tmpDir, "test.xml")
 	xmlContent := `<?xml version="1.0"?><bible><book><verse>text</verse></book></bible>`
-	if err := os.WriteFile(xmlFile, []byte(xmlContent), 0644); err != nil {
+	if err := os.WriteFile(xmlFile, []byte(xmlContent), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -183,7 +183,7 @@ func TestCheckContentContainsAny(t *testing.T) {
 
 	xmlFile := filepath.Join(tmpDir, "test.xml")
 	xmlContent := `<?xml version="1.0"?><bible><book><verse>text</verse></book></bible>`
-	if err := os.WriteFile(xmlFile, []byte(xmlContent), 0644); err != nil {
+	if err := os.WriteFile(xmlFile, []byte(xmlContent), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -271,7 +271,7 @@ func TestDetectByMagicBytes(t *testing.T) {
 
 	zipFile := filepath.Join(tmpDir, "test.zip")
 	zipData := []byte{0x50, 0x4b, 0x03, 0x04, 0x00, 0x00}
-	if err := os.WriteFile(zipFile, zipData, 0644); err != nil {
+	if err := os.WriteFile(zipFile, zipData, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -314,20 +314,20 @@ func TestStandardDetect(t *testing.T) {
 	// Create XML file with Bible content
 	xmlFile := filepath.Join(tmpDir, "test.xml")
 	xmlContent := `<?xml version="1.0"?><bible><book><verse>text</verse></book></bible>`
-	if err := os.WriteFile(xmlFile, []byte(xmlContent), 0644); err != nil {
+	if err := os.WriteFile(xmlFile, []byte(xmlContent), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
 	// Create XML file without Bible content
 	nonBibleXML := filepath.Join(tmpDir, "other.xml")
 	otherContent := `<?xml version="1.0"?><root><item>data</item></root>`
-	if err := os.WriteFile(nonBibleXML, []byte(otherContent), 0644); err != nil {
+	if err := os.WriteFile(nonBibleXML, []byte(otherContent), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
 	// Create non-XML file
 	txtFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtFile, []byte("plain text"), 0644); err != nil {
+	if err := os.WriteFile(txtFile, []byte("plain text"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 

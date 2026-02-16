@@ -35,7 +35,7 @@ func TestDetect(t *testing.T) {
 	t.Run("valid usx detected", func(t *testing.T) {
 		usxFile := filepath.Join(tmpDir, "test.xml")
 		content := `<?xml version="1.0"?><usx version="3.0"><book code="GEN"/></usx>`
-		if err := os.WriteFile(usxFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usxFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -53,7 +53,7 @@ func TestDetect(t *testing.T) {
 
 	t.Run("not usx file", func(t *testing.T) {
 		txtFile := filepath.Join(tmpDir, "test.txt")
-		if err := os.WriteFile(txtFile, []byte("plain text without markers"), 0644); err != nil {
+		if err := os.WriteFile(txtFile, []byte("plain text without markers"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -68,7 +68,7 @@ func TestDetect(t *testing.T) {
 
 	t.Run("invalid xml with usx tag", func(t *testing.T) {
 		badFile := filepath.Join(tmpDir, "bad.xml")
-		if err := os.WriteFile(badFile, []byte("<usx>not closed properly"), 0644); err != nil {
+		if err := os.WriteFile(badFile, []byte("<usx>not closed properly"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -117,7 +117,7 @@ func TestIngest(t *testing.T) {
 	t.Run("basic ingest with book code", func(t *testing.T) {
 		usxFile := filepath.Join(tmpDir, "genesis.usx")
 		content := `<?xml version="1.0"?><usx version="3.0"><book code="GEN" style="id">Genesis</book></usx>`
-		if err := os.WriteFile(usxFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usxFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -145,7 +145,7 @@ func TestIngest(t *testing.T) {
 	t.Run("ingest without book code", func(t *testing.T) {
 		usxFile := filepath.Join(tmpDir, "nocode.usx")
 		content := `<?xml version="1.0"?><usx version="3.0"></usx>`
-		if err := os.WriteFile(usxFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usxFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -175,7 +175,7 @@ func TestIngest(t *testing.T) {
 
 	t.Run("ingest to non-writable output", func(t *testing.T) {
 		usxFile := filepath.Join(tmpDir, "test.usx")
-		if err := os.WriteFile(usxFile, []byte("<usx/>"), 0644); err != nil {
+		if err := os.WriteFile(usxFile, []byte("<usx/>"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -198,7 +198,7 @@ func TestEnumerate(t *testing.T) {
 	t.Run("enumerate file", func(t *testing.T) {
 		usxFile := filepath.Join(tmpDir, "bible.usx")
 		content := "test content"
-		if err := os.WriteFile(usxFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usxFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -246,7 +246,7 @@ func TestExtractIR(t *testing.T) {
   <chapter number="1"/>
   <verse number="1"/>In the beginning God created the heaven and the earth.
 </usx>`
-		if err := os.WriteFile(usxFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usxFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -281,7 +281,7 @@ func TestExtractIR(t *testing.T) {
 	t.Run("extract ir write error", func(t *testing.T) {
 		usxFile := filepath.Join(tmpDir, "test2.usx")
 		content := `<?xml version="1.0"?><usx version="3.0"><book code="GEN"/></usx>`
-		if err := os.WriteFile(usxFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(usxFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -327,7 +327,7 @@ func TestEmitNative(t *testing.T) {
 		}
 
 		irFile := filepath.Join(tmpDir, "gen.ir.json")
-		if err := os.WriteFile(irFile, irData, 0644); err != nil {
+		if err := os.WriteFile(irFile, irData, 0600); err != nil {
 			t.Fatalf("failed to write IR file: %v", err)
 		}
 
@@ -370,7 +370,7 @@ func TestEmitNative(t *testing.T) {
 
 	t.Run("emit native invalid json", func(t *testing.T) {
 		invalidFile := filepath.Join(tmpDir, "invalid.ir.json")
-		if err := os.WriteFile(invalidFile, []byte("not valid json"), 0644); err != nil {
+		if err := os.WriteFile(invalidFile, []byte("not valid json"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -386,7 +386,7 @@ func TestEmitNative(t *testing.T) {
 		irData, _ := json.Marshal(corpus)
 
 		irFile := filepath.Join(tmpDir, "test.ir.json")
-		if err := os.WriteFile(irFile, irData, 0644); err != nil {
+		if err := os.WriteFile(irFile, irData, 0600); err != nil {
 			t.Fatalf("failed to write IR file: %v", err)
 		}
 

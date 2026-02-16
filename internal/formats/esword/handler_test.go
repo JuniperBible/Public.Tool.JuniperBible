@@ -404,7 +404,7 @@ func TestHandlerDetect(t *testing.T) {
 			name:     "Wrong extension",
 			filename: "test.txt",
 			setup: func(path string) error {
-				return os.WriteFile(path, []byte("test"), 0644)
+				return os.WriteFile(path, []byte("test"), 0600)
 			},
 			detected: false,
 		},
@@ -772,7 +772,7 @@ func TestHandlerEmitNative(t *testing.T) {
 			}
 
 			irPath := filepath.Join(irDir, tt.corpus.ID+".ir.json")
-			if err := os.WriteFile(irPath, irData, 0644); err != nil {
+			if err := os.WriteFile(irPath, irData, 0600); err != nil {
 				t.Fatal(err)
 			}
 
@@ -1081,7 +1081,7 @@ func TestHandlerEnumerate(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		testFile := filepath.Join(tmpDir, "test.bblx")
 		content := []byte("test content for size calculation")
-		if err := os.WriteFile(testFile, content, 0644); err != nil {
+		if err := os.WriteFile(testFile, content, 0600); err != nil {
 			t.Fatal(err)
 		}
 
@@ -1155,7 +1155,7 @@ func TestHandlerIngestErrors(t *testing.T) {
 	t.Run("non-writable output", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		testFile := filepath.Join(tmpDir, "test.bblx")
-		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 			t.Fatal(err)
 		}
 
@@ -1172,7 +1172,7 @@ func TestHandlerExtractIRErrors(t *testing.T) {
 	t.Run("unsupported extension", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		testFile := filepath.Join(tmpDir, "test.xyz")
-		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 			t.Fatal(err)
 		}
 
@@ -1196,7 +1196,7 @@ func TestHandlerEmitNativeErrors(t *testing.T) {
 	t.Run("invalid JSON", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		irPath := filepath.Join(tmpDir, "invalid.json")
-		if err := os.WriteFile(irPath, []byte("not valid json"), 0644); err != nil {
+		if err := os.WriteFile(irPath, []byte("not valid json"), 0600); err != nil {
 			t.Fatal(err)
 		}
 

@@ -91,7 +91,7 @@ CompressType=ZIP
 Versification=KJV
 `
 	confPath := filepath.Join(modsDir, "testmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -105,7 +105,7 @@ Versification=KJV
 	placeholders := []string{"ot.bzv", "ot.bzs", "ot.bzz"}
 	for _, name := range placeholders {
 		path := filepath.Join(dataDir, name)
-		if err := os.WriteFile(path, []byte{}, 0644); err != nil {
+		if err := os.WriteFile(path, []byte{}, 0600); err != nil {
 			t.Fatalf("failed to write %s: %v", name, err)
 		}
 	}

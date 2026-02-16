@@ -14,7 +14,7 @@ import (
 func TestDetect_ValidLogosFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.logos")
-	if err := os.WriteFile(testFile, []byte("test logos content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test logos content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -38,7 +38,7 @@ func TestDetect_ValidLogosFile(t *testing.T) {
 func TestDetect_InvalidExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -94,7 +94,7 @@ func TestDetect_NonExistentFile(t *testing.T) {
 func TestDetect_CaseInsensitiveExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.LOGOS")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -113,7 +113,7 @@ func TestIngest_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.logos")
 	content := []byte("test logos content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -154,7 +154,7 @@ func TestIngest_HashVerification(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.logos")
 	content := []byte("test logos content for hash verification")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -200,7 +200,7 @@ func TestIngest_CreatesOutputDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.logos")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -222,13 +222,13 @@ func TestIngest_FailToCreateBlobDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.logos")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a file where the output directory should be, to cause MkdirAll to fail
 	outputDir := filepath.Join(tmpDir, "blocked")
-	if err := os.WriteFile(outputDir, []byte("blocking file"), 0644); err != nil {
+	if err := os.WriteFile(outputDir, []byte("blocking file"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -246,7 +246,7 @@ func TestIngest_FailToWriteBlob(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.logos")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -280,7 +280,7 @@ func TestEnumerate_ValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.logos")
 	content := []byte("test logos content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

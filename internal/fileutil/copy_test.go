@@ -12,7 +12,7 @@ func TestCopyFile(t *testing.T) {
 	// Create source file
 	srcContent := "Hello, World!"
 	srcPath := filepath.Join(tempDir, "src.txt")
-	if err := os.WriteFile(srcPath, []byte(srcContent), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(srcContent), 0600); err != nil {
 		t.Fatalf("failed to create source file: %v", err)
 	}
 
@@ -37,7 +37,7 @@ func TestCopyFile_CreateDir(t *testing.T) {
 
 	// Create source file
 	srcPath := filepath.Join(tempDir, "src.txt")
-	if err := os.WriteFile(srcPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to create source file: %v", err)
 	}
 
@@ -70,10 +70,10 @@ func TestCopyDir(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -133,7 +133,7 @@ func TestCopyDir_SingleFile(t *testing.T) {
 
 	// Create source file (not directory)
 	srcPath := filepath.Join(tempDir, "file.txt")
-	if err := os.WriteFile(srcPath, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create source file: %v", err)
 	}
 
@@ -159,7 +159,7 @@ func TestCopyDir_DeepNesting(t *testing.T) {
 	if err := os.MkdirAll(deepPath, 0755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(deepPath, "deep.txt"), []byte("deep"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(deepPath, "deep.txt"), []byte("deep"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -181,13 +181,13 @@ func TestCopyFile_InvalidDst(t *testing.T) {
 
 	// Create source file
 	srcPath := filepath.Join(tempDir, "src.txt")
-	if err := os.WriteFile(srcPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to create source file: %v", err)
 	}
 
 	// Create a file where we want to create a directory
 	blocker := filepath.Join(tempDir, "blocker")
-	if err := os.WriteFile(blocker, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(blocker, []byte("blocking"), 0600); err != nil {
 		t.Fatalf("failed to create blocker file: %v", err)
 	}
 
@@ -207,13 +207,13 @@ func TestCopyDir_DestinationBlocked(t *testing.T) {
 	if err := os.MkdirAll(srcDir, 0755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
 	// Create a file where we want to create the destination directory
 	blocker := filepath.Join(tempDir, "blocker")
-	if err := os.WriteFile(blocker, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(blocker, []byte("blocking"), 0600); err != nil {
 		t.Fatalf("failed to create blocker file: %v", err)
 	}
 
@@ -233,7 +233,7 @@ func TestCopyDir_CopyFileError(t *testing.T) {
 	if err := os.MkdirAll(subDir, 0755); err != nil {
 		t.Fatalf("failed to create subdirectory: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(subDir, "file.txt"), []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(subDir, "file.txt"), []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -245,7 +245,7 @@ func TestCopyDir_CopyFileError(t *testing.T) {
 
 	// Create a file that will block the subdirectory creation
 	dstSubDir := filepath.Join(dstDir, "subdir")
-	if err := os.WriteFile(dstSubDir, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(dstSubDir, []byte("blocking"), 0600); err != nil {
 		t.Fatalf("failed to create blocker file: %v", err)
 	}
 
@@ -266,7 +266,7 @@ func TestCopyDir_ReadDirError(t *testing.T) {
 	}
 
 	// Add a file to make it non-empty
-	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -322,7 +322,7 @@ func TestCopyFile_LargeFile(t *testing.T) {
 	for i := range largeContent {
 		largeContent[i] = byte(i % 256)
 	}
-	if err := os.WriteFile(srcPath, largeContent, 0644); err != nil {
+	if err := os.WriteFile(srcPath, largeContent, 0600); err != nil {
 		t.Fatalf("failed to create source file: %v", err)
 	}
 
@@ -355,7 +355,7 @@ func TestCopyFile_EmptyFile(t *testing.T) {
 
 	// Create an empty source file
 	srcPath := filepath.Join(tempDir, "empty.txt")
-	if err := os.WriteFile(srcPath, []byte{}, 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte{}, 0600); err != nil {
 		t.Fatalf("failed to create source file: %v", err)
 	}
 
@@ -424,7 +424,7 @@ func TestCopyFile_OpenFileError(t *testing.T) {
 
 	// Create a source file
 	srcPath := filepath.Join(tempDir, "src.txt")
-	if err := os.WriteFile(srcPath, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create source file: %v", err)
 	}
 
@@ -449,7 +449,7 @@ func TestCopyDir_CopyFileInLoopError(t *testing.T) {
 	if err := os.MkdirAll(srcDir, 0755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 

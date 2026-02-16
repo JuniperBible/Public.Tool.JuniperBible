@@ -14,7 +14,7 @@ func TestDetectFile_ExtensionOnly(t *testing.T) {
 	// Create a temporary test file
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -37,7 +37,7 @@ func TestDetectFile_ExtensionOnly(t *testing.T) {
 func TestDetectFile_WrongExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.xml")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -77,7 +77,7 @@ func TestDetectFile_ContentMarkers(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.usfm")
 	content := "\\id GEN\n\\c 1\n\\v 1 In the beginning..."
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -98,7 +98,7 @@ func TestDetectFile_ContentMarkers(t *testing.T) {
 func TestDetectFile_CustomValidator(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.json")
-	if err := os.WriteFile(testFile, []byte(`{"valid": true}`), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(`{"valid": true}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -126,7 +126,7 @@ func TestIngestFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -159,7 +159,7 @@ func TestIngestFile_CustomArtifactID(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := []byte("\\id CUSTOM")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -186,7 +186,7 @@ func TestEnumerateFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -220,7 +220,7 @@ func TestReadFileInfo(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -301,7 +301,7 @@ func TestDetectFile_ContentMarkersPartialMatch(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.usfm")
 	content := "\\id GEN\n\\c 1\nSome text without verse marker"
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -324,7 +324,7 @@ func TestDetectFile_ContentMarkersPartialMatch(t *testing.T) {
 func TestDetectFile_UnreadableFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -355,7 +355,7 @@ func TestDetectFile_UnreadableFile(t *testing.T) {
 func TestDetectFile_CustomValidatorError(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.json")
-	if err := os.WriteFile(testFile, []byte(`{"test": true}`), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(`{"test": true}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -383,7 +383,7 @@ func TestDetectFile_CustomValidatorError(t *testing.T) {
 func TestDetectFile_CustomValidatorRejects(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.json")
-	if err := os.WriteFile(testFile, []byte(`{"invalid": true}`), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(`{"invalid": true}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -425,13 +425,13 @@ func TestIngestFile_ReadError(t *testing.T) {
 func TestIngestFile_MkdirError(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a file where we need a directory
 	outputDir := filepath.Join(tmpDir, "output")
-	if err := os.WriteFile(outputDir, []byte("block"), 0644); err != nil {
+	if err := os.WriteFile(outputDir, []byte("block"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -451,7 +451,7 @@ func TestIngestFile_WriteBlobError(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -484,7 +484,7 @@ func TestIngestFile_WriteBlobError(t *testing.T) {
 func TestIngestFile_AdditionalMetadata(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 

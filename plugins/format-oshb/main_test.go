@@ -15,7 +15,7 @@ func createTestOSHB(t *testing.T, path string) {
 Gen.1.2 וְהָאָרֶץ הָיְתָה תֹהוּ וָבֹהוּ
 Exod.1.1 וְאֵלֶּה שְׁמוֹת בְּנֵי יִשְׂרָאֵל
 `
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write test OSHB: %v", err)
 	}
 }
@@ -40,7 +40,7 @@ func TestOSHBDetectNonOSHB(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "oshb-test-*")
 	defer os.RemoveAll(tmpDir)
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	os.WriteFile(txtPath, []byte("Hello"), 0644)
+	os.WriteFile(txtPath, []byte("Hello"), 0600)
 
 	resp := executePlugin(t, &IPCRequest{Command: "detect", Args: map[string]interface{}{"path": txtPath}})
 	result := resp.Result.(map[string]interface{})
@@ -73,7 +73,7 @@ func TestOSHBEmitNative(t *testing.T) {
 	corpus := Corpus{ID: "test", Title: "Test", Documents: []*Document{{ID: "Gen", Title: "Genesis", Order: 1, ContentBlocks: []*ContentBlock{{ID: "cb-1", Sequence: 1, Text: "בְּרֵאשִׁית"}}}}}
 	irData, _ := json.MarshalIndent(&corpus, "", "  ")
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	os.WriteFile(irPath, irData, 0644)
+	os.WriteFile(irPath, irData, 0600)
 	outputDir := filepath.Join(tmpDir, "output")
 	os.MkdirAll(outputDir, 0755)
 

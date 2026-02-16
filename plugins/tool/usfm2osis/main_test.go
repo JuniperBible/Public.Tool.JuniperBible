@@ -50,7 +50,7 @@ func TestConvertProfile(t *testing.T) {
 \\c 1
 \\v 1 In the beginning God created the heavens and the earth.
 `
-	if err := os.WriteFile(inputFile, []byte(usfmContent), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte(usfmContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -64,7 +64,7 @@ func TestConvertProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	os.WriteFile(reqFile, reqData, 0644)
+	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
 	os.MkdirAll(outDir, 0755)

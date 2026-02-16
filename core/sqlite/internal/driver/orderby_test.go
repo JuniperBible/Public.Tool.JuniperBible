@@ -14,7 +14,7 @@ func TestOrderByASC(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, "test.db")
 
 	// Create and open database
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -81,7 +81,7 @@ func TestOrderByDESC(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, "test.db")
 
 	// Create and open database
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 

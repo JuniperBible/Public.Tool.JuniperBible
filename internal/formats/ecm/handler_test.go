@@ -61,7 +61,7 @@ func TestHandler_Detect_ValidECM(t *testing.T) {
   </apparatus>
 </ECM>`
 
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -91,7 +91,7 @@ func TestHandler_Detect_ValidECMWithVariant(t *testing.T) {
   </variant>
 </ECM>`
 
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -115,7 +115,7 @@ func TestHandler_Detect_InvalidFile(t *testing.T) {
   <data>Not an ECM file</data>
 </root>`
 
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -158,7 +158,7 @@ func TestHandler_Ingest(t *testing.T) {
   </apparatus>
 </ECM>`)
 
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -218,7 +218,7 @@ func TestHandler_Enumerate(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.ecm.xml")
 	content := []byte("test content")
 
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -309,7 +309,7 @@ func TestHandler_ExtractIR(t *testing.T) {
 	}
 
 	content := []byte(xml.Header + string(xmlData))
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -405,7 +405,7 @@ func TestHandler_ExtractIR_InvalidXML(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "invalid.xml")
 
 	content := []byte("not valid xml {{{")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -494,7 +494,7 @@ func TestHandler_EmitNative(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -579,7 +579,7 @@ func TestHandler_EmitNative_InvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	irPath := filepath.Join(tmpDir, "invalid.json")
 
-	if err := os.WriteFile(irPath, []byte("not valid json {{{"), 0644); err != nil {
+	if err := os.WriteFile(irPath, []byte("not valid json {{{"), 0600); err != nil {
 		t.Fatal(err)
 	}
 

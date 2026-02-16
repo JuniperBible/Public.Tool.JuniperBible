@@ -155,7 +155,7 @@ func TestStart_TLSKeyFileNotFound(t *testing.T) {
 
 	// Create a cert file but not a key file
 	certFile := filepath.Join(tmpDir, "cert.pem")
-	if err := os.WriteFile(certFile, []byte("fake cert"), 0644); err != nil {
+	if err := os.WriteFile(certFile, []byte("fake cert"), 0600); err != nil {
 		t.Fatal(err)
 	}
 

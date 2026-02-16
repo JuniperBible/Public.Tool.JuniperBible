@@ -23,7 +23,7 @@ func TestExportIdentity(t *testing.T) {
 	// Create a test file with specific content
 	originalContent := []byte("This is the original content that must be preserved byte-for-byte!")
 	testFilePath := filepath.Join(tempDir, "original.txt")
-	if err := os.WriteFile(testFilePath, originalContent, 0644); err != nil {
+	if err := os.WriteFile(testFilePath, originalContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -77,7 +77,7 @@ func TestExportIdentityAfterPackUnpack(t *testing.T) {
 	// Create test file
 	originalContent := []byte("Content for pack/unpack/export test - byte preservation is critical!")
 	testFilePath := filepath.Join(tempDir, "original.txt")
-	if err := os.WriteFile(testFilePath, originalContent, 0644); err != nil {
+	if err := os.WriteFile(testFilePath, originalContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -178,7 +178,7 @@ func TestExportMultipleFiles(t *testing.T) {
 
 	for name, content := range files {
 		path := filepath.Join(tempDir, name)
-		if err := os.WriteFile(path, content, 0644); err != nil {
+		if err := os.WriteFile(path, content, 0600); err != nil {
 			t.Fatalf("failed to write %s: %v", name, err)
 		}
 
@@ -244,7 +244,7 @@ func TestExportDerivedMode(t *testing.T) {
 
 	// Create and ingest a file
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := capsule.IngestFile(testPath)
@@ -275,7 +275,7 @@ func TestExportUnknownMode(t *testing.T) {
 
 	// Create and ingest a file
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := capsule.IngestFile(testPath)
@@ -305,7 +305,7 @@ func TestExportToBytesUnknownMode(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := capsule.IngestFile(testPath)
@@ -334,7 +334,7 @@ func TestExportToBytesDerivedMode(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := capsule.IngestFile(testPath)
@@ -367,7 +367,7 @@ func TestExportIdentityInvalidPath(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := capsule.IngestFile(testPath)
@@ -396,7 +396,7 @@ func TestExportIdentityMkdirError(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -432,7 +432,7 @@ func TestExportIdentityWriteError(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -539,7 +539,7 @@ func TestExportDerivedNoPluginLoader(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -570,7 +570,7 @@ func TestExportDerivedNoTargetFormat(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -623,7 +623,7 @@ func TestExportDerivedTempDirError(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -663,7 +663,7 @@ func TestExportDerivedToBytesTempDirError(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -928,7 +928,7 @@ func TestExportDerivedWriteSourceFileError(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -980,7 +980,7 @@ func TestExportDerivedExtractIRError(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -1020,7 +1020,7 @@ func TestExportDerivedEmitNativeError(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -1074,7 +1074,7 @@ func TestExportDerivedFullSuccess(t *testing.T) {
 
 	testPath := filepath.Join(tempDir, "test.txt")
 	testContent := []byte("test content")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -1084,7 +1084,7 @@ func TestExportDerivedFullSuccess(t *testing.T) {
 
 	// Create output file that will be "generated"
 	outputPath := filepath.Join(tempDir, "plugin_output.txt")
-	if err := os.WriteFile(outputPath, []byte("converted output"), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte("converted output"), 0600); err != nil {
 		t.Fatalf("failed to write output file: %v", err)
 	}
 
@@ -1164,7 +1164,7 @@ func TestExportDerivedReadOutputError(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -1222,7 +1222,7 @@ func TestExportDerivedWriteDestError(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -1290,7 +1290,7 @@ func TestExportDerivedToBytesSuccess(t *testing.T) {
 	}
 
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -1359,7 +1359,7 @@ func TestExportBinaryPreservation(t *testing.T) {
 	}
 
 	testFilePath := filepath.Join(tempDir, "all-bytes.bin")
-	if err := os.WriteFile(testFilePath, binaryContent, 0644); err != nil {
+	if err := os.WriteFile(testFilePath, binaryContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 

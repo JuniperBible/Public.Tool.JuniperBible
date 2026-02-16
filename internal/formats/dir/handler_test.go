@@ -31,7 +31,7 @@ func TestDetect_ValidDirectory(t *testing.T) {
 func TestDetect_File(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -111,10 +111,10 @@ func TestEnumerate_WithFiles(t *testing.T) {
 	content1 := []byte("content1")
 	content2 := []byte("content2")
 
-	if err := os.WriteFile(file1, content1, 0644); err != nil {
+	if err := os.WriteFile(file1, content1, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(file2, content2, 0644); err != nil {
+	if err := os.WriteFile(file2, content2, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -158,10 +158,10 @@ func TestEnumerate_NestedDirectories(t *testing.T) {
 	file1 := filepath.Join(tmpDir, "root.txt")
 	file2 := filepath.Join(subDir, "nested.txt")
 
-	if err := os.WriteFile(file1, []byte("root content"), 0644); err != nil {
+	if err := os.WriteFile(file1, []byte("root content"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(file2, []byte("nested content"), 0644); err != nil {
+	if err := os.WriteFile(file2, []byte("nested content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -220,7 +220,7 @@ func TestEnumerate_SymlinkHandling(t *testing.T) {
 
 	// Create a file
 	targetFile := filepath.Join(tmpDir, "target.txt")
-	if err := os.WriteFile(targetFile, []byte("target content"), 0644); err != nil {
+	if err := os.WriteFile(targetFile, []byte("target content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -278,7 +278,7 @@ func TestEnumerate_ErrorDuringWalk(t *testing.T) {
 
 	// Create a file in the subdirectory
 	testFile := filepath.Join(subDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 

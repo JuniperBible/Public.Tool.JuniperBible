@@ -12,7 +12,7 @@ func TestDetect_ValidFlexText(t *testing.T) {
 	// Create a temporary .flextext file
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.flextext")
-	if err := os.WriteFile(tmpFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test content"), 0600); err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 
@@ -37,7 +37,7 @@ func TestDetect_InvalidExtension(t *testing.T) {
 	// Create a temporary file with wrong extension
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(tmpFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test content"), 0600); err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 
@@ -94,7 +94,7 @@ func TestIngest_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.flextext")
 	content := []byte("test flex content")
-	if err := os.WriteFile(tmpFile, content, 0644); err != nil {
+	if err := os.WriteFile(tmpFile, content, 0600); err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 
@@ -157,7 +157,7 @@ func TestIngest_BlobDirCreation(t *testing.T) {
 	// Create a temporary .flextext file
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.flextext")
-	if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 
@@ -184,7 +184,7 @@ func TestIngest_FailedBlobDirCreation(t *testing.T) {
 	// Create a temporary .flextext file
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.flextext")
-	if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 
@@ -210,7 +210,7 @@ func TestIngest_FailedBlobWrite(t *testing.T) {
 	// Create a temporary .flextext file
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.flextext")
-	if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 
@@ -250,7 +250,7 @@ func TestEnumerate_ValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.flextext")
 	content := []byte("test content for enumeration")
-	if err := os.WriteFile(tmpFile, content, 0644); err != nil {
+	if err := os.WriteFile(tmpFile, content, 0600); err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 

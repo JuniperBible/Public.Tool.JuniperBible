@@ -81,7 +81,7 @@ func createTestDirectory(t *testing.T, path string) {
 	// Create a .conf file
 	confPath := filepath.Join(modsDir, "test.conf")
 	confContent := "[TestModule]\nDescription=Test Module\nModDrv=RawText\n"
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -92,7 +92,7 @@ func createTestDirectory(t *testing.T, path string) {
 	}
 
 	dataPath := filepath.Join(dataDir, "test.dat")
-	if err := os.WriteFile(dataPath, []byte("test data"), 0644); err != nil {
+	if err := os.WriteFile(dataPath, []byte("test data"), 0600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -391,7 +391,7 @@ func TestEnumerate_ListConfFiles(t *testing.T) {
 
 	// Add a second conf file
 	confPath := filepath.Join(testDir, "mods.d", "second.conf")
-	if err := os.WriteFile(confPath, []byte("[Second]\nDescription=Second Module\n"), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte("[Second]\nDescription=Second Module\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -535,7 +535,7 @@ func TestEmitNative_ZipCreation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -753,7 +753,7 @@ func TestCopyFile_Success(t *testing.T) {
 	dstPath := filepath.Join(tmpDir, "subdir", "dest.txt")
 
 	content := []byte("test file content")
-	if err := os.WriteFile(srcPath, content, 0644); err != nil {
+	if err := os.WriteFile(srcPath, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -826,7 +826,7 @@ func TestDetectDirectory_ModsDNotDirectory(t *testing.T) {
 	}
 
 	modsPath := filepath.Join(testDir, "mods.d")
-	if err := os.WriteFile(modsPath, []byte("not a directory"), 0644); err != nil {
+	if err := os.WriteFile(modsPath, []byte("not a directory"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -878,7 +878,7 @@ func TestIngest_InvalidZip(t *testing.T) {
 	outputDir := filepath.Join(tmpDir, "output")
 
 	// Create a corrupted zip file
-	if err := os.WriteFile(zipPath, []byte("not a zip file"), 0644); err != nil {
+	if err := os.WriteFile(zipPath, []byte("not a zip file"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -899,7 +899,7 @@ func TestEmitNative_InvalidIR(t *testing.T) {
 	outputDir := filepath.Join(tmpDir, "output")
 
 	// Create invalid JSON
-	if err := os.WriteFile(irPath, []byte("not valid json"), 0644); err != nil {
+	if err := os.WriteFile(irPath, []byte("not valid json"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1003,7 +1003,7 @@ func TestEmitNative_CreateModsDirError(t *testing.T) {
 
 	// Create a file where outputDir would be, causing mkdir to fail
 	outputDir := filepath.Join(tmpDir, "output")
-	if err := os.WriteFile(outputDir, []byte("file blocking directory"), 0644); err != nil {
+	if err := os.WriteFile(outputDir, []byte("file blocking directory"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1021,7 +1021,7 @@ func TestEmitNative_CreateModsDirError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1126,13 +1126,13 @@ func TestCopyDir_WithSubdirectories(t *testing.T) {
 	file2 := filepath.Join(srcDir, "level1", "file2.txt")
 	file3 := filepath.Join(nestedDir, "file3.txt")
 
-	if err := os.WriteFile(file1, []byte("content1"), 0644); err != nil {
+	if err := os.WriteFile(file1, []byte("content1"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(file2, []byte("content2"), 0644); err != nil {
+	if err := os.WriteFile(file2, []byte("content2"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(file3, []byte("content3"), 0644); err != nil {
+	if err := os.WriteFile(file3, []byte("content3"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1223,7 +1223,7 @@ func TestIngest_TempDirCreationError(t *testing.T) {
 	outputDir := filepath.Join(tmpDir, "output")
 
 	// Create an invalid zip file
-	if err := os.WriteFile(zipPath, []byte("not a valid zip"), 0644); err != nil {
+	if err := os.WriteFile(zipPath, []byte("not a valid zip"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1251,7 +1251,7 @@ func TestEmitNative_CreateModulesError(t *testing.T) {
 
 	// Create a file where modules/ should be
 	modulesPath := filepath.Join(outputDir, "modules")
-	if err := os.WriteFile(modulesPath, []byte("blocking file"), 0644); err != nil {
+	if err := os.WriteFile(modulesPath, []byte("blocking file"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1269,7 +1269,7 @@ func TestEmitNative_CreateModulesError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1323,7 +1323,7 @@ func TestEmitNative_WriteConfError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1368,7 +1368,7 @@ func TestEmitNative_CreateZipError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1460,13 +1460,13 @@ func TestCopyFile_CreateError(t *testing.T) {
 
 	// Create a file that blocks destination directory creation
 	dstDir := filepath.Join(tmpDir, "dstdir")
-	if err := os.WriteFile(dstDir, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(dstDir, []byte("blocking"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
 	dstPath := filepath.Join(dstDir, "dest.txt")
 
-	if err := os.WriteFile(srcPath, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1509,7 +1509,7 @@ func TestCopyDir_RelPathError(t *testing.T) {
 	}
 
 	testFile := filepath.Join(srcDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1545,12 +1545,12 @@ func TestCopyFile_IOCopyError(t *testing.T) {
 	dstPath := filepath.Join(tmpDir, "dest.txt")
 
 	// Create source file
-	if err := os.WriteFile(srcPath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create destination file first
-	if err := os.WriteFile(dstPath, []byte("existing"), 0644); err != nil {
+	if err := os.WriteFile(dstPath, []byte("existing"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1583,7 +1583,7 @@ func TestCreateZipArchive_ZipCreateError(t *testing.T) {
 
 	// Create a regular file
 	testFile := filepath.Join(sourceDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1649,7 +1649,7 @@ func TestDetectDirectory_StatError(t *testing.T) {
 
 	// Create a .conf file
 	confPath := filepath.Join(modsDir, "test.conf")
-	if err := os.WriteFile(confPath, []byte("[Test]\n"), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte("[Test]\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 

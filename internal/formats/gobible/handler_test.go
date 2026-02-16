@@ -14,7 +14,7 @@ func TestDetect_ValidJarFile(t *testing.T) {
 	// Create a temporary .jar file
 	tmpDir := t.TempDir()
 	jarPath := filepath.Join(tmpDir, "test.jar")
-	if err := os.WriteFile(jarPath, []byte("fake jar content"), 0644); err != nil {
+	if err := os.WriteFile(jarPath, []byte("fake jar content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -39,7 +39,7 @@ func TestDetect_InvalidExtension(t *testing.T) {
 	// Create a temporary file with non-.jar extension
 	tmpDir := t.TempDir()
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtPath, []byte("not a jar"), 0644); err != nil {
+	if err := os.WriteFile(txtPath, []byte("not a jar"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -93,7 +93,7 @@ func TestDetect_CaseInsensitiveExtension(t *testing.T) {
 	// Test that .JAR (uppercase) is also detected
 	tmpDir := t.TempDir()
 	jarPath := filepath.Join(tmpDir, "test.JAR")
-	if err := os.WriteFile(jarPath, []byte("fake jar content"), 0644); err != nil {
+	if err := os.WriteFile(jarPath, []byte("fake jar content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -113,7 +113,7 @@ func TestIngest_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	jarPath := filepath.Join(tmpDir, "test-bible.jar")
 	content := []byte("test jar content for ingestion")
-	if err := os.WriteFile(jarPath, content, 0644); err != nil {
+	if err := os.WriteFile(jarPath, content, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -177,13 +177,13 @@ func TestIngest_InvalidOutputDir(t *testing.T) {
 	// Create a temporary .jar file
 	tmpDir := t.TempDir()
 	jarPath := filepath.Join(tmpDir, "test.jar")
-	if err := os.WriteFile(jarPath, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(jarPath, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
 	// Use a path that cannot be created (file as directory)
 	invalidDir := filepath.Join(tmpDir, "file-not-dir")
-	if err := os.WriteFile(invalidDir, []byte("this is a file"), 0644); err != nil {
+	if err := os.WriteFile(invalidDir, []byte("this is a file"), 0600); err != nil {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
@@ -200,7 +200,7 @@ func TestIngest_WriteFileFails(t *testing.T) {
 	tmpDir := t.TempDir()
 	jarPath := filepath.Join(tmpDir, "test.jar")
 	content := []byte("test content")
-	if err := os.WriteFile(jarPath, content, 0644); err != nil {
+	if err := os.WriteFile(jarPath, content, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -237,7 +237,7 @@ func TestEnumerate_ValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	jarPath := filepath.Join(tmpDir, "test.jar")
 	content := []byte("test content")
-	if err := os.WriteFile(jarPath, content, 0644); err != nil {
+	if err := os.WriteFile(jarPath, content, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 

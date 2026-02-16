@@ -656,7 +656,7 @@ func TestListInstalled(t *testing.T) {
 Description=King James Version
 Lang=en
 ModDrv=zText`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), confData, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), confData, 0600)
 
 		modules, err := ListInstalled(tempDir)
 		if err != nil {
@@ -703,7 +703,7 @@ func TestUninstall(t *testing.T) {
 
 		dataDir := filepath.Join(tempDir, "modules", "texts", "ztext", "kjv")
 		os.MkdirAll(dataDir, 0755)
-		os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0644)
+		os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600)
 
 		confData := []byte(`[KJV]
 Description=King James Version
@@ -711,7 +711,7 @@ Lang=en
 ModDrv=zText
 DataPath=./modules/texts/ztext/kjv/`)
 		confPath := filepath.Join(modsDir, "kjv.conf")
-		os.WriteFile(confPath, confData, 0644)
+		os.WriteFile(confPath, confData, 0600)
 
 		err := Uninstall("KJV", tempDir)
 		if err != nil {
@@ -755,14 +755,14 @@ func TestVerify(t *testing.T) {
 
 		dataDir := filepath.Join(tempDir, "modules", "texts", "ztext", "kjv")
 		os.MkdirAll(dataDir, 0755)
-		os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0644)
+		os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600)
 
 		confData := []byte(`[KJV]
 Description=King James Version
 Lang=en
 ModDrv=zText
 DataPath=./modules/texts/ztext/kjv/`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), confData, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), confData, 0600)
 
 		result, err := Verify("KJV", tempDir)
 		if err != nil {
@@ -783,7 +783,7 @@ Description=King James Version
 Lang=en
 ModDrv=zText
 DataPath=./modules/texts/ztext/kjv/`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), confData, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), confData, 0600)
 
 		result, err := Verify("KJV", tempDir)
 		if err != nil {
@@ -810,7 +810,7 @@ Description=King James Version
 Lang=en
 ModDrv=zText
 DataPath=./modules/texts/ztext/kjv/`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), confData, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), confData, 0600)
 
 		result, err := Verify("KJV", tempDir)
 		if err != nil {
@@ -831,14 +831,14 @@ DataPath=./modules/texts/ztext/kjv/`)
 
 		dataFile := filepath.Join(tempDir, "modules", "texts", "ztext", "kjv")
 		os.MkdirAll(filepath.Dir(dataFile), 0755)
-		os.WriteFile(dataFile, []byte("not a directory"), 0644)
+		os.WriteFile(dataFile, []byte("not a directory"), 0600)
 
 		confData := []byte(`[KJV]
 Description=King James Version
 Lang=en
 ModDrv=zText
 DataPath=./modules/texts/ztext/kjv`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), confData, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), confData, 0600)
 
 		result, err := Verify("KJV", tempDir)
 		if err != nil {
@@ -972,7 +972,7 @@ func TestListInstalled_InvalidConf(t *testing.T) {
 	os.MkdirAll(modsDir, 0755)
 
 	// Write an invalid conf file
-	os.WriteFile(filepath.Join(modsDir, "invalid.conf"), []byte("invalid"), 0644)
+	os.WriteFile(filepath.Join(modsDir, "invalid.conf"), []byte("invalid"), 0600)
 
 	// Should skip invalid files
 	modules, err := ListInstalled(tempDir)
@@ -990,7 +990,7 @@ func TestListInstalled_NonConfFiles(t *testing.T) {
 	os.MkdirAll(modsDir, 0755)
 
 	// Create non-.conf files and directories
-	os.WriteFile(filepath.Join(modsDir, "readme.txt"), []byte("hello"), 0644)
+	os.WriteFile(filepath.Join(modsDir, "readme.txt"), []byte("hello"), 0600)
 	os.Mkdir(filepath.Join(modsDir, "subdir"), 0755)
 
 	modules, err := ListInstalled(tempDir)
@@ -1024,7 +1024,7 @@ func TestUninstall_InvalidConf(t *testing.T) {
 
 	// Write invalid conf
 	confPath := filepath.Join(modsDir, "kjv.conf")
-	os.WriteFile(confPath, []byte("invalid"), 0644)
+	os.WriteFile(confPath, []byte("invalid"), 0600)
 
 	err := Uninstall("KJV", tempDir)
 	if err == nil {
@@ -1038,7 +1038,7 @@ func TestVerify_InvalidConf(t *testing.T) {
 	os.MkdirAll(modsDir, 0755)
 
 	// Write invalid conf
-	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte("invalid"), 0644)
+	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte("invalid"), 0600)
 
 	result, err := Verify("KJV", tempDir)
 	if err != nil {
@@ -1276,7 +1276,7 @@ func TestVerify_NoDataPath(t *testing.T) {
 Description=Test
 Lang=en
 ModDrv=zText`)
-	os.WriteFile(filepath.Join(modsDir, "test.conf"), confData, 0644)
+	os.WriteFile(filepath.Join(modsDir, "test.conf"), confData, 0600)
 
 	result, err := Verify("TEST", tempDir)
 	if err != nil {
@@ -1301,7 +1301,7 @@ Lang=en
 ModDrv=zText
 DataPath=./nonexistent/path/`)
 	confPath := filepath.Join(modsDir, "test.conf")
-	os.WriteFile(confPath, confData, 0644)
+	os.WriteFile(confPath, confData, 0600)
 
 	err := Uninstall("TEST", tempDir)
 	if err != nil {

@@ -12,7 +12,7 @@ func createTempConfFile(t *testing.T, content string) string {
 	t.Helper()
 	tmpDir := t.TempDir()
 	confPath := filepath.Join(tmpDir, "test.conf")
-	if err := os.WriteFile(confPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(content), 0600); err != nil {
 		t.Fatalf("Failed to write temp conf file: %v", err)
 	}
 	return confPath
@@ -592,13 +592,13 @@ func TestDiscoverModules(t *testing.T) {
 	confFiles := []string{"kjv.conf", "esv.conf", "strongs.conf"}
 	for _, name := range confFiles {
 		path := filepath.Join(modsDir, name)
-		if err := os.WriteFile(path, []byte("[Test]\n"), 0644); err != nil {
+		if err := os.WriteFile(path, []byte("[Test]\n"), 0600); err != nil {
 			t.Fatalf("Failed to create %s: %v", name, err)
 		}
 	}
 
 	// Create a non-conf file that should be ignored
-	if err := os.WriteFile(filepath.Join(modsDir, "readme.txt"), []byte("ignore me"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "readme.txt"), []byte("ignore me"), 0600); err != nil {
 		t.Fatalf("Failed to create readme.txt: %v", err)
 	}
 
@@ -654,10 +654,10 @@ ModDrv=zText
 Lang=en
 DataPath=./modules/texts/ztext/esv/
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(kjvConf), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(kjvConf), 0600); err != nil {
 		t.Fatalf("Failed to create kjv.conf: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(modsDir, "esv.conf"), []byte(esvConf), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "esv.conf"), []byte(esvConf), 0600); err != nil {
 		t.Fatalf("Failed to create esv.conf: %v", err)
 	}
 
@@ -702,13 +702,13 @@ func TestLoadAllModules_WithInvalidConf(t *testing.T) {
 Description=Valid Module
 ModDrv=zText
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "valid.conf"), []byte(validConf), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "valid.conf"), []byte(validConf), 0600); err != nil {
 		t.Fatalf("Failed to create valid.conf: %v", err)
 	}
 
 	// Create a conf file that can't be parsed (make it unreadable)
 	invalidPath := filepath.Join(modsDir, "invalid.conf")
-	if err := os.WriteFile(invalidPath, []byte("[Test]\n"), 0644); err != nil {
+	if err := os.WriteFile(invalidPath, []byte("[Test]\n"), 0600); err != nil {
 		t.Fatalf("Failed to create invalid.conf: %v", err)
 	}
 	// Make it a directory to cause Open to fail (on most systems)

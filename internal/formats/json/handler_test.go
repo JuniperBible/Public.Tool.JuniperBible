@@ -51,7 +51,7 @@ func TestDetect_ValidJsonBible(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -78,7 +78,7 @@ func TestDetect_InvalidJson(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.json")
 
 	// Write invalid JSON
-	if err := os.WriteFile(testFile, []byte("{invalid json}"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("{invalid json}"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -101,7 +101,7 @@ func TestDetect_WrongExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.xml")
 
-	if err := os.WriteFile(testFile, []byte("{}"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("{}"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -130,7 +130,7 @@ func TestDetect_MissingFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -205,7 +205,7 @@ func TestIngest_Success(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -239,7 +239,7 @@ func TestIngest_HashVerification(t *testing.T) {
 	outputDir := filepath.Join(tmpDir, "output")
 
 	content := []byte(`{"meta":{"id":"TEST","title":"Test"},"books":[]}`)
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -273,7 +273,7 @@ func TestEnumerate_ValidFile(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.json")
 
 	content := []byte(`{"meta":{"id":"TEST"},"books":[]}`)
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -365,7 +365,7 @@ func TestExtractIR_StructuredBooks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -478,7 +478,7 @@ func TestExtractIR_FlatVerses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -563,7 +563,7 @@ func TestExtractIR_IDGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -660,7 +660,7 @@ func TestEmitNative_L0RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, originalData, 0644); err != nil {
+	if err := os.WriteFile(testFile, originalData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -769,7 +769,7 @@ func TestEmitNative_L1Generation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(irFile, irData, 0644); err != nil {
+	if err := os.WriteFile(irFile, irData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -871,7 +871,7 @@ func TestExtractIR_EmptyFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -948,7 +948,7 @@ func TestExtractIR_InvalidJson(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(testFile, []byte("{invalid json}"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("{invalid json}"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -986,7 +986,7 @@ func TestEmitNative_InvalidIR(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(irFile, []byte("{invalid json}"), 0644); err != nil {
+	if err := os.WriteFile(irFile, []byte("{invalid json}"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1026,7 +1026,7 @@ func TestDetect_ValidJsonBibleWithVerses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1047,7 +1047,7 @@ func TestDetect_UnreadableFile(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.json")
 
 	// Create a file but make it unreadable
-	if err := os.WriteFile(testFile, []byte("{}"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("{}"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chmod(testFile, 0000); err != nil {
@@ -1098,7 +1098,7 @@ func TestExtractIR_FlatVersesIDUsage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1163,7 +1163,7 @@ func TestEmitNative_NoAnchors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(irFile, irData, 0644); err != nil {
+	if err := os.WriteFile(irFile, irData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1196,7 +1196,7 @@ func TestIngest_WriteError(t *testing.T) {
 
 	// Create test file
 	content := []byte(`{"meta":{"id":"TEST"},"books":[]}`)
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1219,7 +1219,7 @@ func TestIngest_BlobWriteError(t *testing.T) {
 
 	// Create test file
 	content := []byte(`{"meta":{"id":"TEST"},"books":[]}`)
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1291,7 +1291,7 @@ func TestEmitNative_NoSpans(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(irFile, irData, 0644); err != nil {
+	if err := os.WriteFile(irFile, irData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1367,7 +1367,7 @@ func TestEmitNative_NonVerseSpan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(irFile, irData, 0644); err != nil {
+	if err := os.WriteFile(irFile, irData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1444,7 +1444,7 @@ func TestEmitNative_NilRef(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(irFile, irData, 0644); err != nil {
+	if err := os.WriteFile(irFile, irData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1550,7 +1550,7 @@ func TestEmitNative_MultipleChapters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(irFile, irData, 0644); err != nil {
+	if err := os.WriteFile(irFile, irData, 0600); err != nil {
 		t.Fatal(err)
 	}
 

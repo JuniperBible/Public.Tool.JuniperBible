@@ -239,7 +239,7 @@ func TestGetLicenseText_FromFile(t *testing.T) {
 
 	// Create LICENSE file
 	licenseContent := "This is the license from file"
-	os.WriteFile(filepath.Join(dataPath, "LICENSE"), []byte(licenseContent), 0644)
+	os.WriteFile(filepath.Join(dataPath, "LICENSE"), []byte(licenseContent), 0600)
 
 	conf := &swordpure.ConfFile{}
 	module := &Module{
@@ -569,7 +569,7 @@ func TestHugo(t *testing.T) {
 Description=King James Version
 Lang=en
 ModDrv=zText`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0600)
 
 		cfg := HugoConfig{
 			Path:   tempDir,
@@ -591,7 +591,7 @@ ModDrv=zText`)
 Description=King James Version
 Lang=en
 ModDrv=zText`)
-		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0644)
+		os.WriteFile(filepath.Join(modsDir, "kjv.conf"), kjvConf, 0600)
 
 		cfg := HugoConfig{
 			Path:    tempDir,

@@ -53,7 +53,7 @@ func TestDetectNonSword(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create a non-SWORD directory
-	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("not a sword module"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("not a sword module"), 0600)
 
 	req := ipc.Request{
 		Command: "detect",
@@ -155,7 +155,7 @@ ModDrv=zText
 Lang=en
 Description=King James Version
 `
-	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(confContent), 0644)
+	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(confContent), 0600)
 
 	req := ipc.Request{
 		Command: "detect",
@@ -210,8 +210,8 @@ Lang=en
 Description=English Standard Version
 Version=2.0
 `
-	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(conf1), 0644)
-	os.WriteFile(filepath.Join(modsDir, "esv.conf"), []byte(conf2), 0644)
+	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(conf1), 0600)
+	os.WriteFile(filepath.Join(modsDir, "esv.conf"), []byte(conf2), 0600)
 
 	req := ipc.Request{
 		Command: "list-modules",
@@ -260,7 +260,7 @@ Version=1.0
 CompressType=ZIP
 `
 	confPath := filepath.Join(tmpDir, "test.conf")
-	os.WriteFile(confPath, []byte(confContent), 0644)
+	os.WriteFile(confPath, []byte(confContent), 0600)
 
 	req := ipc.Request{
 		Command: "parse-conf",
@@ -340,7 +340,7 @@ Description=Test Bible Module
 Version=1.0
 Versification=KJV
 `
-	os.WriteFile(filepath.Join(modsDir, "testbible.conf"), []byte(confContent), 0644)
+	os.WriteFile(filepath.Join(modsDir, "testbible.conf"), []byte(confContent), 0600)
 
 	// Create data directory (without actual binary files, will skip)
 	dataDir := filepath.Join(tmpDir, "modules", "texts", "ztext", "testbible")
@@ -536,7 +536,7 @@ func TestEmitNativeFromIR(t *testing.T) {
 
 	irPath := filepath.Join(tmpDir, "test.ir.json")
 	data, _ := json.MarshalIndent(corpus, "", "  ")
-	os.WriteFile(irPath, data, 0644)
+	os.WriteFile(irPath, data, 0600)
 
 	outputDir := filepath.Join(tmpDir, "output")
 

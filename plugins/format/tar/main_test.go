@@ -184,7 +184,7 @@ func TestHandleDetectTarFile(t *testing.T) {
 	}
 	tarData := createTestTarBytes(t, testFiles)
 	tarPath := filepath.Join(tmpDir, "test.tar")
-	if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+	if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 		t.Fatalf("failed to write tar file: %v", err)
 	}
 
@@ -224,7 +224,7 @@ func TestHandleDetectTarGzFile(t *testing.T) {
 	}
 	tarGzData := createTestTarGzBytes(t, testFiles)
 	tarGzPath := filepath.Join(tmpDir, "test.tar.gz")
-	if err := os.WriteFile(tarGzPath, tarGzData, 0644); err != nil {
+	if err := os.WriteFile(tarGzPath, tarGzData, 0600); err != nil {
 		t.Fatalf("failed to write tar.gz file: %v", err)
 	}
 
@@ -254,7 +254,7 @@ func TestHandleDetectTgzFile(t *testing.T) {
 	}
 	tarGzData := createTestTarGzBytes(t, testFiles)
 	tgzPath := filepath.Join(tmpDir, "test.tgz")
-	if err := os.WriteFile(tgzPath, tarGzData, 0644); err != nil {
+	if err := os.WriteFile(tgzPath, tarGzData, 0600); err != nil {
 		t.Fatalf("failed to write tgz file: %v", err)
 	}
 
@@ -284,7 +284,7 @@ func TestHandleDetectTarXzFile(t *testing.T) {
 	}
 	tarXzData := createTestTarXzBytes(t, testFiles)
 	tarXzPath := filepath.Join(tmpDir, "test.tar.xz")
-	if err := os.WriteFile(tarXzPath, tarXzData, 0644); err != nil {
+	if err := os.WriteFile(tarXzPath, tarXzData, 0600); err != nil {
 		t.Fatalf("failed to write tar.xz file: %v", err)
 	}
 
@@ -314,7 +314,7 @@ func TestHandleDetectTxzFile(t *testing.T) {
 	}
 	tarXzData := createTestTarXzBytes(t, testFiles)
 	txzPath := filepath.Join(tmpDir, "test.txz")
-	if err := os.WriteFile(txzPath, tarXzData, 0644); err != nil {
+	if err := os.WriteFile(txzPath, tarXzData, 0600); err != nil {
 		t.Fatalf("failed to write txz file: %v", err)
 	}
 
@@ -345,7 +345,7 @@ func TestHandleDetectPlainTarByContent(t *testing.T) {
 	}
 	tarData := createTestTarBytes(t, testFiles)
 	noExtPath := filepath.Join(tmpDir, "archive")
-	if err := os.WriteFile(noExtPath, tarData, 0644); err != nil {
+	if err := os.WriteFile(noExtPath, tarData, 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -376,7 +376,7 @@ func TestHandleDetectNonTarFile(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	nonTarPath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(nonTarPath, []byte("not a tar file"), 0644); err != nil {
+	if err := os.WriteFile(nonTarPath, []byte("not a tar file"), 0600); err != nil {
 		t.Fatalf("failed to write non-tar file: %v", err)
 	}
 
@@ -458,7 +458,7 @@ func TestHandleEnumerateTarFile(t *testing.T) {
 	}
 	tarData := createTestTarBytes(t, testFiles)
 	tarPath := filepath.Join(tmpDir, "test.tar")
-	if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+	if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 		t.Fatalf("failed to write tar file: %v", err)
 	}
 
@@ -513,7 +513,7 @@ func TestHandleEnumerateTarGzFile(t *testing.T) {
 	}
 	tarGzData := createTestTarGzBytes(t, testFiles)
 	tarGzPath := filepath.Join(tmpDir, "test.tar.gz")
-	if err := os.WriteFile(tarGzPath, tarGzData, 0644); err != nil {
+	if err := os.WriteFile(tarGzPath, tarGzData, 0600); err != nil {
 		t.Fatalf("failed to write tar.gz file: %v", err)
 	}
 
@@ -545,7 +545,7 @@ func TestHandleEnumerateTarXzFile(t *testing.T) {
 	}
 	tarXzData := createTestTarXzBytes(t, testFiles)
 	tarXzPath := filepath.Join(tmpDir, "test.tar.xz")
-	if err := os.WriteFile(tarXzPath, tarXzData, 0644); err != nil {
+	if err := os.WriteFile(tarXzPath, tarXzData, 0600); err != nil {
 		t.Fatalf("failed to write tar.xz file: %v", err)
 	}
 
@@ -576,7 +576,7 @@ func TestHandleEnumerateTgzFile(t *testing.T) {
 	}
 	tarGzData := createTestTarGzBytes(t, testFiles)
 	tgzPath := filepath.Join(tmpDir, "test.tgz")
-	if err := os.WriteFile(tgzPath, tarGzData, 0644); err != nil {
+	if err := os.WriteFile(tgzPath, tarGzData, 0600); err != nil {
 		t.Fatalf("failed to write tgz file: %v", err)
 	}
 
@@ -607,7 +607,7 @@ func TestHandleEnumerateTxzFile(t *testing.T) {
 	}
 	tarXzData := createTestTarXzBytes(t, testFiles)
 	txzPath := filepath.Join(tmpDir, "test.txz")
-	if err := os.WriteFile(txzPath, tarXzData, 0644); err != nil {
+	if err := os.WriteFile(txzPath, tarXzData, 0600); err != nil {
 		t.Fatalf("failed to write txz file: %v", err)
 	}
 
@@ -635,7 +635,7 @@ func TestHandleEnumerateTarWithDirectory(t *testing.T) {
 
 	tarData := createTestTarWithDirBytes(t)
 	tarPath := filepath.Join(tmpDir, "test.tar")
-	if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+	if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 		t.Fatalf("failed to write tar file: %v", err)
 	}
 
@@ -700,7 +700,7 @@ func TestHandleIngestTarFile(t *testing.T) {
 	}
 	tarData := createTestTarBytes(t, testFiles)
 	tarPath := filepath.Join(tmpDir, "test.tar")
-	if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+	if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 		t.Fatalf("failed to write tar file: %v", err)
 	}
 
@@ -777,7 +777,7 @@ func TestHandleIngestTarGzFile(t *testing.T) {
 	}
 	tarGzData := createTestTarGzBytes(t, testFiles)
 	tarGzPath := filepath.Join(tmpDir, "test.tar.gz")
-	if err := os.WriteFile(tarGzPath, tarGzData, 0644); err != nil {
+	if err := os.WriteFile(tarGzPath, tarGzData, 0600); err != nil {
 		t.Fatalf("failed to write tar.gz file: %v", err)
 	}
 
@@ -811,7 +811,7 @@ func TestHandleIngestTarXzFile(t *testing.T) {
 	}
 	tarXzData := createTestTarXzBytes(t, testFiles)
 	tarXzPath := filepath.Join(tmpDir, "test.tar.xz")
-	if err := os.WriteFile(tarXzPath, tarXzData, 0644); err != nil {
+	if err := os.WriteFile(tarXzPath, tarXzData, 0600); err != nil {
 		t.Fatalf("failed to write tar.xz file: %v", err)
 	}
 
@@ -845,7 +845,7 @@ func TestHandleIngestTgzFile(t *testing.T) {
 	}
 	tarGzData := createTestTarGzBytes(t, testFiles)
 	tgzPath := filepath.Join(tmpDir, "test.tgz")
-	if err := os.WriteFile(tgzPath, tarGzData, 0644); err != nil {
+	if err := os.WriteFile(tgzPath, tarGzData, 0600); err != nil {
 		t.Fatalf("failed to write tgz file: %v", err)
 	}
 
@@ -883,7 +883,7 @@ func TestHandleIngestTxzFile(t *testing.T) {
 	}
 	tarXzData := createTestTarXzBytes(t, testFiles)
 	txzPath := filepath.Join(tmpDir, "test.txz")
-	if err := os.WriteFile(txzPath, tarXzData, 0644); err != nil {
+	if err := os.WriteFile(txzPath, tarXzData, 0600); err != nil {
 		t.Fatalf("failed to write txz file: %v", err)
 	}
 
@@ -1021,7 +1021,7 @@ func TestEnumerateTar(t *testing.T) {
 				}
 				tarData := createTestTarBytes(t, testFiles)
 				tarPath := filepath.Join(tmpDir, "plain.tar")
-				if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+				if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 					t.Fatalf("failed to write tar file: %v", err)
 				}
 				return tarPath
@@ -1037,7 +1037,7 @@ func TestEnumerateTar(t *testing.T) {
 				}
 				tarGzData := createTestTarGzBytes(t, testFiles)
 				tarGzPath := filepath.Join(tmpDir, "compressed.tar.gz")
-				if err := os.WriteFile(tarGzPath, tarGzData, 0644); err != nil {
+				if err := os.WriteFile(tarGzPath, tarGzData, 0600); err != nil {
 					t.Fatalf("failed to write tar.gz file: %v", err)
 				}
 				return tarGzPath
@@ -1053,7 +1053,7 @@ func TestEnumerateTar(t *testing.T) {
 				}
 				tarXzData := createTestTarXzBytes(t, testFiles)
 				tarXzPath := filepath.Join(tmpDir, "compressed.tar.xz")
-				if err := os.WriteFile(tarXzPath, tarXzData, 0644); err != nil {
+				if err := os.WriteFile(tarXzPath, tarXzData, 0600); err != nil {
 					t.Fatalf("failed to write tar.xz file: %v", err)
 				}
 				return tarXzPath
@@ -1066,7 +1066,7 @@ func TestEnumerateTar(t *testing.T) {
 			setupFunc: func() string {
 				tarData := createTestTarWithDirBytes(t)
 				tarPath := filepath.Join(tmpDir, "withdir.tar")
-				if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+				if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 					t.Fatalf("failed to write tar file: %v", err)
 				}
 				return tarPath
@@ -1100,7 +1100,7 @@ func TestEnumerateTar(t *testing.T) {
 			name: "invalid tar file",
 			setupFunc: func() string {
 				invalidPath := filepath.Join(tmpDir, "invalid.tar")
-				if err := os.WriteFile(invalidPath, []byte("not a tar"), 0644); err != nil {
+				if err := os.WriteFile(invalidPath, []byte("not a tar"), 0600); err != nil {
 					t.Fatalf("failed to write invalid file: %v", err)
 				}
 				return invalidPath
@@ -1112,7 +1112,7 @@ func TestEnumerateTar(t *testing.T) {
 			name: "invalid gzip file",
 			setupFunc: func() string {
 				invalidPath := filepath.Join(tmpDir, "invalid.tar.gz")
-				if err := os.WriteFile(invalidPath, []byte("not gzip"), 0644); err != nil {
+				if err := os.WriteFile(invalidPath, []byte("not gzip"), 0600); err != nil {
 					t.Fatalf("failed to write invalid file: %v", err)
 				}
 				return invalidPath
@@ -1124,7 +1124,7 @@ func TestEnumerateTar(t *testing.T) {
 			name: "invalid xz file",
 			setupFunc: func() string {
 				invalidPath := filepath.Join(tmpDir, "invalid.tar.xz")
-				if err := os.WriteFile(invalidPath, []byte("not xz"), 0644); err != nil {
+				if err := os.WriteFile(invalidPath, []byte("not xz"), 0600); err != nil {
 					t.Fatalf("failed to write invalid file: %v", err)
 				}
 				return invalidPath
@@ -1176,7 +1176,7 @@ func TestCountTarEntries(t *testing.T) {
 				}
 				tarData := createTestTarBytes(t, testFiles)
 				tarPath := filepath.Join(tmpDir, "multi.tar")
-				if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+				if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 					t.Fatalf("failed to write tar file: %v", err)
 				}
 				return tarPath
@@ -1191,7 +1191,7 @@ func TestCountTarEntries(t *testing.T) {
 				}
 				tarData := createTestTarBytes(t, testFiles)
 				tarPath := filepath.Join(tmpDir, "single.tar")
-				if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+				if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 					t.Fatalf("failed to write tar file: %v", err)
 				}
 				return tarPath
@@ -1202,7 +1202,7 @@ func TestCountTarEntries(t *testing.T) {
 			name: "invalid tar file",
 			setupFunc: func() string {
 				invalidPath := filepath.Join(tmpDir, "invalid_count.tar")
-				if err := os.WriteFile(invalidPath, []byte("not a tar"), 0644); err != nil {
+				if err := os.WriteFile(invalidPath, []byte("not a tar"), 0600); err != nil {
 					t.Fatalf("failed to write invalid file: %v", err)
 				}
 				return invalidPath
@@ -1329,7 +1329,7 @@ func TestIngestArtifactIDGeneration(t *testing.T) {
 			}
 
 			path := filepath.Join(tmpDir, tt.filename)
-			if err := os.WriteFile(path, data, 0644); err != nil {
+			if err := os.WriteFile(path, data, 0600); err != nil {
 				t.Fatalf("failed to write file: %v", err)
 			}
 
@@ -1365,7 +1365,7 @@ func TestIngestVerifyBlobDirectory(t *testing.T) {
 	}
 	tarData := createTestTarBytes(t, testFiles)
 	tarPath := filepath.Join(tmpDir, "test.tar")
-	if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+	if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 		t.Fatalf("failed to write tar file: %v", err)
 	}
 
@@ -1411,7 +1411,7 @@ func TestIngestEmptyTar(t *testing.T) {
 	testFiles := map[string]string{}
 	tarData := createTestTarBytes(t, testFiles)
 	tarPath := filepath.Join(tmpDir, "empty.tar")
-	if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+	if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 		t.Fatalf("failed to write tar file: %v", err)
 	}
 
@@ -1443,7 +1443,7 @@ func TestEnumerateEmptyTar(t *testing.T) {
 	testFiles := map[string]string{}
 	tarData := createTestTarBytes(t, testFiles)
 	tarPath := filepath.Join(tmpDir, "empty.tar")
-	if err := os.WriteFile(tarPath, tarData, 0644); err != nil {
+	if err := os.WriteFile(tarPath, tarData, 0600); err != nil {
 		t.Fatalf("failed to write tar file: %v", err)
 	}
 

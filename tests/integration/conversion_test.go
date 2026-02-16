@@ -61,7 +61,7 @@ In the beginning God created the heaven and the earth.
 Genesis 1:2
 And the earth was without form, and void.
 `
-	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write input file: %v", err)
 	}
 
@@ -108,7 +108,7 @@ func TestConversionJSONRoundtrip(t *testing.T) {
 		t.Fatalf("failed to marshal JSON: %v", err)
 	}
 
-	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0600); err != nil {
 		t.Fatalf("failed to write JSON: %v", err)
 	}
 
@@ -163,7 +163,7 @@ func TestConversionXMLParsing(t *testing.T) {
   </osisText>
 </osis>`
 
-	if err := os.WriteFile(inputFile, []byte(osisContent), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte(osisContent), 0600); err != nil {
 		t.Fatalf("failed to write OSIS file: %v", err)
 	}
 
@@ -227,7 +227,7 @@ func TestConversionFormatDetection(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			testFile := filepath.Join(tempDir, "test"+tc.extension)
-			if err := os.WriteFile(testFile, []byte(tc.content), 0644); err != nil {
+			if err := os.WriteFile(testFile, []byte(tc.content), 0600); err != nil {
 				t.Fatalf("failed to write test file: %v", err)
 			}
 
@@ -265,7 +265,7 @@ func TestConversionCapsuleWorkflow(t *testing.T) {
 	// Create a test input file
 	inputFile := filepath.Join(tempDir, "input.txt")
 	content := "Test bible content\n"
-	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write input file: %v", err)
 	}
 
@@ -292,7 +292,7 @@ func TestConversionCapsuleWorkflow(t *testing.T) {
 		t.Fatalf("failed to marshal manifest: %v", err)
 	}
 
-	if err := os.WriteFile(manifestPath, data, 0644); err != nil {
+	if err := os.WriteFile(manifestPath, data, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -352,7 +352,7 @@ func TestConversionErrorHandling(t *testing.T) {
 	// Create an invalid JSON file
 	invalidFile := filepath.Join(tempDir, "invalid.json")
 	invalidContent := "This is not valid JSON"
-	if err := os.WriteFile(invalidFile, []byte(invalidContent), 0644); err != nil {
+	if err := os.WriteFile(invalidFile, []byte(invalidContent), 0600); err != nil {
 		t.Fatalf("failed to write invalid file: %v", err)
 	}
 
@@ -412,7 +412,7 @@ func TestConversionValidJSONStructure(t *testing.T) {
 				t.Fatalf("failed to marshal JSON: %v", err)
 			}
 
-			err = os.WriteFile(outputPath, data, 0644)
+			err = os.WriteFile(outputPath, data, 0600)
 			if tc.wantErr && err == nil {
 				t.Error("expected error but got none")
 			}
@@ -463,7 +463,7 @@ func TestConversionMetadataPreservation(t *testing.T) {
 		t.Fatalf("failed to marshal JSON: %v", err)
 	}
 
-	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0600); err != nil {
 		t.Fatalf("failed to write JSON: %v", err)
 	}
 

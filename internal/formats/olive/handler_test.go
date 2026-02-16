@@ -37,7 +37,7 @@ func TestDetect_OT4I(t *testing.T) {
 
 	// Create a test file with SQLite signature
 	sqliteHeader := []byte("SQLite format 3\x00")
-	if err := os.WriteFile(testFile, sqliteHeader, 0644); err != nil {
+	if err := os.WriteFile(testFile, sqliteHeader, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -66,7 +66,7 @@ func TestDetect_OT4I_Encrypted(t *testing.T) {
 
 	// Create a test file without SQLite signature (encrypted)
 	encryptedData := []byte("ENCRYPTED_DATA_HERE_NOT_SQLITE")
-	if err := os.WriteFile(testFile, encryptedData, 0644); err != nil {
+	if err := os.WriteFile(testFile, encryptedData, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -91,7 +91,7 @@ func TestDetect_OTI(t *testing.T) {
 
 	// Create a test file
 	data := []byte("Test Olive Tree Index")
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -116,7 +116,7 @@ func TestDetect_OTM(t *testing.T) {
 
 	// Create a test file
 	data := []byte("Test Olive Tree Module")
-	if err := os.WriteFile(testFile, data, 0644); err != nil {
+	if err := os.WriteFile(testFile, data, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -252,7 +252,7 @@ func TestDetect_InvalidExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -310,7 +310,7 @@ func TestDetect_TooSmall(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.ot4i")
 
 	// Create a file that's too small (less than 16 bytes)
-	if err := os.WriteFile(testFile, []byte("small"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("small"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -344,7 +344,7 @@ func TestDetectPDBFormat_InvalidHeader(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.pdb")
 
 	// Create a file with invalid/incomplete PDB header
-	if err := os.WriteFile(testFile, []byte("invalid"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("invalid"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -393,7 +393,7 @@ func TestIngest(t *testing.T) {
 	outputDir := filepath.Join(tmpDir, "output")
 
 	testData := []byte("Test Olive Tree Bible file content")
-	if err := os.WriteFile(testFile, testData, 0644); err != nil {
+	if err := os.WriteFile(testFile, testData, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -454,14 +454,14 @@ func TestIngest_InvalidOutputDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.ot4i")
 
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
 	handler := &Handler{}
 	// Use a file as output dir (should fail)
 	invalidDir := filepath.Join(tmpDir, "notadir")
-	os.WriteFile(invalidDir, []byte("file"), 0644)
+	os.WriteFile(invalidDir, []byte("file"), 0600)
 
 	_, err := handler.Ingest(testFile, filepath.Join(invalidDir, "subdir"))
 	if err == nil {
@@ -475,7 +475,7 @@ func TestIngest_CannotWriteBlob(t *testing.T) {
 	outputDir := filepath.Join(tmpDir, "output")
 
 	testData := []byte("Test data for write failure")
-	if err := os.WriteFile(testFile, testData, 0644); err != nil {
+	if err := os.WriteFile(testFile, testData, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -504,7 +504,7 @@ func TestEnumerate(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.ot4i")
 
 	testData := []byte("Test Olive Tree Bible file content")
-	if err := os.WriteFile(testFile, testData, 0644); err != nil {
+	if err := os.WriteFile(testFile, testData, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -556,7 +556,7 @@ func TestExtractIR(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.ot4i")
 	outputDir := filepath.Join(tmpDir, "output")
 
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -665,7 +665,7 @@ func TestHandler_IntegrationWorkflow(t *testing.T) {
 
 	// Create test file with SQLite signature
 	sqliteHeader := []byte("SQLite format 3\x00 some additional data here")
-	if err := os.WriteFile(testFile, sqliteHeader, 0644); err != nil {
+	if err := os.WriteFile(testFile, sqliteHeader, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -730,7 +730,7 @@ func TestDetect_PDB_CannotOpen(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.pdb")
 
 	// Create file with correct extension
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -756,7 +756,7 @@ func TestDetect_OT4I_CannotOpen(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.ot4i")
 
 	// Create file
-	if err := os.WriteFile(testFile, []byte("test data here"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test data here"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 

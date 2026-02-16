@@ -65,7 +65,7 @@ func TestFormatFileDetect(t *testing.T) {
 
 	// Create a test file
 	testFile := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("hello"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("hello"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -127,7 +127,7 @@ func TestFormatFileIngest(t *testing.T) {
 	// Create a test file
 	content := []byte("test content for ingest")
 	testFile := filepath.Join(tempDir, "sample.txt")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -324,7 +324,7 @@ func TestFormatDirDetect(t *testing.T) {
 
 	// Test detect on file (should not match)
 	testFile := filepath.Join(tempDir, "test.txt")
-	os.WriteFile(testFile, []byte("test"), 0644)
+	os.WriteFile(testFile, []byte("test"), 0600)
 
 	req = plugins.NewDetectRequest(testFile)
 	resp, err = plugins.ExecutePlugin(plugin, req)
@@ -351,10 +351,10 @@ func TestFormatDirEnumerate(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create some files and subdirs
-	os.WriteFile(filepath.Join(tempDir, "a.txt"), []byte("a"), 0644)
-	os.WriteFile(filepath.Join(tempDir, "b.txt"), []byte("b"), 0644)
+	os.WriteFile(filepath.Join(tempDir, "a.txt"), []byte("a"), 0600)
+	os.WriteFile(filepath.Join(tempDir, "b.txt"), []byte("b"), 0600)
 	os.MkdirAll(filepath.Join(tempDir, "subdir"), 0755)
-	os.WriteFile(filepath.Join(tempDir, "subdir", "c.txt"), []byte("c"), 0644)
+	os.WriteFile(filepath.Join(tempDir, "subdir", "c.txt"), []byte("c"), 0600)
 
 	pluginDir := ensurePluginBuilt(t, "format-dir")
 	plugin := &plugins.Plugin{

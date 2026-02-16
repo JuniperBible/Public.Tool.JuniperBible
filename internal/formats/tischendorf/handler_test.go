@@ -32,7 +32,7 @@ func TestDetect_TischendorfFile(t *testing.T) {
 	// Create a file with Greek text, apparatus markers, and verse references
 	content := "Matt 1:1 Βίβλος [γενέσεως] Ἰησοῦ Χριστοῦ"
 	file := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(file, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(file, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -54,7 +54,7 @@ func TestDetect_NonTischendorfFile(t *testing.T) {
 	h := &Handler{}
 
 	file := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(file, []byte("plain text"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("plain text"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -90,7 +90,7 @@ func TestIngest_TischendorfFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.txt")
 	content := []byte("Matt 1:1 Βίβλος [γενέσεως] Ἰησοῦ Χριστοῦ")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -140,7 +140,7 @@ func TestEnumerate_TischendorfFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.txt")
 	content := []byte("test content")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -183,7 +183,7 @@ func TestExtractIR_TischendorfFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.txt")
 	content := []byte("Matt 1:1 Βίβλος [γενέσεως] Ἰησοῦ Χριστοῦ")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -235,7 +235,7 @@ func TestEmitNative_FromIR(t *testing.T) {
 		"documents": []
 	}`
 	irFile := filepath.Join(tmpDir, "test.json")
-	if err := os.WriteFile(irFile, []byte(irContent), 0644); err != nil {
+	if err := os.WriteFile(irFile, []byte(irContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -283,7 +283,7 @@ func TestEmitNative_InvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	irFile := filepath.Join(tmpDir, "invalid.json")
-	if err := os.WriteFile(irFile, []byte("not valid json"), 0644); err != nil {
+	if err := os.WriteFile(irFile, []byte("not valid json"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -306,7 +306,7 @@ func TestEmitNative_NonWritableOutput(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	irFile := filepath.Join(tmpDir, "test.json")
-	if err := os.WriteFile(irFile, []byte(`{"id": "test"}`), 0644); err != nil {
+	if err := os.WriteFile(irFile, []byte(`{"id": "test"}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -324,7 +324,7 @@ func TestIngest_NonWritableOutputDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	file := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -342,7 +342,7 @@ func TestExtractIR_NonWritableOutputDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	file := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(file, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -699,7 +699,7 @@ func TestDetect_StandaloneVerseRef(t *testing.T) {
 	// File with standalone verse reference format (no book prefix)
 	content := "1:1 Βίβλος [γενέσεως] Ἰησοῦ"
 	file := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(file, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(file, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -724,7 +724,7 @@ Mark
 1:1 Ἀρχὴ τοῦ εὐαγγελίου
 `
 	file := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(file, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(file, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 

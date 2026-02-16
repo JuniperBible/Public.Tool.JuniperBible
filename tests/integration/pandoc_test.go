@@ -95,7 +95,7 @@ This is a test paragraph with **bold** and *italic* text.
 ` + "```go\nfunc main() {\n    fmt.Println(\"Hello\")\n}\n```"
 
 	mdPath := filepath.Join(tempDir, "test.md")
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0644); err != nil {
+	if err := os.WriteFile(mdPath, []byte(mdContent), 0600); err != nil {
 		t.Fatalf("failed to write markdown: %v", err)
 	}
 
@@ -159,7 +159,7 @@ This is the second chapter.
 `
 
 	mdPath := filepath.Join(tempDir, "book.md")
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0644); err != nil {
+	if err := os.WriteFile(mdPath, []byte(mdContent), 0600); err != nil {
 		t.Fatalf("failed to write markdown: %v", err)
 	}
 
@@ -209,7 +209,7 @@ Content goes here.
 `
 
 	mdPath := filepath.Join(tempDir, "doc.md")
-	if err := os.WriteFile(mdPath, []byte(mdContent), 0644); err != nil {
+	if err := os.WriteFile(mdPath, []byte(mdContent), 0600); err != nil {
 		t.Fatalf("failed to write markdown: %v", err)
 	}
 
@@ -218,7 +218,7 @@ Content goes here.
 	template := `$title$
 $author$
 $date$`
-	if err := os.WriteFile(templatePath, []byte(template), 0644); err != nil {
+	if err := os.WriteFile(templatePath, []byte(template), 0600); err != nil {
 		t.Fatalf("failed to write template: %v", err)
 	}
 

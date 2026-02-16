@@ -32,7 +32,7 @@ Description=Test Module Description
 Version=1.0.0
 `
 	confPath := filepath.Join(modsD, "testmodule.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf file: %v", err)
 	}
 
@@ -86,10 +86,10 @@ Version=1.0.0
 Description=Module B Description
 Version=2.0.0
 `
-	if err := os.WriteFile(filepath.Join(modsD, "modulea.conf"), []byte(conf1), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsD, "modulea.conf"), []byte(conf1), 0600); err != nil {
 		t.Fatalf("failed to write conf1: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(modsD, "moduleb.conf"), []byte(conf2), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsD, "moduleb.conf"), []byte(conf2), 0600); err != nil {
 		t.Fatalf("failed to write conf2: %v", err)
 	}
 

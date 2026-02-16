@@ -32,7 +32,7 @@ func TestUSXDetect(t *testing.T) {
 `
 
 	usxPath := filepath.Join(tmpDir, "test.usx")
-	if err := os.WriteFile(usxPath, []byte(usxContent), 0644); err != nil {
+	if err := os.WriteFile(usxPath, []byte(usxContent), 0600); err != nil {
 		t.Fatalf("failed to write USX file: %v", err)
 	}
 
@@ -68,7 +68,7 @@ func TestUSXDetectNonUSX(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtPath, []byte("Hello world"), 0644); err != nil {
+	if err := os.WriteFile(txtPath, []byte("Hello world"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -112,7 +112,7 @@ func TestUSXExtractIR(t *testing.T) {
 `
 
 	usxPath := filepath.Join(tmpDir, "test.usx")
-	if err := os.WriteFile(usxPath, []byte(usxContent), 0644); err != nil {
+	if err := os.WriteFile(usxPath, []byte(usxContent), 0600); err != nil {
 		t.Fatalf("failed to write USX file: %v", err)
 	}
 
@@ -223,7 +223,7 @@ func TestUSXEmitNative(t *testing.T) {
 	}
 
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -299,7 +299,7 @@ func TestUSXRoundTrip(t *testing.T) {
 `
 
 	usxPath := filepath.Join(tmpDir, "original.usx")
-	if err := os.WriteFile(usxPath, []byte(originalContent), 0644); err != nil {
+	if err := os.WriteFile(usxPath, []byte(originalContent), 0600); err != nil {
 		t.Fatalf("failed to write USX file: %v", err)
 	}
 
@@ -382,7 +382,7 @@ func TestUSXIngest(t *testing.T) {
 `
 
 	usxPath := filepath.Join(tmpDir, "test.usx")
-	if err := os.WriteFile(usxPath, []byte(usxContent), 0644); err != nil {
+	if err := os.WriteFile(usxPath, []byte(usxContent), 0600); err != nil {
 		t.Fatalf("failed to write USX file: %v", err)
 	}
 

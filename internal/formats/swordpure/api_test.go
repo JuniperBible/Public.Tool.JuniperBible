@@ -37,10 +37,10 @@ Version=1.0
 Encoding=UTF-8
 `
 
-	if err := os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(conf1), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(conf1), 0600); err != nil {
 		t.Fatalf("failed to write kjv.conf: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(modsDir, "asv.conf"), []byte(conf2), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "asv.conf"), []byte(conf2), 0600); err != nil {
 		t.Fatalf("failed to write asv.conf: %v", err)
 	}
 
@@ -322,7 +322,7 @@ ModDrv=RawText
 Description=Raw Text Module
 Lang=en
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "rawmod.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "rawmod.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -351,7 +351,7 @@ ModDrv=RawText
 Description=Raw Text Module
 Lang=en
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "rawmod.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "rawmod.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -375,7 +375,7 @@ func TestDetectInvalidConfFile(t *testing.T) {
 	}
 
 	// Write an invalid conf file (no module section header)
-	if err := os.WriteFile(filepath.Join(modsDir, "invalid.conf"), []byte("invalid content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "invalid.conf"), []byte("invalid content"), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 

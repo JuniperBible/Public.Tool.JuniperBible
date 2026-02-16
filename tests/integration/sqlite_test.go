@@ -113,7 +113,7 @@ INSERT INTO verses VALUES ('Genesis', 1, 3, 'And God said, Let there be light: a
 		t.Fatalf("CSV export failed: %v\nOutput: %s", err, output)
 	}
 
-	if err := os.WriteFile(csvPath, output, 0644); err != nil {
+	if err := os.WriteFile(csvPath, output, 0600); err != nil {
 		t.Fatalf("failed to write CSV: %v", err)
 	}
 

@@ -208,7 +208,7 @@ func TestDetect_NonTarFile(t *testing.T) {
 	h := &Handler{}
 
 	txtFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtFile, []byte("not a tar"), 0644); err != nil {
+	if err := os.WriteFile(txtFile, []byte("not a tar"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -261,7 +261,7 @@ func TestDetect_InvalidTarContent(t *testing.T) {
 
 	// Create a file with .tar extension but invalid content
 	invalidTar := filepath.Join(tmpDir, "invalid.tar")
-	if err := os.WriteFile(invalidTar, []byte("not a valid tar"), 0644); err != nil {
+	if err := os.WriteFile(invalidTar, []byte("not a valid tar"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -284,7 +284,7 @@ func TestDetect_InvalidGzipContent(t *testing.T) {
 
 	// Create a file with .tar.gz extension but invalid gzip content
 	invalidGz := filepath.Join(tmpDir, "invalid.tar.gz")
-	if err := os.WriteFile(invalidGz, []byte("not gzip"), 0644); err != nil {
+	if err := os.WriteFile(invalidGz, []byte("not gzip"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -307,7 +307,7 @@ func TestDetect_InvalidXzContent(t *testing.T) {
 
 	// Create a file with .tar.xz extension but invalid xz content
 	invalidXz := filepath.Join(tmpDir, "invalid.tar.xz")
-	if err := os.WriteFile(invalidXz, []byte("not xz"), 0644); err != nil {
+	if err := os.WriteFile(invalidXz, []byte("not xz"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -487,7 +487,7 @@ func TestEnumerate_InvalidGzip(t *testing.T) {
 	h := &Handler{}
 
 	invalidGz := filepath.Join(tmpDir, "invalid.tar.gz")
-	if err := os.WriteFile(invalidGz, []byte("not gzip"), 0644); err != nil {
+	if err := os.WriteFile(invalidGz, []byte("not gzip"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -505,7 +505,7 @@ func TestEnumerate_InvalidXz(t *testing.T) {
 	h := &Handler{}
 
 	invalidXz := filepath.Join(tmpDir, "invalid.tar.xz")
-	if err := os.WriteFile(invalidXz, []byte("not xz"), 0644); err != nil {
+	if err := os.WriteFile(invalidXz, []byte("not xz"), 0600); err != nil {
 		t.Fatal(err)
 	}
 

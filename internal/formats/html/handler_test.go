@@ -15,7 +15,7 @@ func TestDetect_ValidHtmlFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.html")
 
-	if err := os.WriteFile(testFile, []byte("<html></html>"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("<html></html>"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -40,7 +40,7 @@ func TestDetect_InvalidExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -95,7 +95,7 @@ func TestIngest_Success(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "genesis.html")
 	testContent := []byte("<html><title>Genesis</title><body>Test content</body></html>")
 
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -139,7 +139,7 @@ func TestIngest_InvalidOutputDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.html")
 	testContent := []byte("<html></html>")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -147,7 +147,7 @@ func TestIngest_InvalidOutputDir(t *testing.T) {
 
 	// Test 1: MkdirAll failure - create a file where we need a directory
 	badOutputDir := filepath.Join(tmpDir, "baddir")
-	if err := os.WriteFile(badOutputDir, []byte("not a dir"), 0644); err != nil {
+	if err := os.WriteFile(badOutputDir, []byte("not a dir"), 0600); err != nil {
 		t.Fatalf("Failed to create bad output: %v", err)
 	}
 
@@ -161,7 +161,7 @@ func TestIngest_BlobWriteFailure(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.html")
 	testContent := []byte("<html></html>")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -209,7 +209,7 @@ func TestEnumerate_ValidFile(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.html")
 	testContent := []byte("<html></html>")
 
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -254,7 +254,7 @@ func TestExtractIR_WithVersePattern1(t *testing.T) {
 </body>
 </html>`
 
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(testContent), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -305,7 +305,7 @@ func TestExtractIR_WithVersePattern2(t *testing.T) {
 </body>
 </html>`
 
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(testContent), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -346,7 +346,7 @@ func TestExtractIR_WithVersePattern3(t *testing.T) {
 </body>
 </html>`
 
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(testContent), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -385,7 +385,7 @@ func TestExtractIR_MissingTitle(t *testing.T) {
 </body>
 </html>`
 
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(testContent), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -423,7 +423,7 @@ func TestExtractIR_EmptyContent(t *testing.T) {
 </body>
 </html>`
 
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(testContent), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -465,7 +465,7 @@ func TestExtractIR_InvalidOutputDir(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.html")
 	testContent := `<html><title>Test</title></html>`
 
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(testContent), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -491,7 +491,7 @@ func TestEmitNative_RoundTrip(t *testing.T) {
 </html>`
 
 	testFile := filepath.Join(tmpDir, "genesis.html")
-	if err := os.WriteFile(testFile, []byte(originalHTML), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(originalHTML), 0600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -586,7 +586,7 @@ func TestEmitNative_HtmlEscaping(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to marshal IR: %v", err)
 	}
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("Failed to write IR: %v", err)
 	}
 
@@ -628,7 +628,7 @@ func TestEmitNative_InvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	irPath := filepath.Join(tmpDir, "invalid.ir.json")
 
-	if err := os.WriteFile(irPath, []byte("not valid json"), 0644); err != nil {
+	if err := os.WriteFile(irPath, []byte("not valid json"), 0600); err != nil {
 		t.Fatalf("Failed to write invalid JSON: %v", err)
 	}
 
@@ -661,7 +661,7 @@ func TestEmitNative_InvalidOutputDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to marshal IR: %v", err)
 	}
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("Failed to write IR: %v", err)
 	}
 
@@ -696,7 +696,7 @@ func TestEmitNative_RoundTripWriteFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to marshal IR: %v", err)
 	}
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("Failed to write IR: %v", err)
 	}
 
@@ -849,7 +849,7 @@ func TestEmitNative_WithLanguage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to marshal IR: %v", err)
 	}
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("Failed to write IR: %v", err)
 	}
 
@@ -890,7 +890,7 @@ func TestEmitNative_DefaultLanguage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to marshal IR: %v", err)
 	}
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("Failed to write IR: %v", err)
 	}
 
@@ -990,7 +990,7 @@ func TestEmitNative_MultipleChapters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to marshal IR: %v", err)
 	}
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("Failed to write IR: %v", err)
 	}
 

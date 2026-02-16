@@ -434,7 +434,7 @@ func TestMyBibleEmitNative(t *testing.T) {
 	}
 
 	irData, _ := json.MarshalIndent(corpus, "", "  ")
-	os.WriteFile(irPath, irData, 0644)
+	os.WriteFile(irPath, irData, 0600)
 
 	req := ipc.Request{
 		Command: "emit-native",

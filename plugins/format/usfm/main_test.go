@@ -29,7 +29,7 @@ func TestUSFMDetect(t *testing.T) {
 `
 
 	usfmPath := filepath.Join(tmpDir, "test.usfm")
-	if err := os.WriteFile(usfmPath, []byte(usfmContent), 0644); err != nil {
+	if err := os.WriteFile(usfmPath, []byte(usfmContent), 0600); err != nil {
 		t.Fatalf("failed to write USFM file: %v", err)
 	}
 
@@ -65,7 +65,7 @@ func TestUSFMDetectNonUSFM(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtPath, []byte("Hello world"), 0644); err != nil {
+	if err := os.WriteFile(txtPath, []byte("Hello world"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -106,7 +106,7 @@ func TestUSFMExtractIR(t *testing.T) {
 `
 
 	usfmPath := filepath.Join(tmpDir, "test.usfm")
-	if err := os.WriteFile(usfmPath, []byte(usfmContent), 0644); err != nil {
+	if err := os.WriteFile(usfmPath, []byte(usfmContent), 0600); err != nil {
 		t.Fatalf("failed to write USFM file: %v", err)
 	}
 
@@ -220,7 +220,7 @@ func TestUSFMEmitNative(t *testing.T) {
 	}
 
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -289,7 +289,7 @@ func TestUSFMRoundTrip(t *testing.T) {
 `
 
 	usfmPath := filepath.Join(tmpDir, "original.usfm")
-	if err := os.WriteFile(usfmPath, []byte(originalContent), 0644); err != nil {
+	if err := os.WriteFile(usfmPath, []byte(originalContent), 0600); err != nil {
 		t.Fatalf("failed to write USFM file: %v", err)
 	}
 
@@ -367,7 +367,7 @@ func TestUSFMIngest(t *testing.T) {
 `
 
 	usfmPath := filepath.Join(tmpDir, "test.usfm")
-	if err := os.WriteFile(usfmPath, []byte(usfmContent), 0644); err != nil {
+	if err := os.WriteFile(usfmPath, []byte(usfmContent), 0600); err != nil {
 		t.Fatalf("failed to write USFM file: %v", err)
 	}
 
@@ -616,7 +616,7 @@ func TestUSFMDetectVariousExtensions(t *testing.T) {
 	extensions := []string{".usfm", ".sfm", ".txt", ".usx"}
 	for _, ext := range extensions {
 		path := filepath.Join(tmpDir, "test"+ext)
-		if err := os.WriteFile(path, []byte(usfmContent), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(usfmContent), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -685,7 +685,7 @@ func TestUSFMEmptyIdMarker(t *testing.T) {
 `
 
 	usfmPath := filepath.Join(tmpDir, "test.usfm")
-	if err := os.WriteFile(usfmPath, []byte(usfmContent), 0644); err != nil {
+	if err := os.WriteFile(usfmPath, []byte(usfmContent), 0600); err != nil {
 		t.Fatalf("failed to write USFM file: %v", err)
 	}
 

@@ -37,7 +37,7 @@ func TestSchemaLoading(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, "test.db")
 
 	// Create database file first
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -83,7 +83,7 @@ func TestFunctionRegistry(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, "test.db")
 
 	// Create database file
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -122,7 +122,7 @@ func TestStatementPrepare(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -154,7 +154,7 @@ func TestVDBECompilation(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -196,7 +196,7 @@ func TestSelectQueryExecution(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -252,7 +252,7 @@ func TestTransactionSupport(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -294,7 +294,7 @@ func TestConnectionPooling(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -339,7 +339,7 @@ func TestErrorHandling(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -381,7 +381,7 @@ func TestPreparedStatementReuse(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
-	if err := os.WriteFile(dbPath, make([]byte, 4096), 0644); err != nil {
+	if err := os.WriteFile(dbPath, make([]byte, 4096), 0600); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 

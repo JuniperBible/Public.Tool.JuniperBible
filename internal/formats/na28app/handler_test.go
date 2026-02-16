@@ -69,7 +69,7 @@ func TestDetect_ValidExtension(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			testFile := filepath.Join(tmpDir, "test"+tc.ext)
-			if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+			if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 				t.Fatalf("failed to create test file: %v", err)
 			}
 
@@ -94,7 +94,7 @@ func TestDetect_ValidContent(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 
-	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -121,7 +121,7 @@ func TestDetect_InvalidContent(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 
-	if err := os.WriteFile(testFile, []byte(samplePlainContent), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(samplePlainContent), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -188,7 +188,7 @@ func TestIngest(t *testing.T) {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
-	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -235,7 +235,7 @@ func TestEnumerate(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.na28")
 
-	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -280,7 +280,7 @@ func TestExtractIR(t *testing.T) {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
-	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -422,7 +422,7 @@ func TestEmitNative(t *testing.T) {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
-	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -505,7 +505,7 @@ func TestEmitNative_InvalidIR(t *testing.T) {
 	}
 
 	// Write invalid JSON
-	if err := os.WriteFile(irFile, []byte("not valid json"), 0644); err != nil {
+	if err := os.WriteFile(irFile, []byte("not valid json"), 0600); err != nil {
 		t.Fatalf("failed to create IR file: %v", err)
 	}
 
@@ -556,7 +556,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	// Write sample content
-	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(sampleNA28Content), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 

@@ -32,8 +32,8 @@ DataPath=./modules/texts/ztext/kjv/
 Description=King James Version
 Version=2.9
 `
-	os.WriteFile(filepath.Join(modsD, "kjv.conf"), []byte(confContent), 0644)
-	os.WriteFile(filepath.Join(modulesDir, "nt.bzz"), []byte("data"), 0644)
+	os.WriteFile(filepath.Join(modsD, "kjv.conf"), []byte(confContent), 0600)
+	os.WriteFile(filepath.Join(modulesDir, "nt.bzz"), []byte("data"), 0600)
 
 	pluginDir := ensurePluginBuilt(t, "format-sword")
 	plugin := &plugins.Plugin{
@@ -85,9 +85,9 @@ DataPath=./modules/texts/ztext/kjv/
 Description=King James Version
 Version=2.9
 `
-	os.WriteFile(filepath.Join(modsD, "kjv.conf"), []byte(confContent), 0644)
-	os.WriteFile(filepath.Join(modulesDir, "nt.bzz"), []byte("data"), 0644)
-	os.WriteFile(filepath.Join(modulesDir, "ot.bzz"), []byte("data"), 0644)
+	os.WriteFile(filepath.Join(modsD, "kjv.conf"), []byte(confContent), 0600)
+	os.WriteFile(filepath.Join(modulesDir, "nt.bzz"), []byte("data"), 0600)
+	os.WriteFile(filepath.Join(modulesDir, "ot.bzz"), []byte("data"), 0600)
 
 	pluginDir := ensurePluginBuilt(t, "format-sword")
 	plugin := &plugins.Plugin{
@@ -141,7 +141,7 @@ func TestFormatSwordNotDetected(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a regular directory (not SWORD)
-	os.WriteFile(filepath.Join(tempDir, "file.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tempDir, "file.txt"), []byte("test"), 0600)
 
 	pluginDir := ensurePluginBuilt(t, "format-sword")
 	plugin := &plugins.Plugin{

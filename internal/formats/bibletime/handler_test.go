@@ -20,7 +20,7 @@ func TestDetect_XBELFile_Valid(t *testing.T) {
     <title>In the beginning</title>
   </bookmark>
 </xbel>`
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -45,7 +45,7 @@ func TestDetect_XBELFile_NoContent(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.xbel")
 	content := `<?xml version="1.0" encoding="UTF-8"?>`
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -72,7 +72,7 @@ func TestDetect_SWORDModuleDirectory_Valid(t *testing.T) {
 Description=King James Version
 ModulePath=./modules/texts/ztext/kjv/
 `
-	if err := os.WriteFile(confFile, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confFile, []byte(confContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -126,7 +126,7 @@ func TestIngest_File(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.xbel")
 	content := []byte(`<?xml version="1.0"?><xbel><bookmark href="bibletime://test"/></xbel>`)
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -172,7 +172,7 @@ func TestIngest_Directory(t *testing.T) {
 	// Create a file in the root directory so readFileOrDir finds it
 	testFile := filepath.Join(tmpDir, "test.conf")
 	confContent := []byte("[KJV]\nDescription=King James Version\n")
-	if err := os.WriteFile(testFile, confContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, confContent, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -217,7 +217,7 @@ func TestEnumerate_File(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.xbel")
 	content := []byte(`<?xml version="1.0"?><xbel/>`)
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -253,14 +253,14 @@ func TestEnumerate_Directory(t *testing.T) {
 	// Create multiple .conf files
 	for _, name := range []string{"kjv.conf", "esv.conf", "nasb.conf"} {
 		confFile := filepath.Join(modsDir, name)
-		if err := os.WriteFile(confFile, []byte("[MODULE]"), 0644); err != nil {
+		if err := os.WriteFile(confFile, []byte("[MODULE]"), 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	// Create a non-.conf file (should be ignored)
 	otherFile := filepath.Join(modsDir, "readme.txt")
-	if err := os.WriteFile(otherFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(otherFile, []byte("test"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -297,7 +297,7 @@ func TestExtractIR_ValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.xbel")
 	content := `<?xml version="1.0"?><xbel><bookmark href="bibletime://test"/></xbel>`
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -422,7 +422,7 @@ func TestEmitNative_ValidIR(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -488,7 +488,7 @@ func TestEmitNative_RoundTrip(t *testing.T) {
 	// Create initial XBEL file
 	testFile := filepath.Join(tmpDir, "test.xbel")
 	content := `<?xml version="1.0"?><xbel><bookmark href="bibletime://test"/></xbel>`
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -532,7 +532,7 @@ func TestEmitNative_InvalidIR(t *testing.T) {
 
 	// Create invalid IR file
 	irPath := filepath.Join(tmpDir, "corpus.json")
-	if err := os.WriteFile(irPath, []byte("invalid json"), 0644); err != nil {
+	if err := os.WriteFile(irPath, []byte("invalid json"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -603,7 +603,7 @@ func TestReadFileOrDir_File(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -621,7 +621,7 @@ func TestReadFileOrDir_Directory(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

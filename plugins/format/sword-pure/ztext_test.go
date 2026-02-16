@@ -29,7 +29,7 @@ func TestReadBlockIndex(t *testing.T) {
 	}
 
 	bzsPath := filepath.Join(tmpDir, "test.bzs")
-	if err := os.WriteFile(bzsPath, data, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, data, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -86,7 +86,7 @@ func TestReadVerseIndex(t *testing.T) {
 	}
 
 	bzvPath := filepath.Join(tmpDir, "test.bzv")
-	if err := os.WriteFile(bzvPath, data, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, data, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 

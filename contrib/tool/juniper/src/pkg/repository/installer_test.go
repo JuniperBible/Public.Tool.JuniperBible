@@ -167,9 +167,9 @@ ModDrv=zText
 
 	dataDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "testmodule")
 	os.MkdirAll(dataDir, 0755)
-	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0644)
-	os.WriteFile(filepath.Join(dataDir, "ot.bzv"), []byte("data"), 0644)
-	os.WriteFile(filepath.Join(dataDir, "ot.bzz"), []byte("data"), 0644)
+	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600)
+	os.WriteFile(filepath.Join(dataDir, "ot.bzv"), []byte("data"), 0600)
+	os.WriteFile(filepath.Join(dataDir, "ot.bzz"), []byte("data"), 0600)
 
 	client, _ := NewClient(ClientOptions{})
 	installer := NewInstaller(cfg, client)
@@ -383,7 +383,7 @@ func TestInstaller_RemoveConf(t *testing.T) {
 
 	// Create a conf file
 	confPath := filepath.Join(cfg.ModsDir(), "testmodule.conf")
-	os.WriteFile(confPath, []byte("content"), 0644)
+	os.WriteFile(confPath, []byte("content"), 0600)
 
 	client, _ := NewClient(ClientOptions{})
 	installer := NewInstaller(cfg, client)
@@ -455,9 +455,9 @@ ModDrv=zText
 
 	dataDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "kjv")
 	os.MkdirAll(dataDir, 0755)
-	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0644)
-	os.WriteFile(filepath.Join(dataDir, "ot.bzv"), []byte("data"), 0644)
-	os.WriteFile(filepath.Join(dataDir, "ot.bzz"), []byte("data"), 0644)
+	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600)
+	os.WriteFile(filepath.Join(dataDir, "ot.bzv"), []byte("data"), 0600)
+	os.WriteFile(filepath.Join(dataDir, "ot.bzz"), []byte("data"), 0600)
 
 	client, _ := NewClient(ClientOptions{})
 	installer := NewInstaller(cfg, client)
@@ -520,12 +520,12 @@ DataPath=./modules/texts/ztext/kjv/
 ModDrv=zText
 InstallSize=15
 `
-	os.WriteFile(filepath.Join(cfg.ModsDir(), "kjv.conf"), []byte(confContent), 0644)
+	os.WriteFile(filepath.Join(cfg.ModsDir(), "kjv.conf"), []byte(confContent), 0600)
 
 	dataDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "kjv")
 	os.MkdirAll(dataDir, 0755)
-	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("12345"), 0644)      // 5 bytes
-	os.WriteFile(filepath.Join(dataDir, "nt.bzs"), []byte("1234567890"), 0644) // 10 bytes
+	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("12345"), 0600)      // 5 bytes
+	os.WriteFile(filepath.Join(dataDir, "nt.bzs"), []byte("1234567890"), 0600) // 10 bytes
 
 	client, _ := NewClient(ClientOptions{})
 	installer := NewInstaller(cfg, client)
@@ -564,11 +564,11 @@ DataPath=./modules/texts/ztext/kjv/
 ModDrv=zText
 InstallSize=100
 `
-	os.WriteFile(filepath.Join(cfg.ModsDir(), "kjv.conf"), []byte(confContent), 0644)
+	os.WriteFile(filepath.Join(cfg.ModsDir(), "kjv.conf"), []byte(confContent), 0600)
 
 	dataDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "kjv")
 	os.MkdirAll(dataDir, 0755)
-	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("12345"), 0644) // 5 bytes
+	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("12345"), 0600) // 5 bytes
 
 	client, _ := NewClient(ClientOptions{})
 	installer := NewInstaller(cfg, client)
@@ -621,11 +621,11 @@ ModDrv=zText
 	// Create data for both
 	kjvDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "kjv")
 	os.MkdirAll(kjvDir, 0755)
-	os.WriteFile(filepath.Join(kjvDir, "ot.bzs"), []byte("data"), 0644)
+	os.WriteFile(filepath.Join(kjvDir, "ot.bzs"), []byte("data"), 0600)
 
 	drcDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "drc")
 	os.MkdirAll(drcDir, 0755)
-	os.WriteFile(filepath.Join(drcDir, "ot.bzs"), []byte("data"), 0644)
+	os.WriteFile(filepath.Join(drcDir, "ot.bzs"), []byte("data"), 0600)
 
 	client, _ := NewClient(ClientOptions{})
 	installer := NewInstaller(cfg, client)

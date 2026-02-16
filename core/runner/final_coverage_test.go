@@ -143,7 +143,7 @@ func TestPrepareWorkDirInDirError(t *testing.T) {
 	}
 
 	inPath := filepath.Join(workDir, "in")
-	if err := os.WriteFile(inPath, []byte("file"), 0644); err != nil {
+	if err := os.WriteFile(inPath, []byte("file"), 0600); err != nil {
 		t.Fatalf("failed to create in file: %v", err)
 	}
 
@@ -162,7 +162,7 @@ func TestListToolsWithFiles(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a file (not directory) in the archive dir
-	if err := os.WriteFile(filepath.Join(tempDir, "notdir.txt"), []byte("file"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "notdir.txt"), []byte("file"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -213,7 +213,7 @@ func TestCopyDirSuccess(t *testing.T) {
 		t.Fatalf("failed to create nested dir: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(nested, "file.txt"), []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(nested, "file.txt"), []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 

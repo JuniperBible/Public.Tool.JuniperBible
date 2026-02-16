@@ -79,7 +79,7 @@ func TestMakeIngestHandler(t *testing.T) {
 	// Create a test file
 	testFile := filepath.Join(tmpDir, "test.txt")
 	testContent := []byte("test content")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -164,7 +164,7 @@ func TestMakeExtractIRHandler(t *testing.T) {
 
 	// Create test file
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -235,7 +235,7 @@ func TestMakeEmitNativeHandler(t *testing.T) {
 		Extensions: []string{".test"},
 		Emit: func(c *ir.Corpus, outDir string) (string, error) {
 			outPath := filepath.Join(outDir, c.ID+".test")
-			return outPath, os.WriteFile(outPath, []byte("output"), 0644)
+			return outPath, os.WriteFile(outPath, []byte("output"), 0600)
 		},
 	}
 
@@ -304,7 +304,7 @@ func TestFormatPluginIntegration(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	testFile := filepath.Join(tmpDir, "sample.test")
-	if err := os.WriteFile(testFile, []byte("sample data"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("sample data"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -316,7 +316,7 @@ func TestFormatPluginIntegration(t *testing.T) {
 		},
 		Emit: func(c *ir.Corpus, outDir string) (string, error) {
 			outPath := filepath.Join(outDir, c.ID+".test")
-			return outPath, os.WriteFile(outPath, []byte("output"), 0644)
+			return outPath, os.WriteFile(outPath, []byte("output"), 0600)
 		},
 	}
 

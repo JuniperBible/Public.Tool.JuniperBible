@@ -64,7 +64,7 @@ func createTestZComModule(t *testing.T, testament string, entries map[int]string
 	binary.LittleEndian.PutUint32(bzs[8:12], uint32(uncompressedBlock.Len())) // uncompressed size
 
 	bzsPath := filepath.Join(tmpDir, testament+".bzs")
-	if err := os.WriteFile(bzsPath, bzs, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzs, 0600); err != nil {
 		t.Fatalf("Failed to write bzs file: %v", err)
 	}
 
@@ -105,13 +105,13 @@ func createTestZComModule(t *testing.T, testament string, entries map[int]string
 	}
 
 	bzvPath := filepath.Join(tmpDir, testament+".bzv")
-	if err := os.WriteFile(bzvPath, bzv, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzv, 0600); err != nil {
 		t.Fatalf("Failed to write bzv file: %v", err)
 	}
 
 	// Write compressed data (.bzz)
 	bzzPath := filepath.Join(tmpDir, testament+".bzz")
-	if err := os.WriteFile(bzzPath, compressedBlock.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(bzzPath, compressedBlock.Bytes(), 0600); err != nil {
 		t.Fatalf("Failed to write bzz file: %v", err)
 	}
 

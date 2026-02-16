@@ -26,7 +26,7 @@ func init() {
 func createTestFile(t *testing.T, dir, name, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 	return path
@@ -1580,7 +1580,7 @@ DataPath=./modules/texts/ztext/test/
 func BenchmarkIngestCmd(b *testing.B) {
 	tempDir := b.TempDir()
 	testFilePath := filepath.Join(tempDir, "input.txt")
-	if err := os.WriteFile(testFilePath, []byte("benchmark data"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("benchmark data"), 0600); err != nil {
 		b.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -1612,7 +1612,7 @@ func BenchmarkCopyDirRecursive(b *testing.B) {
 	// Create some test files
 	for i := 0; i < 10; i++ {
 		filePath := filepath.Join(srcDir, fmt.Sprintf("file%d.txt", i))
-		if err := os.WriteFile(filePath, []byte("content"), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte("content"), 0600); err != nil {
 			b.Fatalf("failed to create test file: %v", err)
 		}
 	}
@@ -1835,7 +1835,7 @@ func TestTestCmd_Run_WithCapsules(t *testing.T) {
 	packedPath := createPackedCapsule(t, tempDir, "test content")
 	destPath := filepath.Join(fixturesDir, "test.capsule.tar.xz")
 	data, _ := os.ReadFile(packedPath)
-	os.WriteFile(destPath, data, 0644)
+	os.WriteFile(destPath, data, 0600)
 
 	cmd := &TestCmd{
 		FixturesDir: fixturesDir,
@@ -2434,7 +2434,7 @@ Description=Test Commentary
 ModDrv=RawCom
 DataPath=./modules/comments/rawcom/test/
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "test.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "test.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -2463,7 +2463,7 @@ Description=Test Bible
 ModDrv=zText
 DataPath=./modules/texts/ztext/testbible/
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "testbible.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "testbible.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -2496,7 +2496,7 @@ Description=Test Bible
 ModDrv=zText
 DataPath=./modules/texts/ztext/testbible/
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "testbible.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "testbible.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -2530,7 +2530,7 @@ ModDrv=zText
 DataPath=./modules/texts/ztext/encrypted/
 CipherKey=
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "encrypted.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "encrypted.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -2575,7 +2575,7 @@ ModDrv=zText
 DataPath=./modules/texts/ztext/kjv/
 `
 	confPath := filepath.Join(tempDir, "kjv.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -2609,7 +2609,7 @@ ModDrv=RawCom
 DataPath=./modules/comments/rawcom/test/
 `
 	confPath := filepath.Join(tempDir, "test.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -2630,14 +2630,14 @@ func TestCapsuleConvertCmd_Run_NoConvertibleContent(t *testing.T) {
 	// Create a capsule with no convertible content (just a text file)
 	capsuleDir := filepath.Join(tempDir, "capsule")
 	os.MkdirAll(capsuleDir, 0755)
-	os.WriteFile(filepath.Join(capsuleDir, "readme.txt"), []byte("just text"), 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "readme.txt"), []byte("just text"), 0600)
 
 	// Create manifest
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 	}
 	manifestData, _ := json.Marshal(manifest)
-	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600)
 
 	// Pack it
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.gz")
@@ -2671,13 +2671,13 @@ func TestCapsuleConvertCmd_Run_WithEmbeddedPlugins(t *testing.T) {
 \c 1
 \v 1 In the beginning...
 `
-	os.WriteFile(filepath.Join(capsuleDir, "gen.usfm"), []byte(usfmContent), 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "gen.usfm"), []byte(usfmContent), 0600)
 
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 	}
 	manifestData, _ := json.Marshal(manifest)
-	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600)
 
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.gz")
 	if err := archive.CreateCapsuleTarGz(capsuleDir, capsulePath); err != nil {
@@ -2710,13 +2710,13 @@ func TestGenerateIRCmd_Run_NoConvertibleContent(t *testing.T) {
 	// Create a capsule with no convertible content
 	capsuleDir := filepath.Join(tempDir, "capsule")
 	os.MkdirAll(capsuleDir, 0755)
-	os.WriteFile(filepath.Join(capsuleDir, "readme.txt"), []byte("just text"), 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "readme.txt"), []byte("just text"), 0600)
 
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 	}
 	manifestData, _ := json.Marshal(manifest)
-	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600)
 
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.gz")
 	if err := archive.CreateCapsuleTarGz(capsuleDir, capsulePath); err != nil {
@@ -2744,14 +2744,14 @@ func TestGenerateIRCmd_Run_AlreadyHasIR(t *testing.T) {
 	os.MkdirAll(capsuleDir, 0755)
 
 	// Create IR file
-	os.WriteFile(filepath.Join(capsuleDir, "test.ir.json"), []byte(`{"format":"ir"}`), 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "test.ir.json"), []byte(`{"format":"ir"}`), 0600)
 
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 		"has_ir":          true,
 	}
 	manifestData, _ := json.Marshal(manifest)
-	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600)
 
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.gz")
 	if err := archive.CreateCapsuleTarGz(capsuleDir, capsulePath); err != nil {
@@ -2782,13 +2782,13 @@ func TestGenerateIRCmd_Run_WithEmbeddedPlugins(t *testing.T) {
 \c 1
 \v 1 Test verse
 `
-	os.WriteFile(filepath.Join(capsuleDir, "gen.usfm"), []byte(usfmContent), 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "gen.usfm"), []byte(usfmContent), 0600)
 
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 	}
 	manifestData, _ := json.Marshal(manifest)
-	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600)
 
 	capsulePath := filepath.Join(tempDir, "test.capsule.tar.gz")
 	if err := archive.CreateCapsuleTarGz(capsuleDir, capsulePath); err != nil {
@@ -3391,7 +3391,7 @@ func TestGoldenCheckCmd_Run_Success(t *testing.T) {
 
 	// Create golden file
 	goldenFile := filepath.Join(tempDir, "golden.sha256")
-	if err := os.WriteFile(goldenFile, []byte(transcriptHash), 0644); err != nil {
+	if err := os.WriteFile(goldenFile, []byte(transcriptHash), 0600); err != nil {
 		t.Fatalf("failed to write golden: %v", err)
 	}
 
@@ -3439,7 +3439,7 @@ func TestGoldenCheckCmd_Run_Mismatch(t *testing.T) {
 
 	// Golden file with different hash
 	goldenFile := filepath.Join(tempDir, "golden.sha256")
-	if err := os.WriteFile(goldenFile, []byte("expected-hash"), 0644); err != nil {
+	if err := os.WriteFile(goldenFile, []byte("expected-hash"), 0600); err != nil {
 		t.Fatalf("failed to write golden: %v", err)
 	}
 
@@ -3475,7 +3475,7 @@ func TestGoldenCheckCmd_Run_NoTranscript(t *testing.T) {
 	os.RemoveAll(capsuleDir)
 
 	goldenFile := filepath.Join(tempDir, "golden.sha256")
-	os.WriteFile(goldenFile, []byte("hash"), 0644)
+	os.WriteFile(goldenFile, []byte("hash"), 0600)
 
 	cmd := &GoldenCheckCmd{
 		Capsule: packedPath,

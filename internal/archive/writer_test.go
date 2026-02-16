@@ -17,10 +17,10 @@ func TestCreateTarGz(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -62,7 +62,7 @@ func TestCreateTarGz_NoParentDir(t *testing.T) {
 	if err := os.MkdirAll(srcDir, 0755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -103,7 +103,7 @@ func TestCreateCapsuleTarGz(t *testing.T) {
 	if err := os.MkdirAll(srcDir, 0755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "manifest.json"), []byte("{}"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "manifest.json"), []byte("{}"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -144,7 +144,7 @@ func TestCreateCapsuleTarGzFromPath(t *testing.T) {
 	if err := os.MkdirAll(srcDir, 0755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "manifest.json"), []byte("{}"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "manifest.json"), []byte("{}"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -209,14 +209,14 @@ func TestCreateTarGz_InvalidDestination(t *testing.T) {
 	if err := os.MkdirAll(srcDir, 0755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
 	// Try to create archive in a location where we cannot write
 	// Use a file path as the parent directory (invalid)
 	invalidParent := filepath.Join(tempDir, "file.txt")
-	if err := os.WriteFile(invalidParent, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(invalidParent, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -242,7 +242,7 @@ func TestCreateTarGz_FileOpenError(t *testing.T) {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
 	testFile := filepath.Join(subDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -270,7 +270,7 @@ func TestCreateTarGz_DeepNesting(t *testing.T) {
 	}
 
 	// Create a file in the deep directory
-	if err := os.WriteFile(filepath.Join(deepDir, "deep.txt"), []byte("deep content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(deepDir, "deep.txt"), []byte("deep content"), 0600); err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
@@ -309,7 +309,7 @@ func TestCreateTarGz_WithMultipleFiles(t *testing.T) {
 	files := []string{"file1.txt", "dir1/file2.txt", "dir2/file3.txt"}
 	for _, f := range files {
 		path := filepath.Join(srcDir, f)
-		if err := os.WriteFile(path, []byte("content of "+f), 0644); err != nil {
+		if err := os.WriteFile(path, []byte("content of "+f), 0600); err != nil {
 			t.Fatalf("failed to create %s: %v", f, err)
 		}
 	}

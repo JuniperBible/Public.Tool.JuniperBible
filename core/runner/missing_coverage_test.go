@@ -164,7 +164,7 @@ func TestParseTranscriptScannerErrorLongLine(t *testing.T) {
 	// Create a very long line that might cause scanner issues
 	// bufio.Scanner has a default max token size of 64KB
 	longLine := strings.Repeat("x", 100*1024) // 100KB line
-	if err := os.WriteFile(transcriptPath, []byte(longLine), 0644); err != nil {
+	if err := os.WriteFile(transcriptPath, []byte(longLine), 0600); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 

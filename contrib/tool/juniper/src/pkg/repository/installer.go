@@ -292,7 +292,7 @@ func (i *Installer) CheckUpdates(ctx context.Context, source Source) ([]ModuleUp
 // InstallConf installs just a conf file (without module data)
 func (i *Installer) InstallConf(moduleID string, content []byte) error {
 	confPath := filepath.Join(i.config.ModsDir(), strings.ToLower(moduleID)+".conf")
-	return os.WriteFile(confPath, content, 0644)
+	return os.WriteFile(confPath, content, 0600)
 }
 
 // RemoveConf removes a conf file

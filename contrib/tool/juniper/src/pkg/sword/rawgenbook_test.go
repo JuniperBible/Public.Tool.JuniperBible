@@ -27,7 +27,7 @@ func createTestRawGenBookModule(t *testing.T) (string, *Module) {
 	bdtContent = append(bdtContent, content3...)
 
 	bdtPath := filepath.Join(modDir, "testbook.bdt")
-	if err := os.WriteFile(bdtPath, bdtContent, 0644); err != nil {
+	if err := os.WriteFile(bdtPath, bdtContent, 0600); err != nil {
 		t.Fatalf("writing .bdt file: %v", err)
 	}
 
@@ -38,7 +38,7 @@ func createTestRawGenBookModule(t *testing.T) (string, *Module) {
 	binary.LittleEndian.PutUint32(idxData[8:], uint32(len(content1)+len(content2))) // Third entry
 
 	idxPath := filepath.Join(modDir, "testbook.idx")
-	if err := os.WriteFile(idxPath, idxData, 0644); err != nil {
+	if err := os.WriteFile(idxPath, idxData, 0600); err != nil {
 		t.Fatalf("writing .idx file: %v", err)
 	}
 
@@ -68,7 +68,7 @@ func createTestRawGenBookModule(t *testing.T) (string, *Module) {
 	datContent = append(datContent, 0x00)
 
 	datPath := filepath.Join(modDir, "testbook.dat")
-	if err := os.WriteFile(datPath, datContent, 0644); err != nil {
+	if err := os.WriteFile(datPath, datContent, 0600); err != nil {
 		t.Fatalf("writing .dat file: %v", err)
 	}
 

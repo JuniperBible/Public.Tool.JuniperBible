@@ -49,7 +49,7 @@ func TestDetect(t *testing.T) {
 			tmpDir := t.TempDir()
 			testFile := filepath.Join(tmpDir, tt.filename)
 
-			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(testFile, []byte(tt.content), 0600); err != nil {
 				t.Fatalf("failed to write test file: %v", err)
 			}
 
@@ -81,7 +81,7 @@ func TestIngestAndEnumerate(t *testing.T) {
 		"cas_dir": casDir,
 	}
 
-	if err := os.WriteFile(args["path"].(string), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(args["path"].(string), []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -107,7 +107,7 @@ Matt.1.2 txt D E F: γενέσεως`
 	if err := os.MkdirAll(filepath.Dir(blobPath), 0755); err != nil {
 		t.Fatalf("failed to create blob dir: %v", err)
 	}
-	if err := os.WriteFile(blobPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(blobPath, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write blob: %v", err)
 	}
 
@@ -183,7 +183,7 @@ func TestEmitNative(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to marshal IR: %v", err)
 	}
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR: %v", err)
 	}
 

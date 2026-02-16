@@ -144,7 +144,7 @@ func TestCLIFormatDetect(t *testing.T) {
   </osisText>
 </osis>`
 
-	if err := os.WriteFile(testFile, []byte(xmlContent), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(xmlContent), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -175,7 +175,7 @@ func TestCLICapsuleIngest(t *testing.T) {
 
 	inputFile := filepath.Join(tempDir, "input.txt")
 	testContent := "Genesis 1:1\nIn the beginning God created the heaven and the earth.\n"
-	if err := os.WriteFile(inputFile, []byte(testContent), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte(testContent), 0600); err != nil {
 		t.Fatalf("failed to write input file: %v", err)
 	}
 
@@ -349,7 +349,7 @@ func TestCLIWorkflowEnd2End(t *testing.T) {
 	// Create a simple test file
 	inputFile := filepath.Join(tempDir, "test.txt")
 	content := "Test content for end-to-end workflow\n"
-	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 

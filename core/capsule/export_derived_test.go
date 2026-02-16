@@ -59,7 +59,7 @@ func createTestPlugin(t *testing.T, baseDir, name string) {
 	}
 
 	manifestPath := filepath.Join(pluginPath, "plugin.json")
-	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
+	if err := os.WriteFile(manifestPath, manifestData, 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
@@ -446,7 +446,7 @@ func TestExportDerivedValidation(t *testing.T) {
 	}
 
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -580,7 +580,7 @@ func TestExtractIRFromPluginError(t *testing.T) {
 	}
 
 	sourcePath := filepath.Join(tempDir, "source.txt")
-	if err := os.WriteFile(sourcePath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
 
@@ -618,7 +618,7 @@ func TestEmitNativeFromPluginError(t *testing.T) {
 	}
 
 	irPath := filepath.Join(tempDir, "ir.json")
-	if err := os.WriteFile(irPath, []byte("{}"), 0644); err != nil {
+	if err := os.WriteFile(irPath, []byte("{}"), 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -648,7 +648,7 @@ func TestExportDerivedPluginNotFound(t *testing.T) {
 	}
 
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -694,7 +694,7 @@ func TestExportDerivedTargetPluginNotFound(t *testing.T) {
 	}
 
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -834,7 +834,7 @@ func TestExportDerivedNoDetectedFormat(t *testing.T) {
 	}
 
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -934,7 +934,7 @@ func TestExportDerivedMkdirIRDirError(t *testing.T) {
 	}
 
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -989,7 +989,7 @@ func TestExportDerivedMkdirOutputDirError(t *testing.T) {
 	}
 
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1068,7 +1068,7 @@ func TestExportDerivedMkdirDestDirError(t *testing.T) {
 	}
 
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1147,7 +1147,7 @@ func TestExportDerivedToBytesReadFileError(t *testing.T) {
 	}
 
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -1182,7 +1182,7 @@ func TestExportDerivedToBytesReadFileError(t *testing.T) {
 	pluginsParseEmitNativeResult = func(resp *plugins.IPCResponse) (*plugins.EmitNativeResult, error) {
 		// Create a real file so ExportDerived can write to it
 		outPath := filepath.Join(tempDir, "output-temp.txt")
-		os.WriteFile(outPath, []byte("output"), 0644)
+		os.WriteFile(outPath, []byte("output"), 0600)
 		return &plugins.EmitNativeResult{OutputPath: outPath}, nil
 	}
 	defer func() { pluginsParseEmitNativeResult = origParseEmit }()

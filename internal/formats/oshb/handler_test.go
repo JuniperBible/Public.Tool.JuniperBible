@@ -26,7 +26,7 @@ func TestDetect_OSHBFile(t *testing.T) {
 	h := &Handler{}
 
 	oshbFile := filepath.Join(tmpDir, "hebrew.oshb")
-	if err := os.WriteFile(oshbFile, []byte("OSHB content"), 0644); err != nil {
+	if err := os.WriteFile(oshbFile, []byte("OSHB content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -48,7 +48,7 @@ func TestDetect_NonOSHBFile(t *testing.T) {
 	h := &Handler{}
 
 	txtFile := filepath.Join(tmpDir, "file.txt")
-	if err := os.WriteFile(txtFile, []byte("not OSHB"), 0644); err != nil {
+	if err := os.WriteFile(txtFile, []byte("not OSHB"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -98,7 +98,7 @@ func TestIngest(t *testing.T) {
 
 	oshbFile := filepath.Join(tmpDir, "hebrew.oshb")
 	content := []byte("OSHB content")
-	if err := os.WriteFile(oshbFile, content, 0644); err != nil {
+	if err := os.WriteFile(oshbFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -139,7 +139,7 @@ func TestEnumerate(t *testing.T) {
 
 	oshbFile := filepath.Join(tmpDir, "hebrew.oshb")
 	content := []byte("OSHB content")
-	if err := os.WriteFile(oshbFile, content, 0644); err != nil {
+	if err := os.WriteFile(oshbFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

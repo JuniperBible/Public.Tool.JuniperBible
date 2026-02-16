@@ -1293,7 +1293,7 @@ func TestGenerator_LoadSPDXLicenses(t *testing.T) {
 			"CC-PDDC": {"name": "Creative Commons Public Domain Dedication"}
 		}
 	}`
-	if err := os.WriteFile(spdxPath, []byte(spdxData), 0644); err != nil {
+	if err := os.WriteFile(spdxPath, []byte(spdxData), 0600); err != nil {
 		t.Fatalf("Failed to create SPDX file: %v", err)
 	}
 
@@ -1325,7 +1325,7 @@ func TestGenerator_LoadSPDXLicenses_InvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	spdxPath := filepath.Join(tmpDir, "spdx_licenses.json")
 
-	if err := os.WriteFile(spdxPath, []byte("not valid json"), 0644); err != nil {
+	if err := os.WriteFile(spdxPath, []byte("not valid json"), 0600); err != nil {
 		t.Fatalf("Failed to create invalid SPDX file: %v", err)
 	}
 
@@ -1340,7 +1340,7 @@ func TestGenerator_LoadSPDXLicenses_EmptyFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	spdxPath := filepath.Join(tmpDir, "spdx_licenses.json")
 
-	if err := os.WriteFile(spdxPath, []byte("{}"), 0644); err != nil {
+	if err := os.WriteFile(spdxPath, []byte("{}"), 0600); err != nil {
 		t.Fatalf("Failed to create empty SPDX file: %v", err)
 	}
 

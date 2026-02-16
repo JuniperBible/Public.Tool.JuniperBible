@@ -145,7 +145,7 @@ func TestTranscriptParsing(t *testing.T) {
 {"t":"ENTRY_RENDERED","seq":3,"module":"TestModule","key":"Gen.1.1","profile":"raw","sha256":"1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd","bytes":50}
 `
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
-	if err := os.WriteFile(transcriptPath, []byte(transcriptContent), 0644); err != nil {
+	if err := os.WriteFile(transcriptPath, []byte(transcriptContent), 0600); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 
@@ -187,7 +187,7 @@ func TestTranscriptValidation(t *testing.T) {
 {"invalid": "json without required fields"}
 `
 	transcriptPath := filepath.Join(tempDir, "invalid.jsonl")
-	if err := os.WriteFile(transcriptPath, []byte(invalidContent), 0644); err != nil {
+	if err := os.WriteFile(transcriptPath, []byte(invalidContent), 0600); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 
@@ -463,17 +463,17 @@ func TestCollectResults(t *testing.T) {
 
 	// Create test files
 	transcriptPath := filepath.Join(outDir, "transcript.jsonl")
-	if err := os.WriteFile(transcriptPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(transcriptPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 
 	stdoutPath := filepath.Join(outDir, "stdout")
-	if err := os.WriteFile(stdoutPath, []byte("stdout content"), 0644); err != nil {
+	if err := os.WriteFile(stdoutPath, []byte("stdout content"), 0600); err != nil {
 		t.Fatalf("failed to write stdout: %v", err)
 	}
 
 	stderrPath := filepath.Join(outDir, "stderr")
-	if err := os.WriteFile(stderrPath, []byte("stderr content"), 0644); err != nil {
+	if err := os.WriteFile(stderrPath, []byte("stderr content"), 0600); err != nil {
 		t.Fatalf("failed to write stderr: %v", err)
 	}
 
@@ -601,7 +601,7 @@ func TestParseTranscriptEmptyLines(t *testing.T) {
 
 `
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
-	if err := os.WriteFile(transcriptPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(transcriptPath, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 
@@ -629,7 +629,7 @@ invalid json line
 {"t":"WARN","seq":1}
 `
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
-	if err := os.WriteFile(transcriptPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(transcriptPath, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 

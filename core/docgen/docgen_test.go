@@ -237,7 +237,7 @@ func TestLoadManifestNotFound(t *testing.T) {
 func TestLoadManifestInvalidJSON(t *testing.T) {
 	tempDir := t.TempDir()
 	manifestPath := filepath.Join(tempDir, "plugin.json")
-	os.WriteFile(manifestPath, []byte("{invalid json}"), 0644)
+	os.WriteFile(manifestPath, []byte("{invalid json}"), 0600)
 
 	_, err := loadManifest(manifestPath)
 	if err == nil {
@@ -350,7 +350,7 @@ func TestPluginManifestParsing(t *testing.T) {
   }
 }`
 
-	err := os.WriteFile(manifestPath, []byte(manifestJSON), 0644)
+	err := os.WriteFile(manifestPath, []byte(manifestJSON), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write manifest: %v", err)
 	}
@@ -477,12 +477,12 @@ func TestLoadPluginsWithFiles(t *testing.T) {
 
 	// Create some regular files (not directories) that should be skipped
 	formatFile := filepath.Join(formatDir, "not-a-plugin.txt")
-	if err := os.WriteFile(formatFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(formatFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
 	toolFile := filepath.Join(toolDir, "not-a-plugin.txt")
-	if err := os.WriteFile(toolFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(toolFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
@@ -498,7 +498,7 @@ func TestLoadPluginsWithFiles(t *testing.T) {
   "kind": "format"
 }`
 	manifestPath := filepath.Join(validPluginDir, "plugin.json")
-	if err := os.WriteFile(manifestPath, []byte(manifestJSON), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(manifestJSON), 0600); err != nil {
 		t.Fatalf("Failed to write manifest: %v", err)
 	}
 
@@ -567,7 +567,7 @@ func TestWritePluginsDocWithToolPlugins(t *testing.T) {
 
 	// Create a file in tool dir (should be skipped)
 	toolFile := filepath.Join(toolDir, "README.md")
-	if err := os.WriteFile(toolFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(toolFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
@@ -588,7 +588,7 @@ func TestWritePluginsDocWithToolPlugins(t *testing.T) {
   "requires": ["dep1", "dep2"]
 }`
 	manifestPath := filepath.Join(pluginDir, "plugin.json")
-	if err := os.WriteFile(manifestPath, []byte(manifestJSON), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(manifestJSON), 0600); err != nil {
 		t.Fatalf("Failed to write manifest: %v", err)
 	}
 

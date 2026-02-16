@@ -538,7 +538,7 @@ func TestNewStoreMkdirError(t *testing.T) {
 
 	// Create a file that blocks the blobs directory creation
 	blockingFile := filepath.Join(tempDir, "blobs")
-	if err := os.WriteFile(blockingFile, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(blockingFile, []byte("blocking"), 0600); err != nil {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
@@ -568,7 +568,7 @@ func TestStoreMkdirPrefixError(t *testing.T) {
 
 	// Create a file where the prefix directory should be
 	prefixPath := filepath.Join(tempDir, "blobs", "sha256", prefix)
-	if err := os.WriteFile(prefixPath, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(prefixPath, []byte("blocking"), 0600); err != nil {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
@@ -709,7 +709,7 @@ func TestCreateBlake3PointerMkdirError(t *testing.T) {
 		t.Fatalf("failed to create parent: %v", err)
 	}
 	// Create a file where directory should be
-	if err := os.WriteFile(pointerDir, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(pointerDir, []byte("blocking"), 0600); err != nil {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
@@ -777,7 +777,7 @@ func TestLookupBlake3UnmarshalError(t *testing.T) {
 
 	// Overwrite the pointer file with invalid JSON
 	pointerPath := filepath.Join(tempDir, "blobs", "blake3", result.BLAKE3[:2], result.BLAKE3+".json")
-	if err := os.WriteFile(pointerPath, []byte("not valid json"), 0644); err != nil {
+	if err := os.WriteFile(pointerPath, []byte("not valid json"), 0600); err != nil {
 		t.Fatalf("failed to write invalid json: %v", err)
 	}
 

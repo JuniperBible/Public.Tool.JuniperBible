@@ -92,7 +92,7 @@ func TestDetect_XBELBookmarkFile(t *testing.T) {
   </info>
 </xbel>`
 
-	if err := os.WriteFile(xbelPath, []byte(xbelContent), 0644); err != nil {
+	if err := os.WriteFile(xbelPath, []byte(xbelContent), 0600); err != nil {
 		t.Fatalf("failed to write xbel: %v", err)
 	}
 
@@ -132,7 +132,7 @@ func TestDetect_SWORDModuleDirectory(t *testing.T) {
 Description=King James Version
 ModulePath=./modules/texts/ztext/kjv/
 `
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -163,7 +163,7 @@ func TestDetect_NonBibleTimeFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	txtPath := filepath.Join(tmpDir, "test.txt")
 
-	if err := os.WriteFile(txtPath, []byte("random content"), 0644); err != nil {
+	if err := os.WriteFile(txtPath, []byte("random content"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -198,7 +198,7 @@ func TestIngest_XBELFile(t *testing.T) {
 	xbelContent := `<?xml version="1.0" encoding="UTF-8"?>
 <xbel><info><metadata owner="bibletime"></metadata></info></xbel>`
 
-	if err := os.WriteFile(xbelPath, []byte(xbelContent), 0644); err != nil {
+	if err := os.WriteFile(xbelPath, []byte(xbelContent), 0600); err != nil {
 		t.Fatalf("failed to write xbel: %v", err)
 	}
 
@@ -247,7 +247,7 @@ func TestEnumerate_ModuleDirectory(t *testing.T) {
 	confFiles := []string{"kjv.conf", "asv.conf", "web.conf"}
 	for _, name := range confFiles {
 		confPath := filepath.Join(modsDir, name)
-		if err := os.WriteFile(confPath, []byte("[Module]\n"), 0644); err != nil {
+		if err := os.WriteFile(confPath, []byte("[Module]\n"), 0600); err != nil {
 			t.Fatalf("failed to write conf: %v", err)
 		}
 	}
@@ -288,7 +288,7 @@ func TestExtractIR_CreatesCorpus(t *testing.T) {
 	}
 
 	xbelContent := `<?xml version="1.0" encoding="UTF-8"?><xbel></xbel>`
-	if err := os.WriteFile(xbelPath, []byte(xbelContent), 0644); err != nil {
+	if err := os.WriteFile(xbelPath, []byte(xbelContent), 0600); err != nil {
 		t.Fatalf("failed to write xbel: %v", err)
 	}
 
@@ -355,7 +355,7 @@ func TestEmitNative_CreatesModuleStructure(t *testing.T) {
 		t.Fatalf("failed to marshal corpus: %v", err)
 	}
 
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		t.Fatalf("failed to write IR: %v", err)
 	}
 

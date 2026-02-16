@@ -12,7 +12,7 @@ func TestDetect_ValidODTFile(t *testing.T) {
 	// Create a temporary .odt file
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.odt")
-	if err := os.WriteFile(testFile, []byte("fake odt content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("fake odt content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -38,7 +38,7 @@ func TestDetect_InvalidZip(t *testing.T) {
 	// The Detect method only checks the extension, not the actual content
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "invalid.odt")
-	if err := os.WriteFile(testFile, []byte("not a zip"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("not a zip"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -57,7 +57,7 @@ func TestDetect_InvalidZip(t *testing.T) {
 func TestDetect_WrongExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("not an odt"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("not an odt"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -111,7 +111,7 @@ func TestIngest_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "sample.odt")
 	testContent := []byte("sample odt content")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -160,7 +160,7 @@ func TestIngest_PermissionError(t *testing.T) {
 	// Create a file that we cannot read
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "unreadable.odt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -196,13 +196,13 @@ func TestIngest_NonExistentFile(t *testing.T) {
 func TestIngest_InvalidOutputDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.odt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
 	// Use an invalid output dir (e.g., a file instead of a directory)
 	invalidDir := filepath.Join(tmpDir, "notadir")
-	if err := os.WriteFile(invalidDir, []byte("file"), 0644); err != nil {
+	if err := os.WriteFile(invalidDir, []byte("file"), 0600); err != nil {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
@@ -217,7 +217,7 @@ func TestIngest_BlobWriteError(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.odt")
 	testContent := []byte("content for write error test")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -261,7 +261,7 @@ func TestEnumerate_ValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "document.odt")
 	testContent := []byte("test content for enumeration")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -410,7 +410,7 @@ func TestDetect_CaseInsensitiveExtension(t *testing.T) {
 	// Test uppercase extension
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.ODT")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -429,7 +429,7 @@ func TestIngest_ArtifactIDWithMultipleDots(t *testing.T) {
 	// Test that artifact ID correctly removes only the extension
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "my.document.name.odt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 

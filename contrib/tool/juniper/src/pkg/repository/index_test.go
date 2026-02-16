@@ -355,7 +355,7 @@ func TestExtractModsArchive_OverwriteExisting(t *testing.T) {
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	os.MkdirAll(modsDir, 0755)
 	existingPath := filepath.Join(modsDir, "kjv.conf")
-	os.WriteFile(existingPath, []byte("old content"), 0644)
+	os.WriteFile(existingPath, []byte("old content"), 0600)
 
 	err := ExtractModsArchive(archive, tmpDir)
 	if err != nil {

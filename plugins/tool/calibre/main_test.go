@@ -69,7 +69,7 @@ func TestConvertProfile(t *testing.T) {
 	// Create test input file
 	tempDir := t.TempDir()
 	inputFile := filepath.Join(tempDir, "test.html")
-	if err := os.WriteFile(inputFile, []byte("<html><body><h1>Test</h1></body></html>"), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte("<html><body><h1>Test</h1></body></html>"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -85,7 +85,7 @@ func TestConvertProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	if err := os.WriteFile(reqFile, reqData, 0644); err != nil {
+	if err := os.WriteFile(reqFile, reqData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -135,7 +135,7 @@ func TestCreateEpubProfile(t *testing.T) {
 	// Create test input file
 	tempDir := t.TempDir()
 	inputFile := filepath.Join(tempDir, "test.html")
-	if err := os.WriteFile(inputFile, []byte("<html><body><h1>Test Book</h1><p>Content here.</p></body></html>"), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte("<html><body><h1>Test Book</h1><p>Content here.</p></body></html>"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -151,7 +151,7 @@ func TestCreateEpubProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	if err := os.WriteFile(reqFile, reqData, 0644); err != nil {
+	if err := os.WriteFile(reqFile, reqData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -205,7 +205,7 @@ func TestListFormatsProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	if err := os.WriteFile(reqFile, reqData, 0644); err != nil {
+	if err := os.WriteFile(reqFile, reqData, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -239,7 +239,7 @@ func TestTranscriptDeterminism(t *testing.T) {
 
 	tempDir := t.TempDir()
 	inputFile := filepath.Join(tempDir, "test.html")
-	if err := os.WriteFile(inputFile, []byte("<html><body><h1>Test</h1></body></html>"), 0644); err != nil {
+	if err := os.WriteFile(inputFile, []byte("<html><body><h1>Test</h1></body></html>"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -252,7 +252,7 @@ func TestTranscriptDeterminism(t *testing.T) {
 			"out_dir": tempDir,
 		}
 		reqData, _ := json.Marshal(req)
-		os.WriteFile(reqFile, reqData, 0644)
+		os.WriteFile(reqFile, reqData, 0600)
 
 		outDir := filepath.Join(tempDir, "output", string(rune('0'+i)))
 		os.MkdirAll(outDir, 0755)

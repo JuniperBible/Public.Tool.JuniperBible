@@ -284,7 +284,7 @@ DataPath=./modules/texts/ztext/testmod/
 ModDrv=zText
 Encoding=UTF-8
 `
-	os.WriteFile(filepath.Join(modsDir, "testmod.conf"), []byte(confContent), 0644)
+	os.WriteFile(filepath.Join(modsDir, "testmod.conf"), []byte(confContent), 0600)
 
 	// Run detect command
 	binaryPath := filepath.Join(pluginDir, "sword-pure")
@@ -478,7 +478,7 @@ func TestJuniperHugoGenerate(t *testing.T) {
 			}]
 		}]
 	}`
-	os.WriteFile(inputPath, []byte(inputData), 0644)
+	os.WriteFile(inputPath, []byte(inputData), 0600)
 
 	// Run generate command
 	binaryPath := filepath.Join(pluginDir, "hugo")

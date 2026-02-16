@@ -11,7 +11,7 @@ func TestDetect_ValidEpub(t *testing.T) {
 	// Create a temporary test file with .epub extension
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.epub")
-	if err := os.WriteFile(testFile, []byte("fake epub content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("fake epub content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -36,7 +36,7 @@ func TestDetect_InvalidExtension(t *testing.T) {
 	// Create a temporary test file with wrong extension
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -100,7 +100,7 @@ func TestIngest_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.epub")
 	content := []byte("epub test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -162,7 +162,7 @@ func TestIngest_BlobCreation(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.epub")
 	content := []byte("test content for blob")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -200,7 +200,7 @@ func TestEnumerate_ValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.epub")
 	content := []byte("epub enumerate test")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -344,7 +344,7 @@ func TestDetect_CaseInsensitiveExtension(t *testing.T) {
 		t.Run(filename, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			testFile := filepath.Join(tmpDir, filename)
-			if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 				t.Fatal(err)
 			}
 
@@ -377,7 +377,7 @@ func TestIngest_ArtifactIDExtraction(t *testing.T) {
 		t.Run(tc.filename, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			testFile := filepath.Join(tmpDir, tc.filename)
-			if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 				t.Fatal(err)
 			}
 
@@ -404,10 +404,10 @@ func TestIngest_SHA256Consistency(t *testing.T) {
 	// Ingest the same content twice with different filenames
 	testFile1 := filepath.Join(tmpDir, "file1.epub")
 	testFile2 := filepath.Join(tmpDir, "file2.epub")
-	if err := os.WriteFile(testFile1, content, 0644); err != nil {
+	if err := os.WriteFile(testFile1, content, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile2, content, 0644); err != nil {
+	if err := os.WriteFile(testFile2, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -433,7 +433,7 @@ func TestIngest_SHA256Consistency(t *testing.T) {
 func TestIngest_EmptyFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "empty.epub")
-	if err := os.WriteFile(testFile, []byte{}, 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte{}, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -457,13 +457,13 @@ func TestIngest_EmptyFile(t *testing.T) {
 func TestIngest_BlobDirCreationError(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.epub")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a file where the output directory should be to cause MkdirAll to fail
 	outputDir := filepath.Join(tmpDir, "output")
-	if err := os.WriteFile(outputDir, []byte("blocking file"), 0644); err != nil {
+	if err := os.WriteFile(outputDir, []byte("blocking file"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -482,7 +482,7 @@ func TestIngest_BlobWriteError(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.epub")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

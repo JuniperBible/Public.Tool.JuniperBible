@@ -29,7 +29,7 @@ func TestDetect_RTFFile(t *testing.T) {
 	h := &Handler{}
 
 	rtfFile := filepath.Join(tmpDir, "document.rtf")
-	if err := os.WriteFile(rtfFile, []byte("{\\rtf1\\ansi content}"), 0644); err != nil {
+	if err := os.WriteFile(rtfFile, []byte("{\\rtf1\\ansi content}"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -51,7 +51,7 @@ func TestDetect_NonRTFFile(t *testing.T) {
 	h := &Handler{}
 
 	txtFile := filepath.Join(tmpDir, "file.txt")
-	if err := os.WriteFile(txtFile, []byte("not RTF"), 0644); err != nil {
+	if err := os.WriteFile(txtFile, []byte("not RTF"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -101,7 +101,7 @@ func TestIngest(t *testing.T) {
 
 	rtfFile := filepath.Join(tmpDir, "document.rtf")
 	content := []byte("{\\rtf1\\ansi content}")
-	if err := os.WriteFile(rtfFile, content, 0644); err != nil {
+	if err := os.WriteFile(rtfFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -145,7 +145,7 @@ func TestEnumerate(t *testing.T) {
 
 	rtfFile := filepath.Join(tmpDir, "document.rtf")
 	content := []byte("{\\rtf1\\ansi content}")
-	if err := os.WriteFile(rtfFile, content, 0644); err != nil {
+	if err := os.WriteFile(rtfFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

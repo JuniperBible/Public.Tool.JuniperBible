@@ -13,7 +13,7 @@ func TestDetect_ValidMorphGNTFile(t *testing.T) {
 	// Create a temporary test file with .morphgnt extension
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.morphgnt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -37,7 +37,7 @@ func TestDetect_ValidMorphGNTFile(t *testing.T) {
 func TestDetect_InvalidExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -93,7 +93,7 @@ func TestDetect_NonExistentFile(t *testing.T) {
 func TestDetect_CaseInsensitiveExtension(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.MORPHGNT")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -112,7 +112,7 @@ func TestIngest_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "matthew.morphgnt")
 	content := []byte("test morphgnt content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -175,13 +175,13 @@ func TestIngest_NonExistentFile(t *testing.T) {
 func TestIngest_InvalidOutputDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.morphgnt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a file where the output directory should be
 	invalidOutput := filepath.Join(tmpDir, "invalid")
-	if err := os.WriteFile(invalidOutput, []byte("blocking"), 0644); err != nil {
+	if err := os.WriteFile(invalidOutput, []byte("blocking"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -198,7 +198,7 @@ func TestIngest_InvalidOutputDir(t *testing.T) {
 func TestIngest_FailedWriteBlob(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.morphgnt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -239,7 +239,7 @@ func TestEnumerate_ValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.morphgnt")
 	content := []byte("test content for enumeration")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -386,7 +386,7 @@ func TestRegister(t *testing.T) {
 func TestIngest_EmptyFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "empty.morphgnt")
-	if err := os.WriteFile(testFile, []byte(""), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(""), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -420,7 +420,7 @@ func TestIngest_LargeFile(t *testing.T) {
 	for i := range content {
 		content[i] = byte(i % 256)
 	}
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

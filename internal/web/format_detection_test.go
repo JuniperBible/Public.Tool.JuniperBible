@@ -175,7 +175,7 @@ func TestFormatDetector_DetectFileFormat_WithPlugins(t *testing.T) {
   "version": "1.0.0",
   "binary": "format-test"
 }`
-	if err := os.WriteFile(filepath.Join(pluginDir, "manifest.json"), []byte(manifestContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginDir, "manifest.json"), []byte(manifestContent), 0600); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 

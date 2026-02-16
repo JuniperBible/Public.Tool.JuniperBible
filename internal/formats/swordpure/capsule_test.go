@@ -97,7 +97,7 @@ func TestHasFilesInDir(t *testing.T) {
 
 	// Create a file
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -126,7 +126,7 @@ func TestCreateTarGZ(t *testing.T) {
 	}
 
 	testFile := filepath.Join(srcDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -243,12 +243,12 @@ ModDrv=zText
 Lang=en
 `
 	confPath := filepath.Join(modsDir, "testmod.conf") // lowercase
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
 	// Create minimal data files
-	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzz"), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzz"), []byte{}, 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -282,7 +282,7 @@ ModDrv=zText
 Lang=en
 `
 	confPath := filepath.Join(modsDir, "testmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -337,10 +337,10 @@ func TestCreateTarGZWithSubdirectory(t *testing.T) {
 	}
 
 	// Create files in root and subdirectory
-	if err := os.WriteFile(filepath.Join(srcDir, "root.txt"), []byte("root"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "root.txt"), []byte("root"), 0600); err != nil {
 		t.Fatalf("failed to create root file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(subDir, "sub.txt"), []byte("sub"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(subDir, "sub.txt"), []byte("sub"), 0600); err != nil {
 		t.Fatalf("failed to create sub file: %v", err)
 	}
 
@@ -408,7 +408,7 @@ ModDrv=zLD
 Description=Test Lexicon
 Lang=en
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "testlex.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "testlex.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -446,7 +446,7 @@ ModDrv=zText
 Description=%s
 Lang=en
 `, longDesc)
-	if err := os.WriteFile(filepath.Join(modsDir, "testmod.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "testmod.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -483,7 +483,7 @@ Description=Encrypted Module
 Lang=en
 CipherKey=12345
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "encmod.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "encmod.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -732,7 +732,7 @@ ModDrv=zLD
 Description=Test Lexicon
 Lang=en
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "testlex.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "testlex.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -765,7 +765,7 @@ Description=Encrypted Module
 Lang=en
 CipherKey=12345
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "encmod.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "encmod.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -854,12 +854,12 @@ ModDrv=zText
 Lang=en
 `
 	confPath := filepath.Join(modsDir, "testmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
 	// Create minimal data file at root
-	if err := os.WriteFile(filepath.Join(tmpDir, "ot.bzz"), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "ot.bzz"), []byte{}, 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -891,7 +891,7 @@ ModDrv=zText
 Lang=en
 `
 	confPath := filepath.Join(modsDir, "testmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -919,7 +919,7 @@ func TestCreateTarGZWithXZExtension(t *testing.T) {
 	}
 
 	testFile := filepath.Join(srcDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -950,7 +950,7 @@ func TestCreateTarGZWithNoExtension(t *testing.T) {
 	}
 
 	testFile := filepath.Join(srcDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -987,7 +987,7 @@ ModDrv=zText
 Description=Module that will fail
 Lang=en
 `
-	if err := os.WriteFile(filepath.Join(modsDir, "failmod.conf"), []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, "failmod.conf"), []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -1085,7 +1085,7 @@ ModDrv=zText
 Lang=en
 `
 	confPath := filepath.Join(modsDir, "emptymod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 

@@ -149,7 +149,7 @@ func TestNewReader(t *testing.T) {
 			name: "unsupported format",
 			setup: func(t *testing.T) string {
 				path := filepath.Join(dir, "test.zip")
-				os.WriteFile(path, []byte("not a tar"), 0644)
+				os.WriteFile(path, []byte("not a tar"), 0600)
 				return path
 			},
 			wantErr: true,
@@ -388,7 +388,7 @@ func TestNewReader_CorruptedGzip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "corrupt.tar.gz")
 	// Write invalid gzip data
-	if err := os.WriteFile(path, []byte("not a gzip file"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte("not a gzip file"), 0600); err != nil {
 		t.Fatalf("create file: %v", err)
 	}
 
@@ -402,7 +402,7 @@ func TestNewReader_CorruptedXz(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "corrupt.tar.xz")
 	// Write invalid xz data
-	if err := os.WriteFile(path, []byte("not an xz file"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte("not an xz file"), 0600); err != nil {
 		t.Fatalf("create file: %v", err)
 	}
 

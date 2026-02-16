@@ -30,7 +30,7 @@ func TestDetect_XMLFile(t *testing.T) {
 	h := &Handler{}
 
 	file := filepath.Join(tmpDir, "test.xml")
-	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -52,7 +52,7 @@ func TestDetect_NonXMLFile(t *testing.T) {
 	h := &Handler{}
 
 	file := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -105,7 +105,7 @@ func TestIngest_XMLFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.xml")
 	content := []byte("<?xml version=\"1.0\"?><root>test</root>")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -155,7 +155,7 @@ func TestEnumerate_XMLFile(t *testing.T) {
 
 	file := filepath.Join(tmpDir, "test.xml")
 	content := []byte("<?xml version=\"1.0\"?><root>test</root>")
-	if err := os.WriteFile(file, content, 0644); err != nil {
+	if err := os.WriteFile(file, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

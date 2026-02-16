@@ -109,7 +109,7 @@ func TestHashFile(t *testing.T) {
 	data := []byte("file content for hashing")
 	path := filepath.Join(tmpDir, "test.txt")
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -170,7 +170,7 @@ func TestStoreFile(t *testing.T) {
 	data := []byte("file content")
 	srcPath := filepath.Join(tmpDir, "source.txt")
 
-	if err := os.WriteFile(srcPath, data, 0644); err != nil {
+	if err := os.WriteFile(srcPath, data, 0600); err != nil {
 		t.Fatalf("failed to write source file: %v", err)
 	}
 

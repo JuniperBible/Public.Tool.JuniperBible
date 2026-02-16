@@ -34,7 +34,7 @@ func TestDetect(t *testing.T) {
 	t.Run("osis xml detected by content", func(t *testing.T) {
 		osisFile := filepath.Join(tmpDir, "test.txt")
 		content := `<?xml version="1.0"?><osis><osisText osisIDWork="Test"></osisText></osis>`
-		if err := os.WriteFile(osisFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(osisFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -53,7 +53,7 @@ func TestDetect(t *testing.T) {
 	t.Run("osis extension with valid structure", func(t *testing.T) {
 		osisFile := filepath.Join(tmpDir, "test.osis")
 		content := `<?xml version="1.0"?><osis><osisText osisIDWork="Test"></osisText></osis>`
-		if err := os.WriteFile(osisFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(osisFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -69,7 +69,7 @@ func TestDetect(t *testing.T) {
 	t.Run("xml extension with valid osis structure", func(t *testing.T) {
 		xmlFile := filepath.Join(tmpDir, "test.xml")
 		content := `<?xml version="1.0"?><osis><osisText osisIDWork="Test"></osisText></osis>`
-		if err := os.WriteFile(xmlFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(xmlFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -84,7 +84,7 @@ func TestDetect(t *testing.T) {
 
 	t.Run("not osis file", func(t *testing.T) {
 		txtFile := filepath.Join(tmpDir, "test.txt")
-		if err := os.WriteFile(txtFile, []byte("plain text without markers"), 0644); err != nil {
+		if err := os.WriteFile(txtFile, []byte("plain text without markers"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -100,7 +100,7 @@ func TestDetect(t *testing.T) {
 	t.Run("xml file with non-osis content", func(t *testing.T) {
 		xmlFile := filepath.Join(tmpDir, "other.xml")
 		content := `<?xml version="1.0"?><html><body>Not OSIS</body></html>`
-		if err := os.WriteFile(xmlFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(xmlFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -149,7 +149,7 @@ func TestIngest(t *testing.T) {
 	t.Run("basic ingest with work ID", func(t *testing.T) {
 		osisFile := filepath.Join(tmpDir, "kjv.osis")
 		content := `<?xml version="1.0"?><osis><osisText osisIDWork="KJV"></osisText></osis>`
-		if err := os.WriteFile(osisFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(osisFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -177,7 +177,7 @@ func TestIngest(t *testing.T) {
 	t.Run("ingest without work ID", func(t *testing.T) {
 		osisFile := filepath.Join(tmpDir, "noid.osis")
 		content := `<?xml version="1.0"?><root>Not proper OSIS</root>`
-		if err := os.WriteFile(osisFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(osisFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -207,7 +207,7 @@ func TestIngest(t *testing.T) {
 
 	t.Run("ingest to non-writable output", func(t *testing.T) {
 		osisFile := filepath.Join(tmpDir, "test.osis")
-		if err := os.WriteFile(osisFile, []byte("<osis/>"), 0644); err != nil {
+		if err := os.WriteFile(osisFile, []byte("<osis/>"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -230,7 +230,7 @@ func TestEnumerate(t *testing.T) {
 	t.Run("enumerate file", func(t *testing.T) {
 		osisFile := filepath.Join(tmpDir, "bible.osis")
 		content := "test content"
-		if err := os.WriteFile(osisFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(osisFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -278,7 +278,7 @@ func TestExtractIR(t *testing.T) {
     <div type="book" osisID="Gen"><p>In the beginning</p></div>
   </osisText>
 </osis>`
-		if err := os.WriteFile(osisFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(osisFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -312,7 +312,7 @@ func TestExtractIR(t *testing.T) {
 
 	t.Run("extract ir invalid xml", func(t *testing.T) {
 		invalidFile := filepath.Join(tmpDir, "invalid.osis")
-		if err := os.WriteFile(invalidFile, []byte("not valid xml"), 0644); err != nil {
+		if err := os.WriteFile(invalidFile, []byte("not valid xml"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -330,7 +330,7 @@ func TestExtractIR(t *testing.T) {
 	t.Run("extract ir write error", func(t *testing.T) {
 		osisFile := filepath.Join(tmpDir, "test2.osis")
 		content := `<?xml version="1.0"?><osis><osisText osisIDWork="Test"></osisText></osis>`
-		if err := os.WriteFile(osisFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(osisFile, []byte(content), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -375,7 +375,7 @@ func TestEmitNative(t *testing.T) {
 		}
 
 		irFile := filepath.Join(tmpDir, "kjv.ir.json")
-		if err := os.WriteFile(irFile, irData, 0644); err != nil {
+		if err := os.WriteFile(irFile, irData, 0600); err != nil {
 			t.Fatalf("failed to write IR file: %v", err)
 		}
 
@@ -412,7 +412,7 @@ func TestEmitNative(t *testing.T) {
 
 	t.Run("emit native invalid json", func(t *testing.T) {
 		invalidFile := filepath.Join(tmpDir, "invalid.ir.json")
-		if err := os.WriteFile(invalidFile, []byte("not valid json"), 0644); err != nil {
+		if err := os.WriteFile(invalidFile, []byte("not valid json"), 0600); err != nil {
 			t.Fatalf("failed to write file: %v", err)
 		}
 
@@ -428,7 +428,7 @@ func TestEmitNative(t *testing.T) {
 		irData, _ := json.Marshal(corpus)
 
 		irFile := filepath.Join(tmpDir, "test.ir.json")
-		if err := os.WriteFile(irFile, irData, 0644); err != nil {
+		if err := os.WriteFile(irFile, irData, 0600); err != nil {
 			t.Fatalf("failed to write IR file: %v", err)
 		}
 

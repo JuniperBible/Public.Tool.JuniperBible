@@ -480,7 +480,7 @@ func testExtractIR(t *testing.T, args map[string]interface{}) *ipc.Corpus {
 	}
 
 	irPath := filepath.Join(outputDir, artifactID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR: %v", err)
 	}
 

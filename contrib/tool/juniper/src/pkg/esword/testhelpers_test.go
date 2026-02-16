@@ -231,7 +231,7 @@ func CreateInvalidDB(t *testing.T) string {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "invalid.bblx")
 
-	if err := os.WriteFile(dbPath, []byte("not a database"), 0644); err != nil {
+	if err := os.WriteFile(dbPath, []byte("not a database"), 0600); err != nil {
 		t.Fatalf("Failed to create invalid file: %v", err)
 	}
 

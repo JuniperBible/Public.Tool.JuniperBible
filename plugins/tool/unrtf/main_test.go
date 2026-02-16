@@ -43,7 +43,7 @@ func TestToHtmlProfile(t *testing.T) {
 
 	// Create minimal RTF file
 	rtfFile := filepath.Join(tempDir, "test.rtf")
-	os.WriteFile(rtfFile, []byte(`{\rtf1\ansi Hello World}`), 0644)
+	os.WriteFile(rtfFile, []byte(`{\rtf1\ansi Hello World}`), 0600)
 
 	reqFile := filepath.Join(tempDir, "request.json")
 	req := map[string]interface{}{
@@ -52,7 +52,7 @@ func TestToHtmlProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	os.WriteFile(reqFile, reqData, 0644)
+	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
 	os.MkdirAll(outDir, 0755)
@@ -81,7 +81,7 @@ func TestToTextProfile(t *testing.T) {
 	tempDir := t.TempDir()
 
 	rtfFile := filepath.Join(tempDir, "test.rtf")
-	os.WriteFile(rtfFile, []byte(`{\rtf1\ansi Test content}`), 0644)
+	os.WriteFile(rtfFile, []byte(`{\rtf1\ansi Test content}`), 0600)
 
 	reqFile := filepath.Join(tempDir, "request.json")
 	req := map[string]interface{}{
@@ -90,7 +90,7 @@ func TestToTextProfile(t *testing.T) {
 		"out_dir": tempDir,
 	}
 	reqData, _ := json.Marshal(req)
-	os.WriteFile(reqFile, reqData, 0644)
+	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
 	os.MkdirAll(outDir, 0755)

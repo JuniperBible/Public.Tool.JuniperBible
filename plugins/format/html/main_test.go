@@ -33,7 +33,7 @@ func createTestHTML(t *testing.T, path string) {
 </body>
 </html>
 `
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write test HTML: %v", err)
 	}
 }
@@ -81,7 +81,7 @@ func TestHTMLDetectNonHTML(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtPath, []byte("Hello world"), 0644); err != nil {
+	if err := os.WriteFile(txtPath, []byte("Hello world"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -114,7 +114,7 @@ func TestHTMLDetectNoVerses(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	htmlPath := filepath.Join(tmpDir, "test.html")
-	if err := os.WriteFile(htmlPath, []byte("<html><body><p>Just a paragraph.</p></body></html>"), 0644); err != nil {
+	if err := os.WriteFile(htmlPath, []byte("<html><body><p>Just a paragraph.</p></body></html>"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -257,7 +257,7 @@ func TestHTMLEmitNative(t *testing.T) {
 	}
 
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -472,7 +472,7 @@ func TestHTMLEmitParallel(t *testing.T) {
 	}
 
 	parallelPath := filepath.Join(tmpDir, "parallel.json")
-	if err := os.WriteFile(parallelPath, parallelData, 0644); err != nil {
+	if err := os.WriteFile(parallelPath, parallelData, 0600); err != nil {
 		t.Fatalf("failed to write parallel corpus: %v", err)
 	}
 
@@ -580,7 +580,7 @@ func TestHTMLEmitInterlinear(t *testing.T) {
 	}
 
 	linesPath := filepath.Join(tmpDir, "interlinear.json")
-	if err := os.WriteFile(linesPath, linesData, 0644); err != nil {
+	if err := os.WriteFile(linesPath, linesData, 0600); err != nil {
 		t.Fatalf("failed to write interlinear lines: %v", err)
 	}
 
@@ -832,7 +832,7 @@ func TestHTMLDetectVariousPatterns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path := filepath.Join(tmpDir, "test.html")
-			if err := os.WriteFile(path, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(path, []byte(tt.content), 0600); err != nil {
 				t.Fatalf("failed to write file: %v", err)
 			}
 
@@ -907,7 +907,7 @@ func TestHTMLEmitNativeStructure(t *testing.T) {
 	}
 
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -1013,7 +1013,7 @@ func TestHTMLEmitNativeEscaping(t *testing.T) {
 	}
 
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 

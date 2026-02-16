@@ -27,7 +27,7 @@ func TestDetectDirectory(t *testing.T) {
 Description=Test Module
 ModDrv=zText
 `
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -180,7 +180,7 @@ func TestDetectCrossWire(t *testing.T) {
 
 				modsDir := filepath.Join(tmpDir, "mods.d")
 				os.MkdirAll(modsDir, 0755)
-				os.WriteFile(filepath.Join(modsDir, "test.conf"), []byte("[Test]\n"), 0644)
+				os.WriteFile(filepath.Join(modsDir, "test.conf"), []byte("[Test]\n"), 0600)
 
 				modulesDir := filepath.Join(tmpDir, "modules")
 				os.MkdirAll(modulesDir, 0755)
@@ -291,8 +291,8 @@ func TestCopyDir(t *testing.T) {
 
 	// Create source directory with files
 	os.MkdirAll(filepath.Join(srcDir, "subdir"), 0755)
-	os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0644)
-	os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0644)
+	os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0600)
+	os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0600)
 
 	// Copy
 	if err := copyDir(srcDir, dstDir); err != nil {
@@ -335,8 +335,8 @@ func TestCreateZipArchive(t *testing.T) {
 	// Create source directory with files
 	os.MkdirAll(filepath.Join(srcDir, "mods.d"), 0755)
 	os.MkdirAll(filepath.Join(srcDir, "modules"), 0755)
-	os.WriteFile(filepath.Join(srcDir, "mods.d", "test.conf"), []byte("[Test]\n"), 0644)
-	os.WriteFile(filepath.Join(srcDir, "modules", "data.txt"), []byte("data"), 0644)
+	os.WriteFile(filepath.Join(srcDir, "mods.d", "test.conf"), []byte("[Test]\n"), 0600)
+	os.WriteFile(filepath.Join(srcDir, "modules", "data.txt"), []byte("data"), 0600)
 
 	// Create zip
 	if err := createZipArchive(srcDir, zipPath); err != nil {
@@ -374,7 +374,7 @@ func TestHandleDetect(t *testing.T) {
 	// Create valid SWORD directory
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	os.MkdirAll(modsDir, 0755)
-	os.WriteFile(filepath.Join(modsDir, "test.conf"), []byte("[Test]\n"), 0644)
+	os.WriteFile(filepath.Join(modsDir, "test.conf"), []byte("[Test]\n"), 0600)
 
 	modulesDir := filepath.Join(tmpDir, "modules")
 	os.MkdirAll(modulesDir, 0755)

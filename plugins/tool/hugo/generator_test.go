@@ -297,7 +297,7 @@ func TestGenerateFromFile(t *testing.T) {
 			}
 		]
 	}`
-	if err := os.WriteFile(inputPath, []byte(inputData), 0644); err != nil {
+	if err := os.WriteFile(inputPath, []byte(inputData), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -334,7 +334,7 @@ func TestGenerateFromFileArray(t *testing.T) {
 			"books": []
 		}
 	]`
-	if err := os.WriteFile(inputPath, []byte(inputData), 0644); err != nil {
+	if err := os.WriteFile(inputPath, []byte(inputData), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -366,7 +366,7 @@ func TestGenerateFromFileInvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	inputPath := filepath.Join(tmpDir, "invalid.json")
-	if err := os.WriteFile(inputPath, []byte("not valid json"), 0644); err != nil {
+	if err := os.WriteFile(inputPath, []byte("not valid json"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -385,7 +385,7 @@ func TestGenerate(t *testing.T) {
 	// Create input file
 	inputPath := filepath.Join(tmpDir, "input.json")
 	inputData := `{"id": "TST", "title": "Test", "language": "en", "books": []}`
-	if err := os.WriteFile(inputPath, []byte(inputData), 0644); err != nil {
+	if err := os.WriteFile(inputPath, []byte(inputData), 0600); err != nil {
 		t.Fatal(err)
 	}
 

@@ -967,7 +967,7 @@ func TestLoadVersification_InvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 	invalidPath := filepath.Join(tmpDir, "invalid.yaml")
 
-	if err := os.WriteFile(invalidPath, []byte("{{invalid yaml"), 0644); err != nil {
+	if err := os.WriteFile(invalidPath, []byte("{{invalid yaml"), 0600); err != nil {
 		t.Fatalf("failed to create invalid yaml file: %v", err)
 	}
 

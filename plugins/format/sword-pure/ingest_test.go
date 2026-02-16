@@ -270,7 +270,7 @@ func createMockSwordModules(t *testing.T, swordDir string, bibles []struct {
 		// Create conf file
 		confContent := generateConfFile(bible.name, bible.lang, bible.description, bible.modDrv)
 		confPath := filepath.Join(modsDir, strings.ToLower(bible.name)+".conf")
-		if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+		if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 			t.Fatalf("failed to write conf for %s: %v", bible.name, err)
 		}
 
@@ -308,19 +308,19 @@ func createMockZTextData(t *testing.T, dataPath, name string) {
 	for _, testament := range []string{"ot", "nt"} {
 		// Block index (compressed block locations)
 		bzs := filepath.Join(dataPath, testament+".bzs")
-		if err := os.WriteFile(bzs, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0644); err != nil {
+		if err := os.WriteFile(bzs, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0600); err != nil {
 			t.Fatalf("failed to write %s: %v", bzs, err)
 		}
 
 		// Block data (compressed blocks)
 		bzz := filepath.Join(dataPath, testament+".bzz")
-		if err := os.WriteFile(bzz, createMockCompressedBlock(name), 0644); err != nil {
+		if err := os.WriteFile(bzz, createMockCompressedBlock(name), 0600); err != nil {
 			t.Fatalf("failed to write %s: %v", bzz, err)
 		}
 
 		// Verse index (verse locations within blocks)
 		bzv := filepath.Join(dataPath, testament+".bzv")
-		if err := os.WriteFile(bzv, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0644); err != nil {
+		if err := os.WriteFile(bzv, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0600); err != nil {
 			t.Fatalf("failed to write %s: %v", bzv, err)
 		}
 	}
@@ -620,16 +620,16 @@ func BenchmarkBaseIngestion(b *testing.B) {
 	for _, bible := range baseBibles {
 		confContent := generateConfFile(bible.name, bible.lang, bible.description, bible.modDrv)
 		confPath := filepath.Join(modsDir, strings.ToLower(bible.name)+".conf")
-		os.WriteFile(confPath, []byte(confContent), 0644)
+		os.WriteFile(confPath, []byte(confContent), 0600)
 
 		dataPath := filepath.Join(swordDir, "modules", "texts", "ztext", strings.ToLower(bible.name))
 		os.MkdirAll(dataPath, 0755)
 
 		// Create minimal mock data
 		for _, testament := range []string{"ot", "nt"} {
-			os.WriteFile(filepath.Join(dataPath, testament+".bzs"), []byte{0, 0, 0, 0, 0, 0, 0, 0}, 0644)
-			os.WriteFile(filepath.Join(dataPath, testament+".bzz"), []byte("mock"), 0644)
-			os.WriteFile(filepath.Join(dataPath, testament+".bzv"), []byte{0, 0, 0, 0, 0, 0}, 0644)
+			os.WriteFile(filepath.Join(dataPath, testament+".bzs"), []byte{0, 0, 0, 0, 0, 0, 0, 0}, 0600)
+			os.WriteFile(filepath.Join(dataPath, testament+".bzz"), []byte("mock"), 0600)
+			os.WriteFile(filepath.Join(dataPath, testament+".bzv"), []byte{0, 0, 0, 0, 0, 0}, 0600)
 		}
 	}
 
@@ -667,7 +667,7 @@ Lang=en
 Description=Encrypted Bible
 CipherKey=secret123
 `
-	os.WriteFile(filepath.Join(modsDir, "encrypted.conf"), []byte(confEncrypted), 0644)
+	os.WriteFile(filepath.Join(modsDir, "encrypted.conf"), []byte(confEncrypted), 0600)
 
 	// Create a non-encrypted module conf (no CipherKey or empty means not encrypted)
 	confPlain := `[PlainBible]
@@ -676,7 +676,7 @@ ModDrv=zText
 Lang=en
 Description=Plain Bible
 `
-	os.WriteFile(filepath.Join(modsDir, "plain.conf"), []byte(confPlain), 0644)
+	os.WriteFile(filepath.Join(modsDir, "plain.conf"), []byte(confPlain), 0600)
 
 	// Create data directories
 	os.MkdirAll(filepath.Join(swordDir, "modules", "texts", "ztext", "encrypted"), 0755)
@@ -736,13 +736,13 @@ Description=Test Greek Bible
 Version=2.5
 Versification=NRSV
 `
-	os.WriteFile(filepath.Join(modsDir, "testbible.conf"), []byte(confContent), 0644)
+	os.WriteFile(filepath.Join(modsDir, "testbible.conf"), []byte(confContent), 0600)
 
 	dataPath := filepath.Join(swordDir, "modules", "texts", "ztext", "testbible")
 	os.MkdirAll(dataPath, 0755)
-	os.WriteFile(filepath.Join(dataPath, "nt.bzs"), []byte{0, 0, 0, 0}, 0644)
-	os.WriteFile(filepath.Join(dataPath, "nt.bzz"), []byte("data"), 0644)
-	os.WriteFile(filepath.Join(dataPath, "nt.bzv"), []byte{0, 0, 0, 0}, 0644)
+	os.WriteFile(filepath.Join(dataPath, "nt.bzs"), []byte{0, 0, 0, 0}, 0600)
+	os.WriteFile(filepath.Join(dataPath, "nt.bzz"), []byte("data"), 0600)
+	os.WriteFile(filepath.Join(dataPath, "nt.bzv"), []byte{0, 0, 0, 0}, 0600)
 
 	modules, _ := ListModules(swordDir)
 	if len(modules) == 0 {

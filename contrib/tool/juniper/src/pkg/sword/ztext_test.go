@@ -55,7 +55,7 @@ func createTestZTextModule(t *testing.T, testament string, verses []string) stri
 	binary.LittleEndian.PutUint32(bzs[8:12], uint32(uncompressedBlock.Len())) // uncompressed size
 
 	bzsPath := filepath.Join(tmpDir, testament+".bzs")
-	if err := os.WriteFile(bzsPath, bzs, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzs, 0600); err != nil {
 		t.Fatalf("Failed to write bzs file: %v", err)
 	}
 
@@ -91,13 +91,13 @@ func createTestZTextModule(t *testing.T, testament string, verses []string) stri
 	}
 
 	bzvPath := filepath.Join(tmpDir, testament+".bzv")
-	if err := os.WriteFile(bzvPath, bzv, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzv, 0600); err != nil {
 		t.Fatalf("Failed to write bzv file: %v", err)
 	}
 
 	// Write compressed data (.bzz)
 	bzzPath := filepath.Join(tmpDir, testament+".bzz")
-	if err := os.WriteFile(bzzPath, compressedBlock.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(bzzPath, compressedBlock.Bytes(), 0600); err != nil {
 		t.Fatalf("Failed to write bzz file: %v", err)
 	}
 
@@ -132,7 +132,7 @@ func createEmptyTestModule(t *testing.T, testament string, numVerses int) string
 	binary.LittleEndian.PutUint32(bzs[8:12], 0)
 
 	bzsPath := filepath.Join(tmpDir, testament+".bzs")
-	if err := os.WriteFile(bzsPath, bzs, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzs, 0600); err != nil {
 		t.Fatalf("Failed to write bzs file: %v", err)
 	}
 
@@ -143,12 +143,12 @@ func createEmptyTestModule(t *testing.T, testament string, numVerses int) string
 	bzv := make([]byte, totalEntries*10) // All zeros = empty entries
 
 	bzvPath := filepath.Join(tmpDir, testament+".bzv")
-	if err := os.WriteFile(bzvPath, bzv, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzv, 0600); err != nil {
 		t.Fatalf("Failed to write bzv file: %v", err)
 	}
 
 	bzzPath := filepath.Join(tmpDir, testament+".bzz")
-	if err := os.WriteFile(bzzPath, compressedBlock.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(bzzPath, compressedBlock.Bytes(), 0600); err != nil {
 		t.Fatalf("Failed to write bzz file: %v", err)
 	}
 
@@ -441,7 +441,7 @@ ModDrv=zText
 Lang=en
 Description=Test Bible
 `
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("Failed to write conf file: %v", err)
 	}
 
@@ -574,7 +574,7 @@ func copyFile(t *testing.T, src, dst string) {
 	if err != nil {
 		t.Fatalf("Failed to read %s: %v", src, err)
 	}
-	if err := os.WriteFile(dst, data, 0644); err != nil {
+	if err := os.WriteFile(dst, data, 0600); err != nil {
 		t.Fatalf("Failed to write %s: %v", dst, err)
 	}
 }

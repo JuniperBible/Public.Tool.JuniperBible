@@ -96,7 +96,7 @@ func TestHandleDetect(t *testing.T) {
 			setup: func(t *testing.T) string {
 				tmpDir := t.TempDir()
 				txtPath := filepath.Join(tmpDir, "test.db")
-				os.WriteFile(txtPath, []byte("This is not a SQLite file"), 0644)
+				os.WriteFile(txtPath, []byte("This is not a SQLite file"), 0600)
 				return txtPath
 			},
 			wantDetected: false,
@@ -107,7 +107,7 @@ func TestHandleDetect(t *testing.T) {
 			setup: func(t *testing.T) string {
 				tmpDir := t.TempDir()
 				txtPath := filepath.Join(tmpDir, "test.txt")
-				os.WriteFile(txtPath, []byte("Hello world"), 0644)
+				os.WriteFile(txtPath, []byte("Hello world"), 0600)
 				return txtPath
 			},
 			wantDetected: false,
@@ -460,7 +460,7 @@ func TestHandleEmitNative(t *testing.T) {
 				}
 				irData, _ := json.MarshalIndent(corpus, "", "  ")
 				irPath := filepath.Join(tmpDir, "test.ir.json")
-				os.WriteFile(irPath, irData, 0644)
+				os.WriteFile(irPath, irData, 0600)
 				outputDir := filepath.Join(tmpDir, "output")
 				os.MkdirAll(outputDir, 0755)
 				return irPath, outputDir
@@ -560,7 +560,7 @@ func TestHandleEmitNative(t *testing.T) {
 				}
 				irData, _ := json.MarshalIndent(corpus, "", "  ")
 				irPath := filepath.Join(tmpDir, "multi.ir.json")
-				os.WriteFile(irPath, irData, 0644)
+				os.WriteFile(irPath, irData, 0600)
 				outputDir := filepath.Join(tmpDir, "output")
 				os.MkdirAll(outputDir, 0755)
 				return irPath, outputDir
@@ -620,7 +620,7 @@ func TestHandleEmitNative(t *testing.T) {
 				}
 				irData, _ := json.MarshalIndent(corpus, "", "  ")
 				irPath := filepath.Join(tmpDir, "noverse.ir.json")
-				os.WriteFile(irPath, irData, 0644)
+				os.WriteFile(irPath, irData, 0600)
 				outputDir := filepath.Join(tmpDir, "output")
 				os.MkdirAll(outputDir, 0755)
 				return irPath, outputDir
@@ -999,7 +999,7 @@ func TestSQLiteDetect(t *testing.T) {
 func TestSQLiteDetectNonSQLite(t *testing.T) {
 	tmpDir := t.TempDir()
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtPath, []byte("Hello world"), 0644); err != nil {
+	if err := os.WriteFile(txtPath, []byte("Hello world"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -1133,7 +1133,7 @@ func TestSQLiteEmitNative(t *testing.T) {
 	}
 
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
@@ -1369,7 +1369,7 @@ func TestIPCErrorPaths(t *testing.T) {
 	t.Run("emit-native with invalid JSON", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		irPath := filepath.Join(tmpDir, "invalid.json")
-		os.WriteFile(irPath, []byte("{invalid json}"), 0644)
+		os.WriteFile(irPath, []byte("{invalid json}"), 0600)
 
 		req := ipc.Request{
 			Command: "emit-native",

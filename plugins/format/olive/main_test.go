@@ -91,7 +91,7 @@ func TestDetect_NotOliveTree(t *testing.T) {
 	// Create temporary non-Olive Tree file
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("not an olive tree file"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("not an olive tree file"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -121,7 +121,7 @@ func TestDetect_OT4IFile(t *testing.T) {
 	// Create a file with SQLite signature
 	content := []byte("SQLite format 3\x00\x00\x00")
 	content = append(content, make([]byte, 100)...) // Pad with zeros
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -158,7 +158,7 @@ func TestDetect_OTIFile(t *testing.T) {
 	content := make([]byte, 100)
 	content[0] = 0x4F // 'O'
 	content[1] = 0x54 // 'T'
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -196,7 +196,7 @@ func TestDetect_PDBFile(t *testing.T) {
 	// Creator: "OlTr" (Olive Tree)
 	copy(header[64:68], []byte("OlTr"))
 
-	if err := os.WriteFile(testFile, header, 0644); err != nil {
+	if err := os.WriteFile(testFile, header, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -226,7 +226,7 @@ func TestIngest(t *testing.T) {
 
 	// Create test file
 	testContent := []byte("SQLite format 3\x00test content")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -267,7 +267,7 @@ func TestEnumerate(t *testing.T) {
 
 	// Create test file
 	testContent := []byte("SQLite format 3\x00test")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -303,7 +303,7 @@ func TestExtractIR_NotSupported(t *testing.T) {
 
 	// Create test file
 	testContent := []byte("SQLite format 3\x00test")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -339,7 +339,7 @@ func TestEmitNative_NotSupported(t *testing.T) {
 
 	// Create dummy IR file
 	irContent := []byte(`{"id":"test","version":"1.0.0"}`)
-	if err := os.WriteFile(irFile, irContent, 0644); err != nil {
+	if err := os.WriteFile(irFile, irContent, 0600); err != nil {
 		t.Fatalf("failed to create IR file: %v", err)
 	}
 

@@ -29,7 +29,7 @@ func TestDetect_SFMFile(t *testing.T) {
 	h := &Handler{}
 
 	sfmFile := filepath.Join(tmpDir, "genesis.sfm")
-	if err := os.WriteFile(sfmFile, []byte("\\id GEN\n\\c 1\n\\v 1 In the beginning"), 0644); err != nil {
+	if err := os.WriteFile(sfmFile, []byte("\\id GEN\n\\c 1\n\\v 1 In the beginning"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -51,7 +51,7 @@ func TestDetect_NonSFMFile(t *testing.T) {
 	h := &Handler{}
 
 	txtFile := filepath.Join(tmpDir, "file.txt")
-	if err := os.WriteFile(txtFile, []byte("not SFM"), 0644); err != nil {
+	if err := os.WriteFile(txtFile, []byte("not SFM"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -101,7 +101,7 @@ func TestIngest(t *testing.T) {
 
 	sfmFile := filepath.Join(tmpDir, "genesis.sfm")
 	content := []byte("\\id GEN\n\\c 1\n\\v 1 In the beginning")
-	if err := os.WriteFile(sfmFile, content, 0644); err != nil {
+	if err := os.WriteFile(sfmFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -145,7 +145,7 @@ func TestEnumerate(t *testing.T) {
 
 	sfmFile := filepath.Join(tmpDir, "genesis.sfm")
 	content := []byte("\\id GEN\n\\c 1\n\\v 1 In the beginning")
-	if err := os.WriteFile(sfmFile, content, 0644); err != nil {
+	if err := os.WriteFile(sfmFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

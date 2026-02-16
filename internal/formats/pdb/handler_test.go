@@ -29,7 +29,7 @@ func TestDetect_PDBFile(t *testing.T) {
 	h := &Handler{}
 
 	pdbFile := filepath.Join(tmpDir, "bible.pdb")
-	if err := os.WriteFile(pdbFile, []byte("PDB content"), 0644); err != nil {
+	if err := os.WriteFile(pdbFile, []byte("PDB content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -51,7 +51,7 @@ func TestDetect_NonPDBFile(t *testing.T) {
 	h := &Handler{}
 
 	txtFile := filepath.Join(tmpDir, "file.txt")
-	if err := os.WriteFile(txtFile, []byte("not PDB"), 0644); err != nil {
+	if err := os.WriteFile(txtFile, []byte("not PDB"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -101,7 +101,7 @@ func TestIngest(t *testing.T) {
 
 	pdbFile := filepath.Join(tmpDir, "bible.pdb")
 	content := []byte("PDB content")
-	if err := os.WriteFile(pdbFile, content, 0644); err != nil {
+	if err := os.WriteFile(pdbFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -145,7 +145,7 @@ func TestEnumerate(t *testing.T) {
 
 	pdbFile := filepath.Join(tmpDir, "bible.pdb")
 	content := []byte("PDB content")
-	if err := os.WriteFile(pdbFile, content, 0644); err != nil {
+	if err := os.WriteFile(pdbFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

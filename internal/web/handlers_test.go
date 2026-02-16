@@ -253,9 +253,9 @@ func TestListCapsules(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create test capsule files
-	os.WriteFile(filepath.Join(tmpDir, "test1.tar.xz"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "test2.tar.gz"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "notacapsule.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "test1.tar.xz"), []byte("test"), 0600)
+	os.WriteFile(filepath.Join(tmpDir, "test2.tar.gz"), []byte("test"), 0600)
+	os.WriteFile(filepath.Join(tmpDir, "notacapsule.txt"), []byte("test"), 0600)
 
 	// Set ServerConfig to use temp dir
 	originalDir := ServerConfig.CapsulesDir
@@ -311,7 +311,7 @@ func TestListToolPlugins(t *testing.T) {
 	toolDir := filepath.Join(tmpDir, "tool", "libsword")
 	os.MkdirAll(toolDir, 0755)
 	manifest := `{"plugin_id": "tool.libsword", "name": "libsword", "version": "1.0.0", "kind": "tool", "entrypoint": "tool-libsword"}`
-	os.WriteFile(filepath.Join(toolDir, "plugin.json"), []byte(manifest), 0644)
+	os.WriteFile(filepath.Join(toolDir, "plugin.json"), []byte(manifest), 0600)
 
 	// Set ServerConfig
 	originalDir := ServerConfig.PluginsDir
@@ -409,7 +409,7 @@ func TestIsDirEmpty(t *testing.T) {
 	}
 
 	// Non-empty directory
-	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0600)
 	if isDirEmpty(tmpDir) {
 		t.Error("expected non-empty directory to return false")
 	}
@@ -462,7 +462,7 @@ func TestRenameToOld(t *testing.T) {
 
 	for _, tc := range tests {
 		srcPath := filepath.Join(tmpDir, tc.name)
-		os.WriteFile(srcPath, []byte("test"), 0644)
+		os.WriteFile(srcPath, []byte("test"), 0600)
 
 		oldPath := renameToOld(srcPath)
 		if oldPath == "" {
@@ -503,7 +503,7 @@ func TestFindContentFile(t *testing.T) {
 			createFiles: func(dir string) {
 				modsDir := filepath.Join(dir, "mods.d")
 				os.MkdirAll(modsDir, 0755)
-				os.WriteFile(filepath.Join(modsDir, "test.conf"), []byte("[Test]"), 0644)
+				os.WriteFile(filepath.Join(modsDir, "test.conf"), []byte("[Test]"), 0600)
 			},
 			expectedFormat: "sword-pure",
 			shouldFind:     true,
@@ -511,7 +511,7 @@ func TestFindContentFile(t *testing.T) {
 		{
 			name: "OSIS file",
 			createFiles: func(dir string) {
-				os.WriteFile(filepath.Join(dir, "test.osis"), []byte("<osis>"), 0644)
+				os.WriteFile(filepath.Join(dir, "test.osis"), []byte("<osis>"), 0600)
 			},
 			expectedFormat: "osis",
 			shouldFind:     true,
@@ -519,7 +519,7 @@ func TestFindContentFile(t *testing.T) {
 		{
 			name: "USX file",
 			createFiles: func(dir string) {
-				os.WriteFile(filepath.Join(dir, "test.usx"), []byte("<usx>"), 0644)
+				os.WriteFile(filepath.Join(dir, "test.usx"), []byte("<usx>"), 0600)
 			},
 			expectedFormat: "usx",
 			shouldFind:     true,
@@ -527,7 +527,7 @@ func TestFindContentFile(t *testing.T) {
 		{
 			name: "USFM file",
 			createFiles: func(dir string) {
-				os.WriteFile(filepath.Join(dir, "test.usfm"), []byte("\\id GEN"), 0644)
+				os.WriteFile(filepath.Join(dir, "test.usfm"), []byte("\\id GEN"), 0600)
 			},
 			expectedFormat: "usfm",
 			shouldFind:     true,
@@ -535,7 +535,7 @@ func TestFindContentFile(t *testing.T) {
 		{
 			name: "No content files",
 			createFiles: func(dir string) {
-				os.WriteFile(filepath.Join(dir, "manifest.json"), []byte("{}"), 0644)
+				os.WriteFile(filepath.Join(dir, "manifest.json"), []byte("{}"), 0600)
 			},
 			expectedFormat: "",
 			shouldFind:     false,
@@ -984,7 +984,7 @@ func TestExtractCapsule(t *testing.T) {
 
 	t.Run("unsupported format", func(t *testing.T) {
 		unsupportedPath := filepath.Join(tmpDir, "test.zip")
-		os.WriteFile(unsupportedPath, []byte("fake zip"), 0644)
+		os.WriteFile(unsupportedPath, []byte("fake zip"), 0600)
 
 		extractDir := filepath.Join(tmpDir, "extract-unsupported")
 		os.MkdirAll(extractDir, 0755)
@@ -1083,12 +1083,12 @@ func TestCreateCapsuleTarGzFromDir(t *testing.T) {
 	// Create source directory with files
 	srcDir := filepath.Join(tmpDir, "source")
 	os.MkdirAll(srcDir, 0755)
-	os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0644)
-	os.WriteFile(filepath.Join(srcDir, "file2.txt"), []byte("content2"), 0644)
+	os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0600)
+	os.WriteFile(filepath.Join(srcDir, "file2.txt"), []byte("content2"), 0600)
 
 	subDir := filepath.Join(srcDir, "subdir")
 	os.MkdirAll(subDir, 0755)
-	os.WriteFile(filepath.Join(subDir, "file3.txt"), []byte("content3"), 0644)
+	os.WriteFile(filepath.Join(subDir, "file3.txt"), []byte("content3"), 0600)
 
 	dstPath := filepath.Join(tmpDir, "output.tar.gz")
 
@@ -1274,12 +1274,12 @@ func TestCopyDir(t *testing.T) {
 	// Create source directory with files
 	srcDir := filepath.Join(tmpDir, "source")
 	os.MkdirAll(srcDir, 0755)
-	os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0644)
-	os.WriteFile(filepath.Join(srcDir, "file2.txt"), []byte("content2"), 0644)
+	os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0600)
+	os.WriteFile(filepath.Join(srcDir, "file2.txt"), []byte("content2"), 0600)
 
 	subDir := filepath.Join(srcDir, "subdir")
 	os.MkdirAll(subDir, 0755)
-	os.WriteFile(filepath.Join(subDir, "file3.txt"), []byte("content3"), 0644)
+	os.WriteFile(filepath.Join(subDir, "file3.txt"), []byte("content3"), 0600)
 
 	dstDir := filepath.Join(tmpDir, "destination")
 
@@ -1554,7 +1554,7 @@ func TestFindSWORDConfFile(t *testing.T) {
 		"With_Underscore.conf",
 	}
 	for _, f := range testFiles {
-		if err := os.WriteFile(filepath.Join(tmpDir, f), []byte("[Test]\n"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, f), []byte("[Test]\n"), 0600); err != nil {
 			t.Fatalf("failed to create test file %s: %v", f, err)
 		}
 	}

@@ -30,7 +30,7 @@ func createTestFLEx(t *testing.T, path string) {
   </interlinear-text>
 </document>
 `
-	os.WriteFile(path, []byte(content), 0644)
+	os.WriteFile(path, []byte(content), 0600)
 }
 
 func TestFLExDetect(t *testing.T) {
@@ -48,7 +48,7 @@ func TestFLExDetectNon(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "flex-test-*")
 	defer os.RemoveAll(tmpDir)
 	txtPath := filepath.Join(tmpDir, "test.txt")
-	os.WriteFile(txtPath, []byte("Hello"), 0644)
+	os.WriteFile(txtPath, []byte("Hello"), 0600)
 	resp := executePlugin(t, &IPCRequest{Command: "detect", Args: map[string]interface{}{"path": txtPath}})
 	if resp.Result.(map[string]interface{})["detected"] == true {
 		t.Error("expected not detected")
@@ -74,7 +74,7 @@ func TestFLExEmitNative(t *testing.T) {
 	corpus := Corpus{ID: "test", Title: "Test", Documents: []*Document{{ID: "doc1", Title: "Doc", Order: 1, ContentBlocks: []*ContentBlock{{ID: "cb-1", Sequence: 1, Text: "In the beginning"}}}}}
 	irData, _ := json.MarshalIndent(&corpus, "", "  ")
 	irPath := filepath.Join(tmpDir, "test.ir.json")
-	os.WriteFile(irPath, irData, 0644)
+	os.WriteFile(irPath, irData, 0600)
 	outputDir := filepath.Join(tmpDir, "output")
 	os.MkdirAll(outputDir, 0755)
 	resp := executePlugin(t, &IPCRequest{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outputDir}})

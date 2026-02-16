@@ -15,7 +15,7 @@ func TestDetect_ValidAccordanceFile(t *testing.T) {
 	// Create a temporary test file with .accordance extension
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.accordance")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -40,7 +40,7 @@ func TestDetect_InvalidExtension(t *testing.T) {
 	// Create a temporary test file with wrong extension
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -100,7 +100,7 @@ func TestIngest_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.accordance")
 	content := []byte("test content for ingest")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -174,7 +174,7 @@ func TestIngest_OutputDirCreation(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.accordance")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -199,7 +199,7 @@ func TestEnumerate_ValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.accordance")
 	content := []byte("test content for enumerate")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -343,7 +343,7 @@ func TestDetect_CaseInsensitiveExtension(t *testing.T) {
 	// Test that extension matching is case-insensitive
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.ACCORDANCE")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -362,7 +362,7 @@ func TestIngest_EmptyFile(t *testing.T) {
 	// Test ingesting an empty file
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "empty.accordance")
-	if err := os.WriteFile(testFile, []byte{}, 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte{}, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -392,7 +392,7 @@ func TestIngest_ComplexFilename(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "my.test.file.accordance")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -415,7 +415,7 @@ func TestIngest_BlobDirCreationError(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.accordance")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -442,7 +442,7 @@ func TestIngest_BlobWriteError(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.accordance")
 	content := []byte("test content")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

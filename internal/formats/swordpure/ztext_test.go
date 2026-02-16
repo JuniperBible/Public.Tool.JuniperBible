@@ -36,7 +36,7 @@ CompressType=ZIP
 Versification=KJV
 `
 	confPath := filepath.Join(modsDir, "testmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -59,7 +59,7 @@ Versification=KJV
 
 	// Write .bzz (compressed data)
 	bzzPath := filepath.Join(dataDir, "ot.bzz")
-	if err := os.WriteFile(bzzPath, compressed, 0644); err != nil {
+	if err := os.WriteFile(bzzPath, compressed, 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -71,7 +71,7 @@ Versification=KJV
 	binary.LittleEndian.PutUint32(bzsData[8:12], uint32(len(verseText))) // uncompressed size
 
 	bzsPath := filepath.Join(dataDir, "ot.bzs")
-	if err := os.WriteFile(bzsPath, bzsData, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzsData, 0600); err != nil {
 		t.Fatalf("failed to write bzs: %v", err)
 	}
 
@@ -107,7 +107,7 @@ Versification=KJV
 	binary.LittleEndian.PutUint16(bzvData[48:50], uint16(len(verseText))) // size
 
 	bzvPath := filepath.Join(dataDir, "ot.bzv")
-	if err := os.WriteFile(bzvPath, bzvData, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzvData, 0600); err != nil {
 		t.Fatalf("failed to write bzv: %v", err)
 	}
 
@@ -239,7 +239,7 @@ func TestReadBlockIndex(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzsData[16:20], 150)
 	binary.LittleEndian.PutUint32(bzsData[20:24], 250)
 
-	if err := os.WriteFile(bzsPath, bzsData, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzsData, 0600); err != nil {
 		t.Fatalf("failed to write test bzs: %v", err)
 	}
 
@@ -274,7 +274,7 @@ func TestReadBlockIndexInvalidSize(t *testing.T) {
 	bzsPath := filepath.Join(tmpDir, "test.bzs")
 	bzsData := make([]byte, 13) // Invalid size
 
-	if err := os.WriteFile(bzsPath, bzsData, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzsData, 0600); err != nil {
 		t.Fatalf("failed to write test bzs: %v", err)
 	}
 
@@ -305,7 +305,7 @@ func TestReadVerseIndex(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzvData[14:18], 100)
 	binary.LittleEndian.PutUint16(bzvData[18:20], 75)
 
-	if err := os.WriteFile(bzvPath, bzvData, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzvData, 0600); err != nil {
 		t.Fatalf("failed to write test bzv: %v", err)
 	}
 
@@ -340,7 +340,7 @@ func TestReadVerseIndexInvalidSize(t *testing.T) {
 	bzvPath := filepath.Join(tmpDir, "test.bzv")
 	bzvData := make([]byte, 11) // Invalid size
 
-	if err := os.WriteFile(bzvPath, bzvData, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzvData, 0600); err != nil {
 		t.Fatalf("failed to write test bzv: %v", err)
 	}
 
@@ -401,7 +401,7 @@ Description=NT Bible Module
 CompressType=ZIP
 `
 	confPath := filepath.Join(modsDir, "ntmod.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf: %v", err)
 	}
 
@@ -421,7 +421,7 @@ CompressType=ZIP
 
 	// Write NT .bzz
 	bzzPath := filepath.Join(dataDir, "nt.bzz")
-	if err := os.WriteFile(bzzPath, compressed, 0644); err != nil {
+	if err := os.WriteFile(bzzPath, compressed, 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -432,7 +432,7 @@ CompressType=ZIP
 	binary.LittleEndian.PutUint32(bzsData[8:12], uint32(len(verseText)))
 
 	bzsPath := filepath.Join(dataDir, "nt.bzs")
-	if err := os.WriteFile(bzsPath, bzsData, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzsData, 0600); err != nil {
 		t.Fatalf("failed to write bzs: %v", err)
 	}
 
@@ -452,7 +452,7 @@ CompressType=ZIP
 	binary.LittleEndian.PutUint16(bzvData[48:50], uint16(len(verseText)))
 
 	bzvPath := filepath.Join(dataDir, "nt.bzv")
-	if err := os.WriteFile(bzvPath, bzvData, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzvData, 0600); err != nil {
 		t.Fatalf("failed to write bzv: %v", err)
 	}
 
@@ -575,12 +575,12 @@ func TestOpenZTextModuleBadBzsPath(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzsData[4:8], 100)
 	binary.LittleEndian.PutUint32(bzsData[8:12], 200)
 
-	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzs"), bzsData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzs"), bzsData, 0600); err != nil {
 		t.Fatalf("failed to write bzs: %v", err)
 	}
 
 	// Create truncated .bzv (will fail)
-	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzv"), []byte{1, 2, 3}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzv"), []byte{1, 2, 3}, 0600); err != nil {
 		t.Fatalf("failed to write bzv: %v", err)
 	}
 

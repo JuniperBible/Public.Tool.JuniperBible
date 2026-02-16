@@ -93,7 +93,7 @@ func TestZComReadBlockIndex(t *testing.T) {
 	binary.LittleEndian.PutUint32(data[32:], 200) // uncompSize
 
 	bzsPath := filepath.Join(tmpDir, "test.bzs")
-	if err := os.WriteFile(bzsPath, data, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, data, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -160,7 +160,7 @@ func TestZComReadVerseIndex(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[38:], 175) // size
 
 	bzvPath := filepath.Join(tmpDir, "test.bzv")
-	if err := os.WriteFile(bzvPath, data, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, data, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -211,13 +211,13 @@ func TestZComDecompression(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzsData[8:], uint32(len(originalText))) // uncompSize
 
 	bzsPath := filepath.Join(tmpDir, "test.bzs")
-	if err := os.WriteFile(bzsPath, bzsData, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzsData, 0600); err != nil {
 		t.Fatalf("failed to write bzs: %v", err)
 	}
 
 	// Write compressed data
 	bzzPath := filepath.Join(tmpDir, "test.bzz")
-	if err := os.WriteFile(bzzPath, compressed.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(bzzPath, compressed.Bytes(), 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -283,7 +283,7 @@ func TestZComGetEntry(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzsData[0:], 0)
 	binary.LittleEndian.PutUint32(bzsData[4:], uint32(compressed.Len()))
 	binary.LittleEndian.PutUint32(bzsData[8:], uint32(blockContent.Len()))
-	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzs"), bzsData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzs"), bzsData, 0600); err != nil {
 		t.Fatalf("failed to write bzs: %v", err)
 	}
 
@@ -295,12 +295,12 @@ func TestZComGetEntry(t *testing.T) {
 		binary.LittleEndian.PutUint32(bzvData[offset+4:], offsets[i]) // offset in block
 		binary.LittleEndian.PutUint16(bzvData[offset+8:], sizes[i])   // size
 	}
-	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzv"), bzvData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzv"), bzvData, 0600); err != nil {
 		t.Fatalf("failed to write bzv: %v", err)
 	}
 
 	// Write compressed data (.bzz)
-	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzz"), compressed.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzz"), compressed.Bytes(), 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -429,7 +429,7 @@ func TestZComEmptyEntry(t *testing.T) {
 	binary.LittleEndian.PutUint16(bzvData[18:], 50) // size
 
 	bzvPath := filepath.Join(tmpDir, "test.bzv")
-	if err := os.WriteFile(bzvPath, bzvData, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzvData, 0600); err != nil {
 		t.Fatalf("failed to write bzv: %v", err)
 	}
 
@@ -482,7 +482,7 @@ func TestZComMultiBlockRetrieval(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzsData[20:], uint32(len(block1Content)))
 
 	bzsPath := filepath.Join(tmpDir, "test.bzs")
-	if err := os.WriteFile(bzsPath, bzsData, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzsData, 0600); err != nil {
 		t.Fatalf("failed to write bzs: %v", err)
 	}
 
@@ -492,7 +492,7 @@ func TestZComMultiBlockRetrieval(t *testing.T) {
 	allCompressed.Write(compressed1.Bytes())
 
 	bzzPath := filepath.Join(tmpDir, "test.bzz")
-	if err := os.WriteFile(bzzPath, allCompressed.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(bzzPath, allCompressed.Bytes(), 0600); err != nil {
 		t.Fatalf("failed to write bzz: %v", err)
 	}
 
@@ -550,7 +550,7 @@ func TestZComOTOnlyModule(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzsData[0:], 0)
 	binary.LittleEndian.PutUint32(bzsData[4:], uint32(compressed.Len()))
 	binary.LittleEndian.PutUint32(bzsData[8:], uint32(len(content)))
-	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzs"), bzsData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzs"), bzsData, 0600); err != nil {
 		t.Fatalf("failed to write ot.bzs: %v", err)
 	}
 
@@ -559,12 +559,12 @@ func TestZComOTOnlyModule(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzvData[0:], 0)
 	binary.LittleEndian.PutUint32(bzvData[4:], 0)
 	binary.LittleEndian.PutUint16(bzvData[8:], uint16(len(content)))
-	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzv"), bzvData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzv"), bzvData, 0600); err != nil {
 		t.Fatalf("failed to write ot.bzv: %v", err)
 	}
 
 	// Write OT compressed data
-	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzz"), compressed.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "ot.bzz"), compressed.Bytes(), 0600); err != nil {
 		t.Fatalf("failed to write ot.bzz: %v", err)
 	}
 
@@ -613,7 +613,7 @@ func TestZComNTOnlyModule(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzsData[0:], 0)
 	binary.LittleEndian.PutUint32(bzsData[4:], uint32(compressed.Len()))
 	binary.LittleEndian.PutUint32(bzsData[8:], uint32(len(content)))
-	if err := os.WriteFile(filepath.Join(moduleDir, "nt.bzs"), bzsData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "nt.bzs"), bzsData, 0600); err != nil {
 		t.Fatalf("failed to write nt.bzs: %v", err)
 	}
 
@@ -622,12 +622,12 @@ func TestZComNTOnlyModule(t *testing.T) {
 	binary.LittleEndian.PutUint32(bzvData[0:], 0)
 	binary.LittleEndian.PutUint32(bzvData[4:], 0)
 	binary.LittleEndian.PutUint16(bzvData[8:], uint16(len(content)))
-	if err := os.WriteFile(filepath.Join(moduleDir, "nt.bzv"), bzvData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "nt.bzv"), bzvData, 0600); err != nil {
 		t.Fatalf("failed to write nt.bzv: %v", err)
 	}
 
 	// Write NT compressed data
-	if err := os.WriteFile(filepath.Join(moduleDir, "nt.bzz"), compressed.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "nt.bzz"), compressed.Bytes(), 0600); err != nil {
 		t.Fatalf("failed to write nt.bzz: %v", err)
 	}
 

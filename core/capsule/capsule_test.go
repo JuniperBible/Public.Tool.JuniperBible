@@ -49,7 +49,7 @@ func TestIngestFile(t *testing.T) {
 	// Create a test file
 	testFilePath := filepath.Join(tempDir, "test.txt")
 	testContent := []byte("Test file content for ingestion")
-	if err := os.WriteFile(testFilePath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -100,7 +100,7 @@ func TestPackAndUnpack(t *testing.T) {
 	// Create a test file
 	testFilePath := filepath.Join(tempDir, "test.txt")
 	testContent := []byte("Content for pack/unpack test")
-	if err := os.WriteFile(testFilePath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -177,7 +177,7 @@ func TestPackPreservesAllBlobs(t *testing.T) {
 
 	for name, content := range files {
 		path := filepath.Join(tempDir, name)
-		if err := os.WriteFile(path, content, 0644); err != nil {
+		if err := os.WriteFile(path, content, 0600); err != nil {
 			t.Fatalf("failed to write %s: %v", name, err)
 		}
 	}
@@ -236,7 +236,7 @@ func TestManifestIncludedInPack(t *testing.T) {
 
 	// Create a test file
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -286,7 +286,7 @@ func TestAddRun(t *testing.T) {
 
 	// Create a test file and ingest it
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -362,7 +362,7 @@ func TestAddRunPackUnpack(t *testing.T) {
 
 	// Ingest a file
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testFilePath)
@@ -460,7 +460,7 @@ func TestPackWithGzipCompression(t *testing.T) {
 	// Create a test file
 	testFilePath := filepath.Join(tempDir, "test.txt")
 	testContent := []byte("Content for gzip compression test")
-	if err := os.WriteFile(testFilePath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -539,7 +539,7 @@ func TestDetectCompression(t *testing.T) {
 
 	// Create test capsule
 	testFilePath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testFilePath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -646,7 +646,7 @@ func TestSaveManifest(t *testing.T) {
 
 	// Ingest a file to have some content
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	if _, err := cap.IngestFile(testPath); err != nil {
@@ -692,7 +692,7 @@ func TestExportToBytes(t *testing.T) {
 
 	testContent := []byte("Test content for export to bytes")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -749,7 +749,7 @@ func TestGetIRRecord(t *testing.T) {
 	// Create and store IR using proper API
 	testContent := []byte("Test content for IR")
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, testContent, 0644); err != nil {
+	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -958,7 +958,7 @@ func TestDetectCompressionUnknownFormat(t *testing.T) {
 
 	// Create a file with unknown magic bytes
 	unknownPath := filepath.Join(tempDir, "unknown.dat")
-	if err := os.WriteFile(unknownPath, []byte("not a compressed file format"), 0644); err != nil {
+	if err := os.WriteFile(unknownPath, []byte("not a compressed file format"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -978,7 +978,7 @@ func TestDetectCompressionFileTooSmall(t *testing.T) {
 
 	// Create a file too small to detect
 	smallPath := filepath.Join(tempDir, "small.dat")
-	if err := os.WriteFile(smallPath, []byte{0x00}, 0644); err != nil {
+	if err := os.WriteFile(smallPath, []byte{0x00}, 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -999,7 +999,7 @@ func TestUnpackInvalidArchive(t *testing.T) {
 	// Create a file with gzip magic but invalid content
 	invalidPath := filepath.Join(tempDir, "invalid.tar.gz")
 	// Write gzip magic followed by garbage
-	if err := os.WriteFile(invalidPath, []byte{0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00}, 0644); err != nil {
+	if err := os.WriteFile(invalidPath, []byte{0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00}, 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -1120,10 +1120,10 @@ func TestIngestFileDuplicateIDs(t *testing.T) {
 		t.Fatalf("failed to create dir2: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(dir1, "test.txt"), []byte("content1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir1, "test.txt"), []byte("content1"), 0600); err != nil {
 		t.Fatalf("failed to write file1: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir2, "test.txt"), []byte("content2"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir2, "test.txt"), []byte("content2"), 0600); err != nil {
 		t.Fatalf("failed to write file2: %v", err)
 	}
 
@@ -1268,7 +1268,7 @@ func TestLoadIRWrongArtifactKind(t *testing.T) {
 
 	// Ingest a regular file
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	artifact, err := cap.IngestFile(testPath)
@@ -1375,7 +1375,7 @@ func TestIngestFileStatError(t *testing.T) {
 
 	// Create a test file
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -1431,7 +1431,7 @@ func TestIngestFileStoreError(t *testing.T) {
 
 	// Create a test file
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -1832,7 +1832,7 @@ func TestUnpackInvalidXZ(t *testing.T) {
 	archivePath := filepath.Join(tempDir, "invalid.tar.xz")
 	// XZ magic: 0xFD 0x37 0x7A 0x58 0x5A 0x00
 	xzMagic := []byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00, 0xFF, 0xFF}
-	if err := os.WriteFile(archivePath, xzMagic, 0644); err != nil {
+	if err := os.WriteFile(archivePath, xzMagic, 0600); err != nil {
 		t.Fatalf("failed to write invalid xz: %v", err)
 	}
 
@@ -1854,7 +1854,7 @@ func TestUnpackInvalidGzip(t *testing.T) {
 	archivePath := filepath.Join(tempDir, "invalid.tar.gz")
 	// Gzip magic: 0x1F 0x8B
 	gzipMagic := []byte{0x1F, 0x8B, 0xFF, 0xFF, 0xFF, 0xFF}
-	if err := os.WriteFile(archivePath, gzipMagic, 0644); err != nil {
+	if err := os.WriteFile(archivePath, gzipMagic, 0600); err != nil {
 		t.Fatalf("failed to write invalid gzip: %v", err)
 	}
 
@@ -1934,7 +1934,7 @@ func TestUnpackUnsupportedCompression(t *testing.T) {
 	// Create file with unrecognized magic bytes
 	archivePath := filepath.Join(tempDir, "unknown.bin")
 	unknownMagic := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}
-	if err := os.WriteFile(archivePath, unknownMagic, 0644); err != nil {
+	if err := os.WriteFile(archivePath, unknownMagic, 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -2083,7 +2083,7 @@ func TestUnpackDetectCompressionError(t *testing.T) {
 	// Create file with unrecognized magic bytes that won't be detected
 	archivePath := filepath.Join(tempDir, "bad.capsule")
 	badMagic := []byte{0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x00, 0x00, 0x00}
-	if err := os.WriteFile(archivePath, badMagic, 0644); err != nil {
+	if err := os.WriteFile(archivePath, badMagic, 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -2194,7 +2194,7 @@ func TestPackWithOptionsWalkError(t *testing.T) {
 
 	// Ingest a file so blobs dir exists
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	if _, err := cap.IngestFile(testPath); err != nil {
@@ -2231,7 +2231,7 @@ func TestPackWithOptionsRelError(t *testing.T) {
 
 	// Ingest a file so blobs dir exists
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	if _, err := cap.IngestFile(testPath); err != nil {
@@ -2267,7 +2267,7 @@ func TestPackWithOptionsReadFileError(t *testing.T) {
 
 	// Ingest a file so blobs dir exists
 	testPath := filepath.Join(tempDir, "test.txt")
-	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 	if _, err := cap.IngestFile(testPath); err != nil {
@@ -2297,7 +2297,7 @@ func TestDetectCompressionReadError(t *testing.T) {
 
 	// Create a valid file
 	archivePath := filepath.Join(tempDir, "test.tar.xz")
-	if err := os.WriteFile(archivePath, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(archivePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -2728,7 +2728,7 @@ func TestUnpackDefaultCompressionGuard(t *testing.T) {
 			defer os.RemoveAll(tempDir)
 
 			archivePath := filepath.Join(tempDir, "test.bin")
-			if err := os.WriteFile(archivePath, tc.magic, 0644); err != nil {
+			if err := os.WriteFile(archivePath, tc.magic, 0600); err != nil {
 				t.Fatalf("failed to write test file: %v", err)
 			}
 

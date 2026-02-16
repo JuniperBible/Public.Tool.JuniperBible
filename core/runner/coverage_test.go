@@ -165,7 +165,7 @@ func TestCopyDirWriteError(t *testing.T) {
 	}
 	defer os.RemoveAll(srcDir)
 
-	if err := os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -443,7 +443,7 @@ func TestExtractToLibDirError(t *testing.T) {
 	}
 	// Create "lib" as a file instead of directory
 	libPath := filepath.Join(extractDir, "lib")
-	if err := os.WriteFile(libPath, []byte("not a directory"), 0644); err != nil {
+	if err := os.WriteFile(libPath, []byte("not a directory"), 0600); err != nil {
 		t.Fatalf("failed to create lib file: %v", err)
 	}
 
@@ -686,7 +686,7 @@ func TestPrepareWorkDirOutDirError(t *testing.T) {
 	}
 
 	outPath := filepath.Join(workDir, "out")
-	if err := os.WriteFile(outPath, []byte("file"), 0644); err != nil {
+	if err := os.WriteFile(outPath, []byte("file"), 0600); err != nil {
 		t.Fatalf("failed to create out file: %v", err)
 	}
 
@@ -751,7 +751,7 @@ func TestListToolsStatError(t *testing.T) {
 	// The implementation checks if capsule directory exists, and if stat errors
 	// (file exists but not a directory), it skips the tool
 	capsuleFile := filepath.Join(toolDir, "capsule")
-	if err := os.WriteFile(capsuleFile, []byte("file"), 0644); err != nil {
+	if err := os.WriteFile(capsuleFile, []byte("file"), 0600); err != nil {
 		t.Fatalf("failed to create capsule file: %v", err)
 	}
 

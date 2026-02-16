@@ -33,7 +33,7 @@ SourceType=OSIS
 `
 
 	confPath := filepath.Join(tmpDir, "kjv.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf file: %v", err)
 	}
 
@@ -88,7 +88,7 @@ About=This is a long description \
 `
 
 	confPath := filepath.Join(tmpDir, "test.conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		t.Fatalf("failed to write conf file: %v", err)
 	}
 
@@ -176,9 +176,9 @@ func TestFindConfFiles(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create test files
-	os.WriteFile(filepath.Join(tmpDir, "kjv.conf"), []byte("[KJV]"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "esv.conf"), []byte("[ESV]"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "readme.txt"), []byte("readme"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "kjv.conf"), []byte("[KJV]"), 0600)
+	os.WriteFile(filepath.Join(tmpDir, "esv.conf"), []byte("[ESV]"), 0600)
+	os.WriteFile(filepath.Join(tmpDir, "readme.txt"), []byte("readme"), 0600)
 	os.Mkdir(filepath.Join(tmpDir, "subdir"), 0755)
 
 	confFiles, err := FindConfFiles(tmpDir)
@@ -214,8 +214,8 @@ ModDrv=zText
 Lang=en
 `
 
-	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(confContent1), 0644)
-	os.WriteFile(filepath.Join(modsDir, "esv.conf"), []byte(confContent2), 0644)
+	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(confContent1), 0600)
+	os.WriteFile(filepath.Join(modsDir, "esv.conf"), []byte(confContent2), 0600)
 
 	modules, err := LoadModulesFromPath(tmpDir)
 	if err != nil {

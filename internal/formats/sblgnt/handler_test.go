@@ -26,7 +26,7 @@ func TestDetect_SBLGNTFile(t *testing.T) {
 	h := &Handler{}
 
 	sblgntFile := filepath.Join(tmpDir, "greek.sblgnt")
-	if err := os.WriteFile(sblgntFile, []byte("SBLGNT content"), 0644); err != nil {
+	if err := os.WriteFile(sblgntFile, []byte("SBLGNT content"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -48,7 +48,7 @@ func TestDetect_NonSBLGNTFile(t *testing.T) {
 	h := &Handler{}
 
 	txtFile := filepath.Join(tmpDir, "file.txt")
-	if err := os.WriteFile(txtFile, []byte("not SBLGNT"), 0644); err != nil {
+	if err := os.WriteFile(txtFile, []byte("not SBLGNT"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -98,7 +98,7 @@ func TestIngest(t *testing.T) {
 
 	sblgntFile := filepath.Join(tmpDir, "greek.sblgnt")
 	content := []byte("SBLGNT content")
-	if err := os.WriteFile(sblgntFile, content, 0644); err != nil {
+	if err := os.WriteFile(sblgntFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -139,7 +139,7 @@ func TestEnumerate(t *testing.T) {
 
 	sblgntFile := filepath.Join(tmpDir, "greek.sblgnt")
 	content := []byte("SBLGNT content")
-	if err := os.WriteFile(sblgntFile, content, 0644); err != nil {
+	if err := os.WriteFile(sblgntFile, content, 0600); err != nil {
 		t.Fatal(err)
 	}
 

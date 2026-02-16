@@ -74,7 +74,7 @@ func TestDetect_NonZipFile(t *testing.T) {
 	h := &Handler{}
 
 	txtFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(txtFile, []byte("not a zip"), 0644); err != nil {
+	if err := os.WriteFile(txtFile, []byte("not a zip"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -127,7 +127,7 @@ func TestDetect_InvalidZipContent(t *testing.T) {
 
 	// Create a file with .zip extension but invalid content
 	invalidZip := filepath.Join(tmpDir, "invalid.zip")
-	if err := os.WriteFile(invalidZip, []byte("not a valid zip"), 0644); err != nil {
+	if err := os.WriteFile(invalidZip, []byte("not a valid zip"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -227,7 +227,7 @@ func TestEnumerate_InvalidZip(t *testing.T) {
 	h := &Handler{}
 
 	invalidZip := filepath.Join(tmpDir, "invalid.zip")
-	if err := os.WriteFile(invalidZip, []byte("not a zip"), 0644); err != nil {
+	if err := os.WriteFile(invalidZip, []byte("not a zip"), 0600); err != nil {
 		t.Fatal(err)
 	}
 

@@ -31,7 +31,7 @@ func BenchmarkPack(b *testing.B) {
 			"It contains some repetitive text to simulate real file content. " +
 			"Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
 			"Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
-		if err := os.WriteFile(testFilePath, testContent, 0644); err != nil {
+		if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
 			b.Fatalf("failed to write test file: %v", err)
 		}
 
@@ -89,7 +89,7 @@ func BenchmarkUnpack(b *testing.B) {
 			"It contains some repetitive text to simulate real file content. " +
 			"Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
 			"Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
-		if err := os.WriteFile(testFilePath, testContent, 0644); err != nil {
+		if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
 			b.Fatalf("failed to write test file: %v", err)
 		}
 
@@ -156,7 +156,7 @@ func BenchmarkIngestFile(b *testing.B) {
 			for i := range testContent {
 				testContent[i] = byte(i % 256)
 			}
-			if err := os.WriteFile(testFilePath, testContent, 0644); err != nil {
+			if err := os.WriteFile(testFilePath, testContent, 0600); err != nil {
 				b.Fatalf("failed to write test file: %v", err)
 			}
 

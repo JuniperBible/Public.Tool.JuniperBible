@@ -1125,22 +1125,25 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// performConversion converts a capsule to a different format.
-// It creates a new capsule with the converted content and renames the original.
-func performConversion(sourcePath, targetFormat string) *ConvertResult {
-	// Sanitize path to prevent path traversal attacks
+// conversionSetup validates and prepares the environment for conversion.
+type conversionSetup struct {
+	fullPath     string
+	sourceFormat string
+	tempDir      string
+	extractDir   string
+}
+
+func setupConversion(sourcePath string) (*conversionSetup, *ConvertResult) {
+	// Sanitize path
 	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, sourcePath)
 	if err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: "Invalid path",
-		}
+		return nil, &ConvertResult{Success: false, Message: "Invalid path"}
 	}
 	fullPath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
 
 	// Check if capsule exists
 	if _, err := os.Stat(fullPath); errors.Is(err, os.ErrNotExist) {
-		return &ConvertResult{
+		return nil, &ConvertResult{
 			Success: false,
 			Message: fmt.Sprintf("Capsule not found: %s", sourcePath),
 		}
@@ -1149,38 +1152,39 @@ func performConversion(sourcePath, targetFormat string) *ConvertResult {
 	// Detect source format
 	sourceFormat := detectSourceFormat(sourcePath)
 
-	// Create temp directory for extraction
+	// Create temp directory
 	tempDir, err := secureMkdirTemp("", "capsule-convert-*")
 	if err != nil {
-		return &ConvertResult{
+		return nil, &ConvertResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to create temp directory: %v", err),
 		}
 	}
-	defer os.RemoveAll(tempDir)
 
 	// Extract capsule
 	extractDir := filepath.Join(tempDir, "extract")
 	if err := extractCapsule(fullPath, extractDir); err != nil {
-		return &ConvertResult{
+		os.RemoveAll(tempDir)
+		return nil, &ConvertResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to extract capsule: %v", err),
 		}
 	}
 
-	// Load plugins
-	loader := getLoader()
-	if err := loader.LoadFromDir(ServerConfig.PluginsDir); err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to load plugins: %v", err),
-		}
-	}
+	return &conversionSetup{
+		fullPath:     fullPath,
+		sourceFormat: sourceFormat,
+		tempDir:      tempDir,
+		extractDir:   extractDir,
+	}, nil
+}
 
+// extractIRFromSource extracts IR from source content using the appropriate plugin.
+func extractIRFromSource(loader *plugins.Loader, extractDir, tempDir, sourceFormat string) (string, string, *ConvertResult) {
 	// Find source content file
 	contentPath, detectedFormat := findContentFile(extractDir)
 	if contentPath == "" {
-		return &ConvertResult{
+		return "", "", &ConvertResult{
 			Success: false,
 			Message: "No convertible content found in capsule. Supported formats: OSIS, USFM, USX, JSON, SWORD.",
 		}
@@ -1190,23 +1194,24 @@ func performConversion(sourcePath, targetFormat string) *ConvertResult {
 		sourceFormat = detectedFormat
 	}
 
-	// Step 1: Extract IR from source
-	irDir := filepath.Join(tempDir, "ir")
-	os.MkdirAll(irDir, 0755)
-
+	// Get source plugin
 	sourcePlugin, err := loader.GetPlugin("format." + sourceFormat)
 	if err != nil {
-		return &ConvertResult{
+		return "", sourceFormat, &ConvertResult{
 			Success:      false,
 			Message:      fmt.Sprintf("No plugin found for source format '%s'. Install the format.%s plugin.", sourceFormat, sourceFormat),
 			SourceFormat: sourceFormat,
 		}
 	}
 
+	// Extract IR
+	irDir := filepath.Join(tempDir, "ir")
+	os.MkdirAll(irDir, 0755)
+
 	extractReq := plugins.NewExtractIRRequest(contentPath, irDir)
 	extractResp, err := plugins.ExecutePlugin(sourcePlugin, extractReq)
 	if err != nil {
-		return &ConvertResult{
+		return "", sourceFormat, &ConvertResult{
 			Success:      false,
 			Message:      fmt.Sprintf("Failed to extract IR: %v", err),
 			SourceFormat: sourceFormat,
@@ -1215,17 +1220,21 @@ func performConversion(sourcePath, targetFormat string) *ConvertResult {
 
 	extractResult, err := plugins.ParseExtractIRResult(extractResp)
 	if err != nil {
-		return &ConvertResult{
+		return "", sourceFormat, &ConvertResult{
 			Success:      false,
 			Message:      fmt.Sprintf("Failed to parse extract result: %v", err),
 			SourceFormat: sourceFormat,
 		}
 	}
 
-	// Step 2: Emit native format
+	return extractResult.IRPath, sourceFormat, &ConvertResult{LossClass: extractResult.LossClass}
+}
+
+// emitTargetFormat emits target format from IR using the appropriate plugin.
+func emitTargetFormat(loader *plugins.Loader, irPath, tempDir, targetFormat, sourceFormat, extractLoss string) (string, string, *ConvertResult) {
 	targetPlugin, err := loader.GetPlugin("format." + targetFormat)
 	if err != nil {
-		return &ConvertResult{
+		return "", "", &ConvertResult{
 			Success:      false,
 			Message:      fmt.Sprintf("No plugin found for target format '%s'. Install the format.%s plugin.", targetFormat, targetFormat),
 			SourceFormat: sourceFormat,
@@ -1235,32 +1244,36 @@ func performConversion(sourcePath, targetFormat string) *ConvertResult {
 	emitDir := filepath.Join(tempDir, "output")
 	os.MkdirAll(emitDir, 0755)
 
-	emitReq := plugins.NewEmitNativeRequest(extractResult.IRPath, emitDir)
+	emitReq := plugins.NewEmitNativeRequest(irPath, emitDir)
 	emitResp, err := plugins.ExecutePlugin(targetPlugin, emitReq)
 	if err != nil {
-		return &ConvertResult{
+		return "", "", &ConvertResult{
 			Success:      false,
 			Message:      fmt.Sprintf("Failed to emit %s: %v", targetFormat, err),
 			SourceFormat: sourceFormat,
-			LossClass:    extractResult.LossClass,
+			LossClass:    extractLoss,
 		}
 	}
 
 	emitResult, err := plugins.ParseEmitNativeResult(emitResp)
 	if err != nil {
-		return &ConvertResult{
+		return "", "", &ConvertResult{
 			Success:      false,
 			Message:      fmt.Sprintf("Failed to parse emit result: %v", err),
 			SourceFormat: sourceFormat,
 		}
 	}
 
-	// Step 3: Create new capsule with converted content
+	return emitResult.OutputPath, emitResult.LossClass, nil
+}
+
+// createConvertedCapsule creates a new capsule with converted content.
+func createConvertedCapsule(tempDir, outputPath, irPath, sourcePath, fullPath, sourceFormat, targetFormat, extractLoss, emitLoss string) *ConvertResult {
 	newCapsuleDir := filepath.Join(tempDir, "new-capsule")
 	os.MkdirAll(newCapsuleDir, 0755)
 
 	// Copy converted output
-	outputData, err := os.ReadFile(emitResult.OutputPath)
+	outputData, err := os.ReadFile(outputPath)
 	if err != nil {
 		return &ConvertResult{
 			Success: false,
@@ -1268,7 +1281,7 @@ func performConversion(sourcePath, targetFormat string) *ConvertResult {
 		}
 	}
 
-	outputName := filepath.Base(emitResult.OutputPath)
+	outputName := filepath.Base(outputPath)
 	if err := os.WriteFile(filepath.Join(newCapsuleDir, outputName), outputData, 0644); err != nil {
 		return &ConvertResult{
 			Success: false,
@@ -1277,13 +1290,13 @@ func performConversion(sourcePath, targetFormat string) *ConvertResult {
 	}
 
 	// Copy IR to new capsule
-	irData, err := os.ReadFile(extractResult.IRPath)
+	irData, err := os.ReadFile(irPath)
 	if err == nil {
 		irName := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath)) + ".ir.json"
 		os.WriteFile(filepath.Join(newCapsuleDir, irName), irData, 0644)
 	}
 
-	// Create manifest for new capsule
+	// Create manifest
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 		"module_type":     "bible",
@@ -1291,11 +1304,11 @@ func performConversion(sourcePath, targetFormat string) *ConvertResult {
 		"converted_from":  sourceFormat,
 		"conversion_date": time.Now().Format(time.RFC3339),
 		"has_ir":          true,
-		"extraction_loss": extractResult.LossClass,
-		"emission_loss":   emitResult.LossClass,
+		"extraction_loss": extractLoss,
+		"emission_loss":   emitLoss,
 	}
 
-	// Try to preserve original manifest metadata
+	// Preserve original manifest metadata
 	origManifest := readCapsuleManifest(fullPath)
 	if origManifest != nil {
 		if origManifest.Title != "" {
@@ -1309,239 +1322,6 @@ func performConversion(sourcePath, targetFormat string) *ConvertResult {
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
 	os.WriteFile(filepath.Join(newCapsuleDir, "manifest.json"), manifestData, 0644)
 
-	// Step 4: Rename original and create new capsule
-	oldPath := renameToOld(fullPath)
-	if oldPath == "" {
-		return &ConvertResult{
-			Success: false,
-			Message: "Failed to rename original capsule",
-		}
-	}
-
-	if err := archive.CreateCapsuleTarGzFromPath(newCapsuleDir, fullPath); err != nil {
-		// Try to restore original
-		os.Rename(oldPath, fullPath)
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to create new capsule: %v", err),
-		}
-	}
-
-	// Determine combined loss class
-	lossClass := combineLossClass(extractResult.LossClass, emitResult.LossClass)
-
-	return &ConvertResult{
-		Success:      true,
-		OutputPath:   sourcePath,
-		OldPath:      filepath.Base(oldPath),
-		LossClass:    lossClass,
-		Message:      fmt.Sprintf("Successfully converted from %s to %s", sourceFormat, targetFormat),
-		SourceFormat: sourceFormat,
-	}
-}
-
-// performIRGeneration generates IR for a capsule that doesn't have one.
-func performIRGeneration(sourcePath string) *ConvertResult {
-	// Sanitize path to prevent path traversal attacks
-	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, sourcePath)
-	if err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: "Invalid path",
-		}
-	}
-	fullPath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
-
-	// Check if capsule exists
-	if _, err := os.Stat(fullPath); errors.Is(err, os.ErrNotExist) {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Capsule not found: %s", sourcePath),
-		}
-	}
-
-	// Check if it already has IR
-	if archive.HasIR(fullPath) {
-		return &ConvertResult{
-			Success: false,
-			Message: "This capsule already contains IR. No generation needed.",
-		}
-	}
-
-	// Create temp directory
-	tempDir, err := secureMkdirTemp("", "capsule-ir-gen-*")
-	if err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to create temp directory: %v", err),
-		}
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Extract capsule
-	extractDir := filepath.Join(tempDir, "extract")
-	if err := extractCapsule(fullPath, extractDir); err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to extract capsule: %v", err),
-		}
-	}
-
-	// Find source content file
-	contentPath, detectedFormat := findContentFile(extractDir)
-	if contentPath == "" {
-		// Check if this is a CAS capsule (has blobs/ directory)
-		blobsDir := filepath.Join(extractDir, "blobs")
-		if _, err := os.Stat(blobsDir); err == nil {
-			return &ConvertResult{
-				Success: false,
-				Message: "This capsule uses Content-Addressed Storage (CAS) format with blobs.\n\n" +
-					"CAS capsules require extraction via the CLI:\n" +
-					"  capsule export <capsule> --artifact main --out extracted/\n\n" +
-					"Then use 'capsule juniper ingest' to create a SWORD capsule that can be converted.",
-			}
-		}
-
-		// List what was found for debugging
-		var foundFiles []string
-		filepath.Walk(extractDir, func(path string, info os.FileInfo, err error) error {
-			if err == nil && !info.IsDir() {
-				rel, _ := filepath.Rel(extractDir, path)
-				foundFiles = append(foundFiles, rel)
-			}
-			return nil
-		})
-		fileList := strings.Join(foundFiles, ", ")
-		if len(foundFiles) > 10 {
-			fileList = strings.Join(foundFiles[:10], ", ") + fmt.Sprintf(" (and %d more)", len(foundFiles)-10)
-		}
-		if len(foundFiles) == 0 {
-			fileList = "(empty)"
-		}
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("No convertible content found in capsule.\n\nSupported formats: OSIS, USFM, USX, SWORD (mods.d/*.conf)\n\nFiles found: %s", fileList),
-		}
-	}
-
-	// Load plugins
-	loader := getLoader()
-	if err := loader.LoadFromDir(ServerConfig.PluginsDir); err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to load plugins: %v", err),
-		}
-	}
-
-	// Extract IR
-	irDir := filepath.Join(tempDir, "ir")
-	os.MkdirAll(irDir, 0755)
-
-	sourcePlugin, err := loader.GetPlugin("format." + detectedFormat)
-	if err != nil {
-		return &ConvertResult{
-			Success:      false,
-			Message:      fmt.Sprintf("No plugin found for format '%s'. Install the format.%s plugin.", detectedFormat, detectedFormat),
-			SourceFormat: detectedFormat,
-		}
-	}
-
-	extractReq := plugins.NewExtractIRRequest(contentPath, irDir)
-	extractResp, err := plugins.ExecutePlugin(sourcePlugin, extractReq)
-	if err != nil {
-		return &ConvertResult{
-			Success:      false,
-			Message:      fmt.Sprintf("Failed to extract IR: %v", err),
-			SourceFormat: detectedFormat,
-		}
-	}
-
-	extractResult, err := parseExtractIRResultFlexible(extractResp)
-	if err != nil {
-		return &ConvertResult{
-			Success:      false,
-			Message:      fmt.Sprintf("Failed to parse extract result: %v", err),
-			SourceFormat: detectedFormat,
-		}
-	}
-
-	// Create new capsule with IR added
-	newCapsuleDir := filepath.Join(tempDir, "new-capsule")
-
-	// Copy all original files
-	if err := fileutil.CopyDir(extractDir, newCapsuleDir); err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to copy capsule contents: %v", err),
-		}
-	}
-
-	// Add IR file - handle case where IRPath is a directory
-	irPath := extractResult.IRPath
-	info, err := os.Stat(irPath)
-	if err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to stat IR path: %v", err),
-		}
-	}
-	if info.IsDir() {
-		// Find first .ir.json file in directory
-		entries, err := os.ReadDir(irPath)
-		if err != nil {
-			return &ConvertResult{
-				Success: false,
-				Message: fmt.Sprintf("Failed to read IR directory: %v", err),
-			}
-		}
-		found := false
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".ir.json") {
-				irPath = filepath.Join(irPath, entry.Name())
-				found = true
-				break
-			}
-		}
-		if !found {
-			return &ConvertResult{
-				Success: false,
-				Message: "No .ir.json file found in IR directory",
-			}
-		}
-	}
-	irData, err := os.ReadFile(irPath)
-	if err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to read IR: %v", err),
-		}
-	}
-
-	irName := trimArchiveSuffix(filepath.Base(sourcePath)) + ".ir.json"
-
-	if err := os.WriteFile(filepath.Join(newCapsuleDir, irName), irData, 0644); err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to write IR file: %v", err),
-		}
-	}
-
-	// Update manifest to indicate IR presence
-	manifestPath := filepath.Join(newCapsuleDir, "manifest.json")
-	manifest := make(map[string]interface{})
-
-	if data, err := os.ReadFile(manifestPath); err == nil {
-		json.Unmarshal(data, &manifest)
-	}
-
-	manifest["has_ir"] = true
-	manifest["ir_generated"] = time.Now().Format(time.RFC3339)
-	manifest["ir_loss_class"] = extractResult.LossClass
-	manifest["source_format"] = detectedFormat
-
-	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
-	os.WriteFile(manifestPath, manifestData, 0644)
-
 	// Rename original and create new capsule
 	oldPath := renameToOld(fullPath)
 	if oldPath == "" {
@@ -1552,12 +1332,103 @@ func performIRGeneration(sourcePath string) *ConvertResult {
 	}
 
 	if err := archive.CreateCapsuleTarGzFromPath(newCapsuleDir, fullPath); err != nil {
-		// Try to restore original
 		os.Rename(oldPath, fullPath)
 		return &ConvertResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to create new capsule: %v", err),
 		}
+	}
+
+	lossClass := combineLossClass(extractLoss, emitLoss)
+	return &ConvertResult{
+		Success:      true,
+		OutputPath:   sourcePath,
+		OldPath:      filepath.Base(oldPath),
+		LossClass:    lossClass,
+		Message:      fmt.Sprintf("Successfully converted from %s to %s", sourceFormat, targetFormat),
+		SourceFormat: sourceFormat,
+	}
+}
+
+// performConversion converts a capsule to a different format.
+// It creates a new capsule with the converted content and renames the original.
+func performConversion(sourcePath, targetFormat string) *ConvertResult {
+	// Setup and validation
+	setup, errResult := setupConversion(sourcePath)
+	if errResult != nil {
+		return errResult
+	}
+	defer os.RemoveAll(setup.tempDir)
+
+	// Load plugins
+	loader := getLoader()
+	if err := loader.LoadFromDir(ServerConfig.PluginsDir); err != nil {
+		return &ConvertResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to load plugins: %v", err),
+		}
+	}
+
+	// Extract IR from source
+	irPath, sourceFormat, errResult := extractIRFromSource(loader, setup.extractDir, setup.tempDir, setup.sourceFormat)
+	if errResult != nil {
+		if !errResult.Success {
+			return errResult
+		}
+	}
+
+	// Emit target format
+	outputPath, emitLoss, errResult := emitTargetFormat(loader, irPath, setup.tempDir, targetFormat, sourceFormat, errResult.LossClass)
+	if errResult != nil && !errResult.Success {
+		return errResult
+	}
+
+	// Create converted capsule
+	return createConvertedCapsule(setup.tempDir, outputPath, irPath, sourcePath, setup.fullPath, sourceFormat, targetFormat, errResult.LossClass, emitLoss)
+}
+
+// performIRGeneration generates IR for a capsule that doesn't have one.
+func performIRGeneration(sourcePath string) *ConvertResult {
+	fullPath, errResult := validateIRGenerationPath(sourcePath)
+	if errResult != nil {
+		return errResult
+	}
+
+	tempDir, err := secureMkdirTemp("", "capsule-ir-gen-*")
+	if err != nil {
+		return &ConvertResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to create temp directory: %v", err),
+		}
+	}
+	defer os.RemoveAll(tempDir)
+
+	extractDir := filepath.Join(tempDir, "extract")
+	if err := extractCapsule(fullPath, extractDir); err != nil {
+		return &ConvertResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to extract capsule: %v", err),
+		}
+	}
+
+	contentPath, detectedFormat, errResult := validateContentForIR(extractDir)
+	if errResult != nil {
+		return errResult
+	}
+
+	extractResult, errResult := performPluginIRExtraction(contentPath, detectedFormat, tempDir)
+	if errResult != nil {
+		return errResult
+	}
+
+	newCapsuleDir, errResult := buildCapsuleWithIR(extractDir, extractResult, sourcePath, detectedFormat, tempDir)
+	if errResult != nil {
+		return errResult
+	}
+
+	oldPath, errResult := replaceCapsule(fullPath, newCapsuleDir)
+	if errResult != nil {
+		return errResult
 	}
 
 	return &ConvertResult{
@@ -1570,141 +1441,399 @@ func performIRGeneration(sourcePath string) *ConvertResult {
 	}
 }
 
-// performCASToSWORD converts a CAS capsule to SWORD format.
-func performCASToSWORD(sourcePath string) *ConvertResult {
-	// Sanitize path to prevent path traversal attacks
+// validateIRGenerationPath validates the capsule path and checks for existence and IR status
+func validateIRGenerationPath(sourcePath string) (string, *ConvertResult) {
 	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, sourcePath)
 	if err != nil {
-		return &ConvertResult{
+		return "", &ConvertResult{
 			Success: false,
 			Message: "Invalid path",
 		}
 	}
 	fullPath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
 
-	// Check if capsule exists
 	if _, err := os.Stat(fullPath); errors.Is(err, os.ErrNotExist) {
-		return &ConvertResult{
+		return "", &ConvertResult{
 			Success: false,
 			Message: fmt.Sprintf("Capsule not found: %s", sourcePath),
 		}
 	}
 
-	// Check if it's actually a CAS capsule
-	if !archive.IsCASCapsule(fullPath) {
-		return &ConvertResult{
+	if archive.HasIR(fullPath) {
+		return "", &ConvertResult{
 			Success: false,
-			Message: "This is not a CAS capsule. CAS capsules have a blobs/ directory.",
+			Message: "This capsule already contains IR. No generation needed.",
 		}
 	}
 
-	// Create temp directory
-	tempDir, err := secureMkdirTemp("", "capsule-cas-convert-*")
-	if err != nil {
-		return &ConvertResult{
+	return fullPath, nil
+}
+
+// validateContentForIR finds and validates the content file, returning detailed error for CAS capsules
+func validateContentForIR(extractDir string) (string, string, *ConvertResult) {
+	contentPath, detectedFormat := findContentFile(extractDir)
+	if contentPath != "" {
+		return contentPath, detectedFormat, nil
+	}
+
+	blobsDir := filepath.Join(extractDir, "blobs")
+	if _, err := os.Stat(blobsDir); err == nil {
+		return "", "", &ConvertResult{
 			Success: false,
-			Message: fmt.Sprintf("Failed to create temp directory: %v", err),
+			Message: "This capsule uses Content-Addressed Storage (CAS) format with blobs.\n\n" +
+				"CAS capsules require extraction via the CLI:\n" +
+				"  capsule export <capsule> --artifact main --out extracted/\n\n" +
+				"Then use 'capsule juniper ingest' to create a SWORD capsule that can be converted.",
 		}
+	}
+
+	return "", "", buildNoContentFoundError(extractDir)
+}
+
+// buildNoContentFoundError creates an error message listing files found in the capsule
+func buildNoContentFoundError(extractDir string) *ConvertResult {
+	var foundFiles []string
+	filepath.Walk(extractDir, func(path string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			rel, _ := filepath.Rel(extractDir, path)
+			foundFiles = append(foundFiles, rel)
+		}
+		return nil
+	})
+
+	fileList := strings.Join(foundFiles, ", ")
+	if len(foundFiles) > 10 {
+		fileList = strings.Join(foundFiles[:10], ", ") + fmt.Sprintf(" (and %d more)", len(foundFiles)-10)
+	}
+	if len(foundFiles) == 0 {
+		fileList = "(empty)"
+	}
+
+	return &ConvertResult{
+		Success: false,
+		Message: fmt.Sprintf("No convertible content found in capsule.\n\nSupported formats: OSIS, USFM, USX, SWORD (mods.d/*.conf)\n\nFiles found: %s", fileList),
+	}
+}
+
+// performPluginIRExtraction loads plugins and extracts IR from the content file
+func performPluginIRExtraction(contentPath, detectedFormat, tempDir string) (*plugins.ExtractIRResult, *ConvertResult) {
+	loader := getLoader()
+	if err := loader.LoadFromDir(ServerConfig.PluginsDir); err != nil {
+		return nil, &ConvertResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to load plugins: %v", err),
+		}
+	}
+
+	sourcePlugin, err := loader.GetPlugin("format." + detectedFormat)
+	if err != nil {
+		return nil, &ConvertResult{
+			Success:      false,
+			Message:      fmt.Sprintf("No plugin found for format '%s'. Install the format.%s plugin.", detectedFormat, detectedFormat),
+			SourceFormat: detectedFormat,
+		}
+	}
+
+	irDir := filepath.Join(tempDir, "ir")
+	os.MkdirAll(irDir, 0755)
+
+	extractReq := plugins.NewExtractIRRequest(contentPath, irDir)
+	extractResp, err := plugins.ExecutePlugin(sourcePlugin, extractReq)
+	if err != nil {
+		return nil, &ConvertResult{
+			Success:      false,
+			Message:      fmt.Sprintf("Failed to extract IR: %v", err),
+			SourceFormat: detectedFormat,
+		}
+	}
+
+	extractResult, err := parseExtractIRResultFlexible(extractResp)
+	if err != nil {
+		return nil, &ConvertResult{
+			Success:      false,
+			Message:      fmt.Sprintf("Failed to parse extract result: %v", err),
+			SourceFormat: detectedFormat,
+		}
+	}
+
+	return extractResult, nil
+}
+
+// buildCapsuleWithIR creates a new capsule directory with IR and updated manifest
+func buildCapsuleWithIR(extractDir string, extractResult *plugins.ExtractIRResult, sourcePath, detectedFormat, tempDir string) (string, *ConvertResult) {
+	newCapsuleDir := filepath.Join(tempDir, "new-capsule")
+
+	if err := fileutil.CopyDir(extractDir, newCapsuleDir); err != nil {
+		return "", &ConvertResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to copy capsule contents: %v", err),
+		}
+	}
+
+	irData, errResult := readIRFileData(extractResult.IRPath)
+	if errResult != nil {
+		return "", errResult
+	}
+
+	irName := trimArchiveSuffix(filepath.Base(sourcePath)) + ".ir.json"
+	if err := os.WriteFile(filepath.Join(newCapsuleDir, irName), irData, 0644); err != nil {
+		return "", &ConvertResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to write IR file: %v", err),
+		}
+	}
+
+	if err := updateManifestWithIR(newCapsuleDir, extractResult.LossClass, detectedFormat); err != nil {
+		return "", &ConvertResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to update manifest: %v", err),
+		}
+	}
+
+	return newCapsuleDir, nil
+}
+
+// readIRFileData reads the IR file, handling both file and directory paths
+func readIRFileData(irPath string) ([]byte, *ConvertResult) {
+	info, err := os.Stat(irPath)
+	if err != nil {
+		return nil, &ConvertResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to stat IR path: %v", err),
+		}
+	}
+
+	if info.IsDir() {
+		entries, err := os.ReadDir(irPath)
+		if err != nil {
+			return nil, &ConvertResult{
+				Success: false,
+				Message: fmt.Sprintf("Failed to read IR directory: %v", err),
+			}
+		}
+
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".ir.json") {
+				irPath = filepath.Join(irPath, entry.Name())
+				break
+			}
+		}
+
+		if !strings.HasSuffix(irPath, ".ir.json") {
+			return nil, &ConvertResult{
+				Success: false,
+				Message: "No .ir.json file found in IR directory",
+			}
+		}
+	}
+
+	irData, err := os.ReadFile(irPath)
+	if err != nil {
+		return nil, &ConvertResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to read IR: %v", err),
+		}
+	}
+
+	return irData, nil
+}
+
+// updateManifestWithIR updates the manifest.json with IR metadata
+func updateManifestWithIR(capsuleDir, lossClass, sourceFormat string) error {
+	manifestPath := filepath.Join(capsuleDir, "manifest.json")
+	manifest := make(map[string]interface{})
+
+	if data, err := os.ReadFile(manifestPath); err == nil {
+		json.Unmarshal(data, &manifest)
+	}
+
+	manifest["has_ir"] = true
+	manifest["ir_generated"] = time.Now().Format(time.RFC3339)
+	manifest["ir_loss_class"] = lossClass
+	manifest["source_format"] = sourceFormat
+
+	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
+	return os.WriteFile(manifestPath, manifestData, 0644)
+}
+
+// replaceCapsule replaces the original capsule with the new one, backing up the original
+func replaceCapsule(fullPath, newCapsuleDir string) (string, *ConvertResult) {
+	oldPath := renameToOld(fullPath)
+	if oldPath == "" {
+		return "", &ConvertResult{
+			Success: false,
+			Message: "Failed to rename original capsule",
+		}
+	}
+
+	if err := archive.CreateCapsuleTarGzFromPath(newCapsuleDir, fullPath); err != nil {
+		os.Rename(oldPath, fullPath)
+		return "", &ConvertResult{
+			Success: false,
+			Message: fmt.Sprintf("Failed to create new capsule: %v", err),
+		}
+	}
+
+	return oldPath, nil
+}
+
+// performCASToSWORD converts a CAS capsule to SWORD format.
+func performCASToSWORD(sourcePath string) *ConvertResult {
+	fullPath, err := validateCASCapsulePath(sourcePath)
+	if err != nil {
+		return &ConvertResult{Success: false, Message: err.Error()}
+	}
+
+	tempDir, extractDir, err := setupTempDirAndExtract(fullPath)
+	if err != nil {
+		return &ConvertResult{Success: false, Message: err.Error()}
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Extract CAS capsule
-	extractDir := filepath.Join(tempDir, "extract")
-	if err := extractCapsule(fullPath, extractDir); err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to extract capsule: %v", err),
-		}
+	manifest, mainArtifact, err := loadCASManifestAndArtifact(extractDir)
+	if err != nil {
+		return &ConvertResult{Success: false, Message: err.Error()}
 	}
 
-	// Read manifest to find artifacts
+	swordDir := filepath.Join(tempDir, "sword-capsule")
+	if err := os.MkdirAll(swordDir, 0755); err != nil {
+		return &ConvertResult{Success: false, Message: fmt.Sprintf("Failed to create SWORD directory: %v", err)}
+	}
+
+	extractArtifactFilesToSWORD(extractDir, swordDir, mainArtifact)
+	createSWORDManifest(swordDir, manifest)
+	hasSwordData := checkSWORDStructure(swordDir)
+
+	return finalizeCapsuleConversion(fullPath, swordDir, hasSwordData)
+}
+
+// validateCASCapsulePath validates and returns the full path to a CAS capsule.
+func validateCASCapsulePath(sourcePath string) (string, error) {
+	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, sourcePath)
+	if err != nil {
+		return "", errors.New("Invalid path")
+	}
+	fullPath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
+
+	if _, err := os.Stat(fullPath); errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("Capsule not found: %s", sourcePath)
+	}
+
+	if !archive.IsCASCapsule(fullPath) {
+		return "", errors.New("This is not a CAS capsule. CAS capsules have a blobs/ directory.")
+	}
+
+	return fullPath, nil
+}
+
+// setupTempDirAndExtract creates a temp directory and extracts the CAS capsule.
+func setupTempDirAndExtract(fullPath string) (tempDir, extractDir string, err error) {
+	tempDir, err = secureMkdirTemp("", "capsule-cas-convert-*")
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to create temp directory: %v", err)
+	}
+
+	extractDir = filepath.Join(tempDir, "extract")
+	if err := extractCapsule(fullPath, extractDir); err != nil {
+		os.RemoveAll(tempDir)
+		return "", "", fmt.Errorf("Failed to extract capsule: %v", err)
+	}
+
+	return tempDir, extractDir, nil
+}
+
+// loadCASManifestAndArtifact loads the CAS manifest and finds the main artifact.
+func loadCASManifestAndArtifact(extractDir string) (*CASManifest, *CASArtifact, error) {
 	manifestPath := filepath.Join(extractDir, "manifest.json")
 	manifestData, err := os.ReadFile(manifestPath)
 	if err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to read manifest: %v", err),
-		}
+		return nil, nil, fmt.Errorf("Failed to read manifest: %v", err)
 	}
 
 	var manifest CASManifest
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to parse manifest: %v", err),
-		}
+		return nil, nil, fmt.Errorf("Failed to parse manifest: %v", err)
 	}
 
-	// Find the main artifact
-	var mainArtifact *CASArtifact
+	mainArtifact := findMainArtifact(&manifest)
+	if mainArtifact == nil {
+		return nil, nil, errors.New("No artifacts found in CAS capsule")
+	}
+
+	return &manifest, mainArtifact, nil
+}
+
+// findMainArtifact finds the main artifact in the manifest.
+func findMainArtifact(manifest *CASManifest) *CASArtifact {
 	for i := range manifest.Artifacts {
 		if manifest.Artifacts[i].ID == "main" || manifest.Artifacts[i].ID == manifest.MainArtifact {
-			mainArtifact = &manifest.Artifacts[i]
-			break
+			return &manifest.Artifacts[i]
 		}
 	}
-	if mainArtifact == nil && len(manifest.Artifacts) > 0 {
-		mainArtifact = &manifest.Artifacts[0]
+	if len(manifest.Artifacts) > 0 {
+		return &manifest.Artifacts[0]
 	}
-	if mainArtifact == nil {
-		return &ConvertResult{
-			Success: false,
-			Message: "No artifacts found in CAS capsule",
-		}
-	}
+	return nil
+}
 
-	// Create new SWORD capsule directory
-	swordDir := filepath.Join(tempDir, "sword-capsule")
-	os.MkdirAll(swordDir, 0755)
-
-	// Extract artifact content from blobs
-	for _, file := range mainArtifact.Files {
-		// Find the blob
-		blobPath := ""
-		if file.Blake3 != "" {
-			blobPath = filepath.Join(extractDir, "blobs", "blake3", file.Blake3[:2], file.Blake3)
-		} else if file.SHA256 != "" {
-			blobPath = filepath.Join(extractDir, "blobs", "sha256", file.SHA256[:2], file.SHA256)
-		}
-
+// extractArtifactFilesToSWORD extracts files from the CAS artifact to the SWORD directory.
+func extractArtifactFilesToSWORD(extractDir, swordDir string, artifact *CASArtifact) {
+	for _, file := range artifact.Files {
+		blobPath := resolveBlobPath(extractDir, file)
 		if blobPath == "" {
 			continue
 		}
 
-		// Read blob content
 		content, err := os.ReadFile(blobPath)
 		if err != nil {
 			continue
 		}
 
-		// Write to SWORD capsule
 		destPath := filepath.Join(swordDir, file.Path)
 		os.MkdirAll(filepath.Dir(destPath), 0755)
 		os.WriteFile(destPath, content, 0644)
 	}
 
-	// If no files were extracted, try to extract all blobs as-is
-	if _, err := os.ReadDir(swordDir); err != nil || isDirEmpty(swordDir) {
-		// Copy all blobs with their hash as filename (fallback)
-		blobsDir := filepath.Join(extractDir, "blobs")
-		filepath.Walk(blobsDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			content, _ := os.ReadFile(path)
-			if len(content) > 0 {
-				// Try to determine file type from content
-				destName := filepath.Base(path)
-				if isJSONContent(content) {
-					destName += ".json"
-				}
-				os.WriteFile(filepath.Join(swordDir, destName), content, 0644)
-			}
-			return nil
-		})
+	// Fallback: extract all blobs if no files were extracted
+	if isDirEmpty(swordDir) {
+		extractAllBlobs(extractDir, swordDir)
 	}
+}
 
-	// Create manifest for SWORD capsule
+// resolveBlobPath returns the path to a blob based on its hash.
+func resolveBlobPath(extractDir string, file CASFile) string {
+	if file.Blake3 != "" {
+		return filepath.Join(extractDir, "blobs", "blake3", file.Blake3[:2], file.Blake3)
+	}
+	if file.SHA256 != "" {
+		return filepath.Join(extractDir, "blobs", "sha256", file.SHA256[:2], file.SHA256)
+	}
+	return ""
+}
+
+// extractAllBlobs copies all blobs to the SWORD directory as a fallback.
+func extractAllBlobs(extractDir, swordDir string) {
+	blobsDir := filepath.Join(extractDir, "blobs")
+	filepath.Walk(blobsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil || len(content) == 0 {
+			return nil
+		}
+
+		destName := filepath.Base(path)
+		if isJSONContent(content) {
+			destName += ".json"
+		}
+		os.WriteFile(filepath.Join(swordDir, destName), content, 0644)
+		return nil
+	})
+}
+
+// createSWORDManifest creates a manifest.json for the SWORD capsule.
+func createSWORDManifest(swordDir string, manifest *CASManifest) {
 	swordManifest := map[string]interface{}{
 		"capsule_version": "1.0",
 		"module_type":     manifest.ModuleType,
@@ -1714,25 +1843,23 @@ func performCASToSWORD(sourcePath string) *ConvertResult {
 		"original_format": manifest.SourceFormat,
 		"converted_from":  "cas",
 	}
-	swordManifestData, _ := json.MarshalIndent(swordManifest, "", "  ")
-	os.WriteFile(filepath.Join(swordDir, "manifest.json"), swordManifestData, 0644)
+	manifestData, _ := json.MarshalIndent(swordManifest, "", "  ")
+	os.WriteFile(filepath.Join(swordDir, "manifest.json"), manifestData, 0644)
+}
 
-	// Check if we have SWORD module structure
-	hasSwordData := false
-	if _, err := os.Stat(filepath.Join(swordDir, "mods.d")); err == nil {
-		hasSwordData = true
-	}
+// checkSWORDStructure checks if the directory contains SWORD module structure.
+func checkSWORDStructure(swordDir string) bool {
+	_, err := os.Stat(filepath.Join(swordDir, "mods.d"))
+	return err == nil
+}
 
-	// Rename original and create new capsule
+// finalizeCapsuleConversion renames the original capsule and creates the new archive.
+func finalizeCapsuleConversion(fullPath, swordDir string, hasSwordData bool) *ConvertResult {
 	oldPath := renameToOld(fullPath)
 	if oldPath == "" {
-		return &ConvertResult{
-			Success: false,
-			Message: "Failed to rename original capsule",
-		}
+		return &ConvertResult{Success: false, Message: "Failed to rename original capsule"}
 	}
 
-	// Create new .tar.gz capsule
 	newPath := strings.TrimSuffix(fullPath, ".tar.xz") + ".tar.gz"
 	if strings.HasSuffix(fullPath, ".tar.gz") {
 		newPath = fullPath
@@ -1740,10 +1867,7 @@ func performCASToSWORD(sourcePath string) *ConvertResult {
 
 	if err := archive.CreateCapsuleTarGzFromPath(swordDir, newPath); err != nil {
 		os.Rename(oldPath, fullPath) // Restore on failure
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to create SWORD capsule: %v", err),
-		}
+		return &ConvertResult{Success: false, Message: fmt.Sprintf("Failed to create SWORD capsule: %v", err)}
 	}
 
 	msg := "Successfully converted CAS capsule to extracted format"
@@ -3385,6 +3509,7 @@ func checkArtifactReadability(artifacts []ArtifactInfo, tempDir string) ([]Selfc
 
 	return checks, allPassed
 }
+
 // DevInfoData is the data for the dev info page.
 type DevInfoData struct {
 	PageData
@@ -4720,208 +4845,138 @@ type RefreshResult struct {
 	Message string
 }
 
-// handleJuniper handles the unified Juniper SWORD modules page.
-func handleJuniper(w http.ResponseWriter, r *http.Request) {
-	csrfToken := getOrCreateCSRFToken(w, r)
-
-	data := JuniperRepomanData{
-		PageData: PageData{Title: "SWORD Modules", CSRFToken: csrfToken},
-		Sources: []RepoSource{
-			{Name: "CrossWire", URL: "https://www.crosswire.org/ftpmirror/pub/sword/raw"},
-			{Name: "eBible", URL: "https://ebible.org/sword"},
-		},
-		SwordDir:    ServerConfig.SwordDir,
-		CapsulesDir: ServerConfig.CapsulesDir,
-		Formats:     []string{"osis", "usfm", "usx", "json", "html", "epub", "markdown", "sqlite", "txt"},
-	}
-
-	// Get tab and subtab from query params
-	tab := r.URL.Query().Get("tab")
+// parseJuniperRequestParams parses query parameters and form values from the request.
+func parseJuniperRequestParams(r *http.Request) (tab, subtab, selectedSource, customURL string, installedPage int, shouldLoadModules bool) {
+	tab = r.URL.Query().Get("tab")
 	if tab == "" {
-		tab = "installed" // Default to installed tab
+		tab = "installed"
 	}
-	data.Tab = tab
-
-	subtab := r.URL.Query().Get("subtab")
+	subtab = r.URL.Query().Get("subtab")
 	if tab == "capsules" && subtab == "" {
-		subtab = "list" // Default to list subtab for capsules
+		subtab = "list"
 	}
-	data.SubTab = subtab
-
-	// Check for message query param (used for success messages after redirects)
-	if message := r.URL.Query().Get("message"); message != "" {
-		data.PageData.Message = message
-	}
-
-	// Pagination for installed modules tab (22 per page)
-	const installedPageSize = 22
-	installedPage := 1
+	installedPage = 1
 	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
 		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
 			installedPage = p
 		}
 	}
-	data.InstalledPage = installedPage
-	data.InstalledPageSize = installedPageSize
-
-	// Get selected source from query param or form
-	selectedSource := r.URL.Query().Get("source")
+	selectedSource = r.URL.Query().Get("source")
 	if selectedSource == "" {
 		selectedSource = r.FormValue("source")
 	}
 	if selectedSource == "" {
-		selectedSource = "CrossWire" // Default
+		selectedSource = "CrossWire"
 	}
-	data.SelectedSource = selectedSource
-
-	// Handle custom URL for "Custom" source
-	customURL := r.URL.Query().Get("custom_url")
+	customURL = r.URL.Query().Get("custom_url")
 	if customURL == "" {
 		customURL = r.FormValue("custom_url")
 	}
-	data.CustomURL = customURL
+	shouldLoadModules = r.URL.Query().Get("loaded") == "1"
+	return
+}
 
-	// Determine the actual source name to use for plugin calls
-	// When "Custom" is selected with a URL, use the URL as the source
-	effectiveSource := selectedSource
-	if selectedSource == "Custom" && customURL != "" {
-		effectiveSource = customURL
+// handleFileUploadDetect handles file upload for format detection.
+func handleFileUploadDetect(r *http.Request, w http.ResponseWriter) (detectResult *DetectResult, hasResult bool, errorMsg string) {
+	r.Body = http.MaxBytesReader(w, r.Body, validation.MaxFileSize)
+	if err := r.ParseMultipartForm(MaxFormMemory); err != nil {
+		return nil, false, fmt.Sprintf("Failed to parse form: %v", err)
 	}
+	if !validateCSRFToken(r) {
+		return nil, false, "Invalid CSRF token. Please try again."
+	}
+	if r.FormValue("action") != "detect" {
+		return nil, false, ""
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		return nil, false, fmt.Sprintf("No file uploaded: %v", err)
+	}
+	defer file.Close()
+	if header.Size > validation.MaxFileSize {
+		return nil, false, fmt.Sprintf("File too large: %d bytes (max: %d bytes)", header.Size, validation.MaxFileSize)
+	}
+	result := performDetect(file, header.Filename)
+	return result, true, ""
+}
 
-	// Check if modules should be loaded (via query param after POST redirect)
-	shouldLoadModules := r.URL.Query().Get("loaded") == "1"
-
-	// Handle POST actions
-	if r.Method == http.MethodPost {
-		// Check content type to determine if this is a file upload
-		contentType := r.Header.Get("Content-Type")
-		isMultipart := len(contentType) > 0 && contentType[:19] == "multipart/form-data"
-
-		if isMultipart {
-			// Handle file upload for detect action
-			r.Body = http.MaxBytesReader(w, r.Body, validation.MaxFileSize)
-			if err := r.ParseMultipartForm(MaxFormMemory); err != nil {
-				data.PageData.Error = fmt.Sprintf("Failed to parse form: %v", err)
-			} else if !validateCSRFToken(r) {
-				data.PageData.Error = "Invalid CSRF token. Please try again."
-			} else if r.FormValue("action") == "detect" {
-				file, header, err := r.FormFile("file")
-				if err != nil {
-					data.PageData.Error = fmt.Sprintf("No file uploaded: %v", err)
-				} else {
-					defer file.Close()
-					if header.Size > validation.MaxFileSize {
-						data.PageData.Error = fmt.Sprintf("File too large: %d bytes (max: %d bytes)", header.Size, validation.MaxFileSize)
-					} else {
-						data.DetectResult = performDetect(file, header.Filename)
-					}
-				}
-				tab = "detect"
-			}
-		} else {
-			r.ParseForm()
+// handleNonMultipartPOSTActions handles non-multipart POST actions.
+func handleNonMultipartPOSTActions(r *http.Request, effectiveSource string, data *JuniperRepomanData) (newTab string, shouldLoadModules bool, shouldRedirect bool) {
+	if !validateCSRFToken(r) {
+		data.PageData.Error = "Invalid CSRF token. Please try again."
+		return "", false, false
+	}
+	action := r.FormValue("action")
+	newTab = data.Tab
+	switch action {
+	case "load":
+		shouldLoadModules = true
+		newTab = "repository"
+	case "refresh":
+		data.RefreshResult = refreshRepoSource(effectiveSource)
+		shouldLoadModules = true
+		newTab = "repository"
+	case "install":
+		if moduleID := r.FormValue("module"); moduleID != "" {
+			data.InstallResult = installModule(effectiveSource, moduleID, ServerConfig.SwordDir)
 		}
-		if data.PageData.Error == "" && !isMultipart {
-			if !validateCSRFToken(r) {
-				data.PageData.Error = "Invalid CSRF token. Please try again."
-			} else {
-				action := r.FormValue("action")
-				switch action {
-				case "load":
-					// Just mark modules as loaded, will load below
-					shouldLoadModules = true
-					tab = "repository"
-				case "refresh":
-					result := refreshRepoSource(effectiveSource)
-					data.RefreshResult = result
-					shouldLoadModules = true
-					tab = "repository"
-				case "install":
-					moduleID := r.FormValue("module")
-					if moduleID != "" {
-						result := installModule(effectiveSource, moduleID, ServerConfig.SwordDir)
-						data.InstallResult = result
-					}
-					shouldLoadModules = true
-					tab = "repository"
-				case "delete":
-					moduleID := r.FormValue("module")
-					if moduleID != "" {
-						result := deleteModule(moduleID, ServerConfig.SwordDir)
-						data.InstallResult = result
-					}
-					tab = "installed"
-				case "ingest":
-					selectedModules := r.Form["modules"]
-					if len(selectedModules) > 0 {
-						result := performJuniperIngest(ServerConfig.SwordDir, selectedModules)
-						data.IngestResult = result
-						// Redirect to capsules tab with success message if ingest was successful
-						if result.Success {
-							redirectURL := fmt.Sprintf("/juniper?tab=capsules&subtab=list&source=%s&message=%s",
-								selectedSource, url.QueryEscape(fmt.Sprintf("Successfully created %d capsule(s)", result.ModulesOK)))
-							http.Redirect(w, r, redirectURL, http.StatusSeeOther)
-							return
-						}
-					}
-					tab = "capsules"
-				}
+		shouldLoadModules = true
+		newTab = "repository"
+	case "delete":
+		if moduleID := r.FormValue("module"); moduleID != "" {
+			data.InstallResult = deleteModule(moduleID, ServerConfig.SwordDir)
+		}
+		newTab = "installed"
+	case "ingest":
+		if selectedModules := r.Form["modules"]; len(selectedModules) > 0 {
+			result := performJuniperIngest(ServerConfig.SwordDir, selectedModules)
+			data.IngestResult = result
+			if result.Success {
+				shouldRedirect = true
 			}
 		}
+		newTab = "capsules"
+	}
+	return
+}
 
-		// Redirect to GET with appropriate params to prevent form resubmission
-		if data.PageData.Error == "" {
-			redirectURL := fmt.Sprintf("/juniper?tab=%s&source=%s", tab, selectedSource)
-			if shouldLoadModules {
-				redirectURL += "&loaded=1"
-			}
-			if selectedSource == "Custom" && customURL != "" {
-				redirectURL += "&custom_url=" + url.QueryEscape(customURL)
-			}
-			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
-			return
+// loadRepositoryModules loads available modules from the selected repository source.
+func loadRepositoryModules(effectiveSource string, data *JuniperRepomanData) {
+	modules, err := listRepoModules(effectiveSource)
+	if err != nil {
+		data.PageData.Error = fmt.Sprintf("Failed to load modules: %v", err)
+		return
+	}
+	data.Modules = modules
+	data.ModulesLoaded = true
+	langSet := make(map[string]bool)
+	typeSet := make(map[string]bool)
+	for _, mod := range modules {
+		if mod.Language != "" {
+			langSet[mod.Language] = true
+		}
+		if mod.Type != "" {
+			typeSet[mod.Type] = true
 		}
 	}
-
-	// Load available modules for selected source only if requested
-	if shouldLoadModules {
-		modules, err := listRepoModules(effectiveSource)
-		if err != nil {
-			data.PageData.Error = fmt.Sprintf("Failed to load modules: %v", err)
-		} else {
-			data.Modules = modules
-			data.ModulesLoaded = true
-
-			// Collect unique languages and types for filtering
-			langSet := make(map[string]bool)
-			typeSet := make(map[string]bool)
-			for _, mod := range modules {
-				if mod.Language != "" {
-					langSet[mod.Language] = true
-				}
-				if mod.Type != "" {
-					typeSet[mod.Type] = true
-				}
-			}
-			for lang := range langSet {
-				data.Languages = append(data.Languages, lang)
-			}
-			for t := range typeSet {
-				data.Types = append(data.Types, t)
-			}
-			sort.Strings(data.Languages)
-			sort.Strings(data.Types)
-		}
+	for lang := range langSet {
+		data.Languages = append(data.Languages, lang)
 	}
+	for t := range typeSet {
+		data.Types = append(data.Types, t)
+	}
+	sort.Strings(data.Languages)
+	sort.Strings(data.Types)
+}
 
-	// Load installed modules with pagination
+// loadInstalledModulesWithPagination loads installed modules with pagination support.
+func loadInstalledModulesWithPagination(installedPage, installedPageSize int, data *JuniperRepomanData) {
 	installed := getInstalledModules(ServerConfig.SwordDir)
 	data.InstalledTotal = len(installed)
 	data.InstalledTotalPages = (len(installed) + installedPageSize - 1) / installedPageSize
 	if data.InstalledTotalPages == 0 {
 		data.InstalledTotalPages = 1
 	}
-	// Collect unique types and languages from all installed modules
 	installedTypeSet := make(map[string]bool)
 	installedLangSet := make(map[string]bool)
 	for _, mod := range installed {
@@ -4940,12 +4995,10 @@ func handleJuniper(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(data.InstalledTypes)
 	sort.Strings(data.InstalledLanguages)
-	// Clamp page to valid range
 	if installedPage > data.InstalledTotalPages {
 		installedPage = data.InstalledTotalPages
 		data.InstalledPage = installedPage
 	}
-	// Slice installed modules for current page
 	start := (installedPage - 1) * installedPageSize
 	end := start + installedPageSize
 	if end > len(installed) {
@@ -4954,8 +5007,10 @@ func handleJuniper(w http.ResponseWriter, r *http.Request) {
 	if start < len(installed) {
 		data.Installed = installed[start:end]
 	}
+}
 
-	// Load local modules for ingest tab (convert SWORDModule to RepoModule)
+// loadLocalModulesForIngest loads local SWORD modules for the ingest tab.
+func loadLocalModulesForIngest(data *JuniperRepomanData) {
 	localModules := getSWORDModules(ServerConfig.SwordDir)
 	for _, mod := range localModules {
 		data.LocalModules = append(data.LocalModules, RepoModule{
@@ -4968,7 +5023,6 @@ func handleJuniper(w http.ResponseWriter, r *http.Request) {
 			Version:     mod.Version,
 		})
 	}
-	// Collect unique types and languages for local modules
 	localTypeSet := make(map[string]bool)
 	localLangSet := make(map[string]bool)
 	for _, mod := range data.LocalModules {
@@ -4987,35 +5041,149 @@ func handleJuniper(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(data.LocalTypes)
 	sort.Strings(data.LocalLanguages)
+}
 
-	// Load capsules data for capsules tab
+// loadCapsulesData loads capsule data for the capsules tab.
+func loadCapsulesData(data *JuniperRepomanData) {
+	allCapsules := listCapsules()
+	capsulesNoIR, _, capsulesWithIR := categorizeCapsules(allCapsules)
+	data.Capsules = allCapsules
+	data.CapsulesNoIR = capsulesNoIR
+	data.CapsulesWithIR = capsulesWithIR
+}
+
+// loadPluginsData loads plugin data for the plugins tab.
+func loadPluginsData(data *JuniperRepomanData) {
+	data.FormatPlugins = listFormatPlugins()
+	data.ToolPlugins = listToolPlugins()
+}
+
+// loadInfoTabData loads data for the info tab.
+func loadInfoTabData(data *JuniperRepomanData) {
+	data.FormatPlugins = listFormatPlugins()
+	data.ToolPlugins = listToolPlugins()
+	data.PluginsExternal = ServerConfig.PluginsExternal
+	data.BibleCount = len(getCachedBibles())
+	data.Capsules = listCapsules()
+}
+
+// initializeJuniperData initializes the base JuniperRepomanData structure.
+func initializeJuniperData(csrfToken string) JuniperRepomanData {
+	return JuniperRepomanData{
+		PageData: PageData{Title: "SWORD Modules", CSRFToken: csrfToken},
+		Sources: []RepoSource{
+			{Name: "CrossWire", URL: "https://www.crosswire.org/ftpmirror/pub/sword/raw"},
+			{Name: "eBible", URL: "https://ebible.org/sword"},
+		},
+		SwordDir:    ServerConfig.SwordDir,
+		CapsulesDir: ServerConfig.CapsulesDir,
+		Formats:     []string{"osis", "usfm", "usx", "json", "html", "epub", "markdown", "sqlite", "txt"},
+	}
+}
+
+// getEffectiveSource returns the actual source to use for plugin calls.
+func getEffectiveSource(selectedSource, customURL string) string {
+	if selectedSource == "Custom" && customURL != "" {
+		return customURL
+	}
+	return selectedSource
+}
+
+// buildRedirectURL constructs the redirect URL after POST actions.
+func buildRedirectURL(tab, selectedSource, customURL string, shouldLoadModules bool) string {
+	redirectURL := fmt.Sprintf("/juniper?tab=%s&source=%s", tab, selectedSource)
+	if shouldLoadModules {
+		redirectURL += "&loaded=1"
+	}
+	if selectedSource == "Custom" && customURL != "" {
+		redirectURL += "&custom_url=" + url.QueryEscape(customURL)
+	}
+	return redirectURL
+}
+
+// buildIngestRedirectURL constructs the redirect URL after successful ingest.
+func buildIngestRedirectURL(selectedSource string, modulesOK int) string {
+	return fmt.Sprintf("/juniper?tab=capsules&subtab=list&source=%s&message=%s",
+		selectedSource, url.QueryEscape(fmt.Sprintf("Successfully created %d capsule(s)", modulesOK)))
+}
+
+// handleJuniper handles the unified Juniper SWORD modules page.
+func handleJuniper(w http.ResponseWriter, r *http.Request) {
+	csrfToken := getOrCreateCSRFToken(w, r)
+	data := initializeJuniperData(csrfToken)
+
+	tab, subtab, selectedSource, customURL, installedPage, shouldLoadModules := parseJuniperRequestParams(r)
+	const installedPageSize = 22
+
+	data.Tab = tab
+	data.SubTab = subtab
+	data.SelectedSource = selectedSource
+	data.CustomURL = customURL
+	data.InstalledPage = installedPage
+	data.InstalledPageSize = installedPageSize
+
+	if message := r.URL.Query().Get("message"); message != "" {
+		data.PageData.Message = message
+	}
+
+	effectiveSource := getEffectiveSource(selectedSource, customURL)
+
+	if r.Method == http.MethodPost {
+		contentType := r.Header.Get("Content-Type")
+		isMultipart := len(contentType) > 0 && contentType[:19] == "multipart/form-data"
+
+		if isMultipart {
+			detectResult, hasResult, errorMsg := handleFileUploadDetect(r, w)
+			if errorMsg != "" {
+				data.PageData.Error = errorMsg
+			} else if hasResult {
+				data.DetectResult = detectResult
+				tab = "detect"
+				data.Tab = tab
+			}
+		} else {
+			r.ParseForm()
+		}
+
+		if data.PageData.Error == "" && !isMultipart {
+			newTab, loadModules, shouldRedirect := handleNonMultipartPOSTActions(r, effectiveSource, &data)
+			if shouldRedirect && data.IngestResult != nil && data.IngestResult.Success {
+				http.Redirect(w, r, buildIngestRedirectURL(selectedSource, data.IngestResult.ModulesOK), http.StatusSeeOther)
+				return
+			}
+			tab = newTab
+			data.Tab = tab
+			shouldLoadModules = loadModules
+		}
+
+		if data.PageData.Error == "" {
+			http.Redirect(w, r, buildRedirectURL(tab, selectedSource, customURL, shouldLoadModules), http.StatusSeeOther)
+			return
+		}
+	}
+
+	if shouldLoadModules {
+		loadRepositoryModules(effectiveSource, &data)
+	}
+
+	loadInstalledModulesWithPagination(installedPage, installedPageSize, &data)
+	loadLocalModulesForIngest(&data)
+
 	if tab == "capsules" {
-		allCapsules := listCapsules()
-		capsulesNoIR, _, capsulesWithIR := categorizeCapsules(allCapsules)
-		data.Capsules = allCapsules
-		data.CapsulesNoIR = capsulesNoIR
-		data.CapsulesWithIR = capsulesWithIR
+		loadCapsulesData(&data)
 	}
-
-	// Load plugins data for plugins tab
 	if tab == "plugins" {
-		data.FormatPlugins = listFormatPlugins()
-		data.ToolPlugins = listToolPlugins()
+		loadPluginsData(&data)
 	}
-
-	// Load info tab data
 	if tab == "info" {
-		data.FormatPlugins = listFormatPlugins()
-		data.ToolPlugins = listToolPlugins()
-		data.PluginsExternal = ServerConfig.PluginsExternal
-		data.BibleCount = len(getCachedBibles())
-		data.Capsules = listCapsules()
+		loadInfoTabData(&data)
 	}
 
 	if err := Templates.ExecuteTemplate(w, "juniper.html", data); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 	}
 }
+
 
 // categoryToType converts SWORD category names to shorter type names.
 func categoryToType(category string) string {

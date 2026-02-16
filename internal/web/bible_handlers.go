@@ -860,103 +860,177 @@ func handleBibleIndex(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/library/bibles/", http.StatusFound)
 }
 
-// handleLibraryBibles shows the Bible browsing/search/compare interface.
-func handleLibraryBibles(w http.ResponseWriter, r *http.Request) {
-	allBibles := getCachedBibles()
+// paginationParams holds pagination configuration and results.
+type paginationParams struct {
+	Page           int
+	PerPage        int
+	TotalPages     int
+	PerPageOptions []int
+}
 
-	// Collect unique languages and features
-	langMap := make(map[string]bool)
-	featMap := make(map[string]bool)
-	for _, b := range allBibles {
+// manageTabData holds all data for the manage tab.
+type manageTabData struct {
+	InstalledBibles          []ManageableBible
+	InstallableBibles        []ManageableBible
+	AllInstalledBibles       []ManageableBible
+	AllInstallableBibles     []ManageableBible
+	TagFilter                string
+	AvailableTags            []string
+	LanguageFilter           string
+	AvailableLanguages       []string
+	InstalledPage            int
+	InstalledTotalPages      int
+	InstallablePage          int
+	InstallableTotalPages    int
+	PerPage                  int
+}
+
+// collectTagsAndLanguages extracts unique tags and languages from manageable bibles.
+func collectTagsAndLanguages(installed, installable []ManageableBible) (tags, languages []string) {
+	tagSet := make(map[string]bool)
+	langSet := make(map[string]bool)
+
+	for _, b := range installed {
+		for _, tag := range b.Tags {
+			tagSet[tag] = true
+		}
 		if b.Language != "" {
-			langMap[b.Language] = true
+			langSet[b.Language] = true
 		}
-		for _, f := range b.Features {
-			featMap[f] = true
+	}
+	for _, b := range installable {
+		for _, tag := range b.Tags {
+			tagSet[tag] = true
+		}
+		if b.Language != "" {
+			langSet[b.Language] = true
 		}
 	}
 
-	var languages, features []string
-	for l := range langMap {
-		languages = append(languages, l)
+	for tag := range tagSet {
+		tags = append(tags, tag)
 	}
-	for f := range featMap {
-		features = append(features, f)
+	sort.Strings(tags)
+
+	for lang := range langSet {
+		languages = append(languages, lang)
 	}
 	sort.Strings(languages)
-	sort.Strings(features)
 
-	// Handle tab parameter
-	tab := r.URL.Query().Get("tab")
+	return tags, languages
+}
 
-	// Handle search if query parameter is present
-	query := r.URL.Query().Get("q")
-	bibleID := r.URL.Query().Get("bible")
-	caseSensitive := r.URL.Query().Get("case") == "1"
-	wholeWord := r.URL.Query().Get("word") == "1"
-
-	var results []SearchResult
-	var total int
-
-	if query != "" {
-		if bibleID != "" {
-			// Search specific Bible
-			results, total = searchBible(bibleID, query, 100)
-		} else {
-			// Search all Bibles
-			for _, b := range allBibles {
-				r, t := searchBible(b.ID, query, 100-len(results))
-				results = append(results, r...)
-				total += t
-				if len(results) >= 100 {
-					break
-				}
-			}
+// filterManageableBibles filters bibles by tag and language.
+func filterManageableBibles(bibles []ManageableBible, tagFilter, langFilter string) []ManageableBible {
+	var filtered []ManageableBible
+	for _, b := range bibles {
+		tagMatch := tagFilter == "all" || b.HasTag(tagFilter)
+		langMatch := langFilter == "all" || b.Language == langFilter
+		if tagMatch && langMatch {
+			filtered = append(filtered, b)
 		}
 	}
+	return filtered
+}
 
-	// Pagination (only for browse tab, not when searching)
-	perPageOptions := []int{11, 22, 33, 44, 55, 66}
-	perPage := 11 // default
-	page := 1
-
-	if perPageStr := r.URL.Query().Get("perPage"); perPageStr != "" {
-		fmt.Sscanf(perPageStr, "%d", &perPage)
-		// Validate perPage is one of the allowed options
-		valid := false
-		for _, opt := range perPageOptions {
-			if perPage == opt {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			perPage = 11
-		}
-	}
-
-	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+// paginateManageableBibles paginates a list of manageable bibles.
+func paginateManageableBibles(r *http.Request, bibles []ManageableBible, pageParam string, perPage int) (paginated []ManageableBible, page, totalPages int) {
+	page = 1
+	if pageStr := r.URL.Query().Get(pageParam); pageStr != "" {
 		fmt.Sscanf(pageStr, "%d", &page)
 		if page < 1 {
 			page = 1
 		}
 	}
 
-	// Calculate pagination for browse tab (not search)
-	var paginatedBibles []BibleInfo
-	totalPages := 1
+	totalPages = (len(bibles) + perPage - 1) / perPage
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+
+	start := (page - 1) * perPage
+	end := start + perPage
+	if end > len(bibles) {
+		end = len(bibles)
+	}
+	if start < len(bibles) {
+		paginated = bibles[start:end]
+	}
+
+	return paginated, page, totalPages
+}
+
+// processManageTab handles all logic for the manage tab.
+func processManageTab(r *http.Request) manageTabData {
+	data := manageTabData{PerPage: 10}
+
+	allInstalled, allInstallable := getCachedManageableBibles()
+	data.AllInstalledBibles = allInstalled
+	data.AllInstallableBibles = allInstallable
+
+	data.AvailableTags, data.AvailableLanguages = collectTagsAndLanguages(allInstalled, allInstallable)
+
+	data.TagFilter = r.URL.Query().Get("tag")
+	if data.TagFilter == "" {
+		data.TagFilter = "all"
+	}
+
+	data.LanguageFilter = r.URL.Query().Get("lang")
+	if data.LanguageFilter == "" {
+		data.LanguageFilter = "all"
+	}
+
+	filteredInstalled := filterManageableBibles(allInstalled, data.TagFilter, data.LanguageFilter)
+	filteredInstallable := filterManageableBibles(allInstallable, data.TagFilter, data.LanguageFilter)
+
+	data.InstalledBibles, data.InstalledPage, data.InstalledTotalPages = paginateManageableBibles(r, filteredInstalled, "ipage", data.PerPage)
+	data.InstallableBibles, data.InstallablePage, data.InstallableTotalPages = paginateManageableBibles(r, filteredInstallable, "upage", data.PerPage)
+
+	return data
+}
+
+// calculateBrowsePagination handles pagination for browse tab.
+func calculateBrowsePagination(r *http.Request, allBibles []BibleInfo, query, tab string) (paginatedBibles []BibleInfo, params paginationParams) {
+	params.PerPageOptions = []int{11, 22, 33, 44, 55, 66}
+	params.PerPage = 11
+	params.Page = 1
+
+	if perPageStr := r.URL.Query().Get("perPage"); perPageStr != "" {
+		fmt.Sscanf(perPageStr, "%d", &params.PerPage)
+		valid := false
+		for _, opt := range params.PerPageOptions {
+			if params.PerPage == opt {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			params.PerPage = 11
+		}
+	}
+
+	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		fmt.Sscanf(pageStr, "%d", &params.Page)
+		if params.Page < 1 {
+			params.Page = 1
+		}
+	}
+
 	if query == "" && tab != "compare" {
 		totalItems := len(allBibles)
-		totalPages = (totalItems + perPage - 1) / perPage
-		if page > totalPages {
-			page = totalPages
+		params.TotalPages = (totalItems + params.PerPage - 1) / params.PerPage
+		if params.Page > params.TotalPages {
+			params.Page = params.TotalPages
 		}
-		if page < 1 {
-			page = 1
+		if params.Page < 1 {
+			params.Page = 1
 		}
 
-		start := (page - 1) * perPage
-		end := start + perPage
+		start := (params.Page - 1) * params.PerPage
+		end := start + params.PerPage
 		if end > totalItems {
 			end = totalItems
 		}
@@ -965,126 +1039,78 @@ func handleLibraryBibles(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		paginatedBibles = allBibles
+		params.TotalPages = 1
 	}
 
-	// Populate manage tab data only when needed
-	var installedBibles, installableBibles []ManageableBible
-	var allInstalledBibles, allInstallableBibles []ManageableBible
-	var manageTagFilter string
-	var manageAvailableTags []string
-	var installedPage, installedTotalPages, installablePage, installableTotalPages int
-	managePerPage := 10
+	return paginatedBibles, params
+}
 
-	var manageLanguageFilter string
-	var manageAvailableLanguages []string
+// performSearch executes Bible search across one or all Bibles.
+func performSearch(query, bibleID string, allBibles []BibleInfo) ([]SearchResult, int) {
+	if query == "" {
+		return nil, 0
+	}
 
+	if bibleID != "" {
+		return searchBible(bibleID, query, 100)
+	}
+
+	// Search all Bibles
+	var results []SearchResult
+	var total int
+	for _, b := range allBibles {
+		r, t := searchBible(b.ID, query, 100-len(results))
+		results = append(results, r...)
+		total += t
+		if len(results) >= 100 {
+			break
+		}
+	}
+	return results, total
+}
+
+// collectLanguagesAndFeatures extracts unique languages and features from Bible list.
+func collectLanguagesAndFeatures(bibles []BibleInfo) (languages, features []string) {
+	langMap := make(map[string]bool)
+	featMap := make(map[string]bool)
+
+	for _, b := range bibles {
+		if b.Language != "" {
+			langMap[b.Language] = true
+		}
+		for _, f := range b.Features {
+			featMap[f] = true
+		}
+	}
+
+	for l := range langMap {
+		languages = append(languages, l)
+	}
+	for f := range featMap {
+		features = append(features, f)
+	}
+	sort.Strings(languages)
+	sort.Strings(features)
+	return languages, features
+}
+
+// handleLibraryBibles shows the Bible browsing/search/compare interface.
+func handleLibraryBibles(w http.ResponseWriter, r *http.Request) {
+	allBibles := getCachedBibles()
+	languages, features := collectLanguagesAndFeatures(allBibles)
+
+	tab := r.URL.Query().Get("tab")
+	query := r.URL.Query().Get("q")
+	bibleID := r.URL.Query().Get("bible")
+	caseSensitive := r.URL.Query().Get("case") == "1"
+	wholeWord := r.URL.Query().Get("word") == "1"
+
+	results, total := performSearch(query, bibleID, allBibles)
+	paginatedBibles, pagination := calculateBrowsePagination(r, allBibles, query, tab)
+
+	var manageData manageTabData
 	if tab == "manage" {
-		allInstalledBibles, allInstallableBibles = getCachedManageableBibles()
-
-		// Collect all unique tags and languages from both lists
-		tagSet := make(map[string]bool)
-		langSet := make(map[string]bool)
-		for _, b := range allInstalledBibles {
-			for _, tag := range b.Tags {
-				tagSet[tag] = true
-			}
-			if b.Language != "" {
-				langSet[b.Language] = true
-			}
-		}
-		for _, b := range allInstallableBibles {
-			for _, tag := range b.Tags {
-				tagSet[tag] = true
-			}
-			if b.Language != "" {
-				langSet[b.Language] = true
-			}
-		}
-		for tag := range tagSet {
-			manageAvailableTags = append(manageAvailableTags, tag)
-		}
-		sort.Strings(manageAvailableTags)
-		for lang := range langSet {
-			manageAvailableLanguages = append(manageAvailableLanguages, lang)
-		}
-		sort.Strings(manageAvailableLanguages)
-
-		// Get tag filter parameter
-		manageTagFilter = r.URL.Query().Get("tag")
-		if manageTagFilter == "" {
-			manageTagFilter = "all"
-		}
-
-		// Get language filter parameter (default to "all" to show everything)
-		manageLanguageFilter = r.URL.Query().Get("lang")
-		if manageLanguageFilter == "" {
-			manageLanguageFilter = "all"
-		}
-
-		// Filter by tag and language
-		var filteredInstalled, filteredInstallable []ManageableBible
-		for _, b := range allInstalledBibles {
-			tagMatch := manageTagFilter == "all" || b.HasTag(manageTagFilter)
-			langMatch := manageLanguageFilter == "all" || b.Language == manageLanguageFilter
-			if tagMatch && langMatch {
-				filteredInstalled = append(filteredInstalled, b)
-			}
-		}
-		for _, b := range allInstallableBibles {
-			tagMatch := manageTagFilter == "all" || b.HasTag(manageTagFilter)
-			langMatch := manageLanguageFilter == "all" || b.Language == manageLanguageFilter
-			if tagMatch && langMatch {
-				filteredInstallable = append(filteredInstallable, b)
-			}
-		}
-
-		// Pagination for installed
-		installedPage = 1
-		if ipStr := r.URL.Query().Get("ipage"); ipStr != "" {
-			fmt.Sscanf(ipStr, "%d", &installedPage)
-			if installedPage < 1 {
-				installedPage = 1
-			}
-		}
-		installedTotalPages = (len(filteredInstalled) + managePerPage - 1) / managePerPage
-		if installedTotalPages < 1 {
-			installedTotalPages = 1
-		}
-		if installedPage > installedTotalPages {
-			installedPage = installedTotalPages
-		}
-		iStart := (installedPage - 1) * managePerPage
-		iEnd := iStart + managePerPage
-		if iEnd > len(filteredInstalled) {
-			iEnd = len(filteredInstalled)
-		}
-		if iStart < len(filteredInstalled) {
-			installedBibles = filteredInstalled[iStart:iEnd]
-		}
-
-		// Pagination for installable
-		installablePage = 1
-		if upStr := r.URL.Query().Get("upage"); upStr != "" {
-			fmt.Sscanf(upStr, "%d", &installablePage)
-			if installablePage < 1 {
-				installablePage = 1
-			}
-		}
-		installableTotalPages = (len(filteredInstallable) + managePerPage - 1) / managePerPage
-		if installableTotalPages < 1 {
-			installableTotalPages = 1
-		}
-		if installablePage > installableTotalPages {
-			installablePage = installableTotalPages
-		}
-		uStart := (installablePage - 1) * managePerPage
-		uEnd := uStart + managePerPage
-		if uEnd > len(filteredInstallable) {
-			uEnd = len(filteredInstallable)
-		}
-		if uStart < len(filteredInstallable) {
-			installableBibles = filteredInstallable[uStart:uEnd]
-		}
+		manageData = processManageTab(r)
 	}
 
 	data := BibleIndexData{
@@ -1100,23 +1126,23 @@ func handleLibraryBibles(w http.ResponseWriter, r *http.Request) {
 		WholeWord:                wholeWord,
 		Results:                  results,
 		Total:                    total,
-		Page:                     page,
-		PerPage:                  perPage,
-		TotalPages:               totalPages,
-		PerPageOptions:           perPageOptions,
-		InstalledBibles:          installedBibles,
-		InstallableBibles:        installableBibles,
-		AllInstalledBibles:       allInstalledBibles,
-		AllInstallableBibles:     allInstallableBibles,
-		ManageTagFilter:          manageTagFilter,
-		ManageAvailableTags:      manageAvailableTags,
-		ManageLanguageFilter:     manageLanguageFilter,
-		ManageAvailableLanguages: manageAvailableLanguages,
-		InstalledPage:            installedPage,
-		InstalledTotalPages:      installedTotalPages,
-		InstallablePage:          installablePage,
-		InstallableTotalPages:    installableTotalPages,
-		ManagePerPage:            managePerPage,
+		Page:                     pagination.Page,
+		PerPage:                  pagination.PerPage,
+		TotalPages:               pagination.TotalPages,
+		PerPageOptions:           pagination.PerPageOptions,
+		InstalledBibles:          manageData.InstalledBibles,
+		InstallableBibles:        manageData.InstallableBibles,
+		AllInstalledBibles:       manageData.AllInstalledBibles,
+		AllInstallableBibles:     manageData.AllInstallableBibles,
+		ManageTagFilter:          manageData.TagFilter,
+		ManageAvailableTags:      manageData.AvailableTags,
+		ManageLanguageFilter:     manageData.LanguageFilter,
+		ManageAvailableLanguages: manageData.AvailableLanguages,
+		InstalledPage:            manageData.InstalledPage,
+		InstalledTotalPages:      manageData.InstalledTotalPages,
+		InstallablePage:          manageData.InstallablePage,
+		InstallableTotalPages:    manageData.InstallableTotalPages,
+		ManagePerPage:            manageData.PerPage,
 	}
 
 	if err := Templates.ExecuteTemplate(w, "bible_index.html", data); err != nil {

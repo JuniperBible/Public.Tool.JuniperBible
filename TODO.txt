@@ -1,0 +1,22 @@
+# Code Complexity Reduction TODO
+
+## Round 4 - Completed (11 functions refactored)
+- [x] handleJuniper: CC 63->9, 295->75 lines (13 helpers)
+- [x] handleLibraryBibles: CC 56->6, 262->54 lines (7 helpers)
+- [x] performIRGeneration: CC 27->8, 228->52 lines (8 helpers)
+- [x] performCASToSWORD: CC 26->5, 187->28 lines (10 helpers)
+- [x] runIngestCmd: CC 37->5, 137->29 lines (8 helpers)
+- [x] createModuleCapsule: CC 27->5, 117->26 lines (9 helpers)
+- [x] parseUSFMToIR: CC 30->2, 177->13 lines (10 helpers)
+- [x] parseUSFM SDK: CC 28->7, 127->31 lines (8 helpers)
+- [x] parseUSXToIR: CC 26->6, 92->30 lines (10 helpers)
+- [x] irToECM: CC 27->1, 87->6 lines (8 helpers)
+- [x] performConversion: CC 22->5, 212->34 lines (4 helpers)
+
+## Previous Rounds Completed
+- Round 1: sword-pure timeout fix, initial complexity reductions
+- Round 2: handlers, hugo, mysword, mybible, orderby refactoring
+- Round 3: handlers, mysword, format-sqlite further refactoring
+
+## Remaining High Complexity Functions (CC >= 10)
+See: nix-shell -p python3Packages.lizard --run "lizard -l go -C 8 -w ."

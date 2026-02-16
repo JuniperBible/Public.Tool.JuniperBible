@@ -74,124 +74,145 @@ func cmdList() {
 	}
 }
 
-// runIngestCmd is the core logic for the ingest command, testable with custom I/O.
-func runIngestCmd(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	swordPath := getDefaultSwordPath()
-	outputDir := "capsules"
-	var selectedModules []string
-	ingestAll := false
+// ingestConfig holds parsed command-line configuration for ingestion.
+type ingestConfig struct {
+	swordPath       string
+	outputDir       string
+	selectedModules []string
+	ingestAll       bool
+}
 
-	// Parse arguments
+// parseIngestArgs parses command-line arguments for the ingest command.
+func parseIngestArgs(args []string) ingestConfig {
+	cfg := ingestConfig{
+		swordPath: getDefaultSwordPath(),
+		outputDir: "capsules",
+	}
+
 	for i := 2; i < len(args); i++ {
 		arg := args[i]
 		switch {
 		case arg == "--all" || arg == "-a":
-			ingestAll = true
+			cfg.ingestAll = true
 		case arg == "--output" || arg == "-o":
 			if i+1 < len(args) {
 				i++
-				outputDir = args[i]
+				cfg.outputDir = args[i]
 			}
 		case arg == "--path" || arg == "-p":
 			if i+1 < len(args) {
 				i++
-				swordPath = args[i]
+				cfg.swordPath = args[i]
 			}
 		default:
-			selectedModules = append(selectedModules, arg)
+			cfg.selectedModules = append(cfg.selectedModules, arg)
 		}
 	}
+	return cfg
+}
 
-	// Get available modules
-	modules, err := ListModules(swordPath)
-	if err != nil {
-		return fmt.Errorf("failed to list modules: %w", err)
+// selectModulesToIngest determines which modules to ingest based on configuration.
+func selectModulesToIngest(cfg ingestConfig, bibles []ModuleInfo, stdin io.Reader, stdout, stderr io.Writer) ([]ModuleInfo, error) {
+	if cfg.ingestAll {
+		return bibles, nil
 	}
 
-	// Filter to only Bible modules
+	if len(cfg.selectedModules) > 0 {
+		return selectModulesByName(cfg.selectedModules, bibles, stderr), nil
+	}
+
+	return selectModulesInteractive(bibles, stdin, stdout)
+}
+
+// selectModulesByName finds modules matching the given names.
+func selectModulesByName(names []string, bibles []ModuleInfo, stderr io.Writer) []ModuleInfo {
+	moduleMap := make(map[string]ModuleInfo)
+	for _, m := range bibles {
+		moduleMap[m.Name] = m
+	}
+
+	var selected []ModuleInfo
+	for _, name := range names {
+		if m, ok := moduleMap[name]; ok {
+			selected = append(selected, m)
+		} else {
+			fmt.Fprintf(stderr, "Warning: module '%s' not found\n", name)
+		}
+	}
+	return selected
+}
+
+// selectModulesInteractive prompts the user to select modules interactively.
+func selectModulesInteractive(bibles []ModuleInfo, stdin io.Reader, stdout io.Writer) ([]ModuleInfo, error) {
+	displayModuleList(bibles, stdout)
+
+	fmt.Fprintln(stdout)
+	fmt.Fprintln(stdout, "Enter module numbers to ingest (comma-separated), 'all', or 'q' to quit:")
+	fmt.Fprint(stdout, "> ")
+
+	scanner := bufio.NewScanner(stdin)
+	if !scanner.Scan() {
+		return nil, nil
+	}
+
+	input := scanner.Text()
+	if input == "q" || input == "quit" {
+		return nil, nil
+	}
+	if input == "all" {
+		return bibles, nil
+	}
+
+	return parseModuleSelection(input, bibles), nil
+}
+
+// displayModuleList prints the available modules to stdout.
+func displayModuleList(bibles []ModuleInfo, stdout io.Writer) {
+	fmt.Fprintln(stdout, "Available Bible modules:")
+	for i, m := range bibles {
+		encrypted := ""
+		if m.Encrypted {
+			encrypted = " [encrypted]"
+		}
+		fmt.Fprintf(stdout, "  %2d. %-15s %s%s\n", i+1, m.Name, m.Description, encrypted)
+	}
+}
+
+// parseModuleSelection parses user input for module selection.
+func parseModuleSelection(input string, bibles []ModuleInfo) []ModuleInfo {
+	var selected []ModuleInfo
+	for _, s := range splitAndTrim(input, ",") {
+		var idx int
+		if _, err := fmt.Sscanf(s, "%d", &idx); err == nil {
+			if idx >= 1 && idx <= len(bibles) {
+				selected = append(selected, bibles[idx-1])
+			}
+		} else {
+			// Try as module name
+			for _, m := range bibles {
+				if m.Name == s {
+					selected = append(selected, m)
+					break
+				}
+			}
+		}
+	}
+	return selected
+}
+
+// filterBibleModules returns only Bible modules from the given list.
+func filterBibleModules(modules []ModuleInfo) []ModuleInfo {
 	var bibles []ModuleInfo
 	for _, m := range modules {
 		if m.Type == "Bible" {
 			bibles = append(bibles, m)
 		}
 	}
+	return bibles
+}
 
-	if len(bibles) == 0 {
-		return fmt.Errorf("no Bible modules found in %s", swordPath)
-	}
-
-	// Determine which modules to ingest
-	var toIngest []ModuleInfo
-	if ingestAll {
-		toIngest = bibles
-	} else if len(selectedModules) > 0 {
-		// Find specified modules
-		moduleMap := make(map[string]ModuleInfo)
-		for _, m := range bibles {
-			moduleMap[m.Name] = m
-		}
-		for _, name := range selectedModules {
-			if m, ok := moduleMap[name]; ok {
-				toIngest = append(toIngest, m)
-			} else {
-				fmt.Fprintf(stderr, "Warning: module '%s' not found\n", name)
-			}
-		}
-	} else {
-		// Interactive selection
-		fmt.Fprintln(stdout, "Available Bible modules:")
-		for i, m := range bibles {
-			encrypted := ""
-			if m.Encrypted {
-				encrypted = " [encrypted]"
-			}
-			fmt.Fprintf(stdout, "  %2d. %-15s %s%s\n", i+1, m.Name, m.Description, encrypted)
-		}
-		fmt.Fprintln(stdout)
-		fmt.Fprintln(stdout, "Enter module numbers to ingest (comma-separated), 'all', or 'q' to quit:")
-		fmt.Fprint(stdout, "> ")
-
-		scanner := bufio.NewScanner(stdin)
-		if scanner.Scan() {
-			input := scanner.Text()
-			if input == "q" || input == "quit" {
-				return nil
-			}
-			if input == "all" {
-				toIngest = bibles
-			} else {
-				// Parse comma-separated numbers
-				for _, s := range splitAndTrim(input, ",") {
-					var idx int
-					if _, err := fmt.Sscanf(s, "%d", &idx); err == nil {
-						if idx >= 1 && idx <= len(bibles) {
-							toIngest = append(toIngest, bibles[idx-1])
-						}
-					} else {
-						// Try as module name
-						for _, m := range bibles {
-							if m.Name == s {
-								toIngest = append(toIngest, m)
-								break
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if len(toIngest) == 0 {
-		fmt.Fprintln(stdout, "No modules selected for ingestion.")
-		return nil
-	}
-
-	// Create output directory
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("error creating output directory: %w", err)
-	}
-
-	// Ingest each module
+// ingestModules processes each module and creates capsules.
+func ingestModules(toIngest []ModuleInfo, swordPath, outputDir string, stdout, stderr io.Writer) {
 	fmt.Fprintf(stdout, "\nIngesting %d module(s) to %s/\n\n", len(toIngest), outputDir)
 	for _, m := range toIngest {
 		if m.Encrypted {
@@ -210,6 +231,37 @@ func runIngestCmd(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		}
 	}
 	fmt.Fprintln(stdout, "\nDone!")
+}
+
+// runIngestCmd is the core logic for the ingest command, testable with custom I/O.
+func runIngestCmd(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	cfg := parseIngestArgs(args)
+
+	modules, err := ListModules(cfg.swordPath)
+	if err != nil {
+		return fmt.Errorf("failed to list modules: %w", err)
+	}
+
+	bibles := filterBibleModules(modules)
+	if len(bibles) == 0 {
+		return fmt.Errorf("no Bible modules found in %s", cfg.swordPath)
+	}
+
+	toIngest, err := selectModulesToIngest(cfg, bibles, stdin, stdout, stderr)
+	if err != nil {
+		return err
+	}
+
+	if len(toIngest) == 0 {
+		fmt.Fprintln(stdout, "No modules selected for ingestion.")
+		return nil
+	}
+
+	if err := os.MkdirAll(cfg.outputDir, 0755); err != nil {
+		return fmt.Errorf("error creating output directory: %w", err)
+	}
+
+	ingestModules(toIngest, cfg.swordPath, cfg.outputDir, stdout, stderr)
 	return nil
 }
 
@@ -289,97 +341,166 @@ func trimSpace(s string) string {
 // createModuleCapsule creates a capsule from a SWORD module.
 // The capsule includes the SWORD module data and extracted IR.
 func createModuleCapsule(swordPath string, module ModuleInfo, outputPath string) error {
-	// Find the conf file
-	confPath := filepath.Join(swordPath, "mods.d", module.Name+".conf")
+	confPath, conf, err := findAndParseConf(swordPath, module.Name)
+	if err != nil {
+		return err
+	}
 
-	// Try lowercase if not found
+	dataPath, fullDataPath, err := resolveDataPath(swordPath, conf)
+	if err != nil {
+		return err
+	}
+
+	tempDir, err := setupTempDirectory(confPath, dataPath, fullDataPath)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempDir)
+
+	irDir := filepath.Join(tempDir, "ir")
+	extractModuleIR(conf, swordPath, irDir)
+
+	if err := writeManifest(tempDir, module, conf, irDir); err != nil {
+		return err
+	}
+
+	return createTarGZ(tempDir, outputPath)
+}
+
+// findAndParseConf locates the configuration file and parses it.
+func findAndParseConf(swordPath, moduleName string) (string, *ConfFile, error) {
+	confPath := filepath.Join(swordPath, "mods.d", moduleName+".conf")
+
 	if _, err := os.Stat(confPath); errors.Is(err, os.ErrNotExist) {
-		entries, _ := os.ReadDir(filepath.Join(swordPath, "mods.d"))
-		for _, e := range entries {
-			name := e.Name()
-			if len(name) > 5 && name[len(name)-5:] == ".conf" {
-				baseName := name[:len(name)-5]
-				if strings.EqualFold(baseName, module.Name) {
-					confPath = filepath.Join(swordPath, "mods.d", name)
-					break
-				}
-			}
-		}
+		confPath = findConfCaseInsensitive(swordPath, moduleName)
 	}
 
 	conf, err := ParseConfFile(confPath)
 	if err != nil {
-		return fmt.Errorf("failed to parse conf: %w", err)
+		return "", nil, fmt.Errorf("failed to parse conf: %w", err)
 	}
 
-	// Determine the data path
+	return confPath, conf, nil
+}
+
+// findConfCaseInsensitive searches for a configuration file case-insensitively.
+func findConfCaseInsensitive(swordPath, moduleName string) string {
+	modsDir := filepath.Join(swordPath, "mods.d")
+	entries, _ := os.ReadDir(modsDir)
+	for _, e := range entries {
+		name := e.Name()
+		if len(name) > 5 && name[len(name)-5:] == ".conf" {
+			baseName := name[:len(name)-5]
+			if strings.EqualFold(baseName, moduleName) {
+				return filepath.Join(modsDir, name)
+			}
+		}
+	}
+	return filepath.Join(modsDir, moduleName+".conf")
+}
+
+// resolveDataPath determines and validates the module data path.
+func resolveDataPath(swordPath string, conf *ConfFile) (string, string, error) {
 	dataPath := conf.DataPath
 	if dataPath == "" {
-		return fmt.Errorf("no DataPath in conf file")
+		return "", "", fmt.Errorf("no DataPath in conf file")
 	}
 
-	// DataPath is relative to SWORD root, clean it
+	dataPath = cleanDataPath(dataPath)
+	fullDataPath := filepath.Join(swordPath, dataPath)
+
+	if _, err := os.Stat(fullDataPath); errors.Is(err, os.ErrNotExist) {
+		return "", "", fmt.Errorf("data path not found: %s", fullDataPath)
+	}
+
+	return dataPath, fullDataPath, nil
+}
+
+// cleanDataPath removes "./" prefix from relative paths.
+func cleanDataPath(dataPath string) string {
 	dataPath = filepath.Clean(dataPath)
 	if len(dataPath) > 0 && dataPath[0] == '.' {
 		if len(dataPath) > 2 {
-			dataPath = dataPath[2:] // Remove "./" prefix
-		} else {
-			dataPath = ""
+			return dataPath[2:]
 		}
+		return ""
 	}
+	return dataPath
+}
 
-	fullDataPath := filepath.Join(swordPath, dataPath)
-	if _, err := os.Stat(fullDataPath); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("data path not found: %s", fullDataPath)
-	}
-
-	// Create a temp directory for capsule contents (files at root level)
+// setupTempDirectory creates and populates the temporary directory structure.
+func setupTempDirectory(confPath, dataPath, fullDataPath string) (string, error) {
 	tempDir, err := os.MkdirTemp("", "sword-capsule-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
+		return "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
 
-	// Create SWORD structure at root level
+	if err := copyConfFile(tempDir, confPath); err != nil {
+		os.RemoveAll(tempDir)
+		return "", err
+	}
+
+	if err := copyModuleData(tempDir, dataPath, fullDataPath); err != nil {
+		os.RemoveAll(tempDir)
+		return "", err
+	}
+
+	return tempDir, nil
+}
+
+// copyConfFile copies the configuration file to the temporary directory.
+func copyConfFile(tempDir, confPath string) error {
 	modsDir := filepath.Join(tempDir, "mods.d")
 	if err := os.MkdirAll(modsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create mods.d: %w", err)
 	}
 
-	// Copy conf file
 	confData, err := safefile.ReadFile(confPath)
 	if err != nil {
 		return fmt.Errorf("failed to read conf: %w", err)
 	}
+
 	destConfPath := filepath.Join(modsDir, filepath.Base(confPath))
 	if err := os.WriteFile(destConfPath, confData, 0644); err != nil {
 		return fmt.Errorf("failed to write conf: %w", err)
 	}
 
-	// Copy module data
+	return nil
+}
+
+// copyModuleData copies the module data to the temporary directory.
+func copyModuleData(tempDir, dataPath, fullDataPath string) error {
 	destDataPath := filepath.Join(tempDir, dataPath)
 	if err := os.MkdirAll(filepath.Dir(destDataPath), 0755); err != nil {
 		return fmt.Errorf("failed to create data dir: %w", err)
 	}
+
 	if err := fileutil.CopyDir(fullDataPath, destDataPath); err != nil {
 		return fmt.Errorf("failed to copy data: %w", err)
 	}
 
-	// Extract IR from the module (if it's a supported type)
-	irDir := filepath.Join(tempDir, "ir")
+	return nil
+}
+
+// extractModuleIR extracts IR for supported Bible modules.
+func extractModuleIR(conf *ConfFile, swordPath, irDir string) {
 	if err := os.MkdirAll(irDir, 0755); err != nil {
-		return fmt.Errorf("failed to create ir dir: %w", err)
+		return
 	}
 
-	// Try to extract IR for Bible modules (skip if testing to speed up)
-	if !skipIRExtraction && conf.ModuleType() == "Bible" && conf.IsCompressed() && !conf.IsEncrypted() {
+	if skipIRExtraction {
+		return
+	}
+
+	if conf.ModuleType() == "Bible" && conf.IsCompressed() && !conf.IsEncrypted() {
 		if err := extractIRToCapsule(conf, swordPath, irDir); err != nil {
-			// Log but don't fail - IR is optional
 			fmt.Printf("  Warning: Could not extract IR: %v\n", err)
 		}
 	}
+}
 
-	// Create manifest.json at root level
+// writeManifest creates and writes the manifest.json file.
+func writeManifest(tempDir string, module ModuleInfo, conf *ConfFile, irDir string) error {
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 		"module_type":     "bible",
@@ -390,17 +511,15 @@ func createModuleCapsule(swordPath string, module ModuleInfo, outputPath string)
 		"versification":   conf.Versification,
 		"has_ir":          hasFilesInDir(irDir),
 	}
+
 	manifestData, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(tempDir, "manifest.json"), manifestData, 0644); err != nil {
-		return fmt.Errorf("failed to write manifest: %w", err)
-	}
 
-	// Create tar.gz archive (files at root level)
-	if err := createTarGZ(tempDir, outputPath); err != nil {
-		return fmt.Errorf("failed to create archive: %w", err)
+	manifestPath := filepath.Join(tempDir, "manifest.json")
+	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
+		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 
 	return nil

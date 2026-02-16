@@ -89,132 +89,163 @@ func detectUSFM(path string) (*ipc.DetectResult, error) {
 	return &ipc.DetectResult{Detected: false, Reason: "not a USFM file"}, nil
 }
 
+type parseContext struct {
+	corpus         *ir.Corpus
+	currentDoc     *ir.Document
+	currentChapter int
+	blockSeq       int
+}
+
+func initCorpus(data []byte) *ir.Corpus {
+	content := string(data)
+	sourceHash := sha256.Sum256(data)
+	corpus := ir.NewCorpus("", "BIBLE", "")
+	corpus.SourceFormat = "USFM"
+	corpus.SourceHash = hex.EncodeToString(sourceHash[:])
+	corpus.LossClass = "L0"
+	corpus.Attributes = map[string]string{"_usfm_raw": content}
+	return corpus
+}
+
+func parseMarkerLine(line string) (marker, value string, ok bool) {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || !strings.HasPrefix(trimmed, "\\") {
+		return "", "", false
+	}
+	parts := strings.SplitN(trimmed, " ", 2)
+	marker = strings.TrimPrefix(parts[0], "\\")
+	if len(parts) > 1 {
+		value = parts[1]
+	}
+	return marker, value, true
+}
+
+func handleIDMarker(ctx *parseContext, value string) {
+	idParts := strings.Fields(value)
+	if len(idParts) == 0 {
+		return
+	}
+	bookID := strings.ToUpper(idParts[0])
+	ctx.corpus.ID = bookID
+	ctx.currentDoc = ir.NewDocument(bookID, "", len(ctx.corpus.Documents)+1)
+	if name, ok := bookNames[bookID]; ok {
+		ctx.currentDoc.Title = name
+	}
+	ctx.corpus.Documents = append(ctx.corpus.Documents, ctx.currentDoc)
+}
+
+func handleMetadataMarker(ctx *parseContext, marker, value string) {
+	if ctx.currentDoc == nil || value == "" {
+		return
+	}
+	if marker == "h" && ctx.currentDoc.Title == "" {
+		ctx.currentDoc.Title = value
+	}
+	if ctx.currentDoc.Attributes == nil {
+		ctx.currentDoc.Attributes = make(map[string]string)
+	}
+	ctx.currentDoc.Attributes[marker] = value
+}
+
+func handleTitleMarker(ctx *parseContext, value string) {
+	if ctx.corpus.Title == "" && value != "" {
+		ctx.corpus.Title = value
+	}
+}
+
+func handleChapterMarker(ctx *parseContext, value string) {
+	if matches := chapterRegex.FindStringSubmatch(value); len(matches) > 0 {
+		ctx.currentChapter, _ = strconv.Atoi(matches[1])
+	}
+}
+
+func createVerseBlock(ctx *parseContext, verseText string, verseNum, verseEnd int) *ir.ContentBlock {
+	ctx.blockSeq++
+	osisID := fmt.Sprintf("%s.%d.%d", ctx.corpus.ID, ctx.currentChapter, verseNum)
+	hash := sha256.Sum256([]byte(verseText))
+	return &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", ctx.blockSeq),
+		Sequence: ctx.blockSeq,
+		Text:     verseText,
+		Hash:     hex.EncodeToString(hash[:]),
+		Anchors: []*ir.Anchor{{
+			ID:       fmt.Sprintf("a-%d-0", ctx.blockSeq),
+			Position: 0,
+			Spans: []*ir.Span{{
+				ID:            fmt.Sprintf("s-%s", osisID),
+				Type:          "VERSE",
+				StartAnchorID: fmt.Sprintf("a-%d-0", ctx.blockSeq),
+				Ref:           &ir.Ref{Book: ctx.corpus.ID, Chapter: ctx.currentChapter, Verse: verseNum, VerseEnd: verseEnd, OSISID: osisID},
+			}},
+		}},
+	}
+}
+
+func handleVerseMarker(ctx *parseContext, value string) {
+	if ctx.currentDoc == nil {
+		return
+	}
+	verseText := value
+	verseNum, verseEnd := 0, 0
+	if matches := verseNumRegex.FindStringSubmatch(value); len(matches) > 0 {
+		verseNum, _ = strconv.Atoi(matches[1])
+		if matches[2] != "" {
+			verseEnd, _ = strconv.Atoi(matches[2])
+		}
+		verseText = strings.TrimSpace(value[len(matches[0]):])
+	}
+	if verseText != "" {
+		cb := createVerseBlock(ctx, verseText, verseNum, verseEnd)
+		ctx.currentDoc.ContentBlocks = append(ctx.currentDoc.ContentBlocks, cb)
+	}
+}
+
+func handleParagraphMarker(ctx *parseContext, value string) {
+	if ctx.currentDoc == nil || value == "" {
+		return
+	}
+	ctx.blockSeq++
+	hash := sha256.Sum256([]byte(value))
+	cb := &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", ctx.blockSeq),
+		Sequence: ctx.blockSeq,
+		Text:     value,
+		Hash:     hex.EncodeToString(hash[:]),
+	}
+	ctx.currentDoc.ContentBlocks = append(ctx.currentDoc.ContentBlocks, cb)
+}
+
 func parseUSFM(path string) (*ir.Corpus, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	content := string(data)
-	sourceHash := sha256.Sum256(data)
-
-	corpus := ir.NewCorpus("", "BIBLE", "")
-	corpus.SourceFormat = "USFM"
-	corpus.SourceHash = hex.EncodeToString(sourceHash[:])
-	corpus.LossClass = "L0"
-	corpus.Attributes = map[string]string{"_usfm_raw": content}
-
-	var currentDoc *ir.Document
-	var currentChapter int
-	var blockSeq int
-
+	ctx := &parseContext{corpus: initCorpus(data)}
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+		marker, value, ok := parseMarkerLine(scanner.Text())
+		if !ok {
 			continue
 		}
 
-		if strings.HasPrefix(trimmed, "\\") {
-			parts := strings.SplitN(trimmed, " ", 2)
-			marker := strings.TrimPrefix(parts[0], "\\")
-			var value string
-			if len(parts) > 1 {
-				value = parts[1]
-			}
-
-			switch marker {
-			case "id":
-				idParts := strings.Fields(value)
-				if len(idParts) > 0 {
-					bookID := strings.ToUpper(idParts[0])
-					corpus.ID = bookID
-					currentDoc = ir.NewDocument(bookID, "", len(corpus.Documents)+1)
-					if name, ok := bookNames[bookID]; ok {
-						currentDoc.Title = name
-					}
-					corpus.Documents = append(corpus.Documents, currentDoc)
-				}
-
-			case "h", "toc1", "toc2", "toc3":
-				if currentDoc != nil && value != "" {
-					if marker == "h" && currentDoc.Title == "" {
-						currentDoc.Title = value
-					}
-					if currentDoc.Attributes == nil {
-						currentDoc.Attributes = make(map[string]string)
-					}
-					currentDoc.Attributes[marker] = value
-				}
-
-			case "mt", "mt1", "mt2", "mt3":
-				if corpus.Title == "" && value != "" {
-					corpus.Title = value
-				}
-
-			case "c":
-				if matches := chapterRegex.FindStringSubmatch(value); len(matches) > 0 {
-					currentChapter, _ = strconv.Atoi(matches[1])
-				}
-
-			case "v":
-				if currentDoc != nil {
-					verseText := value
-					verseNum := 0
-					verseEnd := 0
-
-					if matches := verseNumRegex.FindStringSubmatch(value); len(matches) > 0 {
-						verseNum, _ = strconv.Atoi(matches[1])
-						if matches[2] != "" {
-							verseEnd, _ = strconv.Atoi(matches[2])
-						}
-						verseText = strings.TrimSpace(value[len(matches[0]):])
-					}
-
-					if verseText != "" {
-						blockSeq++
-						osisID := fmt.Sprintf("%s.%d.%d", corpus.ID, currentChapter, verseNum)
-						hash := sha256.Sum256([]byte(verseText))
-
-						cb := &ir.ContentBlock{
-							ID:       fmt.Sprintf("cb-%d", blockSeq),
-							Sequence: blockSeq,
-							Text:     verseText,
-							Hash:     hex.EncodeToString(hash[:]),
-							Anchors: []*ir.Anchor{{
-								ID:       fmt.Sprintf("a-%d-0", blockSeq),
-								Position: 0,
-								Spans: []*ir.Span{{
-									ID:            fmt.Sprintf("s-%s", osisID),
-									Type:          "VERSE",
-									StartAnchorID: fmt.Sprintf("a-%d-0", blockSeq),
-									Ref:           &ir.Ref{Book: corpus.ID, Chapter: currentChapter, Verse: verseNum, VerseEnd: verseEnd, OSISID: osisID},
-								}},
-							}},
-						}
-
-						currentDoc.ContentBlocks = append(currentDoc.ContentBlocks, cb)
-					}
-				}
-
-			case "p", "m", "pi", "mi", "nb":
-				if currentDoc != nil && value != "" {
-					blockSeq++
-					hash := sha256.Sum256([]byte(value))
-					cb := &ir.ContentBlock{
-						ID:       fmt.Sprintf("cb-%d", blockSeq),
-						Sequence: blockSeq,
-						Text:     value,
-						Hash:     hex.EncodeToString(hash[:]),
-					}
-					currentDoc.ContentBlocks = append(currentDoc.ContentBlocks, cb)
-				}
-			}
+		switch marker {
+		case "id":
+			handleIDMarker(ctx, value)
+		case "h", "toc1", "toc2", "toc3":
+			handleMetadataMarker(ctx, marker, value)
+		case "mt", "mt1", "mt2", "mt3":
+			handleTitleMarker(ctx, value)
+		case "c":
+			handleChapterMarker(ctx, value)
+		case "v":
+			handleVerseMarker(ctx, value)
+		case "p", "m", "pi", "mi", "nb":
+			handleParagraphMarker(ctx, value)
 		}
 	}
 
-	return corpus, nil
+	return ctx.corpus, nil
 }
 
 func emitUSFM(corpus *ir.Corpus, outputDir string) (string, error) {

@@ -356,8 +356,13 @@ func annotationsToJSON(annotations []*Annotation) []interface{} {
 
 func irToECM(corpus map[string]interface{}) *ECMXML {
 	ecm := &ECMXML{}
+	extractCorpusAttributes(corpus, ecm)
+	ecm.Header = extractHeader(corpus)
+	ecm.Apparatus = extractApparatus(corpus)
+	return ecm
+}
 
-	// Handle both map[string]interface{} and map[string]string
+func extractCorpusAttributes(corpus map[string]interface{}, ecm *ECMXML) {
 	if attrs, ok := corpus["attributes"].(map[string]interface{}); ok {
 		if book, ok := attrs["book"].(string); ok {
 			ecm.Book = book
@@ -373,73 +378,104 @@ func irToECM(corpus map[string]interface{}) *ECMXML {
 		ecm.Chapter = attrs["chapter"]
 		ecm.Edition = attrs["edition"]
 	}
+}
 
+func extractHeader(corpus map[string]interface{}) *ECMHeader {
 	title, _ := corpus["title"].(string)
 	description, _ := corpus["description"].(string)
 	publisher, _ := corpus["publisher"].(string)
 	rights, _ := corpus["rights"].(string)
 
 	if title != "" || description != "" || publisher != "" || rights != "" {
-		ecm.Header = &ECMHeader{
+		return &ECMHeader{
 			Title:       title,
 			Description: description,
 			Publisher:   publisher,
 			Rights:      rights,
 		}
 	}
+	return nil
+}
 
-	// Convert documents back to apparatus entries
-	if docs, ok := corpus["documents"].([]interface{}); ok {
-		for _, docIface := range docs {
-			if doc, ok := docIface.(map[string]interface{}); ok {
-				app := &Apparatus{}
-
-				// Handle both map[string]interface{} and map[string]string
-				if attrs, ok := doc["attributes"].(map[string]interface{}); ok {
-					if id, ok := attrs["apparatus_id"].(string); ok {
-						app.ID = id
-					}
-					if verse, ok := attrs["verse"].(string); ok {
-						app.Verse = verse
-					}
-					if unit, ok := attrs["unit"].(string); ok {
-						app.Unit = unit
-					}
-				} else if attrs, ok := doc["attributes"].(map[string]string); ok {
-					app.ID = attrs["apparatus_id"]
-					app.Verse = attrs["verse"]
-					app.Unit = attrs["unit"]
-				}
-
-				if blocks, ok := doc["content_blocks"].([]interface{}); ok && len(blocks) > 0 {
-					if block, ok := blocks[0].(map[string]interface{}); ok {
-						if text, ok := block["text"].(string); ok {
-							app.BaseText = text
-						}
-
-						if attrs, ok := block["attributes"].(map[string]interface{}); ok {
-							if variantsData, ok := attrs["variants"]; ok {
-								app.Variants = jsonToVariants(variantsData)
-							}
-							if witnessesData, ok := attrs["witnesses"]; ok {
-								app.Witnesses = jsonToWitnesses(witnessesData)
-							}
-							if commentary, ok := attrs["commentary"].(string); ok {
-								app.Commentary = commentary
-							}
-							if annotationsData, ok := attrs["annotations"]; ok {
-								app.Annotations = jsonToAnnotations(annotationsData)
-							}
-						}
-					}
-				}
-
-				ecm.Apparatus = append(ecm.Apparatus, app)
-			}
-		}
+func extractApparatus(corpus map[string]interface{}) []*Apparatus {
+	var result []*Apparatus
+	docs, ok := corpus["documents"].([]interface{})
+	if !ok {
+		return result
 	}
 
-	return ecm
+	for _, docIface := range docs {
+		doc, ok := docIface.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		app := buildApparatusFromDoc(doc)
+		result = append(result, app)
+	}
+	return result
+}
+
+func buildApparatusFromDoc(doc map[string]interface{}) *Apparatus {
+	app := &Apparatus{}
+	extractApparatusAttributes(doc, app)
+	extractContentBlocks(doc, app)
+	return app
+}
+
+func extractApparatusAttributes(doc map[string]interface{}, app *Apparatus) {
+	if attrs, ok := doc["attributes"].(map[string]interface{}); ok {
+		if id, ok := attrs["apparatus_id"].(string); ok {
+			app.ID = id
+		}
+		if verse, ok := attrs["verse"].(string); ok {
+			app.Verse = verse
+		}
+		if unit, ok := attrs["unit"].(string); ok {
+			app.Unit = unit
+		}
+	} else if attrs, ok := doc["attributes"].(map[string]string); ok {
+		app.ID = attrs["apparatus_id"]
+		app.Verse = attrs["verse"]
+		app.Unit = attrs["unit"]
+	}
+}
+
+func extractContentBlocks(doc map[string]interface{}, app *Apparatus) {
+	blocks, ok := doc["content_blocks"].([]interface{})
+	if !ok || len(blocks) == 0 {
+		return
+	}
+
+	block, ok := blocks[0].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	if text, ok := block["text"].(string); ok {
+		app.BaseText = text
+	}
+
+	extractBlockAttributes(block, app)
+}
+
+func extractBlockAttributes(block map[string]interface{}, app *Apparatus) {
+	attrs, ok := block["attributes"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	if variantsData, ok := attrs["variants"]; ok {
+		app.Variants = jsonToVariants(variantsData)
+	}
+	if witnessesData, ok := attrs["witnesses"]; ok {
+		app.Witnesses = jsonToWitnesses(witnessesData)
+	}
+	if commentary, ok := attrs["commentary"].(string); ok {
+		app.Commentary = commentary
+	}
+	if annotationsData, ok := attrs["annotations"]; ok {
+		app.Annotations = jsonToAnnotations(annotationsData)
+	}
 }
 
 func jsonToVariants(data interface{}) []*Variant {

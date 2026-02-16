@@ -14,7 +14,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,11 +35,54 @@ func main() {
 	format.Run(&format.Config{
 		Name:       "format-example",
 		Extensions: []string{".example"},
-		Detect:     detect,
-		Parse:      parse,
-		Emit:       emit,
-		Enumerate:  enumerate,
+		Detect:     detectWrapper,
+		Parse:      parseWrapper,
+		Emit:       emitWrapper,
+		Enumerate:  enumerateWrapper,
 	})
+}
+
+// detectWrapper wraps detect to match SDK signature: func(path string) (*ipc.DetectResult, error)
+func detectWrapper(path string) (*ipc.DetectResult, error) {
+	detected, format, err := detect(path)
+	if err != nil {
+		return nil, err
+	}
+	return &ipc.DetectResult{
+		Detected: detected,
+		Format:   format,
+	}, nil
+}
+
+// parseWrapper wraps parse to match SDK signature: func(path string) (*ir.Corpus, error)
+func parseWrapper(path string) (*ir.Corpus, error) {
+	// Use empty string for outputDir since SDK handles output directory management
+	_, _, corpus, err := parse(path, "")
+	return corpus, err
+}
+
+// emitWrapper wraps emit to match SDK signature: func(corpus *ir.Corpus, outputDir string) (string, error)
+func emitWrapper(corpus *ir.Corpus, outputDir string) (string, error) {
+	// Use empty string for formatVariant as default
+	return emit(corpus, outputDir, "")
+}
+
+// enumerateWrapper wraps enumerate to match SDK signature: func(path string) (*ipc.EnumerateResult, error)
+func enumerateWrapper(path string) (*ipc.EnumerateResult, error) {
+	ptrEntries, err := enumerate(path)
+	if err != nil {
+		return nil, err
+	}
+	// Convert []*ipc.EnumerateEntry to []ipc.EnumerateEntry
+	entries := make([]ipc.EnumerateEntry, len(ptrEntries))
+	for i, e := range ptrEntries {
+		if e != nil {
+			entries[i] = *e
+		}
+	}
+	return &ipc.EnumerateResult{
+		Entries: entries,
+	}, nil
 }
 
 // detect determines if this plugin can handle the given file.
@@ -185,7 +227,7 @@ func parse(path string, outputDir string) (artifactID string, blobHash string, c
 //   - size_bytes: int64 - Size in bytes
 //   - is_dir: bool - Whether this is a directory
 //   - metadata: map[string]string (optional) - Additional metadata
-func enumerate(path string) ([]*ir.EnumerateEntry, error) {
+func enumerate(path string) ([]*ipc.EnumerateEntry, error) {
 	if NoopMode {
 		return nil, fmt.Errorf("noop plugin - enumerate not supported")
 	}
@@ -202,7 +244,7 @@ func enumerate(path string) ([]*ir.EnumerateEntry, error) {
 	}
 
 	// Example: Single file
-	entries := []*ir.EnumerateEntry{
+	entries := []*ipc.EnumerateEntry{
 		{
 			Path:      filepath.Base(path),
 			SizeBytes: info.Size(),
@@ -214,7 +256,7 @@ func enumerate(path string) ([]*ir.EnumerateEntry, error) {
 	}
 
 	// Example: Multiple files in archive
-	// entries := []*ir.EnumerateEntry{
+	// entries := []*ipc.EnumerateEntry{
 	//     {Path: "book1.txt", SizeBytes: 1024, IsDir: false},
 	//     {Path: "book2.txt", SizeBytes: 2048, IsDir: false},
 	//     {Path: "metadata/", SizeBytes: 0, IsDir: true},

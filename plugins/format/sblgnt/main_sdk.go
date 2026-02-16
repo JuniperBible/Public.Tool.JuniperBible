@@ -27,11 +27,16 @@ import (
 )
 
 func main() {
-	format.Run(
-		Detect,
-		Parse,
-		Emit,
-	)
+	if err := format.Run(&format.Config{
+		Name:       "sblgnt",
+		Extensions: []string{".txt", ".tsv", ".sblgnt"},
+		Detect:     Detect,
+		Parse:      Parse,
+		Emit:       Emit,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // Detect checks if the given path is an SBLGNT format file.

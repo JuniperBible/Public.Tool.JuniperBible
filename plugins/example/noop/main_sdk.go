@@ -28,16 +28,15 @@ func main() {
 // detect always returns false - this is a placeholder plugin.
 func detect(path string) (*ipc.DetectResult, error) {
 	return &ipc.DetectResult{
-		Detected:   false,
-		Confidence: 0,
-		Format:     "noop",
-		Message:    "noop plugin - placeholder for external/premium plugins",
+		Detected: false,
+		Format:   "noop",
+		Reason:   "noop plugin - placeholder for external/premium plugins",
 	}, nil
 }
 
 // parse returns an empty corpus - this is a placeholder plugin.
 func parse(path string) (*ir.Corpus, error) {
-	return ir.NewCorpus(), nil
+	return ir.NewCorpus("noop", "placeholder", "0.0.0"), nil
 }
 
 // emit does nothing - this is a placeholder plugin.

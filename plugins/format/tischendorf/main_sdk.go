@@ -25,7 +25,16 @@ import (
 )
 
 func main() {
-	format.Run(Detect, Parse, Emit)
+	if err := format.Run(&format.Config{
+		Name:       "tischendorf",
+		Extensions: []string{".txt"},
+		Detect:     Detect,
+		Parse:      Parse,
+		Emit:       Emit,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // Detect checks if the given path is a Tischendorf format file.

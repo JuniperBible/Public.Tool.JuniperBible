@@ -38,15 +38,18 @@ type SwordModule struct {
 	Encoding    string
 }
 
-func mainSDK() error {
-	return format.Run(&format.Config{
+func main() {
+	if err := format.Run(&format.Config{
 		Name:       "sword",
 		Extensions: []string{}, // SWORD uses directories, not file extensions
 		Detect:     detectSwordModule,
 		Parse:      parseSwordModule,
 		Emit:       emitSwordModule,
 		Enumerate:  enumerateSwordModule,
-	})
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // detectSwordModule detects SWORD module directories.

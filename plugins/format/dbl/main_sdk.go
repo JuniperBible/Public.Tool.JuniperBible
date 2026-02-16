@@ -74,11 +74,23 @@ func main() {
 	format.Run(&format.Config{
 		Name:       "format-dbl",
 		Extensions: []string{".zip", ".dbl"},
-		Detect:     detect,
+		Detect:     detectWrapper,
 		Parse:      parse,
 		Emit:       emit,
 		Enumerate:  enumerate,
 	})
+}
+
+func detectWrapper(path string) (*ipc.DetectResult, error) {
+	detected, reason, err := detect(path)
+	if err != nil {
+		return nil, err
+	}
+	return &ipc.DetectResult{
+		Detected: detected,
+		Format:   "DBL",
+		Reason:   reason,
+	}, nil
 }
 
 func detect(path string) (bool, string, error) {

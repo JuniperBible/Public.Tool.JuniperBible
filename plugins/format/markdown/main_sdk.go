@@ -29,13 +29,41 @@ func main() {
 	if err := format.Run(&format.Config{
 		Name:       "Markdown",
 		Extensions: []string{".md"},
-		Detect:     detectMarkdown,
+		Detect:     detectMarkdownWrapper,
 		Parse:      parseMarkdown,
-		Emit:       emitMarkdown,
+		Emit:       emitMarkdownWrapper,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// detectMarkdownWrapper adapts detectMarkdown to the SDK signature
+func detectMarkdownWrapper(path string) (*ipc.DetectResult, error) {
+	detected, reason, err := detectMarkdown(path)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &ipc.DetectResult{
+		Detected: detected,
+		Reason:   reason,
+	}
+
+	if detected {
+		result.Format = "Markdown"
+	}
+
+	return result, nil
+}
+
+// emitMarkdownWrapper adapts emitMarkdown to the SDK signature
+func emitMarkdownWrapper(corpus *ir.Corpus, outputDir string) (string, error) {
+	err := emitMarkdown(corpus, outputDir)
+	if err != nil {
+		return "", err
+	}
+	return outputDir, nil
 }
 
 // detectMarkdown checks if the file/directory is a Markdown Bible format

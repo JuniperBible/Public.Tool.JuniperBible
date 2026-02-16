@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -54,13 +55,65 @@ func main() {
 	if err := format.Run(&format.Config{
 		Name:       "Zefania",
 		Extensions: []string{".xml"},
-		Detect:     detectZefania,
-		Parse:      parseZefania,
-		Emit:       emitZefania,
+		Detect:     detectZefaniaWrapper,
+		Parse:      parseZefaniaWrapper,
+		Emit:       emitZefaniaWrapper,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// detectZefaniaWrapper reads the file and returns SDK-compatible DetectResult
+func detectZefaniaWrapper(path string) (*ipc.DetectResult, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	detected, reason := detectZefania(data)
+	return &ipc.DetectResult{
+		Detected: detected,
+		Format:   "Zefania",
+		Reason:   reason,
+	}, nil
+}
+
+// parseZefaniaWrapper reads the file and calls the existing parser
+func parseZefaniaWrapper(path string) (*ir.Corpus, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return parseZefania(data)
+}
+
+// emitZefaniaWrapper writes the corpus to the output directory
+func emitZefaniaWrapper(corpus *ir.Corpus, outputDir string) (string, error) {
+	data, lossReport, err := emitZefania(corpus)
+	if err != nil {
+		return "", err
+	}
+
+	// Determine output filename
+	filename := corpus.ID
+	if filename == "" {
+		filename = "output"
+	}
+	filename = sanitizeID(filename) + ".xml"
+
+	outputPath := filepath.Join(outputDir, filename)
+
+	// Write the file
+	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+		return "", err
+	}
+
+	// Log loss report if needed
+	if lossReport != nil && len(lossReport.Warnings) > 0 {
+		fmt.Fprintf(os.Stderr, "Loss report: %s\n", strings.Join(lossReport.Warnings, "; "))
+	}
+
+	return outputPath, nil
 }
 
 func detectZefania(data []byte) (bool, string) {

@@ -25,11 +25,20 @@ import (
 )
 
 func main() {
-	format.Run(Detect, Parse, Emit)
+	if err := format.Run(&format.Config{
+		Name:       "RTF",
+		Extensions: []string{".rtf"},
+		Detect:     detectFunc,
+		Parse:      parseFunc,
+		Emit:       emitFunc,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
-// Detect checks if the file is a valid RTF Bible file
-func Detect(path string) (*ipc.DetectResult, error) {
+// detectFunc checks if the file is a valid RTF Bible file
+func detectFunc(path string) (*ipc.DetectResult, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext != ".rtf" {
 		return &ipc.DetectResult{
@@ -61,8 +70,8 @@ func Detect(path string) (*ipc.DetectResult, error) {
 	}, nil
 }
 
-// Parse reads an RTF file and converts it to IR
-func Parse(path string) (*ir.Corpus, error) {
+// parseFunc reads an RTF file and converts it to IR
+func parseFunc(path string) (*ir.Corpus, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
@@ -90,8 +99,8 @@ func Parse(path string) (*ir.Corpus, error) {
 	return corpus, nil
 }
 
-// Emit converts IR to RTF format
-func Emit(corpus *ir.Corpus, outputDir string) (string, error) {
+// emitFunc converts IR to RTF format
+func emitFunc(corpus *ir.Corpus, outputDir string) (string, error) {
 	outputPath := filepath.Join(outputDir, corpus.ID+".rtf")
 
 	// Check for raw RTF for round-trip

@@ -51,13 +51,25 @@ func main() {
 	if err := format.Run(&format.Config{
 		Name:       "USX",
 		Extensions: []string{".usx"},
-		Detect:     detectUSX,
+		Detect:     detectUSXWrapper,
 		Parse:      parseUSX,
 		Emit:       emitUSX,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func detectUSXWrapper(path string) (*ipc.DetectResult, error) {
+	detected, reason, err := detectUSX(path)
+	if err != nil {
+		return nil, err
+	}
+	return &ipc.DetectResult{
+		Detected: detected,
+		Format:   "USX",
+		Reason:   reason,
+	}, nil
 }
 
 func detectUSX(path string) (bool, string, error) {

@@ -26,11 +26,16 @@ import (
 )
 
 func main() {
-	format.Run(
-		detect,
-		parse,
-		emit,
-	)
+	if err := format.Run(&format.Config{
+		Name:       "onlinebible",
+		Extensions: []string{".ont"},
+		Detect:     detect,
+		Parse:      parse,
+		Emit:       emit,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // detect determines if the file is in OnlineBible format

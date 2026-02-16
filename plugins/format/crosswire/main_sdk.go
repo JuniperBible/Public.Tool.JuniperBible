@@ -7,7 +7,6 @@ package main
 
 import (
 	"archive/zip"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -20,15 +19,16 @@ import (
 )
 
 func main() {
-	format.Run(format.Handler{
-		PluginID:    "format.crosswire",
-		Version:     "0.1.0",
-		Description: "CrossWire native SWORD module distribution format (.zip archives with mods.d/ and modules/)",
-		Formats:     []string{"crosswire-zip", "sword-distribution"},
-		Detect:      Detect,
-		Parse:       Parse,
-		Emit:        Emit,
-	})
+	if err := format.Run(&format.Config{
+		Name:       "crosswire",
+		Extensions: []string{".zip"},
+		Detect:     Detect,
+		Parse:      Parse,
+		Emit:       Emit,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // Detect checks if the path is a CrossWire SWORD module distribution.
@@ -186,7 +186,7 @@ func Parse(path string) (*ir.Corpus, error) {
 	corpus := &ir.Corpus{
 		ID:         moduleID,
 		Version:    "1.0.0",
-		ModuleType: ir.ModuleBible,
+		ModuleType: "bible",
 		Language:   "en",
 		Title:      moduleID,
 		Documents:  []*ir.Document{},

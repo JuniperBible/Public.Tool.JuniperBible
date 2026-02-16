@@ -83,13 +83,15 @@ func Parse(path string) (*ir.Corpus, error) {
 
 	// Create the corpus
 	corpus := &ir.Corpus{
-		ArtifactID: filepath.Base(path),
-		Metadata: map[string]string{
-			"format":      "dir",
-			"file_count":  fmt.Sprintf("%d", len(files)),
-			"total_bytes": fmt.Sprintf("%d", totalSize),
+		ID:         filepath.Base(path),
+		Version:    "1.0",
+		ModuleType: "directory",
+		Attributes: map[string]string{
+			"format":       "dir",
+			"file_count":   fmt.Sprintf("%d", len(files)),
+			"total_bytes":  fmt.Sprintf("%d", totalSize),
+			"manifest_json": string(manifestData),
 		},
-		BlobData: manifestData,
 	}
 
 	return corpus, nil
@@ -97,11 +99,12 @@ func Parse(path string) (*ir.Corpus, error) {
 
 // Emit stores the directory manifest blob and returns its hash
 func Emit(corpus *ir.Corpus, outputDir string) (string, error) {
-	if corpus.BlobData == nil {
-		return "", fmt.Errorf("corpus has no blob data")
+	manifestJSON, ok := corpus.Attributes["manifest_json"]
+	if !ok {
+		return "", fmt.Errorf("corpus has no manifest_json in attributes")
 	}
 
-	hashHex, err := ipc.StoreBlob(outputDir, corpus.BlobData)
+	hashHex, err := ipc.StoreBlob(outputDir, []byte(manifestJSON))
 	if err != nil {
 		return "", fmt.Errorf("failed to store blob: %w", err)
 	}
@@ -144,5 +147,15 @@ func Enumerate(path string) (*ipc.EnumerateResult, error) {
 }
 
 func main() {
-	format.Run(Detect, Parse, Emit, Enumerate)
+	if err := format.Run(&format.Config{
+		Name:       "dir",
+		Extensions: []string{},
+		Detect:     Detect,
+		Parse:      Parse,
+		Emit:       Emit,
+		Enumerate:  Enumerate,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }

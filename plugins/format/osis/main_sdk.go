@@ -195,7 +195,7 @@ func emitFunc(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Write OSIS to output directory
 	outputPath := filepath.Join(outputDir, corpus.ID+".osis")
-	if err := os.WriteFile(outputPath, osisData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, osisData, 0600); err != nil {
 		return "", fmt.Errorf("failed to write OSIS: %w", err)
 	}
 

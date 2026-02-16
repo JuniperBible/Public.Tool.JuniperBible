@@ -251,7 +251,7 @@ func IngestModule(swordPath string, module *Module, outputPath string) error {
 
 	// Write conf file
 	confName := strings.ToLower(module.Name) + ".conf"
-	if err := os.WriteFile(filepath.Join(modsDir, confName), confData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, confName), confData, 0600); err != nil {
 		return fmt.Errorf("failed to write conf: %w", err)
 	}
 
@@ -277,7 +277,7 @@ func IngestModule(swordPath string, module *Module, outputPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 
@@ -446,7 +446,7 @@ func GenerateIRForCapsule(capsulePath string, pluginsDir string) error {
 	baseName = strings.TrimSuffix(baseName, ".capsule.tar.xz")
 	baseName = strings.TrimSuffix(baseName, ".tar.gz")
 	baseName = strings.TrimSuffix(baseName, ".tar.xz")
-	os.WriteFile(filepath.Join(newCapsuleDir, baseName+".ir.json"), irData, 0644)
+	os.WriteFile(filepath.Join(newCapsuleDir, baseName+".ir.json"), irData, 0600)
 
 	// Update manifest
 	manifestPath := filepath.Join(newCapsuleDir, "manifest.json")
@@ -458,7 +458,7 @@ func GenerateIRForCapsule(capsulePath string, pluginsDir string) error {
 	manifest["source_format"] = sourceFormat
 	manifest["ir_loss_class"] = extractResult.LossClass
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
-	os.WriteFile(manifestPath, manifestData, 0644)
+	os.WriteFile(manifestPath, manifestData, 0600)
 
 	// Rename original and create new
 	oldPath := capsulePath + ".old"
@@ -597,7 +597,7 @@ DistributionLicense=Copyrighted; Free non-commercial distribution
 `, moduleName, dataPath, lang, description, versification)
 
 	confPath := filepath.Join(modsDir, strings.ToLower(moduleName)+".conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		return fmt.Errorf("failed to write conf file: %w", err)
 	}
 

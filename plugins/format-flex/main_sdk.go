@@ -158,7 +158,7 @@ func emitFlex(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Check for raw FLEx for round-trip
 	if raw, ok := corpus.Attributes["_flex_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
 			return "", fmt.Errorf("failed to write FLEx file: %w", err)
 		}
 		return outputPath, nil
@@ -188,7 +188,7 @@ func emitFlex(corpus *ir.Corpus, outputDir string) (string, error) {
 	buf.WriteString("  </interlinear-text>\n")
 	buf.WriteString("</document>\n")
 
-	if err := os.WriteFile(outputPath, []byte(buf.String()), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
 		return "", fmt.Errorf("failed to write FLEx file: %w", err)
 	}
 

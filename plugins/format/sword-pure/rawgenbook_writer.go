@@ -172,17 +172,17 @@ func (w *RawGenBookWriter) writeFiles() error {
 
 	// Write all files
 	bdtPath := filepath.Join(w.dataPath, "book.bdt")
-	if err := os.WriteFile(bdtPath, bdtBuf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(bdtPath, bdtBuf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write bdt: %w", err)
 	}
 
 	idxPath := filepath.Join(w.dataPath, "book.idx")
-	if err := os.WriteFile(idxPath, idxBuf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(idxPath, idxBuf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write idx: %w", err)
 	}
 
 	datPath := filepath.Join(w.dataPath, "book.dat")
-	if err := os.WriteFile(datPath, datBuf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(datPath, datBuf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write dat: %w", err)
 	}
 
@@ -249,7 +249,7 @@ func EmitRawGenBook(corpus *IRCorpus, outputDir string) (*EmitResult, error) {
 	// Generate and write .conf file
 	confContent := generateGenBookConf(corpus)
 	confPath := filepath.Join(modsDir, stringToLower(corpus.ID)+".conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		return nil, fmt.Errorf("failed to write conf: %w", err)
 	}
 	result.ConfPath = confPath

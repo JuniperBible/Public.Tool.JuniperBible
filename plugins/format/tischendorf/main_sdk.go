@@ -91,7 +91,7 @@ func Emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	// Create output file path
 	outputPath := filepath.Join(outputDir, "output.txt")
 
-	if err := os.WriteFile(outputPath, []byte(output), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(output), 0600); err != nil {
 		return "", fmt.Errorf("failed to write output: %w", err)
 	}
 

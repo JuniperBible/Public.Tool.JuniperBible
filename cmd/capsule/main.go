@@ -759,7 +759,7 @@ func (c *RunCmd) Run() error {
 
 		// Write transcript to output
 		transcriptPath := filepath.Join(outDir, "transcript.jsonl")
-		if err := os.WriteFile(transcriptPath, result.TranscriptData, 0644); err == nil {
+		if err := os.WriteFile(transcriptPath, result.TranscriptData, 0600); err == nil {
 			fmt.Printf("\nTranscript written to: %s\n", transcriptPath)
 		}
 	}
@@ -1130,7 +1130,7 @@ func (c *GoldenSaveCmd) Run() error {
 
 	// Save the golden hash
 	goldenContent := fmt.Sprintf("%s\n", transcriptHash)
-	if err := os.WriteFile(saveFile, []byte(goldenContent), 0644); err != nil {
+	if err := os.WriteFile(saveFile, []byte(goldenContent), 0600); err != nil {
 		return fmt.Errorf("failed to save golden: %w", err)
 	}
 	fmt.Printf("Golden saved: %s\n", saveFile)
@@ -1259,7 +1259,7 @@ func (c *ExtractIRCmd) Run() error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
-	if err := os.WriteFile(outputPath, irData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, irData, 0600); err != nil {
 		return fmt.Errorf("failed to write output: %w", err)
 	}
 
@@ -1331,7 +1331,7 @@ func (c *EmitNativeCmd) Run() error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
-	if err := os.WriteFile(outputPath, outputData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, outputData, 0600); err != nil {
 		return fmt.Errorf("failed to write output: %w", err)
 	}
 
@@ -1462,7 +1462,7 @@ func (c *ConvertCmd) Run() error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
-	if err := os.WriteFile(outputPath, outputData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, outputData, 0600); err != nil {
 		return fmt.Errorf("failed to write output: %w", err)
 	}
 
@@ -2024,7 +2024,7 @@ func ingestSwordModule(swordPath string, module *juniperModule, outputPath strin
 
 	// Write conf file
 	confName := strings.ToLower(module.name) + ".conf"
-	if err := os.WriteFile(filepath.Join(modsDir, confName), confData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modsDir, confName), confData, 0600); err != nil {
 		return fmt.Errorf("failed to write conf: %w", err)
 	}
 
@@ -2050,7 +2050,7 @@ func ingestSwordModule(swordPath string, module *juniperModule, outputPath strin
 	if err != nil {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 
@@ -2185,7 +2185,7 @@ DistributionLicense=Copyrighted; Free non-commercial distribution
 `, moduleName, dataPath, lang, description, versification)
 
 	confPath := filepath.Join(modsDir, strings.ToLower(moduleName)+".conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		return fmt.Errorf("failed to write conf file: %w", err)
 	}
 
@@ -2319,7 +2319,7 @@ func (c *CapsuleConvertCmd) Run() error {
 		return fmt.Errorf("failed to read output: %w", err)
 	}
 	outputName := filepath.Base(emitResult.OutputPath)
-	os.WriteFile(filepath.Join(newCapsuleDir, outputName), outputData, 0644)
+	os.WriteFile(filepath.Join(newCapsuleDir, outputName), outputData, 0600)
 
 	// Copy IR
 	irData, _ := safefile.ReadFile(extractResult.IRPath)
@@ -2328,7 +2328,7 @@ func (c *CapsuleConvertCmd) Run() error {
 	baseName = strings.TrimSuffix(baseName, ".capsule.tar.xz")
 	baseName = strings.TrimSuffix(baseName, ".tar.gz")
 	baseName = strings.TrimSuffix(baseName, ".tar.xz")
-	os.WriteFile(filepath.Join(newCapsuleDir, baseName+".ir.json"), irData, 0644)
+	os.WriteFile(filepath.Join(newCapsuleDir, baseName+".ir.json"), irData, 0600)
 
 	// Create manifest
 	manifest := map[string]interface{}{
@@ -2342,7 +2342,7 @@ func (c *CapsuleConvertCmd) Run() error {
 		"emission_loss":   emitResult.LossClass,
 	}
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
-	os.WriteFile(filepath.Join(newCapsuleDir, "manifest.json"), manifestData, 0644)
+	os.WriteFile(filepath.Join(newCapsuleDir, "manifest.json"), manifestData, 0600)
 
 	// Step 4: Rename original and create new
 	fmt.Println("Step 4: Finalizing...")
@@ -2454,7 +2454,7 @@ func (c *GenerateIRCmd) Run() error {
 	baseName = strings.TrimSuffix(baseName, ".capsule.tar.xz")
 	baseName = strings.TrimSuffix(baseName, ".tar.gz")
 	baseName = strings.TrimSuffix(baseName, ".tar.xz")
-	os.WriteFile(filepath.Join(newCapsuleDir, baseName+".ir.json"), irData, 0644)
+	os.WriteFile(filepath.Join(newCapsuleDir, baseName+".ir.json"), irData, 0600)
 
 	// Update manifest
 	manifestPath := filepath.Join(newCapsuleDir, "manifest.json")
@@ -2467,7 +2467,7 @@ func (c *GenerateIRCmd) Run() error {
 	manifest["ir_loss_class"] = extractResult.LossClass
 	manifest["source_format"] = sourceFormat
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
-	os.WriteFile(manifestPath, manifestData, 0644)
+	os.WriteFile(manifestPath, manifestData, 0600)
 
 	// Rename original and create new
 	oldPath := renameCapsuleToOld(capsulePath)
@@ -2764,7 +2764,7 @@ func (c *CASToSWORDCmd) Run() error {
 
 		destPath := filepath.Join(swordDir, file.Path)
 		os.MkdirAll(filepath.Dir(destPath), 0755)
-		os.WriteFile(destPath, content, 0644)
+		os.WriteFile(destPath, content, 0600)
 		extracted++
 	}
 
@@ -2780,7 +2780,7 @@ func (c *CASToSWORDCmd) Run() error {
 		"original_format": manifest.SourceFormat,
 	}
 	swordManifestData, _ := json.MarshalIndent(swordManifest, "", "  ")
-	os.WriteFile(filepath.Join(swordDir, "manifest.json"), swordManifestData, 0644)
+	os.WriteFile(filepath.Join(swordDir, "manifest.json"), swordManifestData, 0600)
 
 	// Rename original and create new
 	fmt.Println()
@@ -3094,7 +3094,7 @@ func runCapsuleTest(capsulePath, goldenDir, name string) (bool, error) {
 		// No golden file - create one
 		reportJSON, _ := report.ToJSON()
 		os.MkdirAll(goldenDir, 0755)
-		os.WriteFile(goldenPath, reportJSON, 0644)
+		os.WriteFile(goldenPath, reportJSON, 0600)
 		fmt.Printf("  [NEW]  %s: created golden file\n", name)
 		return true, nil
 	}
@@ -3150,7 +3150,7 @@ func runIngestTest(inputPath, goldenDir, name string) (bool, error) {
 	if _, err := os.Stat(goldenPath); errors.Is(err, os.ErrNotExist) {
 		// Create golden
 		os.MkdirAll(goldenDir, 0755)
-		os.WriteFile(goldenPath, []byte(artifact.Hashes.SHA256+"\n"), 0644)
+		os.WriteFile(goldenPath, []byte(artifact.Hashes.SHA256+"\n"), 0600)
 		fmt.Printf("  [NEW]  %s: created golden hash\n", name)
 		return true, nil
 	}

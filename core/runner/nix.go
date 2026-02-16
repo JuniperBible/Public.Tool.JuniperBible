@@ -108,7 +108,7 @@ func (e *NixExecutor) ExecuteRequest(ctx context.Context, req *Request, inputPat
 				return nil, fmt.Errorf("failed to read input %d: %w", i, err)
 			}
 			dest := filepath.Join(inDir, filepath.Base(path))
-			if err := osWriteFile(dest, data, 0644); err != nil {
+			if err := osWriteFile(dest, data, 0600); err != nil {
 				return nil, fmt.Errorf("failed to write input %d: %w", i, err)
 			}
 		}
@@ -119,7 +119,7 @@ func (e *NixExecutor) ExecuteRequest(ctx context.Context, req *Request, inputPat
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize request: %w", err)
 	}
-	if err := osWriteFile(filepath.Join(inDir, "request.json"), reqData, 0644); err != nil {
+	if err := osWriteFile(filepath.Join(inDir, "request.json"), reqData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write request: %w", err)
 	}
 

@@ -32,6 +32,17 @@ function escapeRegex(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Escape HTML to prevent XSS
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // Safely highlights search terms using DOM manipulation instead of innerHTML
 function highlightSearchTermInElement(element, searchTerm) {
   const walker = document.createTreeWalker(
@@ -223,13 +234,13 @@ async function loadChapter() {
       const bookName = book ? book.name : bookId;
 
       html += `<div class="verse-group" id="v${verseNum}">`;
-      html += `<div class="verse-ref">${bookName} ${chapter}:${verseNum}</div>`;
+      html += `<div class="verse-ref">${escapeHtml(bookName)} ${escapeHtml(chapter)}:${verseNum}</div>`;
 
       results.forEach((r, idx) => {
         const verse = (r.verses || []).find(v => v.number === verseNum);
         const bible = bibles.find(b => b.id === selected[idx]);
-        const abbrev = bible ? bible.abbrev : selected[idx];
-        const text = verse ? verse.text : '<em>Verse not available</em>';
+        const abbrev = bible ? escapeHtml(bible.abbrev) : escapeHtml(selected[idx]);
+        const text = verse ? escapeHtml(verse.text) : '<em>Verse not available</em>';
 
         html += `<div class="translation-row"><span class="translation-abbrev">${abbrev}:</span> <span class="verse-text">${text}</span></div>`;
       });
@@ -270,13 +281,13 @@ async function loadVerse(verseNum) {
     const bookName = book ? book.name : bookId;
 
     let html = `<div class="verse-group">`;
-    html += `<div class="verse-ref">${bookName} ${chapter}:${verseNum}</div>`;
+    html += `<div class="verse-ref">${escapeHtml(bookName)} ${escapeHtml(chapter)}:${verseNum}</div>`;
 
     results.forEach((r, idx) => {
       const verse = (r.verses || []).find(v => v.number === verseNum);
       const bible = bibles.find(b => b.id === selected[idx]);
-      const abbrev = bible ? bible.abbrev : selected[idx];
-      const text = verse ? verse.text : '<em>Verse not available</em>';
+      const abbrev = bible ? escapeHtml(bible.abbrev) : escapeHtml(selected[idx]);
+      const text = verse ? escapeHtml(verse.text) : '<em>Verse not available</em>';
 
       html += `<div class="translation-row"><span class="translation-abbrev">${abbrev}:</span> <span class="verse-text">${text}</span></div>`;
     });

@@ -104,7 +104,7 @@ func emitZefaniaWrapper(corpus *ir.Corpus, outputDir string) (string, error) {
 	outputPath := filepath.Join(outputDir, filename)
 
 	// Write the file
-	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0600); err != nil {
 		return "", err
 	}
 

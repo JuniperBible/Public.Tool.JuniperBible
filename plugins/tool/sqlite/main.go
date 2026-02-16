@@ -169,7 +169,7 @@ func profileQuery(req *ToolRunRequest, transcript *ipc.Transcript) error {
 	}
 
 	resultFile := filepath.Join(req.OutDir, "result.json")
-	os.WriteFile(resultFile, output, 0644)
+	os.WriteFile(resultFile, output, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		Event: "query_end",
@@ -195,7 +195,7 @@ func profileExportCSV(req *ToolRunRequest, transcript *ipc.Transcript) error {
 	}
 
 	csvFile := filepath.Join(req.OutDir, "export.csv")
-	os.WriteFile(csvFile, output, 0644)
+	os.WriteFile(csvFile, output, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		Event: "export_end",
@@ -217,7 +217,7 @@ func profileSchema(req *ToolRunRequest, transcript *ipc.Transcript) error {
 	output, _ := cmd.Output()
 
 	schemaFile := filepath.Join(req.OutDir, "schema.sql")
-	os.WriteFile(schemaFile, output, 0644)
+	os.WriteFile(schemaFile, output, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		Event: "schema_end",
@@ -245,7 +245,7 @@ func profileTables(req *ToolRunRequest, transcript *ipc.Transcript) error {
 		"tables": tables,
 		"count":  len(tables),
 	}, "", "  ")
-	os.WriteFile(tablesFile, data, 0644)
+	os.WriteFile(tablesFile, data, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		Event: "tables_end",

@@ -153,7 +153,7 @@ func handleIngest(args map[string]interface{}) {
 		return
 	}
 
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		ipc.RespondErrorf("failed to write blob: %v", err)
 		return
 	}
@@ -243,7 +243,7 @@ func handleExtractIR(args map[string]interface{}) {
 		return
 	}
 
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		ipc.RespondErrorf("failed to write IR: %v", err)
 		return
 	}
@@ -408,7 +408,7 @@ func handleEmitNative(args map[string]interface{}) {
 
 	// Write output
 	outputPath := filepath.Join(outputDir, "apparatus.na28.xml")
-	if err := os.WriteFile(outputPath, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(outputPath, buf.Bytes(), 0600); err != nil {
 		ipc.RespondErrorf("failed to write output: %v", err)
 		return
 	}

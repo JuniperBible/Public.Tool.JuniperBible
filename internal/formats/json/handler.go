@@ -159,7 +159,7 @@ func (h *Handler) Ingest(path, outputDir string) (*plugins.IngestResult, error) 
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write blob: %w", err)
 	}
 
@@ -326,7 +326,7 @@ func (h *Handler) ExtractIR(path, outputDir string) (*plugins.ExtractIRResult, e
 	}
 
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write IR: %w", err)
 	}
 
@@ -357,7 +357,7 @@ func (h *Handler) EmitNative(irPath, outputDir string) (*plugins.EmitNativeResul
 
 	// Check for raw JSON for L0 round-trip
 	if raw, ok := corpus.Attributes["_json_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
 			return nil, fmt.Errorf("failed to write JSON: %w", err)
 		}
 		return &plugins.EmitNativeResult{
@@ -429,7 +429,7 @@ func (h *Handler) EmitNative(irPath, outputDir string) (*plugins.EmitNativeResul
 		return nil, fmt.Errorf("failed to serialize JSON: %w", err)
 	}
 
-	if err := os.WriteFile(outputPath, jsonData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, jsonData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write JSON: %w", err)
 	}
 

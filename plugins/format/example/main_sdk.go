@@ -302,7 +302,7 @@ func emit(corpus *ir.Corpus, outputDir string, formatVariant string) (string, er
 		}
 	}
 
-	if err := os.WriteFile(outputPath, []byte(output), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(output), 0600); err != nil {
 		return "", fmt.Errorf("failed to write output: %v", err)
 	}
 

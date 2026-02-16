@@ -461,7 +461,7 @@ func copyConfFile(tempDir, confPath string) error {
 	}
 
 	destConfPath := filepath.Join(modsDir, filepath.Base(confPath))
-	if err := os.WriteFile(destConfPath, confData, 0644); err != nil {
+	if err := os.WriteFile(destConfPath, confData, 0600); err != nil {
 		return fmt.Errorf("failed to write conf: %w", err)
 	}
 
@@ -518,7 +518,7 @@ func writeManifest(tempDir string, module ModuleInfo, conf *ConfFile, irDir stri
 	}
 
 	manifestPath := filepath.Join(tempDir, "manifest.json")
-	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
+	if err := os.WriteFile(manifestPath, manifestData, 0600); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 

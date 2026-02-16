@@ -224,7 +224,7 @@ func emitHTML(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Check for raw HTML for round-trip
 	if raw, ok := corpus.Attributes["_html_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
 			return "", fmt.Errorf("failed to write HTML: %w", err)
 		}
 		return outputPath, nil
@@ -292,7 +292,7 @@ func emitHTML(corpus *ir.Corpus, outputDir string) (string, error) {
 	buf.WriteString("</body>\n")
 	buf.WriteString("</html>\n")
 
-	if err := os.WriteFile(outputPath, []byte(buf.String()), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
 		return "", fmt.Errorf("failed to write HTML: %w", err)
 	}
 

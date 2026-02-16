@@ -214,7 +214,7 @@ func Emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	// Create a minimal conf file
 	confPath := filepath.Join(modsDir, corpus.ID+".conf")
 	confContent := fmt.Sprintf("[%s]\nDescription=Exported from IR\nModDrv=RawText\n", corpus.ID)
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		return "", fmt.Errorf("failed to write conf: %w", err)
 	}
 

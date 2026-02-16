@@ -116,7 +116,7 @@ func handleIngest(args map[string]interface{}) {
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		ipc.RespondErrorf("failed to write blob: %v", err)
 		return
 	}
@@ -233,7 +233,7 @@ func handleExtractIR(args map[string]interface{}) {
 	}
 
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		ipc.RespondErrorf("failed to write IR: %v", err)
 		return
 	}
@@ -356,7 +356,7 @@ func handleEmitNative(args map[string]interface{}) {
 
 	// Check for raw HTML for round-trip
 	if raw, ok := corpus.Attributes["_html_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
 			ipc.RespondErrorf("failed to write HTML: %v", err)
 			return
 		}
@@ -435,7 +435,7 @@ func handleEmitNative(args map[string]interface{}) {
 	buf.WriteString("</body>\n")
 	buf.WriteString("</html>\n")
 
-	if err := os.WriteFile(outputPath, []byte(buf.String()), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
 		ipc.RespondErrorf("failed to write HTML: %v", err)
 		return
 	}
@@ -556,7 +556,7 @@ func handleEmitParallel(args map[string]interface{}) {
 	buf.WriteString("</html>\n")
 
 	outputPath := filepath.Join(outputDir, parallel.ID+".parallel.html")
-	if err := os.WriteFile(outputPath, []byte(buf.String()), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
 		ipc.RespondErrorf("failed to write HTML: %v", err)
 		return
 	}
@@ -669,7 +669,7 @@ func handleEmitInterlinear(args map[string]interface{}) {
 	buf.WriteString("</html>\n")
 
 	outputPath := filepath.Join(outputDir, "interlinear.html")
-	if err := os.WriteFile(outputPath, []byte(buf.String()), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
 		ipc.RespondErrorf("failed to write HTML: %v", err)
 		return
 	}

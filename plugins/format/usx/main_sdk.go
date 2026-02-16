@@ -298,7 +298,7 @@ func emitUSX(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Check for raw USX for L0 round-trip
 	if raw, ok := corpus.Attributes["_usx_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
 			return "", fmt.Errorf("failed to write USX: %w", err)
 		}
 		return outputPath, nil
@@ -306,7 +306,7 @@ func emitUSX(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Generate USX from IR
 	usxContent := emitUSXFromIR(corpus)
-	if err := os.WriteFile(outputPath, []byte(usxContent), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(usxContent), 0600); err != nil {
 		return "", fmt.Errorf("failed to write USX: %w", err)
 	}
 

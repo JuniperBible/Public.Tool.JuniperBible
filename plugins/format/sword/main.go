@@ -167,7 +167,7 @@ func handleIngest(args map[string]interface{}) {
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, manifestData, 0644); err != nil {
+	if err := os.WriteFile(blobPath, manifestData, 0600); err != nil {
 		ipc.RespondErrorf("failed to write blob: %v", err)
 		return
 	}
@@ -399,7 +399,7 @@ func handleExtractIR(args map[string]interface{}) {
 
 	// Write IR to output directory
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		ipc.RespondErrorf("failed to write IR: %v", err)
 		return
 	}
@@ -463,7 +463,7 @@ func handleEmitNative(args map[string]interface{}) {
 	if confContent, ok := corpus.Attributes["_sword_conf"]; ok && confContent != "" {
 		// Write original conf file (L0 for conf)
 		confPath := filepath.Join(modsD, strings.ToLower(corpus.ID)+".conf")
-		if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+		if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 			ipc.RespondErrorf("failed to write conf: %v", err)
 			return
 		}
@@ -495,7 +495,7 @@ func handleEmitNative(args map[string]interface{}) {
 		}
 
 		confPath := filepath.Join(modsD, strings.ToLower(corpus.ID)+".conf")
-		if err := os.WriteFile(confPath, []byte(confBuf.String()), 0644); err != nil {
+		if err := os.WriteFile(confPath, []byte(confBuf.String()), 0600); err != nil {
 			ipc.RespondErrorf("failed to write conf: %v", err)
 			return
 		}

@@ -383,7 +383,7 @@ func handleExtractIR(args map[string]interface{}) {
 		return
 	}
 
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		ipc.RespondErrorf("failed to write IR: %v", err)
 		return
 	}
@@ -482,7 +482,7 @@ func handleEmitNative(args map[string]interface{}) {
 		}
 	}
 
-	if err := os.WriteFile(outputPath, []byte(output), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(output), 0600); err != nil {
 		ipc.RespondErrorf("failed to write output: %v", err)
 		return
 	}

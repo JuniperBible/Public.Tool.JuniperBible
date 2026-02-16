@@ -167,7 +167,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	transcriptPath := ""
 	if len(result.TranscriptData) > 0 {
 		transcriptPath = filepath.Join(outDir, "transcript.jsonl")
-		if err := os.WriteFile(transcriptPath, result.TranscriptData, 0644); err != nil {
+		if err := os.WriteFile(transcriptPath, result.TranscriptData, 0600); err != nil {
 			return nil, fmt.Errorf("failed to write transcript: %w", err)
 		}
 	}

@@ -183,7 +183,7 @@ func emitSwordModule(corpus *ir.Corpus, outputDir string) (string, error) {
 	if confContent, ok := corpus.Attributes["_sword_conf"]; ok && confContent != "" {
 		// Write original conf file (L0 for conf)
 		confPath := filepath.Join(modsD, strings.ToLower(corpus.ID)+".conf")
-		if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+		if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 			return "", fmt.Errorf("failed to write conf: %w", err)
 		}
 	} else {
@@ -214,7 +214,7 @@ func emitSwordModule(corpus *ir.Corpus, outputDir string) (string, error) {
 		}
 
 		confPath := filepath.Join(modsD, strings.ToLower(corpus.ID)+".conf")
-		if err := os.WriteFile(confPath, []byte(confBuf.String()), 0644); err != nil {
+		if err := os.WriteFile(confPath, []byte(confBuf.String()), 0600); err != nil {
 			return "", fmt.Errorf("failed to write conf: %w", err)
 		}
 	}

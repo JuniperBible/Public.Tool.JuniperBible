@@ -165,7 +165,7 @@ func handleExtractIR(args map[string]interface{}) {
 		ipc.RespondErrorf("extract-ir: failed to marshal IR: %v", err)
 	}
 
-	if err := os.WriteFile(outputPath, irData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, irData, 0600); err != nil {
 		ipc.RespondErrorf("extract-ir: failed to write IR file: %v", err)
 	}
 
@@ -346,7 +346,7 @@ func handleEmitNative(args map[string]interface{}) {
 
 	output := emitTischendorfFromIR(&corpus)
 
-	if err := os.WriteFile(outputPath, []byte(output), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(output), 0600); err != nil {
 		ipc.RespondErrorf("emit-native: failed to write output: %v", err)
 	}
 

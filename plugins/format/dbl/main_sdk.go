@@ -277,7 +277,7 @@ func emit(corpus *ir.Corpus, outputPath string) error {
 	if raw, ok := corpus.Attributes["_dbl_raw"]; ok && raw != "" {
 		rawData, err := hex.DecodeString(raw)
 		if err == nil {
-			if err := os.WriteFile(outputPath, rawData, 0644); err != nil {
+			if err := os.WriteFile(outputPath, rawData, 0600); err != nil {
 				return fmt.Errorf("failed to write DBL: %w", err)
 			}
 			return nil

@@ -74,7 +74,7 @@ func StoreBlob(outputDir string, data []byte) (hashHex string, err error) {
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		return "", fmt.Errorf("failed to write blob: %w", err)
 	}
 

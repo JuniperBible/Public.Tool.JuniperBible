@@ -227,7 +227,7 @@ func (w *ZComWriter) flushBlock() error {
 func (w *ZComWriter) writeFiles(prefix string) error {
 	// Write .bzz (compressed data)
 	bzzPath := filepath.Join(w.dataPath, prefix+".bzz")
-	if err := os.WriteFile(bzzPath, w.compressedBuf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(bzzPath, w.compressedBuf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write bzz: %w", err)
 	}
 
@@ -240,7 +240,7 @@ func (w *ZComWriter) writeFiles(prefix string) error {
 		binary.LittleEndian.PutUint32(bzsData[offset+4:], entry.CompressedSize)
 		binary.LittleEndian.PutUint32(bzsData[offset+8:], entry.UncompSize)
 	}
-	if err := os.WriteFile(bzsPath, bzsData, 0644); err != nil {
+	if err := os.WriteFile(bzsPath, bzsData, 0600); err != nil {
 		return fmt.Errorf("failed to write bzs: %w", err)
 	}
 
@@ -253,7 +253,7 @@ func (w *ZComWriter) writeFiles(prefix string) error {
 		binary.LittleEndian.PutUint32(bzvData[offset+4:], entry.Offset)
 		binary.LittleEndian.PutUint16(bzvData[offset+8:], entry.Size)
 	}
-	if err := os.WriteFile(bzvPath, bzvData, 0644); err != nil {
+	if err := os.WriteFile(bzvPath, bzvData, 0600); err != nil {
 		return fmt.Errorf("failed to write bzv: %w", err)
 	}
 
@@ -299,7 +299,7 @@ func EmitZCom(corpus *IRCorpus, outputDir string) (*EmitResult, error) {
 	// Generate and write .conf file
 	confContent := generateCommentaryConf(corpus)
 	confPath := filepath.Join(modsDir, stringToLower(corpus.ID)+".conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		return nil, fmt.Errorf("failed to write conf: %w", err)
 	}
 	result.ConfPath = confPath

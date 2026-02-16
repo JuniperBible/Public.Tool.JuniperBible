@@ -89,7 +89,7 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 			fileName = name
 		}
 		outputPath := filepath.Join(outputDir, fileName)
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
 			return "", fmt.Errorf("failed to write file: %w", err)
 		}
 		return outputPath, nil

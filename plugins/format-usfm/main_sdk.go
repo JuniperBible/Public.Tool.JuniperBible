@@ -253,7 +253,7 @@ func emitUSFM(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Check for raw USFM for L0 round-trip
 	if rawUSFM, ok := corpus.Attributes["_usfm_raw"]; ok && rawUSFM != "" {
-		if err := os.WriteFile(outputPath, []byte(rawUSFM), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(rawUSFM), 0600); err != nil {
 			return "", fmt.Errorf("failed to write USFM: %w", err)
 		}
 		return outputPath, nil
@@ -304,7 +304,7 @@ func emitUSFM(corpus *ir.Corpus, outputDir string) (string, error) {
 		}
 	}
 
-	if err := os.WriteFile(outputPath, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(outputPath, buf.Bytes(), 0600); err != nil {
 		return "", fmt.Errorf("failed to write USFM: %w", err)
 	}
 

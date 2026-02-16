@@ -169,7 +169,7 @@ func handleIngest(args map[string]interface{}) {
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		ipc.RespondErrorf("failed to write blob: %v", err)
 		return
 	}
@@ -253,7 +253,7 @@ func handleExtractIR(args map[string]interface{}) {
 
 	// Write IR to output directory
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		ipc.RespondErrorf("failed to write IR: %v", err)
 		return
 	}
@@ -304,7 +304,7 @@ func handleEmitNative(args map[string]interface{}) {
 
 	// Write USFM to output directory
 	outputPath := filepath.Join(outputDir, corpus.ID+".usfm")
-	if err := os.WriteFile(outputPath, usfmData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, usfmData, 0600); err != nil {
 		ipc.RespondErrorf("failed to write USFM: %v", err)
 		return
 	}

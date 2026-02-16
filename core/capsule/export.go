@@ -68,7 +68,7 @@ func (c *Capsule) exportIdentity(artifact *Artifact, destPath string) error {
 	}
 
 	// Write the exact bytes - no transformation
-	if err := osWriteFileIdentity(destPath, data, 0644); err != nil {
+	if err := osWriteFileIdentity(destPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
@@ -158,7 +158,7 @@ func (c *Capsule) ExportDerived(artifactID string, opts DerivedExportOptions, de
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve source blob: %w", err)
 	}
-	if err := osWriteFileExport(sourcePath, sourceData, 0644); err != nil {
+	if err := osWriteFileExport(sourcePath, sourceData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write source file: %w", err)
 	}
 
@@ -211,7 +211,7 @@ func (c *Capsule) ExportDerived(artifactID string, opts DerivedExportOptions, de
 	if err != nil {
 		return nil, fmt.Errorf("failed to read output: %w", err)
 	}
-	if err := osWriteFileExport(destPath, outputData, 0644); err != nil {
+	if err := osWriteFileExport(destPath, outputData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write destination: %w", err)
 	}
 

@@ -221,7 +221,7 @@ func formatAndWriteFile(path string, fset *token.FileSet, file *ast.File) error 
 	// Post-process: replace remaining type references that AST couldn't handle
 	output := postProcessTypeReferences(buf.String())
 
-	return os.WriteFile(path, []byte(output), 0644)
+	return os.WriteFile(path, []byte(output), 0600)
 }
 
 // postProcessTypeReferences replaces type references that AST transformation missed.

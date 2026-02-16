@@ -382,7 +382,7 @@ func createModuleCapsule(swordPath string, module ModuleInfo, outputPath string)
 		return fmt.Errorf("failed to read conf: %w", err)
 	}
 	destConfPath := filepath.Join(modsDir, filepath.Base(confPath))
-	if err := os.WriteFile(destConfPath, confData, 0644); err != nil {
+	if err := os.WriteFile(destConfPath, confData, 0600); err != nil {
 		return fmt.Errorf("failed to write conf: %w", err)
 	}
 
@@ -424,7 +424,7 @@ func createModuleCapsule(swordPath string, module ModuleInfo, outputPath string)
 	if err != nil {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(tempDir, "manifest.json"), manifestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "manifest.json"), manifestData, 0600); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 

@@ -358,7 +358,7 @@ func profileRenderAll(req *ToolRunRequest, transcript *ipc.Transcript) error {
 
 	// Write output to file
 	outPath := filepath.Join(req.OutDir, req.Module+".imp")
-	if err := os.WriteFile(outPath, output, 0644); err != nil {
+	if err := os.WriteFile(outPath, output, 0600); err != nil {
 		return err
 	}
 
@@ -419,7 +419,7 @@ func profileEnumerateKeys(req *ToolRunRequest, transcript *ipc.Transcript) error
 	// Write keys to file
 	keysPath := filepath.Join(req.OutDir, req.Module+".keys")
 	keysData := strings.Join(keys, "\n")
-	if err := os.WriteFile(keysPath, []byte(keysData), 0644); err != nil {
+	if err := os.WriteFile(keysPath, []byte(keysData), 0600); err != nil {
 		return err
 	}
 
@@ -460,7 +460,7 @@ func profileMod2OSIS(req *ToolRunRequest, transcript *ipc.Transcript) error {
 
 	// Write OSIS to file
 	osisPath := filepath.Join(req.OutDir, req.Module+".osis.xml")
-	if err := os.WriteFile(osisPath, output, 0644); err != nil {
+	if err := os.WriteFile(osisPath, output, 0600); err != nil {
 		return err
 	}
 
@@ -557,7 +557,7 @@ Lang=en
 	}
 
 	confPath := filepath.Join(modsDir, strings.ToLower(moduleName)+".conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		return fmt.Errorf("failed to write conf file: %w", err)
 	}
 

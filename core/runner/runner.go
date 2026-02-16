@@ -100,7 +100,7 @@ func PrepareWorkDir(workDir string, req *Request) error {
 		return fmt.Errorf("failed to serialize request: %w", err)
 	}
 	reqPath := filepath.Join(inDir, "request.json")
-	if err := os.WriteFile(reqPath, reqData, 0644); err != nil {
+	if err := os.WriteFile(reqPath, reqData, 0600); err != nil {
 		return fmt.Errorf("failed to write request.json: %w", err)
 	}
 

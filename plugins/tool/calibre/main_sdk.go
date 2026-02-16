@@ -262,7 +262,7 @@ func profileEpubMetadata(req *ipc.ToolRunRequest, transcript *ipc.Transcript) er
 	// Write metadata to file
 	metadataFile := filepath.Join(req.OutDir, "metadata.json")
 	metadataJSON, _ := json.MarshalIndent(metadata, "", "  ")
-	if err := os.WriteFile(metadataFile, metadataJSON, 0644); err != nil {
+	if err := os.WriteFile(metadataFile, metadataJSON, 0600); err != nil {
 		return fmt.Errorf("failed to write metadata: %w", err)
 	}
 
@@ -322,7 +322,7 @@ func profileListFormats(req *ipc.ToolRunRequest, transcript *ipc.Transcript) err
 		"output_count":   len(outputFormats),
 	}
 	formatsJSON, _ := json.MarshalIndent(formatsData, "", "  ")
-	if err := os.WriteFile(formatsFile, formatsJSON, 0644); err != nil {
+	if err := os.WriteFile(formatsFile, formatsJSON, 0600); err != nil {
 		return fmt.Errorf("failed to write formats: %w", err)
 	}
 

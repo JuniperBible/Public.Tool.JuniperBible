@@ -430,7 +430,7 @@ func (e *Executor) executeExtractIRStep(step *ExtractIRStep) error {
 	}
 	irData := []byte(fmt.Sprintf(`{"_placeholder": true, "source": "%s", "plugin": "%s"}`,
 		sourceHash, step.PluginID))
-	if err := os.WriteFile(outputPath, irData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, irData, 0600); err != nil {
 		return fmt.Errorf("failed to write IR output: %w", err)
 	}
 
@@ -479,7 +479,7 @@ func (e *Executor) executeEmitNativeStep(step *EmitNativeStep) error {
 	if err != nil {
 		return fmt.Errorf("failed to read IR input: %w", err)
 	}
-	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write native output: %w", err)
 	}
 
@@ -522,7 +522,7 @@ func (e *Executor) executeCompareIRStep(step *CompareIRStep) error {
 		"match":     hashA == hashB,
 	}
 	resultJSON, _ := json.MarshalIndent(result, "", "  ")
-	if err := os.WriteFile(outputPath, resultJSON, 0644); err != nil {
+	if err := os.WriteFile(outputPath, resultJSON, 0600); err != nil {
 		return fmt.Errorf("failed to write comparison result: %w", err)
 	}
 

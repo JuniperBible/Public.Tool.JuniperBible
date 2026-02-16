@@ -384,7 +384,7 @@ func Unpack(archivePath, destDir string) (*Capsule, error) {
 			}
 
 			// Write file
-			if err := osWriteFileUnpack(destPath, data, 0644); err != nil {
+			if err := osWriteFileUnpack(destPath, data, 0600); err != nil {
 				return nil, fmt.Errorf("failed to write file: %w", err)
 			}
 
@@ -419,7 +419,7 @@ func Unpack(archivePath, destDir string) (*Capsule, error) {
 func writeToTarImpl(tw *tar.Writer, name string, data []byte) error {
 	header := &tar.Header{
 		Name: name,
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(data)),
 	}
 
@@ -521,7 +521,7 @@ func (c *Capsule) SaveManifest() error {
 	}
 
 	manifestPath := filepath.Join(c.root, "manifest.json")
-	if err := osWriteFileCapsule(manifestPath, manifestData, 0644); err != nil {
+	if err := osWriteFileCapsule(manifestPath, manifestData, 0600); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 

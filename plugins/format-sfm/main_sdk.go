@@ -142,7 +142,7 @@ func emitSFM(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	if raw, ok := corpus.Attributes["_sfm_raw"]; ok && raw != "" {
 		rawData, _ := hex.DecodeString(raw)
-		if err := os.WriteFile(outputPath, rawData, 0644); err != nil {
+		if err := os.WriteFile(outputPath, rawData, 0600); err != nil {
 			return "", fmt.Errorf("failed to write SFM: %w", err)
 		}
 		return outputPath, nil
@@ -166,7 +166,7 @@ func emitSFM(corpus *ir.Corpus, outputDir string) (string, error) {
 		}
 	}
 
-	if err := os.WriteFile(outputPath, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(outputPath, buf.Bytes(), 0600); err != nil {
 		return "", fmt.Errorf("failed to write SFM: %w", err)
 	}
 	return outputPath, nil

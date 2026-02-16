@@ -137,7 +137,7 @@ func handleIngest(args map[string]interface{}) {
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		ipc.RespondErrorf("failed to write blob: %v", err)
 		return
 	}
@@ -235,7 +235,7 @@ func handleExtractIR(args map[string]interface{}) {
 		return
 	}
 
-	if err := os.WriteFile(irPath, data, 0644); err != nil {
+	if err := os.WriteFile(irPath, data, 0600); err != nil {
 		ipc.RespondErrorf("failed to write IR: %v", err)
 		return
 	}
@@ -297,7 +297,7 @@ func handleEmitNative(args map[string]interface{}) {
 	confPath := filepath.Join(modsDir, "module.conf")
 	confContent := fmt.Sprintf("[%s]\nDescription=%s\nModulePath=./modules/%s\n",
 		corpus.ID, corpus.Title, corpus.ID)
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		ipc.RespondErrorf("failed to write conf: %v", err)
 		return
 	}

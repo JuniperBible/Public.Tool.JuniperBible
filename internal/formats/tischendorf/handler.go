@@ -90,7 +90,7 @@ func (h *Handler) Ingest(path, outputDir string) (*plugins.IngestResult, error) 
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write blob: %w", err)
 	}
 
@@ -146,7 +146,7 @@ func (h *Handler) ExtractIR(path, outputDir string) (*plugins.ExtractIRResult, e
 		return nil, fmt.Errorf("failed to marshal IR: %w", err)
 	}
 
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write IR file: %w", err)
 	}
 
@@ -329,7 +329,7 @@ func (h *Handler) EmitNative(irPath, outputDir string) (*plugins.EmitNativeResul
 	output := emitTischendorfFromIR(corpus)
 
 	outputPath := filepath.Join(outputDir, "tischendorf.txt")
-	if err := os.WriteFile(outputPath, []byte(output), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(output), 0600); err != nil {
 		return nil, fmt.Errorf("failed to write output: %w", err)
 	}
 

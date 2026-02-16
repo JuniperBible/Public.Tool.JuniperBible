@@ -91,7 +91,7 @@ func (h *Handler) Ingest(path, outputDir string) (*plugins.IngestResult, error) 
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write blob: %w", err)
 	}
 
@@ -342,7 +342,7 @@ func (h *Handler) extractBibleIR(path, outputDir string) (*plugins.ExtractIRResu
 	}
 
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write IR: %w", err)
 	}
 
@@ -464,7 +464,7 @@ func (h *Handler) extractCommentaryIR(path, outputDir string) (*plugins.ExtractI
 	}
 
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write IR: %w", err)
 	}
 
@@ -562,7 +562,7 @@ func (h *Handler) extractDictionaryIR(path, outputDir string) (*plugins.ExtractI
 	}
 
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write IR: %w", err)
 	}
 

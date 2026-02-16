@@ -188,7 +188,7 @@ func emitOSHB(corpus *ir.Corpus, outputDir string) (string, error) {
 	if raw, ok := corpus.Attributes["_oshb_raw"]; ok && raw != "" {
 		rawData, err := hex.DecodeString(raw)
 		if err == nil {
-			if err := os.WriteFile(outputPath, rawData, 0644); err != nil {
+			if err := os.WriteFile(outputPath, rawData, 0600); err != nil {
 				return "", fmt.Errorf("failed to write OSHB: %w", err)
 			}
 			return outputPath, nil
@@ -214,7 +214,7 @@ func emitOSHB(corpus *ir.Corpus, outputDir string) (string, error) {
 		}
 	}
 
-	if err := os.WriteFile(outputPath, []byte(buf.String()), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
 		return "", fmt.Errorf("failed to write OSHB: %w", err)
 	}
 

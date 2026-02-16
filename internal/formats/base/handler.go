@@ -165,7 +165,7 @@ func IngestFile(path, outputDir string, config IngestConfig) (*plugins.IngestRes
 
 	// Write blob
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write blob: %w", err)
 	}
 
@@ -233,7 +233,7 @@ func ReadFileInfo(path string) (*FileInfo, error) {
 // WriteOutput writes data to a file in the output directory with the given name.
 func WriteOutput(outputDir, filename string, data []byte) (string, error) {
 	outputPath := filepath.Join(outputDir, filename)
-	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0600); err != nil {
 		return "", fmt.Errorf("failed to write file: %w", err)
 	}
 	return outputPath, nil

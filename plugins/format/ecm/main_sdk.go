@@ -149,7 +149,7 @@ func emitECM(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Write output file
 	outputPath := filepath.Join(outputDir, "output.ecm.xml")
-	if err := os.WriteFile(outputPath, xmlContent, 0644); err != nil {
+	if err := os.WriteFile(outputPath, xmlContent, 0600); err != nil {
 		return "", fmt.Errorf("failed to write output file: %w", err)
 	}
 

@@ -244,7 +244,7 @@ func emitNA28(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Write output
 	outputPath := filepath.Join(outputDir, "apparatus.na28.xml")
-	if err := os.WriteFile(outputPath, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(outputPath, buf.Bytes(), 0600); err != nil {
 		return "", fmt.Errorf("failed to write output: %w", err)
 	}
 

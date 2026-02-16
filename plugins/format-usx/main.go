@@ -298,7 +298,7 @@ func handleIngest(args map[string]interface{}) {
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		respondError(fmt.Sprintf("failed to write blob: %v", err))
 		return
 	}
@@ -392,7 +392,7 @@ func handleExtractIR(args map[string]interface{}) {
 	}
 
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		respondError(fmt.Sprintf("failed to write IR: %v", err))
 		return
 	}
@@ -603,7 +603,7 @@ func handleEmitNative(args map[string]interface{}) {
 
 	// Check for raw USX for L0 round-trip
 	if raw, ok := corpus.Attributes["_usx_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
 			respondError(fmt.Sprintf("failed to write USX: %v", err))
 			return
 		}
@@ -623,7 +623,7 @@ func handleEmitNative(args map[string]interface{}) {
 
 	// Generate USX from IR
 	usxContent := emitUSXFromIR(&corpus)
-	if err := os.WriteFile(outputPath, []byte(usxContent), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(usxContent), 0600); err != nil {
 		respondError(fmt.Sprintf("failed to write USX: %v", err))
 		return
 	}

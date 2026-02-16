@@ -149,7 +149,7 @@ func (h *Handler) Ingest(path, outputDir string) (*plugins.IngestResult, error) 
 		return nil, fmt.Errorf("failed to create blob directory: %w", err)
 	}
 
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write blob: %w", err)
 	}
 
@@ -198,7 +198,7 @@ func (h *Handler) ExtractIR(path, outputDir string) (*plugins.ExtractIRResult, e
 		return nil, fmt.Errorf("failed to marshal IR: %w", err)
 	}
 
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write IR: %w", err)
 	}
 
@@ -355,7 +355,7 @@ func (h *Handler) EmitNative(irPath, outputDir string) (*plugins.EmitNativeResul
 
 	// Write output
 	outputPath := filepath.Join(outputDir, "apparatus.na28.xml")
-	if err := os.WriteFile(outputPath, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(outputPath, buf.Bytes(), 0600); err != nil {
 		return nil, fmt.Errorf("failed to write output: %w", err)
 	}
 

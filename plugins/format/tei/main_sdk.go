@@ -132,7 +132,7 @@ func Emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	if raw, ok := corpus.Attributes["_tei_raw"]; ok && raw != "" {
 		rawData, err := hex.DecodeString(raw)
 		if err == nil {
-			if err := os.WriteFile(outputPath, rawData, 0644); err != nil {
+			if err := os.WriteFile(outputPath, rawData, 0600); err != nil {
 				return "", fmt.Errorf("failed to write TEI: %w", err)
 			}
 			return outputPath, nil
@@ -184,7 +184,7 @@ func Emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	buf.WriteString("  </text>\n")
 	buf.WriteString("</TEI>\n")
 
-	if err := os.WriteFile(outputPath, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(outputPath, buf.Bytes(), 0600); err != nil {
 		return "", fmt.Errorf("failed to write TEI: %w", err)
 	}
 

@@ -132,7 +132,7 @@ func emitBibleTime(corpus *ir.Corpus, outputDir string) (string, error) {
 	confPath := filepath.Join(modsDir, "module.conf")
 	confContent := fmt.Sprintf("[%s]\nDescription=%s\nModulePath=./modules/%s\n",
 		corpus.ID, corpus.Title, corpus.ID)
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		return "", fmt.Errorf("failed to write conf: %w", err)
 	}
 

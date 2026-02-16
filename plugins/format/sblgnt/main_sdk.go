@@ -181,7 +181,7 @@ func Emit(corpus *ir.Corpus, outputDir string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to decode raw data: %w", err)
 		}
-		if err := os.WriteFile(outputPath, rawData, 0644); err != nil {
+		if err := os.WriteFile(outputPath, rawData, 0600); err != nil {
 			return "", fmt.Errorf("failed to write output file: %w", err)
 		}
 		return outputPath, nil
@@ -200,7 +200,7 @@ func Emit(corpus *ir.Corpus, outputDir string) (string, error) {
 		}
 	}
 
-	if err := os.WriteFile(outputPath, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(outputPath, buf.Bytes(), 0600); err != nil {
 		return "", fmt.Errorf("failed to write output file: %w", err)
 	}
 

@@ -340,7 +340,7 @@ func emitOSIS(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Check for raw OSIS for L0 round-trip
 	if rawXML, ok := corpus.Attributes["_osis_raw"]; ok && rawXML != "" {
-		if err := os.WriteFile(outputPath, []byte(rawXML), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(rawXML), 0600); err != nil {
 			return "", fmt.Errorf("failed to write OSIS: %w", err)
 		}
 		return outputPath, nil
@@ -414,7 +414,7 @@ func emitOSIS(corpus *ir.Corpus, outputDir string) (string, error) {
 	buf.WriteString("  </osisText>\n")
 	buf.WriteString("</osis>\n")
 
-	if err := os.WriteFile(outputPath, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(outputPath, buf.Bytes(), 0600); err != nil {
 		return "", fmt.Errorf("failed to write OSIS: %w", err)
 	}
 

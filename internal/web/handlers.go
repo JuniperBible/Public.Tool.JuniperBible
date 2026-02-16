@@ -250,7 +250,7 @@ func saveDiskMetadataCache(capsules map[string]DiskCapsuleMetadata) error {
 	}
 
 	cacheFile := filepath.Join(ServerConfig.CapsulesDir, diskMetadataCacheFile)
-	return os.WriteFile(cacheFile, data, 0644)
+	return os.WriteFile(cacheFile, data, 0600)
 }
 
 // preloadCapsuleMetadata preloads metadata for all capsules in parallel.
@@ -1319,7 +1319,7 @@ func createConvertedCapsule(tempDir, outputPath, irPath, sourcePath, fullPath, s
 	}
 
 	outputName := filepath.Base(outputPath)
-	if err := os.WriteFile(filepath.Join(newCapsuleDir, outputName), outputData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(newCapsuleDir, outputName), outputData, 0600); err != nil {
 		return &ConvertResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to write converted output: %v", err),
@@ -1330,7 +1330,7 @@ func createConvertedCapsule(tempDir, outputPath, irPath, sourcePath, fullPath, s
 	irData, err := os.ReadFile(irPath)
 	if err == nil {
 		irName := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath)) + ".ir.json"
-		os.WriteFile(filepath.Join(newCapsuleDir, irName), irData, 0644)
+		os.WriteFile(filepath.Join(newCapsuleDir, irName), irData, 0600)
 	}
 
 	// Create manifest
@@ -1357,7 +1357,7 @@ func createConvertedCapsule(tempDir, outputPath, irPath, sourcePath, fullPath, s
 	}
 
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
-	os.WriteFile(filepath.Join(newCapsuleDir, "manifest.json"), manifestData, 0644)
+	os.WriteFile(filepath.Join(newCapsuleDir, "manifest.json"), manifestData, 0600)
 
 	// Rename original and create new capsule
 	oldPath := renameToOld(fullPath)
@@ -1613,7 +1613,7 @@ func buildCapsuleWithIR(extractDir string, extractResult *plugins.ExtractIRResul
 	}
 
 	irName := trimArchiveSuffix(filepath.Base(sourcePath)) + ".ir.json"
-	if err := os.WriteFile(filepath.Join(newCapsuleDir, irName), irData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(newCapsuleDir, irName), irData, 0600); err != nil {
 		return "", &ConvertResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to write IR file: %v", err),
@@ -1690,7 +1690,7 @@ func updateManifestWithIR(capsuleDir, lossClass, sourceFormat string) error {
 	manifest["source_format"] = sourceFormat
 
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
-	return os.WriteFile(manifestPath, manifestData, 0644)
+	return os.WriteFile(manifestPath, manifestData, 0600)
 }
 
 // replaceCapsule replaces the original capsule with the new one, backing up the original
@@ -1828,7 +1828,7 @@ func extractArtifactFilesToSWORD(extractDir, swordDir string, artifact *CASArtif
 
 		destPath := filepath.Join(swordDir, file.Path)
 		os.MkdirAll(filepath.Dir(destPath), 0755)
-		os.WriteFile(destPath, content, 0644)
+		os.WriteFile(destPath, content, 0600)
 	}
 
 	// Fallback: extract all blobs if no files were extracted
@@ -1864,7 +1864,7 @@ func extractAllBlobs(extractDir, swordDir string) {
 		if isJSONContent(content) {
 			destName += ".json"
 		}
-		os.WriteFile(filepath.Join(swordDir, destName), content, 0644)
+		os.WriteFile(filepath.Join(swordDir, destName), content, 0600)
 		return nil
 	})
 }
@@ -1881,7 +1881,7 @@ func createSWORDManifest(swordDir string, manifest *CASManifest) {
 		"converted_from":  "cas",
 	}
 	manifestData, _ := json.MarshalIndent(swordManifest, "", "  ")
-	os.WriteFile(filepath.Join(swordDir, "manifest.json"), manifestData, 0644)
+	os.WriteFile(filepath.Join(swordDir, "manifest.json"), manifestData, 0600)
 }
 
 // checkSWORDStructure checks if the directory contains SWORD module structure.
@@ -3033,7 +3033,7 @@ func performIngest(file io.Reader, filename string, size int64) *IngestResult {
 
 	// Copy file to capsule
 	data, _ := os.ReadFile(uploadPath)
-	os.WriteFile(filepath.Join(capsuleDir, filename), data, 0644)
+	os.WriteFile(filepath.Join(capsuleDir, filename), data, 0600)
 
 	// Create manifest
 	manifest := map[string]interface{}{
@@ -3043,7 +3043,7 @@ func performIngest(file io.Reader, filename string, size int64) *IngestResult {
 		"ingested_at":     time.Now().Format(time.RFC3339),
 	}
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
-	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0644)
+	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600)
 
 	// Create capsule archive - sanitize filename to prevent path traversal
 	baseName := filepath.Base(strings.TrimSuffix(filename, filepath.Ext(filename)))
@@ -4807,7 +4807,7 @@ func runToolPlugin(pluginID, profile, capsulePath, artifactID string) *ToolRunRe
 	}
 
 	reqJSON, _ := json.Marshal(reqData)
-	if err := os.WriteFile(reqPath, reqJSON, 0644); err != nil {
+	if err := os.WriteFile(reqPath, reqJSON, 0600); err != nil {
 		result.Error = fmt.Sprintf("Failed to write request: %v", err)
 		return result
 	}

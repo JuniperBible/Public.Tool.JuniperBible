@@ -171,7 +171,7 @@ func handleIngest(args map[string]interface{}) {
 	hashHex := hex.EncodeToString(hash[:])
 	blobDir := filepath.Join(outputDir, hashHex[:2])
 	os.MkdirAll(blobDir, 0755)
-	os.WriteFile(filepath.Join(blobDir, hashHex), data, 0644)
+	os.WriteFile(filepath.Join(blobDir, hashHex), data, 0600)
 	respond(&IngestResult{
 		ArtifactID: strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
 		BlobSHA256: hashHex,
@@ -204,7 +204,7 @@ func handleExtractIR(args map[string]interface{}) {
 	}
 	irData, _ := json.MarshalIndent(corpus, "", "  ")
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	os.WriteFile(irPath, irData, 0644)
+	os.WriteFile(irPath, irData, 0600)
 	respond(&ExtractIRResult{IRPath: irPath, LossClass: "L1"})
 }
 
@@ -275,7 +275,7 @@ func handleEmitNative(args map[string]interface{}) {
 	outputPath := filepath.Join(outputDir, corpus.ID+".txt")
 	if raw, ok := corpus.Attributes["_sblgnt_raw"]; ok && raw != "" {
 		rawData, _ := hex.DecodeString(raw)
-		os.WriteFile(outputPath, rawData, 0644)
+		os.WriteFile(outputPath, rawData, 0600)
 		respond(&EmitNativeResult{OutputPath: outputPath, Format: "SBLGNT", LossClass: "L0"})
 		return
 	}
@@ -290,7 +290,7 @@ func handleEmitNative(args map[string]interface{}) {
 			fmt.Fprintf(&buf, "%s%02d%02d001\t%s\n", doc.ID, chapter, verse, cb.Text)
 		}
 	}
-	os.WriteFile(outputPath, buf.Bytes(), 0644)
+	os.WriteFile(outputPath, buf.Bytes(), 0600)
 	respond(&EmitNativeResult{OutputPath: outputPath, Format: "SBLGNT", LossClass: "L1"})
 }
 

@@ -75,7 +75,7 @@ func profileToHTML(req *ipc.ToolRunRequest, transcript *ipc.Transcript) error {
 	output, err := cmd.Output()
 
 	outputFile := filepath.Join(req.OutDir, "output.html")
-	os.WriteFile(outputFile, output, 0644)
+	os.WriteFile(outputFile, output, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		TranscriptEvent: ipc.TranscriptEvent{
@@ -105,7 +105,7 @@ func profileToText(req *ipc.ToolRunRequest, transcript *ipc.Transcript) error {
 	output, err := cmd.Output()
 
 	outputFile := filepath.Join(req.OutDir, "output.txt")
-	os.WriteFile(outputFile, output, 0644)
+	os.WriteFile(outputFile, output, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		TranscriptEvent: ipc.TranscriptEvent{
@@ -135,7 +135,7 @@ func profileToLatex(req *ipc.ToolRunRequest, transcript *ipc.Transcript) error {
 	output, err := cmd.Output()
 
 	outputFile := filepath.Join(req.OutDir, "output.tex")
-	os.WriteFile(outputFile, output, 0644)
+	os.WriteFile(outputFile, output, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		TranscriptEvent: ipc.TranscriptEvent{

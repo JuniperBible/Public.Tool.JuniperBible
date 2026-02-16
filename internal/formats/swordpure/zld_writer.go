@@ -149,7 +149,7 @@ func (w *ZLDWriter) flushBlock() error {
 func (w *ZLDWriter) writeFiles(entryIndices []zldBlockIndex) error {
 	// Write .zdt (compressed data)
 	zdtPath := filepath.Join(w.dataPath, "dict.zdt")
-	if err := os.WriteFile(zdtPath, w.compressedBuf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(zdtPath, w.compressedBuf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write zdt: %w", err)
 	}
 
@@ -161,7 +161,7 @@ func (w *ZLDWriter) writeFiles(entryIndices []zldBlockIndex) error {
 		binary.LittleEndian.PutUint32(zdxData[offset:], idx.BlockNum)
 		binary.LittleEndian.PutUint32(zdxData[offset+4:], idx.Offset)
 	}
-	if err := os.WriteFile(zdxPath, zdxData, 0644); err != nil {
+	if err := os.WriteFile(zdxPath, zdxData, 0600); err != nil {
 		return fmt.Errorf("failed to write zdx: %w", err)
 	}
 
@@ -184,12 +184,12 @@ func (w *ZLDWriter) writeFiles(entryIndices []zldBlockIndex) error {
 	}
 
 	idxPath := filepath.Join(w.dataPath, "dict.idx")
-	if err := os.WriteFile(idxPath, idxBuf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(idxPath, idxBuf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write idx: %w", err)
 	}
 
 	datPath := filepath.Join(w.dataPath, "dict.dat")
-	if err := os.WriteFile(datPath, datBuf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(datPath, datBuf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write dat: %w", err)
 	}
 
@@ -238,7 +238,7 @@ func EmitZLD(corpus *IRCorpus, outputDir string) (*EmitResult, error) {
 	// Generate and write .conf file
 	confContent := generateLexiconConf(corpus)
 	confPath := filepath.Join(modsDir, stringToLower(corpus.ID)+".conf")
-	if err := os.WriteFile(confPath, []byte(confContent), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
 		return nil, fmt.Errorf("failed to write conf: %w", err)
 	}
 	result.ConfPath = confPath

@@ -295,7 +295,7 @@ func emitZefania(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Check for raw Zefania for L0 round-trip
 	if raw, ok := corpus.Attributes["_zefania_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
 			return "", fmt.Errorf("failed to write Zefania: %w", err)
 		}
 		return outputPath, nil
@@ -303,7 +303,7 @@ func emitZefania(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Generate Zefania from IR
 	zefaniaContent := emitZefaniaFromIR(corpus)
-	if err := os.WriteFile(outputPath, []byte(zefaniaContent), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(zefaniaContent), 0600); err != nil {
 		return "", fmt.Errorf("failed to write Zefania: %w", err)
 	}
 

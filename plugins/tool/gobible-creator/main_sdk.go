@@ -186,7 +186,7 @@ func profileInfo(req *ipc.ToolRunRequest, transcript *ipc.Transcript) error {
 
 	infoPath := filepath.Join(req.OutDir, "info.json")
 	infoData, _ := json.MarshalIndent(info, "", "  ")
-	os.WriteFile(infoPath, infoData, 0644)
+	os.WriteFile(infoPath, infoData, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		TranscriptEvent: ipc.TranscriptEvent{

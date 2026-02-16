@@ -83,7 +83,7 @@ func profileListSources(req *ipc.ToolRunRequest, transcript *ipc.Transcript) err
 		"sources": sources,
 		"count":   len(sources),
 	}, "", "  ")
-	os.WriteFile(sourcesFile, data, 0644)
+	os.WriteFile(sourcesFile, data, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		TranscriptEvent: ipc.TranscriptEvent{
@@ -158,7 +158,7 @@ func profileList(req *ipc.ToolRunRequest, transcript *ipc.Transcript) error {
 		"modules": modules,
 		"count":   len(modules),
 	}, "", "  ")
-	os.WriteFile(modulesFile, data, 0644)
+	os.WriteFile(modulesFile, data, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		TranscriptEvent: ipc.TranscriptEvent{
@@ -241,7 +241,7 @@ func profileInstalled(req *ipc.ToolRunRequest, transcript *ipc.Transcript) error
 		"modules": modules,
 		"count":   len(modules),
 	}, "", "  ")
-	os.WriteFile(installedFile, data, 0644)
+	os.WriteFile(installedFile, data, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		TranscriptEvent: ipc.TranscriptEvent{
@@ -323,7 +323,7 @@ func profileVerify(req *ipc.ToolRunRequest, transcript *ipc.Transcript) error {
 	// Write result to file
 	resultFile := filepath.Join(req.OutDir, "verify.json")
 	data, _ := json.MarshalIndent(result, "", "  ")
-	os.WriteFile(resultFile, data, 0644)
+	os.WriteFile(resultFile, data, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		TranscriptEvent: ipc.TranscriptEvent{

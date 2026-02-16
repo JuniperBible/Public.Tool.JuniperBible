@@ -116,7 +116,7 @@ func profileXPath(req *ipc.ToolRunRequest, transcript *ipc.Transcript) error {
 	output, err := cmd.Output()
 
 	resultFile := filepath.Join(req.OutDir, "xpath_result.txt")
-	os.WriteFile(resultFile, output, 0644)
+	os.WriteFile(resultFile, output, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		TranscriptEvent: ipc.TranscriptEvent{
@@ -188,7 +188,7 @@ func profileFormat(req *ipc.ToolRunRequest, transcript *ipc.Transcript) error {
 	output, err := cmd.Output()
 
 	outputFile := filepath.Join(req.OutDir, "formatted.xml")
-	os.WriteFile(outputFile, output, 0644)
+	os.WriteFile(outputFile, output, 0600)
 
 	transcript.WriteEvent(TranscriptEvent{
 		TranscriptEvent: ipc.TranscriptEvent{

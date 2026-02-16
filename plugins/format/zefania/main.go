@@ -151,7 +151,7 @@ func handleIngest(args map[string]interface{}) {
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		ipc.RespondErrorf("failed to write blob: %v", err)
 		return
 	}
@@ -237,7 +237,7 @@ func handleExtractIR(args map[string]interface{}) {
 	}
 
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		ipc.RespondErrorf("failed to write IR: %v", err)
 		return
 	}
@@ -490,7 +490,7 @@ func handleEmitNative(args map[string]interface{}) {
 
 	// Check for raw Zefania for L0 round-trip
 	if raw, ok := corpus.Attributes["_zefania_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
 			ipc.RespondErrorf("failed to write Zefania: %v", err)
 			return
 		}
@@ -509,7 +509,7 @@ func handleEmitNative(args map[string]interface{}) {
 
 	// Generate Zefania from IR
 	zefaniaContent := emitZefaniaFromIR(&corpus)
-	if err := os.WriteFile(outputPath, []byte(zefaniaContent), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(zefaniaContent), 0600); err != nil {
 		ipc.RespondErrorf("failed to write Zefania: %v", err)
 		return
 	}

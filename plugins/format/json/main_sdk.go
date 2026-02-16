@@ -262,7 +262,7 @@ func emitJSON(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Check for raw JSON for L0 round-trip
 	if raw, ok := corpus.Attributes["_json_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
 			return "", fmt.Errorf("failed to write JSON: %w", err)
 		}
 		return outputPath, nil
@@ -326,7 +326,7 @@ func emitJSON(corpus *ir.Corpus, outputDir string) (string, error) {
 		return "", fmt.Errorf("failed to serialize JSON: %w", err)
 	}
 
-	if err := os.WriteFile(outputPath, jsonData, 0644); err != nil {
+	if err := os.WriteFile(outputPath, jsonData, 0600); err != nil {
 		return "", fmt.Errorf("failed to write JSON: %w", err)
 	}
 

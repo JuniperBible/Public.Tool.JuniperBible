@@ -96,7 +96,7 @@ func (h *Handler) Ingest(path, outputDir string) (*plugins.IngestResult, error) 
 	}
 
 	blobPath := filepath.Join(blobDir, hashHex)
-	if err := os.WriteFile(blobPath, data, 0644); err != nil {
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write blob: %w", err)
 	}
 
@@ -151,7 +151,7 @@ func (h *Handler) ExtractIR(path, outputDir string) (*plugins.ExtractIRResult, e
 
 	// Write IR to output directory
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0644); err != nil {
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write IR: %w", err)
 	}
 
@@ -177,7 +177,7 @@ func (h *Handler) EmitNative(irPath, outputDir string) (*plugins.EmitNativeResul
 
 	// Generate USX from IR
 	usxContent := emitUSXFromIR(&corpus)
-	if err := os.WriteFile(outputPath, []byte(usxContent), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(usxContent), 0600); err != nil {
 		return nil, fmt.Errorf("failed to write USX: %w", err)
 	}
 

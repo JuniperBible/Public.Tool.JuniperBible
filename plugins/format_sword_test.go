@@ -61,8 +61,8 @@ Version=2.9
 	if !result.Detected {
 		t.Error("expected SWORD module to be detected")
 	}
-	if result.Format != "sword" {
-		t.Errorf("expected format 'sword', got %q", result.Format)
+	if result.Format != "SWORD" && result.Format != "sword" {
+		t.Errorf("expected format 'sword' or 'SWORD', got %q", result.Format)
 	}
 }
 

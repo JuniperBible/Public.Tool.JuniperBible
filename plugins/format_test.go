@@ -24,24 +24,13 @@ func getProjectRoot() string {
 
 // ensurePluginBuilt ensures a plugin is built before testing
 // Plugin names are like "format-file" or "tool-libsword"
-// They are resolved to "plugins/format/file" or "plugins/tool/libsword"
+// They are resolved to "plugins/format-file" or "plugins/tool-libsword" (standalone plugins)
 func ensurePluginBuilt(t *testing.T, pluginName string) string {
 	t.Helper()
 	root := getProjectRoot()
 
-	// Parse plugin name: "format-file" -> kind="format", name="file"
-	var kind, name string
-	if len(pluginName) > 7 && pluginName[:7] == "format-" {
-		kind = "format"
-		name = pluginName[7:]
-	} else if len(pluginName) > 5 && pluginName[:5] == "tool-" {
-		kind = "tool"
-		name = pluginName[5:]
-	} else {
-		t.Fatalf("invalid plugin name: %s (expected format-* or tool-*)", pluginName)
-	}
-
-	pluginDir := filepath.Join(root, "plugins", kind, name)
+	// Plugin directory is directly plugins/<pluginName> (e.g., plugins/format-file)
+	pluginDir := filepath.Join(root, "plugins", pluginName)
 	pluginBin := filepath.Join(pluginDir, pluginName)
 
 	// Check if plugin exists, build if not

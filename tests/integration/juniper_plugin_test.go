@@ -32,22 +32,17 @@ type juniperPlugin struct {
 // juniperPlugins lists all formerly-juniper plugins and their expected properties.
 // Note: format.esword is the original format plugin (with merged juniper functionality)
 // and uses IPC-only mode (no info CLI command).
+// Standalone plugins are now in plugins/format-<name>/ (with hyphen) directories.
+// Note: format.sword-pure is now embedded only (canonical package in core/formats/sword-pure/)
+// and doesn't have a standalone plugin wrapper.
 var juniperPlugins = []juniperPlugin{
-	{
-		name:        "format.sword-pure",
-		kind:        "format",
-		description: "Pure Go SWORD module parser",
-		commands:    []string{"detect", "list-modules", "parse-conf", "get-verse"},
-		dir:         "format/sword-pure",
-		binary:      "sword-pure",
-	},
 	{
 		name:        "format.esword",
 		kind:        "format",
 		description: "e-Sword SQLite parser",
 		commands:    []string{"detect", "ingest", "enumerate"},
-		dir:         "format/esword",
-		binary:      "esword",
+		dir:         "format-esword",
+		binary:      "format-esword",
 	},
 	{
 		name:        "tool.repoman",
@@ -70,9 +65,8 @@ var juniperPlugins = []juniperPlugin{
 // pluginsWithInfoCommand lists plugins that support the "info" CLI command.
 // format.esword uses IPC-only mode (original format plugin pattern).
 var pluginsWithInfoCommand = map[string]bool{
-	"format.sword-pure": true,
-	"tool.repoman":      true,
-	"tool.hugo":         true,
+	"tool.repoman": true,
+	"tool.hugo":    true,
 }
 
 // pluginInfoResponse represents the response from a plugin info command.
@@ -259,17 +253,18 @@ func TestJuniperPluginIPC(t *testing.T) {
 	}
 }
 
-// TestJuniperSwordDetect tests SWORD detection command.
+// TestJuniperSwordDetect tests SWORD detection command using format-sword plugin.
+// Note: The format-sword-pure functionality is now embedded only (no standalone wrapper).
 func TestJuniperSwordDetect(t *testing.T) {
-	pluginDir := filepath.Join("..", "..", "plugins", "format", "sword-pure")
+	pluginDir := filepath.Join("..", "..", "plugins", "format-sword")
 
 	// Build the plugin
-	buildCmd := exec.Command("go", "build", "-o", "sword-pure", ".")
+	buildCmd := exec.Command("go", "build", "-o", "format-sword", ".")
 	buildCmd.Dir = pluginDir
 	if output, err := buildCmd.CombinedOutput(); err != nil {
 		t.Skipf("failed to build plugin: %v\nOutput: %s", err, output)
 	}
-	defer os.Remove(filepath.Join(pluginDir, "sword-pure"))
+	defer os.Remove(filepath.Join(pluginDir, "format-sword"))
 
 	// Create a temp directory with SWORD structure
 	tmpDir := t.TempDir()
@@ -287,7 +282,7 @@ Encoding=UTF-8
 	os.WriteFile(filepath.Join(modsDir, "testmod.conf"), []byte(confContent), 0600)
 
 	// Run detect command
-	binaryPath := filepath.Join(pluginDir, "sword-pure")
+	binaryPath := filepath.Join(pluginDir, "format-sword")
 	cmd := exec.Command(binaryPath, "ipc")
 	stdin, _ := cmd.StdinPipe()
 	var stdout bytes.Buffer
@@ -372,15 +367,15 @@ func TestJuniperRepoManListSources(t *testing.T) {
 
 // TestJuniperESwordDetect tests e-Sword detection command.
 func TestJuniperESwordDetect(t *testing.T) {
-	pluginDir := filepath.Join("..", "..", "plugins", "format", "esword")
+	pluginDir := filepath.Join("..", "..", "plugins", "format-esword")
 
 	// Build the plugin
-	buildCmd := exec.Command("go", "build", "-o", "esword", ".")
+	buildCmd := exec.Command("go", "build", "-o", "format-esword", ".")
 	buildCmd.Dir = pluginDir
 	if output, err := buildCmd.CombinedOutput(); err != nil {
 		t.Skipf("failed to build plugin: %v\nOutput: %s", err, output)
 	}
-	defer os.Remove(filepath.Join(pluginDir, "esword"))
+	defer os.Remove(filepath.Join(pluginDir, "format-esword"))
 
 	// Create a temp e-Sword Bible database
 	tmpDir := t.TempDir()
@@ -409,7 +404,7 @@ func TestJuniperESwordDetect(t *testing.T) {
 	db.Close()
 
 	// Run detect command
-	binaryPath := filepath.Join(pluginDir, "esword")
+	binaryPath := filepath.Join(pluginDir, "format-esword")
 	cmd := exec.Command(binaryPath, "ipc")
 	stdin, _ := cmd.StdinPipe()
 	var stdout bytes.Buffer

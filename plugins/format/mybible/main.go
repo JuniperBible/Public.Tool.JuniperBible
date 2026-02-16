@@ -587,79 +587,29 @@ func handleEmitNative(args map[string]interface{}) {
 		return
 	}
 
-	// Read IR file
-	data, err := os.ReadFile(irPath)
+	corpus, err := readIRCorpus(irPath)
 	if err != nil {
-		ipc.RespondErrorf("failed to read IR file: %v", err)
-		return
-	}
-
-	var corpus ipc.Corpus
-	if err := json.Unmarshal(data, &corpus); err != nil {
-		ipc.RespondErrorf("failed to parse IR: %v", err)
+		ipc.RespondErrorf("failed to read IR: %v", err)
 		return
 	}
 
 	outputPath := filepath.Join(outputDir, corpus.ID+".SQLite3")
 
-	// Create new SQLite database
-	db, err := sqlite.Open(outputPath)
+	db, err := createMyBibleDatabase(outputPath)
 	if err != nil {
 		ipc.RespondErrorf("failed to create database: %v", err)
 		return
 	}
 	defer db.Close()
 
-	// Create verses table (MyBible.zone schema)
-	if _, err := db.Exec(`CREATE TABLE verses (
-		book_number INTEGER NOT NULL,
-		chapter INTEGER NOT NULL,
-		verse INTEGER NOT NULL,
-		text TEXT NOT NULL
-	)`); err != nil {
-		ipc.RespondErrorf("failed to create verses table: %v", err)
-		return
-	}
-
-	// Create indexes for performance
-	db.Exec("CREATE INDEX book_number_index ON verses (book_number)")
-	db.Exec("CREATE INDEX chapter_index ON verses (chapter)")
-	db.Exec("CREATE INDEX verse_index ON verses (verse)")
-
-	// Emit Bible content
-	if err := emitBibleNative(db, &corpus); err != nil {
+	if err := emitBibleNative(db, corpus); err != nil {
 		ipc.RespondErrorf("failed to emit content: %v", err)
 		return
 	}
 
-	// Create info table with metadata (MyBible.zone style: name-value pairs)
-	if _, err := db.Exec("CREATE TABLE info (name TEXT NOT NULL, value TEXT NOT NULL)"); err != nil {
-		ipc.RespondErrorf("failed to create info table: %v", err)
+	if err := populateMetadata(db, corpus); err != nil {
+		ipc.RespondErrorf("failed to populate metadata: %v", err)
 		return
-	}
-
-	title := corpus.Title
-	if title == "" {
-		title = corpus.ID
-	}
-
-	// Insert metadata
-	db.Exec("INSERT INTO info (name, value) VALUES ('description', ?)", title)
-	if corpus.Description != "" {
-		db.Exec("INSERT INTO info (name, value) VALUES ('detailed_info', ?)", corpus.Description)
-	}
-	if corpus.Language != "" {
-		db.Exec("INSERT INTO info (name, value) VALUES ('language', ?)", corpus.Language)
-	}
-	if v, ok := corpus.Attributes["version"]; ok {
-		db.Exec("INSERT INTO info (name, value) VALUES ('version', ?)", v)
-	}
-
-	// Insert other attributes
-	for k, v := range corpus.Attributes {
-		if k != "version" {
-			db.Exec("INSERT INTO info (name, value) VALUES (?, ?)", k, v)
-		}
 	}
 
 	ipc.MustRespond(&ipc.EmitNativeResult{
@@ -675,6 +625,77 @@ func handleEmitNative(args map[string]interface{}) {
 			},
 		},
 	})
+}
+
+// readIRCorpus reads and parses the IR file
+func readIRCorpus(irPath string) (*ipc.Corpus, error) {
+	data, err := os.ReadFile(irPath)
+	if err != nil {
+		return nil, fmt.Errorf("read file: %w", err)
+	}
+
+	var corpus ipc.Corpus
+	if err := json.Unmarshal(data, &corpus); err != nil {
+		return nil, fmt.Errorf("parse JSON: %w", err)
+	}
+
+	return &corpus, nil
+}
+
+// createMyBibleDatabase creates a new MyBible database with schema
+func createMyBibleDatabase(outputPath string) (*sql.DB, error) {
+	db, err := sqlite.Open(outputPath)
+	if err != nil {
+		return nil, fmt.Errorf("open database: %w", err)
+	}
+
+	if _, err := db.Exec(`CREATE TABLE verses (
+		book_number INTEGER NOT NULL,
+		chapter INTEGER NOT NULL,
+		verse INTEGER NOT NULL,
+		text TEXT NOT NULL
+	)`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("create verses table: %w", err)
+	}
+
+	db.Exec("CREATE INDEX book_number_index ON verses (book_number)")
+	db.Exec("CREATE INDEX chapter_index ON verses (chapter)")
+	db.Exec("CREATE INDEX verse_index ON verses (verse)")
+
+	return db, nil
+}
+
+// populateMetadata creates the info table and inserts corpus metadata
+func populateMetadata(db *sql.DB, corpus *ipc.Corpus) error {
+	if _, err := db.Exec("CREATE TABLE info (name TEXT NOT NULL, value TEXT NOT NULL)"); err != nil {
+		return fmt.Errorf("create info table: %w", err)
+	}
+
+	title := corpus.Title
+	if title == "" {
+		title = corpus.ID
+	}
+
+	db.Exec("INSERT INTO info (name, value) VALUES ('description', ?)", title)
+
+	if corpus.Description != "" {
+		db.Exec("INSERT INTO info (name, value) VALUES ('detailed_info', ?)", corpus.Description)
+	}
+	if corpus.Language != "" {
+		db.Exec("INSERT INTO info (name, value) VALUES ('language', ?)", corpus.Language)
+	}
+	if v, ok := corpus.Attributes["version"]; ok {
+		db.Exec("INSERT INTO info (name, value) VALUES ('version', ?)", v)
+	}
+
+	for k, v := range corpus.Attributes {
+		if k != "version" {
+			db.Exec("INSERT INTO info (name, value) VALUES (?, ?)", k, v)
+		}
+	}
+
+	return nil
 }
 
 func emitBibleNative(db *sql.DB, corpus *ipc.Corpus) error {

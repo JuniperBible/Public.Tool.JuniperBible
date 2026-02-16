@@ -356,50 +356,56 @@ func (obc *OrderByCompiler) CompileOrderBy(sel *Select, orderBy *ExprList) error
 		// 2. Column alias
 		// 3. Expression
 
-		if item.Expr.Op == TK_INTEGER {
-			// Column number - validate range
-			colNum := item.Expr.IntValue
-			if colNum < 1 || colNum > sel.EList.Len() {
-				return fmt.Errorf("ORDER BY column number %d out of range (1..%d)",
-					colNum, sel.EList.Len())
-			}
-
-			// Replace with reference to result column
-			item.Expr = sel.EList.Get(colNum - 1).Expr
-			item.OrderByCol = colNum
-
-		} else if item.Expr.Op == TK_ID {
-			// Column alias - try to find in result columns
-			name := item.Expr.StringValue
-			found := false
-
-			for j := 0; j < sel.EList.Len(); j++ {
-				resultItem := sel.EList.Get(j)
-				if resultItem.Name == name {
-					item.Expr = resultItem.Expr
-					item.OrderByCol = j + 1
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				// Not an alias - treat as expression
-				// Resolve column references
-				if err := obc.resolveOrderByExpr(sel, item.Expr); err != nil {
-					return err
-				}
-			}
-
-		} else {
-			// Expression - resolve column references
-			if err := obc.resolveOrderByExpr(sel, item.Expr); err != nil {
-				return err
-			}
+		if err := obc.compileOrderByItem(sel, item); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// compileOrderByItem compiles a single ORDER BY item.
+func (obc *OrderByCompiler) compileOrderByItem(sel *Select, item *ExprListItem) error {
+	switch item.Expr.Op {
+	case TK_INTEGER:
+		return obc.handleColumnNumber(sel, item)
+	case TK_ID:
+		return obc.handleColumnAlias(sel, item)
+	default:
+		return obc.resolveOrderByExpr(sel, item.Expr)
+	}
+}
+
+// handleColumnNumber handles ORDER BY with column number (e.g., ORDER BY 1).
+func (obc *OrderByCompiler) handleColumnNumber(sel *Select, item *ExprListItem) error {
+	colNum := item.Expr.IntValue
+	if colNum < 1 || colNum > sel.EList.Len() {
+		return fmt.Errorf("ORDER BY column number %d out of range (1..%d)",
+			colNum, sel.EList.Len())
+	}
+
+	// Replace with reference to result column
+	item.Expr = sel.EList.Get(colNum - 1).Expr
+	item.OrderByCol = colNum
+	return nil
+}
+
+// handleColumnAlias handles ORDER BY with column alias.
+func (obc *OrderByCompiler) handleColumnAlias(sel *Select, item *ExprListItem) error {
+	name := item.Expr.StringValue
+
+	// Try to find alias in result columns
+	for j := 0; j < sel.EList.Len(); j++ {
+		resultItem := sel.EList.Get(j)
+		if resultItem.Name == name {
+			item.Expr = resultItem.Expr
+			item.OrderByCol = j + 1
+			return nil
+		}
+	}
+
+	// Not an alias - treat as expression and resolve column references
+	return obc.resolveOrderByExpr(sel, item.Expr)
 }
 
 // resolveOrderByExpr resolves column references in ORDER BY expression.
@@ -464,47 +470,63 @@ func (obc *OrderByCompiler) resolveColumnInOrderBy(sel *Select, expr *Expr) erro
 
 // resolveQualifiedColumnInOrderBy resolves qualified column (table.col) in ORDER BY.
 func (obc *OrderByCompiler) resolveQualifiedColumnInOrderBy(sel *Select, expr *Expr) error {
-	if expr.Left == nil || expr.Left.Op != TK_ID {
-		return fmt.Errorf("invalid table reference in ORDER BY")
+	tableName, colName, err := obc.extractQualifiedNames(expr)
+	if err != nil {
+		return err
 	}
-	if expr.Right == nil || expr.Right.Op != TK_ID {
-		return fmt.Errorf("invalid column reference in ORDER BY")
-	}
-
-	tableName := expr.Left.StringValue
-	colName := expr.Right.StringValue
 
 	// Find table in FROM clause
-	if sel.Src != nil {
-		for i := 0; i < sel.Src.Len(); i++ {
-			srcItem := sel.Src.Get(i)
-			if srcItem.Table == nil {
-				continue
-			}
+	if sel.Src == nil {
+		return fmt.Errorf("no such table: %s", tableName)
+	}
 
-			matchName := srcItem.Table.Name == tableName
-			matchAlias := srcItem.Alias == tableName
+	for i := 0; i < sel.Src.Len(); i++ {
+		srcItem := sel.Src.Get(i)
+		if srcItem.Table == nil {
+			continue
+		}
 
-			if matchName || matchAlias {
-				table := srcItem.Table
-				for colIdx := 0; colIdx < table.NumColumns; colIdx++ {
-					col := table.GetColumn(colIdx)
-					if col.Name == colName {
-						expr.Op = TK_COLUMN
-						expr.Table = srcItem.Cursor
-						expr.Column = colIdx
-						expr.ColumnRef = col
-						expr.Left = nil
-						expr.Right = nil
-						return nil
-					}
-				}
-				return fmt.Errorf("no such column: %s.%s", tableName, colName)
-			}
+		if obc.tableMatches(srcItem, tableName) {
+			return obc.resolveColumnInTable(srcItem, colName, tableName, expr)
 		}
 	}
 
 	return fmt.Errorf("no such table: %s", tableName)
+}
+
+// extractQualifiedNames extracts table and column names from qualified column expression.
+func (obc *OrderByCompiler) extractQualifiedNames(expr *Expr) (tableName, colName string, err error) {
+	if expr.Left == nil || expr.Left.Op != TK_ID {
+		return "", "", fmt.Errorf("invalid table reference in ORDER BY")
+	}
+	if expr.Right == nil || expr.Right.Op != TK_ID {
+		return "", "", fmt.Errorf("invalid column reference in ORDER BY")
+	}
+
+	return expr.Left.StringValue, expr.Right.StringValue, nil
+}
+
+// tableMatches checks if srcItem matches the given table name (by name or alias).
+func (obc *OrderByCompiler) tableMatches(srcItem *SrcListItem, tableName string) bool {
+	return srcItem.Table.Name == tableName || srcItem.Alias == tableName
+}
+
+// resolveColumnInTable finds and resolves a column in the given table.
+func (obc *OrderByCompiler) resolveColumnInTable(srcItem *SrcListItem, colName, tableName string, expr *Expr) error {
+	table := srcItem.Table
+	for colIdx := 0; colIdx < table.NumColumns; colIdx++ {
+		col := table.GetColumn(colIdx)
+		if col.Name == colName {
+			expr.Op = TK_COLUMN
+			expr.Table = srcItem.Cursor
+			expr.Column = colIdx
+			expr.ColumnRef = col
+			expr.Left = nil
+			expr.Right = nil
+			return nil
+		}
+	}
+	return fmt.Errorf("no such column: %s.%s", tableName, colName)
 }
 
 // codeOffset generates code to skip OFFSET rows during sorting.

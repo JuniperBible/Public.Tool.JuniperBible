@@ -314,31 +314,17 @@ func handleEnumerate(args map[string]interface{}) {
 }
 
 func handleExtractIR(args map[string]interface{}) {
-	path, ok := args["path"].(string)
+	path, outputDir, ok := extractIRArgs(args)
 	if !ok {
-		ipc.RespondError("path argument required")
 		return
 	}
 
-	outputDir, ok := args["output_dir"].(string)
-	if !ok {
-		ipc.RespondError("output_dir argument required")
-		return
-	}
-
-	base := strings.ToLower(filepath.Base(path))
-	artifactID := filepath.Base(path)
-	for strings.Contains(artifactID, ".") {
-		artifactID = strings.TrimSuffix(artifactID, filepath.Ext(artifactID))
-	}
-
-	// Read source for hashing
-	sourceData, err := os.ReadFile(path)
+	artifactID := extractArtifactID(path)
+	sourceHash, err := hashSourceFile(path)
 	if err != nil {
 		ipc.RespondErrorf("failed to read source: %v", err)
 		return
 	}
-	sourceHash := sha256.Sum256(sourceData)
 
 	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
@@ -347,31 +333,87 @@ func handleExtractIR(args map[string]interface{}) {
 	}
 	defer db.Close()
 
-	corpus := &ipc.Corpus{
+	corpus := createCorpus(artifactID, sourceHash, path)
+	var lostElements []ipc.LostElement
+	extractContentByType(db, corpus, &lostElements, path)
+	extractMetadata(db, corpus)
+
+	irPath, err := writeIRFile(outputDir, corpus)
+	if err != nil {
+		ipc.RespondErrorf("failed to write IR: %v", err)
+		return
+	}
+
+	respondExtractIR(irPath, lostElements)
+}
+
+// extractIRArgs validates and extracts path and output_dir from args
+func extractIRArgs(args map[string]interface{}) (path, outputDir string, ok bool) {
+	path, ok = args["path"].(string)
+	if !ok {
+		ipc.RespondError("path argument required")
+		return "", "", false
+	}
+
+	outputDir, ok = args["output_dir"].(string)
+	if !ok {
+		ipc.RespondError("output_dir argument required")
+		return "", "", false
+	}
+
+	return path, outputDir, true
+}
+
+// extractArtifactID derives artifact ID from file path by removing extensions
+func extractArtifactID(path string) string {
+	artifactID := filepath.Base(path)
+	for strings.Contains(artifactID, ".") {
+		artifactID = strings.TrimSuffix(artifactID, filepath.Ext(artifactID))
+	}
+	return artifactID
+}
+
+// hashSourceFile reads and computes SHA256 hash of source file
+func hashSourceFile(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.Sum256(data)
+	return hex.EncodeToString(hash[:]), nil
+}
+
+// createCorpus initializes a corpus with basic metadata
+func createCorpus(artifactID, sourceHash, path string) *ipc.Corpus {
+	return &ipc.Corpus{
 		ID:           artifactID,
 		Version:      "1.0.0",
 		ModuleType:   "BIBLE",
 		SourceFormat: "MySword",
 		LossClass:    "L1",
-		SourceHash:   hex.EncodeToString(sourceHash[:]),
+		SourceHash:   sourceHash,
 		Attributes:   make(map[string]string),
 	}
+}
 
-	var lostElements []ipc.LostElement
-
-	// Determine module type from filename
+// extractContentByType routes to appropriate extraction function based on file type
+func extractContentByType(db *sql.DB, corpus *ipc.Corpus, lostElements *[]ipc.LostElement, path string) {
+	base := strings.ToLower(filepath.Base(path))
 	if strings.HasSuffix(base, ".commentaries.mybible") {
 		corpus.ModuleType = "COMMENTARY"
-		extractCommentaryIR(db, corpus, &lostElements)
+		extractCommentaryIR(db, corpus, lostElements)
 	} else if strings.HasSuffix(base, ".dictionary.mybible") {
 		corpus.ModuleType = "DICTIONARY"
-		extractDictionaryIR(db, corpus, &lostElements)
+		extractDictionaryIR(db, corpus, lostElements)
 	} else {
 		corpus.ModuleType = "BIBLE"
-		extractBibleIR(db, corpus, &lostElements)
+		extractBibleIR(db, corpus, lostElements)
 	}
+}
 
-	// Try to get metadata from info table (MySword style)
+// extractMetadata retrieves module metadata from database tables
+func extractMetadata(db *sql.DB, corpus *ipc.Corpus) {
+	// Try MySword info table first
 	var desc, detailedInfo, version string
 	row := db.QueryRow("SELECT description, detailed_info, version FROM info LIMIT 1")
 	if err := row.Scan(&desc, &detailedInfo, &version); err == nil {
@@ -384,38 +426,42 @@ func handleExtractIR(args map[string]interface{}) {
 		if version != "" {
 			corpus.Attributes["version"] = version
 		}
+		return
 	}
 
-	// Fall back to Details table (e-Sword compatible)
-	if corpus.Title == "" {
-		var title, abbreviation, info string
-		row := db.QueryRow("SELECT Title, Abbreviation, Information FROM Details LIMIT 1")
-		if err := row.Scan(&title, &abbreviation, &info); err == nil {
-			if title != "" {
-				corpus.Title = title
-			}
-			if abbreviation != "" {
-				corpus.Attributes["abbreviation"] = abbreviation
-			}
-			if info != "" {
-				corpus.Description = info
-			}
+	// Fall back to e-Sword Details table
+	var title, abbreviation, info string
+	row = db.QueryRow("SELECT Title, Abbreviation, Information FROM Details LIMIT 1")
+	if err := row.Scan(&title, &abbreviation, &info); err == nil {
+		if title != "" {
+			corpus.Title = title
+		}
+		if abbreviation != "" {
+			corpus.Attributes["abbreviation"] = abbreviation
+		}
+		if info != "" {
+			corpus.Description = info
 		}
 	}
+}
 
-	// Serialize IR to JSON
+// writeIRFile serializes corpus to JSON and writes to output directory
+func writeIRFile(outputDir string, corpus *ipc.Corpus) (string, error) {
 	irData, err := json.MarshalIndent(corpus, "", "  ")
 	if err != nil {
-		ipc.RespondErrorf("failed to serialize IR: %v", err)
-		return
+		return "", fmt.Errorf("failed to serialize IR: %w", err)
 	}
 
 	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
 	if err := os.WriteFile(irPath, irData, 0644); err != nil {
-		ipc.RespondErrorf("failed to write IR: %v", err)
-		return
+		return "", err
 	}
 
+	return irPath, nil
+}
+
+// respondExtractIR sends the extract IR response
+func respondExtractIR(irPath string, lostElements []ipc.LostElement) {
 	ipc.MustRespond(&ipc.ExtractIRResult{
 		IRPath:    irPath,
 		LossClass: "L1",
@@ -432,98 +478,123 @@ func handleExtractIR(args map[string]interface{}) {
 }
 
 func extractBibleIR(db *sql.DB, corpus *ipc.Corpus, lostElements *[]ipc.LostElement) {
-	// MySword can use either "Books" or "Bible" table
-	tableName := "Books"
-	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM Books").Scan(&count); err != nil {
-		tableName = "Bible"
-	}
-
-	// Query Bible table: Book, Chapter, Verse, Scripture
+	tableName := determineBibleTableName(db)
 	rows, err := db.Query(fmt.Sprintf("SELECT Book, Chapter, Verse, Scripture FROM %s ORDER BY Book, Chapter, Verse", tableName))
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
-	// Group by book
 	bookDocs := make(map[int]*ipc.Document)
 	sequence := 0
 
 	for rows.Next() {
-		var bookNum, chapter, verse int
-		var scripture string
-		if err := rows.Scan(&bookNum, &chapter, &verse, &scripture); err != nil {
-			continue
-		}
-
-		// Get or create document for this book
-		doc, ok := bookDocs[bookNum]
-		if !ok {
-			osisID := bookNumToOSIS[bookNum]
-			if osisID == "" {
-				osisID = fmt.Sprintf("Book%d", bookNum)
-			}
-			doc = &ipc.Document{
-				ID:         osisID,
-				Title:      osisID,
-				Order:      bookNum,
-				Attributes: map[string]string{"book_num": fmt.Sprintf("%d", bookNum)},
-			}
-			bookDocs[bookNum] = doc
-		}
-
-		// Clean HTML from scripture text (MySword uses HTML, not RTF)
-		text := stripHTML(scripture)
-
 		sequence++
-		osisID := bookNumToOSIS[bookNum]
-		if osisID == "" {
-			osisID = fmt.Sprintf("Book%d", bookNum)
-		}
-		refID := fmt.Sprintf("%s.%d.%d", osisID, chapter, verse)
+		processVerseRow(rows, bookDocs, &sequence, lostElements)
+	}
 
-		// Create content block for verse
-		hash := sha256.Sum256([]byte(text))
-		cb := &ipc.ContentBlock{
-			ID:       fmt.Sprintf("cb-%d", sequence),
-			Sequence: sequence,
-			Text:     text,
-			Hash:     hex.EncodeToString(hash[:]),
-			Anchors: []*ipc.Anchor{
-				{
-					ID:       fmt.Sprintf("a-%d-0", sequence),
-					Position: 0,
-					Spans: []*ipc.Span{
-						{
-							ID:            fmt.Sprintf("s-%s", refID),
-							Type:          "VERSE",
-							StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
-							Ref: &ipc.Ref{
-								Book:    osisID,
-								Chapter: chapter,
-								Verse:   verse,
-								OSISID:  refID,
-							},
+	addBookDocumentsToCorpus(corpus, bookDocs)
+}
+
+// determineBibleTableName returns "Books" if it exists, otherwise "Bible"
+func determineBibleTableName(db *sql.DB) string {
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM Books").Scan(&count); err != nil {
+		return "Bible"
+	}
+	return "Books"
+}
+
+// getOrCreateBookDocument retrieves or creates a document for the given book number
+func getOrCreateBookDocument(bookDocs map[int]*ipc.Document, bookNum int) *ipc.Document {
+	if doc, ok := bookDocs[bookNum]; ok {
+		return doc
+	}
+
+	osisID := getOSISIDForBook(bookNum)
+	doc := &ipc.Document{
+		ID:         osisID,
+		Title:      osisID,
+		Order:      bookNum,
+		Attributes: map[string]string{"book_num": fmt.Sprintf("%d", bookNum)},
+	}
+	bookDocs[bookNum] = doc
+	return doc
+}
+
+// getOSISIDForBook returns the OSIS ID for a book number, or a fallback
+func getOSISIDForBook(bookNum int) string {
+	if osisID := bookNumToOSIS[bookNum]; osisID != "" {
+		return osisID
+	}
+	return fmt.Sprintf("Book%d", bookNum)
+}
+
+// createVerseContentBlock creates a content block for a verse
+func createVerseContentBlock(sequence int, bookNum, chapter, verse int, text string) *ipc.ContentBlock {
+	osisID := getOSISIDForBook(bookNum)
+	refID := fmt.Sprintf("%s.%d.%d", osisID, chapter, verse)
+	hash := sha256.Sum256([]byte(text))
+
+	return &ipc.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", sequence),
+		Sequence: sequence,
+		Text:     text,
+		Hash:     hex.EncodeToString(hash[:]),
+		Anchors: []*ipc.Anchor{
+			{
+				ID:       fmt.Sprintf("a-%d-0", sequence),
+				Position: 0,
+				Spans: []*ipc.Span{
+					{
+						ID:            fmt.Sprintf("s-%s", refID),
+						Type:          "VERSE",
+						StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
+						Ref: &ipc.Ref{
+							Book:    osisID,
+							Chapter: chapter,
+							Verse:   verse,
+							OSISID:  refID,
 						},
 					},
 				},
 			},
-		}
+		},
+	}
+}
 
-		// Track HTML loss if present
-		if scripture != text && (strings.Contains(scripture, "<") || strings.Contains(scripture, "&")) {
-			*lostElements = append(*lostElements, ipc.LostElement{
-				Path:        refID,
-				ElementType: "html-formatting",
-				Reason:      "HTML formatting stripped during extraction",
-			})
-		}
+// trackHTMLLoss records when HTML formatting is lost during extraction
+func trackHTMLLoss(scripture, text string, refID string, lostElements *[]ipc.LostElement) {
+	if scripture != text && (strings.Contains(scripture, "<") || strings.Contains(scripture, "&")) {
+		*lostElements = append(*lostElements, ipc.LostElement{
+			Path:        refID,
+			ElementType: "html-formatting",
+			Reason:      "HTML formatting stripped during extraction",
+		})
+	}
+}
 
-		doc.ContentBlocks = append(doc.ContentBlocks, cb)
+// processVerseRow processes a single verse row from the database
+func processVerseRow(rows *sql.Rows, bookDocs map[int]*ipc.Document, sequence *int, lostElements *[]ipc.LostElement) {
+	var bookNum, chapter, verse int
+	var scripture string
+	if err := rows.Scan(&bookNum, &chapter, &verse, &scripture); err != nil {
+		return
 	}
 
-	// Add documents to corpus in order
+	doc := getOrCreateBookDocument(bookDocs, bookNum)
+	text := stripHTML(scripture)
+	cb := createVerseContentBlock(*sequence, bookNum, chapter, verse, text)
+
+	osisID := getOSISIDForBook(bookNum)
+	refID := fmt.Sprintf("%s.%d.%d", osisID, chapter, verse)
+	trackHTMLLoss(scripture, text, refID, lostElements)
+
+	doc.ContentBlocks = append(doc.ContentBlocks, cb)
+}
+
+// addBookDocumentsToCorpus adds book documents to the corpus in canonical order
+func addBookDocumentsToCorpus(corpus *ipc.Corpus, bookDocs map[int]*ipc.Document) {
 	for i := 1; i <= 66; i++ {
 		if doc, ok := bookDocs[i]; ok {
 			corpus.Documents = append(corpus.Documents, doc)

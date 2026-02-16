@@ -901,7 +901,6 @@ func handleIR(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleIRWithPrefix(w http.ResponseWriter, r *http.Request, prefix string) {
-	// URL format: /{prefix}/capsule-path or /{prefix}/capsule-path/download
 	capsulePath := strings.TrimPrefix(r.URL.Path, prefix)
 	if capsulePath == "" {
 		http.Redirect(w, r, "/", http.StatusFound)
@@ -924,27 +923,57 @@ func handleIRWithPrefix(w http.ResponseWriter, r *http.Request, prefix string) {
 
 	// Handle download request
 	if isDownload {
-		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-			http.Error(w, "Capsule not found", http.StatusNotFound)
-			return
-		}
-		irContent, err := readIRContent(fullPath)
-		if err != nil {
-			http.Error(w, "No IR found in capsule", http.StatusNotFound)
-			return
-		}
-		jsonData := prettyJSON(irContent)
-		baseName := trimArchiveSuffix(filepath.Base(capsulePath))
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.ir.json\"", baseName))
-		w.Write([]byte(jsonData))
+		handleIRDownload(w, fullPath, capsulePath)
 		return
 	}
 
-	// Get or create CSRF token
+	// Build initial data structure
 	csrfToken := getOrCreateCSRFToken(w, r)
+	data := buildIRData(capsulePath, prefix, csrfToken)
 
-	data := IRData{
+	// Handle POST request for generating IR
+	if r.Method == http.MethodPost {
+		handleIRGenerationRequest(r, &data, capsulePath)
+	}
+
+	// Check if capsule exists and load IR content
+	if !checkCapsuleExists(fullPath, &data) {
+		Templates.ExecuteTemplate(w, "ir.html", data)
+		return
+	}
+
+	// Load and prepare IR content for display
+	if !loadIRContent(fullPath, &data) {
+		Templates.ExecuteTemplate(w, "ir.html", data)
+		return
+	}
+
+	if err := Templates.ExecuteTemplate(w, "ir.html", data); err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+	}
+}
+
+// handleIRDownload serves IR content as a downloadable JSON file
+func handleIRDownload(w http.ResponseWriter, fullPath, capsulePath string) {
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		http.Error(w, "Capsule not found", http.StatusNotFound)
+		return
+	}
+	irContent, err := readIRContent(fullPath)
+	if err != nil {
+		http.Error(w, "No IR found in capsule", http.StatusNotFound)
+		return
+	}
+	jsonData := prettyJSON(irContent)
+	baseName := trimArchiveSuffix(filepath.Base(capsulePath))
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.ir.json\"", baseName))
+	w.Write([]byte(jsonData))
+}
+
+// buildIRData constructs the initial IRData structure
+func buildIRData(capsulePath, prefix, csrfToken string) IRData {
+	return IRData{
 		PageData: PageData{Title: "IR View: " + capsulePath, CSRFToken: csrfToken},
 		Capsule: CapsuleInfo{
 			Name: filepath.Base(capsulePath),
@@ -952,40 +981,42 @@ func handleIRWithPrefix(w http.ResponseWriter, r *http.Request, prefix string) {
 		},
 		URLPrefix: strings.TrimSuffix(prefix, "/"),
 	}
+}
 
-	// Handle POST request for generating IR
-	if r.Method == http.MethodPost {
-		// Validate CSRF token
-		if !validateCSRFToken(r) {
-			data.PageData.Error = "Invalid CSRF token. Please try again."
-		} else {
-			action := r.FormValue("action")
-			if action == "generate" {
-				result := performIRGeneration(capsulePath)
-				if result.Success {
-					data.PageData.Message = result.Message
-				} else {
-					data.PageData.Error = result.Message
-				}
-			}
-		}
-	}
-
-	// Check if capsule file exists
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		data.PageData.Title = "IR View"
-		data.PageData.Error = fmt.Sprintf("Capsule not found: %s", capsulePath)
-		Templates.ExecuteTemplate(w, "ir.html", data)
+// handleIRGenerationRequest processes POST requests to generate IR
+func handleIRGenerationRequest(r *http.Request, data *IRData, capsulePath string) {
+	if !validateCSRFToken(r) {
+		data.PageData.Error = "Invalid CSRF token. Please try again."
 		return
 	}
+	if r.FormValue("action") == "generate" {
+		result := performIRGeneration(capsulePath)
+		if result.Success {
+			data.PageData.Message = result.Message
+		} else {
+			data.PageData.Error = result.Message
+		}
+	}
+}
 
+// checkCapsuleExists verifies the capsule file exists and updates data accordingly
+func checkCapsuleExists(fullPath string, data *IRData) bool {
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		data.PageData.Title = "IR View"
+		data.PageData.Error = fmt.Sprintf("Capsule not found: %s", data.Capsule.Path)
+		return false
+	}
+	return true
+}
+
+// loadIRContent reads and prepares IR content for display
+func loadIRContent(fullPath string, data *IRData) bool {
 	irContent, err := readIRContent(fullPath)
 	if err != nil {
 		if data.PageData.Error == "" {
 			data.PageData.Error = "No IR found in capsule. Use 'Generate IR' to create one."
 		}
-		Templates.ExecuteTemplate(w, "ir.html", data)
-		return
+		return false
 	}
 
 	data.IR = irContent
@@ -997,10 +1028,7 @@ func handleIRWithPrefix(w http.ResponseWriter, r *http.Request, prefix string) {
 	} else {
 		data.IRJsonPreview = data.IRJson
 	}
-
-	if err := Templates.ExecuteTemplate(w, "ir.html", data); err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-	}
+	return true
 }
 
 func handleTranscript(w http.ResponseWriter, r *http.Request) {
@@ -2291,11 +2319,8 @@ func getPluginLicense(p *plugins.Plugin) string {
 }
 
 // parseLicenseText extracts a short license identifier from license file content.
-func parseLicenseText(content string) string {
-	// Check for common license patterns
-	contentLower := strings.ToLower(content)
-
-	// Check for SPDX identifier in first few lines
+// extractSPDXIdentifier checks for SPDX-License-Identifier in the first few lines
+func extractSPDXIdentifier(content string) (string, bool) {
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		if i > 5 {
@@ -2304,39 +2329,102 @@ func parseLicenseText(content string) string {
 		if strings.Contains(line, "SPDX-License-Identifier:") {
 			parts := strings.SplitN(line, ":", 2)
 			if len(parts) == 2 {
-				return strings.TrimSpace(parts[1])
+				return strings.TrimSpace(parts[1]), true
 			}
 		}
 	}
+	return "", false
+}
+
+// matchMITLicense checks if content matches MIT license patterns
+func matchMITLicense(contentLower string) bool {
+	return strings.Contains(contentLower, "mit license") ||
+		strings.Contains(contentLower, "permission is hereby granted, free of charge")
+}
+
+// matchApacheLicense checks if content matches Apache license patterns
+func matchApacheLicense(contentLower string) bool {
+	return strings.Contains(contentLower, "apache license") &&
+		strings.Contains(contentLower, "version 2.0")
+}
+
+// matchGPLLicense checks if content matches GPL license patterns and returns the version
+func matchGPLLicense(contentLower string) (string, bool) {
+	if strings.Contains(contentLower, "gnu general public license") && strings.Contains(contentLower, "version 3") {
+		return "GPL-3.0", true
+	}
+	if strings.Contains(contentLower, "gpl-3") || strings.Contains(contentLower, "gplv3") {
+		return "GPL-3.0", true
+	}
+	if strings.Contains(contentLower, "gnu general public license") && strings.Contains(contentLower, "version 2") {
+		return "GPL-2.0", true
+	}
+	if strings.Contains(contentLower, "gpl-2") || strings.Contains(contentLower, "gplv2") {
+		return "GPL-2.0", true
+	}
+	if strings.Contains(contentLower, "gnu lesser general public license") {
+		return "LGPL", true
+	}
+	return "", false
+}
+
+// matchBSDLicense checks if content matches BSD license patterns and returns the variant
+func matchBSDLicense(contentLower string) (string, bool) {
+	if strings.Contains(contentLower, "bsd 3-clause") ||
+		strings.Contains(contentLower, "redistribution and use in source and binary forms") {
+		return "BSD-3-Clause", true
+	}
+	if strings.Contains(contentLower, "bsd 2-clause") {
+		return "BSD-2-Clause", true
+	}
+	return "", false
+}
+
+// matchOtherLicense checks for other common license patterns
+func matchOtherLicense(contentLower string) (string, bool) {
+	if strings.Contains(contentLower, "mozilla public license") && strings.Contains(contentLower, "2.0") {
+		return "MPL-2.0", true
+	}
+	if strings.Contains(contentLower, "unlicense") ||
+		strings.Contains(contentLower, "this is free and unencumbered software") {
+		return "Unlicense", true
+	}
+	if strings.Contains(contentLower, "public domain") {
+		return "Public Domain", true
+	}
+	if strings.Contains(contentLower, "isc license") {
+		return "ISC", true
+	}
+	return "", false
+}
+
+func parseLicenseText(content string) string {
+	// Check for SPDX identifier in first few lines
+	if spdx, found := extractSPDXIdentifier(content); found {
+		return spdx
+	}
 
 	// Pattern matching for common licenses
-	switch {
-	case strings.Contains(contentLower, "mit license") || strings.Contains(contentLower, "permission is hereby granted, free of charge"):
+	contentLower := strings.ToLower(content)
+
+	if matchMITLicense(contentLower) {
 		return "MIT"
-	case strings.Contains(contentLower, "apache license") && strings.Contains(contentLower, "version 2.0"):
+	}
+
+	if matchApacheLicense(contentLower) {
 		return "Apache-2.0"
-	case strings.Contains(contentLower, "gnu general public license") && strings.Contains(contentLower, "version 3"):
-		return "GPL-3.0"
-	case strings.Contains(contentLower, "gpl-3") || strings.Contains(contentLower, "gplv3"):
-		return "GPL-3.0"
-	case strings.Contains(contentLower, "gnu general public license") && strings.Contains(contentLower, "version 2"):
-		return "GPL-2.0"
-	case strings.Contains(contentLower, "gpl-2") || strings.Contains(contentLower, "gplv2"):
-		return "GPL-2.0"
-	case strings.Contains(contentLower, "gnu lesser general public license"):
-		return "LGPL"
-	case strings.Contains(contentLower, "bsd 3-clause") || strings.Contains(contentLower, "redistribution and use in source and binary forms"):
-		return "BSD-3-Clause"
-	case strings.Contains(contentLower, "bsd 2-clause"):
-		return "BSD-2-Clause"
-	case strings.Contains(contentLower, "mozilla public license") && strings.Contains(contentLower, "2.0"):
-		return "MPL-2.0"
-	case strings.Contains(contentLower, "unlicense") || strings.Contains(contentLower, "this is free and unencumbered software"):
-		return "Unlicense"
-	case strings.Contains(contentLower, "public domain"):
-		return "Public Domain"
-	case strings.Contains(contentLower, "isc license"):
-		return "ISC"
+	}
+
+	if license, found := matchGPLLicense(contentLower); found {
+		return license
+	}
+
+	if license, found := matchBSDLicense(contentLower); found {
+		return license
+	}
+
+	if license, found := matchOtherLicense(contentLower); found {
+		return license
 	}
 
 	return "See LICENSE file"
@@ -3629,36 +3717,67 @@ func performRunsCompare(extractDir, run1ID, run2ID string) *CompareResult {
 		Run2ID: run2ID,
 	}
 
-	// Read manifest.json to get transcript hashes
+	manifest, ok := loadManifest(extractDir)
+	if !ok {
+		return result
+	}
+
+	if !extractTranscriptHashes(manifest, run1ID, run2ID, result) {
+		return result
+	}
+
+	if result.Hash1 == result.Hash2 {
+		result.Identical = true
+		return result
+	}
+
+	events1, events2 := loadAndParseTranscripts(extractDir, manifest, result.Hash1, result.Hash2)
+	result.EventCount1 = len(events1)
+	result.EventCount2 = len(events2)
+
+	result.Differences = findEventDifferences(events1, events2)
+
+	return result
+}
+
+// manifestData represents the structure of manifest.json for run comparison.
+type manifestData struct {
+	Runs map[string]struct {
+		Outputs *struct {
+			TranscriptBlobSHA256 string `json:"transcript_blob_sha256"`
+		} `json:"outputs"`
+	} `json:"runs"`
+	Blobs map[string]struct {
+		Path string `json:"path"`
+	} `json:"blobs"`
+}
+
+// loadManifest reads and parses the manifest.json file.
+func loadManifest(extractDir string) (*manifestData, bool) {
 	manifestPath := filepath.Join(extractDir, "capsule", "manifest.json")
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
-		return result
+		return nil, false
 	}
 
-	var manifest struct {
-		Runs map[string]struct {
-			Outputs *struct {
-				TranscriptBlobSHA256 string `json:"transcript_blob_sha256"`
-			} `json:"outputs"`
-		} `json:"runs"`
-		Blobs map[string]struct {
-			Path string `json:"path"`
-		} `json:"blobs"`
-	}
-
+	var manifest manifestData
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return result
+		return nil, false
 	}
 
-	// Get transcript hashes
+	return &manifest, true
+}
+
+// extractTranscriptHashes extracts transcript hashes from the manifest for the given runs.
+// Returns true if both hashes were successfully extracted.
+func extractTranscriptHashes(manifest *manifestData, run1ID, run2ID string, result *CompareResult) bool {
 	run1, ok := manifest.Runs[run1ID]
 	if !ok {
-		return result
+		return false
 	}
 	run2, ok := manifest.Runs[run2ID]
 	if !ok {
-		return result
+		return false
 	}
 
 	if run1.Outputs != nil {
@@ -3668,38 +3787,34 @@ func performRunsCompare(extractDir, run1ID, run2ID string) *CompareResult {
 		result.Hash2 = run2.Outputs.TranscriptBlobSHA256
 	}
 
-	if result.Hash1 == "" || result.Hash2 == "" {
-		return result
-	}
+	return result.Hash1 != "" && result.Hash2 != ""
+}
 
-	// Check if identical
-	if result.Hash1 == result.Hash2 {
-		result.Identical = true
-		return result
-	}
-
-	// Read transcript contents
+// loadAndParseTranscripts loads transcript blobs and parses them into events.
+func loadAndParseTranscripts(extractDir string, manifest *manifestData, hash1, hash2 string) ([]string, []string) {
 	var transcript1, transcript2 []byte
-	if blob1, ok := manifest.Blobs[result.Hash1]; ok {
-		transcript1 = readTranscriptBlob(extractDir, result.Hash1, blob1.Path)
+
+	if blob1, ok := manifest.Blobs[hash1]; ok {
+		transcript1 = readTranscriptBlob(extractDir, hash1, blob1.Path)
 	}
-	if blob2, ok := manifest.Blobs[result.Hash2]; ok {
-		transcript2 = readTranscriptBlob(extractDir, result.Hash2, blob2.Path)
+	if blob2, ok := manifest.Blobs[hash2]; ok {
+		transcript2 = readTranscriptBlob(extractDir, hash2, blob2.Path)
 	}
 
-	// Parse transcripts as JSON lines
 	events1 := parseTranscriptEvents(transcript1)
 	events2 := parseTranscriptEvents(transcript2)
 
-	result.EventCount1 = len(events1)
-	result.EventCount2 = len(events2)
+	return events1, events2
+}
 
-	// Find differences
+// findEventDifferences compares two event lists and returns differences.
+func findEventDifferences(events1, events2 []string) []DiffEntry {
 	maxLen := len(events1)
 	if len(events2) > maxLen {
 		maxLen = len(events2)
 	}
 
+	var differences []DiffEntry
 	for i := 0; i < maxLen; i++ {
 		var e1, e2 string
 		if i < len(events1) {
@@ -3710,7 +3825,7 @@ func performRunsCompare(extractDir, run1ID, run2ID string) *CompareResult {
 		}
 
 		if e1 != e2 {
-			result.Differences = append(result.Differences, DiffEntry{
+			differences = append(differences, DiffEntry{
 				Index:  i,
 				Event1: e1,
 				Event2: e2,
@@ -3718,7 +3833,7 @@ func performRunsCompare(extractDir, run1ID, run2ID string) *CompareResult {
 		}
 	}
 
-	return result
+	return differences
 }
 
 // readTranscriptBlob reads a transcript blob from the capsule.
@@ -4038,45 +4153,54 @@ func parseSWORDConf(conf, filename string) SWORDModule {
 		if idx := strings.Index(line, "="); idx > 0 {
 			key := strings.TrimSpace(line[:idx])
 			value := strings.TrimSpace(line[idx+1:])
-
-			switch strings.ToLower(key) {
-			case "description":
-				module.Description = value
-			case "lang":
-				module.Language = value
-			case "version":
-				module.Version = value
-			case "category":
-				module.Category = value
-			case "copyright":
-				module.Copyright = value
-			case "distributionlicense":
-				module.License = value
-			case "datapath":
-				module.DataPath = value
-			case "versification":
-				module.Versification = value
-			case "feature":
-				module.Features = append(module.Features, value)
-			case "globaloptionffilter":
-				// GlobalOptionFilter can indicate features like StrongsNumbers
-				if strings.Contains(strings.ToLower(value), "strongs") {
-					module.Features = append(module.Features, "StrongsNumbers")
-				}
-				if strings.Contains(strings.ToLower(value), "morph") {
-					module.Features = append(module.Features, "Morphology")
-				}
-				if strings.Contains(strings.ToLower(value), "footnotes") {
-					module.Features = append(module.Features, "Footnotes")
-				}
-				if strings.Contains(strings.ToLower(value), "headings") {
-					module.Features = append(module.Features, "Headings")
-				}
-			}
+			parseSWORDConfField(&module, key, value)
 		}
 	}
 
 	return module
+}
+
+// parseSWORDConfField processes a single configuration field.
+func parseSWORDConfField(module *SWORDModule, key, value string) {
+	switch strings.ToLower(key) {
+	case "description":
+		module.Description = value
+	case "lang":
+		module.Language = value
+	case "version":
+		module.Version = value
+	case "category":
+		module.Category = value
+	case "copyright":
+		module.Copyright = value
+	case "distributionlicense":
+		module.License = value
+	case "datapath":
+		module.DataPath = value
+	case "versification":
+		module.Versification = value
+	case "feature":
+		module.Features = append(module.Features, value)
+	case "globaloptionffilter":
+		parseGlobalOptionFilter(module, value)
+	}
+}
+
+// parseGlobalOptionFilter extracts features from GlobalOptionFilter values.
+func parseGlobalOptionFilter(module *SWORDModule, value string) {
+	lowerValue := strings.ToLower(value)
+	filterMap := map[string]string{
+		"strongs":   "StrongsNumbers",
+		"morph":     "Morphology",
+		"footnotes": "Footnotes",
+		"headings":  "Headings",
+	}
+
+	for keyword, feature := range filterMap {
+		if strings.Contains(lowerValue, keyword) {
+			module.Features = append(module.Features, feature)
+		}
+	}
 }
 
 // JuniperIngestData is the data for the Juniper ingest page.

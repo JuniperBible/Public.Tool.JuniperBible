@@ -108,62 +108,112 @@ type HugoExcluded struct {
 
 // Hugo generates Hugo-compatible JSON data files from SWORD modules.
 func Hugo(cfg HugoConfig) error {
-	swordPath, err := ResolveSwordPath(cfg.Path)
+	swordPath, modules, err := loadSwordModules(cfg.Path)
 	if err != nil {
 		return err
+	}
+
+	toExport, err := filterModulesToExport(modules, cfg)
+	if err != nil {
+		return err
+	}
+
+	auxDir, err := setupOutputDirectories(cfg.Output)
+	if err != nil {
+		return err
+	}
+
+	workers := determineWorkerCount(cfg.Workers)
+	fmt.Printf("Exporting %d Bible(s) to Hugo JSON in %s/ using %d workers\n\n", len(toExport), cfg.Output, workers)
+
+	metadata := initializeMetadata()
+	exportModulesInParallel(toExport, swordPath, auxDir, workers, &metadata)
+
+	return finalizeMetadataFile(cfg.Output, metadata)
+}
+
+// loadSwordModules loads and validates SWORD modules from the given path.
+func loadSwordModules(path string) (string, []*Module, error) {
+	swordPath, err := ResolveSwordPath(path)
+	if err != nil {
+		return "", nil, err
 	}
 
 	modules, err := ListModules(swordPath)
 	if err != nil {
-		return err
+		return "", nil, err
 	}
 
 	if len(modules) == 0 {
-		return fmt.Errorf("no Bible modules found in %s", swordPath)
+		return "", nil, fmt.Errorf("no Bible modules found in %s", swordPath)
 	}
 
-	// Filter modules
+	return swordPath, modules, nil
+}
+
+// filterModulesToExport filters modules based on configuration.
+func filterModulesToExport(modules []*Module, cfg HugoConfig) ([]*Module, error) {
 	var toExport []*Module
+
 	if cfg.All {
 		toExport = modules
 	} else if len(cfg.Modules) > 0 {
-		moduleMap := make(map[string]*Module)
-		for _, m := range modules {
-			moduleMap[strings.ToLower(m.Name)] = m
-		}
-		for _, name := range cfg.Modules {
-			if m, ok := moduleMap[strings.ToLower(name)]; ok {
-				toExport = append(toExport, m)
-			} else {
-				fmt.Printf("Warning: module '%s' not found\n", name)
-			}
-		}
+		toExport = selectSpecificModules(modules, cfg.Modules)
 	} else {
-		return fmt.Errorf("specify module names or use --all")
+		return nil, fmt.Errorf("specify module names or use --all")
 	}
 
 	if len(toExport) == 0 {
-		return fmt.Errorf("no modules to export")
+		return nil, fmt.Errorf("no modules to export")
 	}
 
-	// Create output directories
-	if err := os.MkdirAll(cfg.Output, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
+	return toExport, nil
+}
+
+// selectSpecificModules selects modules by name from the available modules.
+func selectSpecificModules(modules []*Module, names []string) []*Module {
+	moduleMap := make(map[string]*Module)
+	for _, m := range modules {
+		moduleMap[strings.ToLower(m.Name)] = m
 	}
-	auxDir := filepath.Join(cfg.Output, "bibles_auxiliary")
+
+	var selected []*Module
+	for _, name := range names {
+		if m, ok := moduleMap[strings.ToLower(name)]; ok {
+			selected = append(selected, m)
+		} else {
+			fmt.Printf("Warning: module '%s' not found\n", name)
+		}
+	}
+
+	return selected
+}
+
+// setupOutputDirectories creates the necessary output directories.
+func setupOutputDirectories(output string) (string, error) {
+	if err := os.MkdirAll(output, 0755); err != nil {
+		return "", fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	auxDir := filepath.Join(output, "bibles_auxiliary")
 	if err := os.MkdirAll(auxDir, 0755); err != nil {
-		return fmt.Errorf("failed to create auxiliary directory: %w", err)
+		return "", fmt.Errorf("failed to create auxiliary directory: %w", err)
 	}
 
-	// Determine worker count
-	workers := cfg.Workers
-	if workers <= 0 {
-		workers = runtime.NumCPU()
+	return auxDir, nil
+}
+
+// determineWorkerCount determines the number of workers to use.
+func determineWorkerCount(configuredWorkers int) int {
+	if configuredWorkers <= 0 {
+		return runtime.NumCPU()
 	}
+	return configuredWorkers
+}
 
-	fmt.Printf("Exporting %d Bible(s) to Hugo JSON in %s/ using %d workers\n\n", len(toExport), cfg.Output, workers)
-
-	metadata := HugoBibleMetadata{
+// initializeMetadata creates the initial metadata structure.
+func initializeMetadata() HugoBibleMetadata {
+	return HugoBibleMetadata{
 		Bibles: make([]HugoBibleEntry, 0),
 		Meta: HugoMetaInfo{
 			Granularity: "chapter",
@@ -171,58 +221,66 @@ func Hugo(cfg HugoConfig) error {
 			Version:     "1.0.0",
 		},
 	}
+}
 
-	// Result collector
-	type exportResult struct {
-		entry   *HugoBibleEntry
-		content *HugoBibleContent
-		auxPath string
-		err     error
-	}
+// exportResult holds the result of exporting a single module.
+type exportResult struct {
+	entry   *HugoBibleEntry
+	content *HugoBibleContent
+	auxPath string
+	err     error
+}
 
+// exportModulesInParallel exports modules in parallel and collects results.
+func exportModulesInParallel(modules []*Module, swordPath, auxDir string, workers int, metadata *HugoBibleMetadata) {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, workers)
-	results := make(chan exportResult, len(toExport))
+	results := make(chan exportResult, len(modules))
 
-	for i, m := range toExport {
+	for i, m := range modules {
 		if m.Encrypted {
 			fmt.Printf("Skipping %s: encrypted\n", m.Name)
 			continue
 		}
 
 		wg.Add(1)
-		go func(m *Module, weight int) {
-			defer wg.Done()
-			sem <- struct{}{}        // Acquire
-			defer func() { <-sem }() // Release
-
-			fmt.Printf("Processing %s...\n", m.Name)
-
-			content, entry, err := exportModuleToHugo(swordPath, m, weight)
-			if err != nil {
-				results <- exportResult{err: fmt.Errorf("%s: %w", m.Name, err)}
-				return
-			}
-
-			// Write auxiliary file
-			auxPath := filepath.Join(auxDir, entry.ID+".json")
-			if err := writeJSON(auxPath, content); err != nil {
-				results <- exportResult{err: fmt.Errorf("%s: write error: %w", m.Name, err)}
-				return
-			}
-
-			fmt.Printf("  %s: %d books exported\n", entry.Abbrev, len(content.Books))
-			results <- exportResult{entry: entry, content: content, auxPath: auxPath}
-		}(m, i+1)
+		go exportSingleModule(m, i+1, swordPath, auxDir, sem, results, &wg)
 	}
 
-	// Close results channel when all workers done
 	go func() {
 		wg.Wait()
 		close(results)
 	}()
 
-	// Collect results
+	collectExportResults(results, metadata)
+}
+
+// exportSingleModule exports a single module in a goroutine.
+func exportSingleModule(m *Module, weight int, swordPath, auxDir string, sem chan struct{}, results chan<- exportResult, wg *sync.WaitGroup) {
+	defer wg.Done()
+	sem <- struct{}{}
+	defer func() { <-sem }()
+
+	fmt.Printf("Processing %s...\n", m.Name)
+
+	content, entry, err := exportModuleToHugo(swordPath, m, weight)
+	if err != nil {
+		results <- exportResult{err: fmt.Errorf("%s: %w", m.Name, err)}
+		return
+	}
+
+	auxPath := filepath.Join(auxDir, entry.ID+".json")
+	if err := writeJSON(auxPath, content); err != nil {
+		results <- exportResult{err: fmt.Errorf("%s: write error: %w", m.Name, err)}
+		return
+	}
+
+	fmt.Printf("  %s: %d books exported\n", entry.Abbrev, len(content.Books))
+	results <- exportResult{entry: entry, content: content, auxPath: auxPath}
+}
+
+// collectExportResults collects results from export goroutines.
+func collectExportResults(results <-chan exportResult, metadata *HugoBibleMetadata) {
 	for res := range results {
 		if res.err != nil {
 			fmt.Printf("  Error: %v\n", res.err)
@@ -231,20 +289,20 @@ func Hugo(cfg HugoConfig) error {
 		metadata.Bibles = append(metadata.Bibles, *res.entry)
 	}
 
-	// Sort bibles by weight for consistent output
 	sort.Slice(metadata.Bibles, func(i, j int) bool {
 		return metadata.Bibles[i].Weight < metadata.Bibles[j].Weight
 	})
+}
 
-	// Write bibles.json metadata
-	biblesPath := filepath.Join(cfg.Output, "bibles.json")
+// finalizeMetadataFile writes the final metadata file.
+func finalizeMetadataFile(output string, metadata HugoBibleMetadata) error {
+	biblesPath := filepath.Join(output, "bibles.json")
 	if err := writeJSON(biblesPath, metadata); err != nil {
 		return fmt.Errorf("failed to write bibles.json: %w", err)
 	}
 
 	fmt.Printf("\nCreated %s with %d Bible(s)\n", biblesPath, len(metadata.Bibles))
 	fmt.Println("Done!")
-
 	return nil
 }
 
@@ -521,38 +579,43 @@ func getLicenseText(conf *swordpure.ConfFile, swordPath string, module *Module) 
 
 // generateBibleTags creates comprehensive tags for a Bible module.
 func generateBibleTags(module *Module, conf *swordpure.ConfFile) []string {
-	tags := []string{}
-
-	// Language tag
-	langMap := map[string]string{
-		"en":  "English",
-		"la":  "Latin",
-		"grc": "Greek",
-		"he":  "Hebrew",
-	}
-	if lang, ok := langMap[module.Lang]; ok {
-		tags = append(tags, lang)
-	}
-
-	// Testament tags based on versification and known modules
 	moduleID := strings.ToLower(module.Name)
-	switch moduleID {
-	case "sblgnt":
-		tags = append(tags, "New Testament")
-	case "osmhb":
-		tags = append(tags, "Old Testament")
-	case "lxx":
-		tags = append(tags, "Old Testament")
-	case "oeb":
-		// OEB has partial OT (Psalms) and full NT
-		tags = append(tags, "New Testament")
-	default:
-		// Most Bibles have both testaments
-		tags = append(tags, "Old Testament", "New Testament")
-	}
+	var tags []string
 
-	// Canon tags based on versification
-	switch conf.Versification {
+	tags = appendLanguageTag(tags, module.Lang)
+	tags = appendTestamentTags(tags, moduleID)
+	tags = appendCanonTags(tags, conf.Versification, moduleID)
+	tags = appendLicenseTag(tags, getLicense(conf))
+	tags = appendEraTag(tags, moduleID)
+	tags = appendFeatureTags(tags, module.Description)
+
+	return tags
+}
+
+// appendLanguageTag adds language tag if recognized.
+func appendLanguageTag(tags []string, langCode string) []string {
+	langMap := map[string]string{"en": "English", "la": "Latin", "grc": "Greek", "he": "Hebrew"}
+	if lang, ok := langMap[langCode]; ok {
+		return append(tags, lang)
+	}
+	return tags
+}
+
+// appendTestamentTags adds testament tags based on module ID.
+func appendTestamentTags(tags []string, moduleID string) []string {
+	switch moduleID {
+	case "sblgnt", "oeb":
+		return append(tags, "New Testament")
+	case "osmhb", "lxx":
+		return append(tags, "Old Testament")
+	default:
+		return append(tags, "Old Testament", "New Testament")
+	}
+}
+
+// appendCanonTags adds canon and text type tags.
+func appendCanonTags(tags []string, versification, moduleID string) []string {
+	switch versification {
 	case "Vulg":
 		tags = append(tags, "Catholic Canon")
 	case "LXX":
@@ -562,34 +625,40 @@ func generateBibleTags(module *Module, conf *swordpure.ConfFile) []string {
 	default:
 		tags = append(tags, "Protestant Canon")
 	}
-
-	// Text type for Greek NT
 	if moduleID == "sblgnt" {
 		tags = append(tags, "Critical Text")
 	}
+	return tags
+}
 
-	// License tags
-	license := strings.ToLower(getLicense(conf))
-	if strings.Contains(license, "public domain") || license == "public domain" {
-		tags = append(tags, "Public Domain")
+// appendLicenseTag adds public domain tag if applicable.
+func appendLicenseTag(tags []string, license string) []string {
+	if strings.Contains(strings.ToLower(license), "public domain") {
+		return append(tags, "Public Domain")
 	}
+	return tags
+}
 
-	// Era tags - historical vs modern
+// appendEraTag adds historical or modern translation tag.
+func appendEraTag(tags []string, moduleID string) []string {
 	historicalBibles := map[string]bool{
 		"kjv": true, "asv": true, "tyndale": true, "geneva1599": true,
 		"drc": true, "vulgate": true, "lxx": true,
 	}
 	if historicalBibles[moduleID] {
-		tags = append(tags, "Historical Translation")
-	} else if moduleID == "web" || moduleID == "oeb" || moduleID == "sblgnt" {
-		tags = append(tags, "Modern Translation")
+		return append(tags, "Historical Translation")
 	}
-
-	// Special features
-	if strings.Contains(strings.ToLower(module.Description), "strong") {
-		tags = append(tags, "Strong's Numbers")
+	if moduleID == "web" || moduleID == "oeb" || moduleID == "sblgnt" {
+		return append(tags, "Modern Translation")
 	}
+	return tags
+}
 
+// appendFeatureTags adds feature-based tags.
+func appendFeatureTags(tags []string, description string) []string {
+	if strings.Contains(strings.ToLower(description), "strong") {
+		return append(tags, "Strong's Numbers")
+	}
 	return tags
 }
 

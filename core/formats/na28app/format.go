@@ -17,6 +17,7 @@ import (
 
 // Config defines the NA28 App format plugin.
 var Config = &format.Config{
+	PluginID:   "format.na28app",
 	Name:       "NA28App",
 	Extensions: []string{".na28"},
 	Detect:     detectNA28App,

@@ -24,6 +24,7 @@ import (
 
 // Config defines the RTF format plugin.
 var Config = &format.Config{
+	PluginID:   "format.rtf",
 	Name:       "RTF",
 	Extensions: []string{".rtf"},
 	Detect:     detectRTF,

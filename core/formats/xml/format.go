@@ -46,6 +46,7 @@ type XMLVerse struct {
 
 // Config defines the XML format plugin.
 var Config = &format.Config{
+	PluginID:   "format.xml",
 	Name:       "XML",
 	Extensions: []string{".xml"},
 	Detect:     detectXML,

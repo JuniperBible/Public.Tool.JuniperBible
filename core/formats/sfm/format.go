@@ -20,6 +20,7 @@ import (
 
 // Config defines the SFM format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.sfm",
 	Name:       "SFM",
 	Extensions: []string{".sfm", ".ptx"},
 	Detect:     detectSFM,

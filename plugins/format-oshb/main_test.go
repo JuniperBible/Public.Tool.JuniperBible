@@ -7,6 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
 )
 
 func createTestOSHB(t *testing.T, path string) {
@@ -26,7 +29,7 @@ func TestOSHBDetect(t *testing.T) {
 	oshbPath := filepath.Join(tmpDir, "oshb-test.txt")
 	createTestOSHB(t, oshbPath)
 
-	resp := executePlugin(t, &IPCRequest{Command: "detect", Args: map[string]interface{}{"path": oshbPath}})
+	resp := executePlugin(t, &ipc.Request{Command: "detect", Args: map[string]interface{}{"path": oshbPath}})
 	if resp.Status != "ok" {
 		t.Fatalf("expected ok, got %s: %s", resp.Status, resp.Error)
 	}
@@ -42,7 +45,7 @@ func TestOSHBDetectNonOSHB(t *testing.T) {
 	txtPath := filepath.Join(tmpDir, "test.txt")
 	os.WriteFile(txtPath, []byte("Hello"), 0600)
 
-	resp := executePlugin(t, &IPCRequest{Command: "detect", Args: map[string]interface{}{"path": txtPath}})
+	resp := executePlugin(t, &ipc.Request{Command: "detect", Args: map[string]interface{}{"path": txtPath}})
 	result := resp.Result.(map[string]interface{})
 	if result["detected"] == true {
 		t.Error("expected detected false")
@@ -57,7 +60,7 @@ func TestOSHBExtractIR(t *testing.T) {
 	outputDir := filepath.Join(tmpDir, "output")
 	os.MkdirAll(outputDir, 0755)
 
-	resp := executePlugin(t, &IPCRequest{Command: "extract-ir", Args: map[string]interface{}{"path": oshbPath, "output_dir": outputDir}})
+	resp := executePlugin(t, &ipc.Request{Command: "extract-ir", Args: map[string]interface{}{"path": oshbPath, "output_dir": outputDir}})
 	if resp.Status != "ok" {
 		t.Fatalf("expected ok: %s", resp.Error)
 	}
@@ -70,14 +73,14 @@ func TestOSHBExtractIR(t *testing.T) {
 func TestOSHBEmitNative(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "oshb-test-*")
 	defer os.RemoveAll(tmpDir)
-	corpus := Corpus{ID: "test", Title: "Test", Documents: []*Document{{ID: "Gen", Title: "Genesis", Order: 1, ContentBlocks: []*ContentBlock{{ID: "cb-1", Sequence: 1, Text: "בְּרֵאשִׁית"}}}}}
+	corpus := ir.Corpus{ID: "test", Title: "Test", Documents: []*ir.Document{{ID: "Gen", Title: "Genesis", Order: 1, ContentBlocks: []*ir.ContentBlock{{ID: "cb-1", Sequence: 1, Text: "בְּרֵאשִׁית"}}}}}
 	irData, _ := json.MarshalIndent(&corpus, "", "  ")
 	irPath := filepath.Join(tmpDir, "test.ir.json")
 	os.WriteFile(irPath, irData, 0600)
 	outputDir := filepath.Join(tmpDir, "output")
 	os.MkdirAll(outputDir, 0755)
 
-	resp := executePlugin(t, &IPCRequest{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outputDir}})
+	resp := executePlugin(t, &ipc.Request{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outputDir}})
 	if resp.Status != "ok" {
 		t.Fatalf("expected ok: %s", resp.Error)
 	}
@@ -98,9 +101,9 @@ func TestOSHBRoundTrip(t *testing.T) {
 	os.MkdirAll(irDir, 0755)
 	os.MkdirAll(outDir, 0755)
 
-	extractResp := executePlugin(t, &IPCRequest{Command: "extract-ir", Args: map[string]interface{}{"path": oshbPath, "output_dir": irDir}})
+	extractResp := executePlugin(t, &ipc.Request{Command: "extract-ir", Args: map[string]interface{}{"path": oshbPath, "output_dir": irDir}})
 	irPath := extractResp.Result.(map[string]interface{})["ir_path"].(string)
-	emitResp := executePlugin(t, &IPCRequest{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outDir}})
+	emitResp := executePlugin(t, &ipc.Request{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outDir}})
 	outputPath := emitResp.Result.(map[string]interface{})["output_path"].(string)
 	outputData, _ := os.ReadFile(outputPath)
 
@@ -117,7 +120,7 @@ func TestOSHBIngest(t *testing.T) {
 	outputDir := filepath.Join(tmpDir, "blobs")
 	os.MkdirAll(outputDir, 0755)
 
-	resp := executePlugin(t, &IPCRequest{Command: "ingest", Args: map[string]interface{}{"path": oshbPath, "output_dir": outputDir}})
+	resp := executePlugin(t, &ipc.Request{Command: "ingest", Args: map[string]interface{}{"path": oshbPath, "output_dir": outputDir}})
 	if resp.Status != "ok" {
 		t.Fatalf("expected ok: %s", resp.Error)
 	}
@@ -129,7 +132,7 @@ func TestOSHBIngest(t *testing.T) {
 	}
 }
 
-func executePlugin(t *testing.T, req *IPCRequest) *IPCResponse {
+func executePlugin(t *testing.T, req *ipc.Request) *ipc.Response {
 	t.Helper()
 	pluginPath := "./format-oshb"
 	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
@@ -143,14 +146,14 @@ func executePlugin(t *testing.T, req *IPCRequest) *IPCResponse {
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if stdout.Len() > 0 {
-			var resp IPCResponse
+			var resp ipc.Response
 			if json.Unmarshal(stdout.Bytes(), &resp) == nil {
 				return &resp
 			}
 		}
 		t.Fatalf("plugin failed: %v\nstderr: %s", err, stderr.String())
 	}
-	var resp IPCResponse
+	var resp ipc.Response
 	json.Unmarshal(stdout.Bytes(), &resp)
 	return &resp
 }

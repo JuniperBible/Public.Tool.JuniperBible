@@ -24,6 +24,7 @@ import (
 
 // Config defines the HTML format plugin.
 var Config = &format.Config{
+	PluginID:   "format.html",
 	Name:       "HTML",
 	Extensions: []string{".html", ".htm"},
 	Detect:     detectHTML,

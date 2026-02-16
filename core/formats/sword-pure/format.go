@@ -19,6 +19,7 @@ import (
 
 // Config defines the SWORD Pure format plugin.
 var Config = &format.Config{
+	PluginID:   "format.sword-pure",
 	Name:       "SWORD",
 	Extensions: []string{},
 	Detect:     detectSwordPure,

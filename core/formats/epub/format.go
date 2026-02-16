@@ -17,6 +17,7 @@ import (
 
 // Config defines the EPUB format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.epub",
 	Name:       "EPUB",
 	Extensions: []string{".epub"},
 	Detect:     detectEPUB,

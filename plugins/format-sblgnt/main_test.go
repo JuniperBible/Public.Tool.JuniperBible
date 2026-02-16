@@ -7,6 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
 )
 
 func createTestSBLGNT(t *testing.T, path string) {
@@ -20,7 +23,7 @@ func TestSBLGNTDetect(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	sblPath := filepath.Join(tmpDir, "sblgnt-test.txt")
 	createTestSBLGNT(t, sblPath)
-	resp := executePlugin(t, &IPCRequest{Command: "detect", Args: map[string]interface{}{"path": sblPath}})
+	resp := executePlugin(t, &ipc.Request{Command: "detect", Args: map[string]interface{}{"path": sblPath}})
 	if resp.Result.(map[string]interface{})["detected"] != true {
 		t.Error("expected detected")
 	}
@@ -31,7 +34,7 @@ func TestSBLGNTDetectNon(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	txtPath := filepath.Join(tmpDir, "test.txt")
 	os.WriteFile(txtPath, []byte("Hello"), 0600)
-	resp := executePlugin(t, &IPCRequest{Command: "detect", Args: map[string]interface{}{"path": txtPath}})
+	resp := executePlugin(t, &ipc.Request{Command: "detect", Args: map[string]interface{}{"path": txtPath}})
 	if resp.Result.(map[string]interface{})["detected"] == true {
 		t.Error("expected not detected")
 	}
@@ -44,7 +47,7 @@ func TestSBLGNTExtractIR(t *testing.T) {
 	createTestSBLGNT(t, sblPath)
 	outputDir := filepath.Join(tmpDir, "output")
 	os.MkdirAll(outputDir, 0755)
-	resp := executePlugin(t, &IPCRequest{Command: "extract-ir", Args: map[string]interface{}{"path": sblPath, "output_dir": outputDir}})
+	resp := executePlugin(t, &ipc.Request{Command: "extract-ir", Args: map[string]interface{}{"path": sblPath, "output_dir": outputDir}})
 	if resp.Status != "ok" {
 		t.Fatalf("expected ok: %s", resp.Error)
 	}
@@ -53,13 +56,13 @@ func TestSBLGNTExtractIR(t *testing.T) {
 func TestSBLGNTEmitNative(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "sblgnt-test-*")
 	defer os.RemoveAll(tmpDir)
-	corpus := Corpus{ID: "test", Title: "Test", Documents: []*Document{{ID: "01", Title: "Matthew", Order: 1, ContentBlocks: []*ContentBlock{{ID: "cb-1", Sequence: 1, Text: "Βίβλος"}}}}}
+	corpus := ir.Corpus{ID: "test", Title: "Test", Documents: []*ir.Document{{ID: "01", Title: "Matthew", Order: 1, ContentBlocks: []*ir.ContentBlock{{ID: "cb-1", Sequence: 1, Text: "Βίβλος"}}}}}
 	irData, _ := json.MarshalIndent(&corpus, "", "  ")
 	irPath := filepath.Join(tmpDir, "test.ir.json")
 	os.WriteFile(irPath, irData, 0600)
 	outputDir := filepath.Join(tmpDir, "output")
 	os.MkdirAll(outputDir, 0755)
-	resp := executePlugin(t, &IPCRequest{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outputDir}})
+	resp := executePlugin(t, &ipc.Request{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outputDir}})
 	if resp.Result.(map[string]interface{})["format"] != "SBLGNT" {
 		t.Error("expected SBLGNT format")
 	}
@@ -75,9 +78,9 @@ func TestSBLGNTRoundTrip(t *testing.T) {
 	outDir := filepath.Join(tmpDir, "output")
 	os.MkdirAll(irDir, 0755)
 	os.MkdirAll(outDir, 0755)
-	extractResp := executePlugin(t, &IPCRequest{Command: "extract-ir", Args: map[string]interface{}{"path": sblPath, "output_dir": irDir}})
+	extractResp := executePlugin(t, &ipc.Request{Command: "extract-ir", Args: map[string]interface{}{"path": sblPath, "output_dir": irDir}})
 	irPath := extractResp.Result.(map[string]interface{})["ir_path"].(string)
-	emitResp := executePlugin(t, &IPCRequest{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outDir}})
+	emitResp := executePlugin(t, &ipc.Request{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outDir}})
 	outputPath := emitResp.Result.(map[string]interface{})["output_path"].(string)
 	outputData, _ := os.ReadFile(outputPath)
 	if !bytes.Equal(originalData, outputData) {
@@ -92,14 +95,14 @@ func TestSBLGNTIngest(t *testing.T) {
 	createTestSBLGNT(t, sblPath)
 	outputDir := filepath.Join(tmpDir, "blobs")
 	os.MkdirAll(outputDir, 0755)
-	resp := executePlugin(t, &IPCRequest{Command: "ingest", Args: map[string]interface{}{"path": sblPath, "output_dir": outputDir}})
+	resp := executePlugin(t, &ipc.Request{Command: "ingest", Args: map[string]interface{}{"path": sblPath, "output_dir": outputDir}})
 	blobHash := resp.Result.(map[string]interface{})["blob_sha256"].(string)
 	if _, err := os.Stat(filepath.Join(outputDir, blobHash[:2], blobHash)); os.IsNotExist(err) {
 		t.Error("blob not created")
 	}
 }
 
-func executePlugin(t *testing.T, req *IPCRequest) *IPCResponse {
+func executePlugin(t *testing.T, req *ipc.Request) *ipc.Response {
 	t.Helper()
 	pluginPath := "./format-sblgnt"
 	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
@@ -113,14 +116,14 @@ func executePlugin(t *testing.T, req *IPCRequest) *IPCResponse {
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if stdout.Len() > 0 {
-			var resp IPCResponse
+			var resp ipc.Response
 			if json.Unmarshal(stdout.Bytes(), &resp) == nil {
 				return &resp
 			}
 		}
 		t.Fatalf("plugin failed: %v\nstderr: %s", err, stderr.String())
 	}
-	var resp IPCResponse
+	var resp ipc.Response
 	json.Unmarshal(stdout.Bytes(), &resp)
 	return &resp
 }

@@ -14,6 +14,7 @@ import (
 
 // Config defines the single file format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.file",
 	Name:       "file",
 	Extensions: []string{}, // No specific extensions - catch-all
 	Detect:     detectFile,

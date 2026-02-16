@@ -24,6 +24,7 @@ import (
 
 // Config defines the Markdown format plugin.
 var Config = &format.Config{
+	PluginID:   "format.markdown",
 	Name:       "Markdown",
 	Extensions: []string{".md"},
 	Detect:     detectMarkdown,

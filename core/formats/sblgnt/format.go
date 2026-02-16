@@ -17,6 +17,7 @@ import (
 
 // Config defines the SBLGNT format plugin.
 var Config = &format.Config{
+	PluginID:   "format.sblgnt",
 	Name:       "SBLGNT",
 	Extensions: []string{".txt", ".tsv"},
 	Detect:     detectSBLGNT,

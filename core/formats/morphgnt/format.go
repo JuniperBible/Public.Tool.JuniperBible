@@ -18,6 +18,7 @@ import (
 
 // Config defines the MorphGNT format plugin.
 var Config = &format.Config{
+	PluginID:   "format.morphgnt",
 	Name:       "MorphGNT",
 	Extensions: []string{".txt", ".tsv"},
 	Detect:     detectMorphGNT,

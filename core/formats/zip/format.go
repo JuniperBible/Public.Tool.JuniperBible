@@ -18,6 +18,7 @@ var zipMagic = []byte{0x50, 0x4b, 0x03, 0x04}
 
 // Config defines the ZIP format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.zip",
 	Name:       "zip",
 	Extensions: []string{".zip"},
 	MagicBytes: zipMagic,

@@ -25,6 +25,7 @@ import (
 
 // Config defines the GoBible format plugin.
 var Config = &format.Config{
+	PluginID:   "format.gobible",
 	Name:       "GoBible",
 	Extensions: []string{".gbk"},
 	Detect:     detectGoBible,

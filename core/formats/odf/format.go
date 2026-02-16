@@ -17,6 +17,7 @@ import (
 
 // Config defines the ODF format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.odf",
 	Name:       "ODF",
 	Extensions: []string{".odt", ".ods", ".odp"},
 	Detect:     detectODF,

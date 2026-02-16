@@ -20,6 +20,7 @@ import (
 
 // Config defines the Zefania format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.zefania",
 	Name:       "Zefania",
 	Extensions: []string{".xml"},
 	Detect:     detectZefania,

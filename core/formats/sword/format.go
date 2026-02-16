@@ -23,6 +23,7 @@ import (
 
 // Config defines the SWORD format plugin.
 var Config = &format.Config{
+	PluginID:   "format.sword",
 	Name:       "SWORD",
 	Extensions: []string{},
 	Detect:     detectSword,

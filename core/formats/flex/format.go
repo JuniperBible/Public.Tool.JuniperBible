@@ -17,6 +17,7 @@ import (
 
 // Config defines the FLEx format plugin.
 var Config = &format.Config{
+	PluginID:   "format.flex",
 	Name:       "FLEx",
 	Extensions: []string{".fwdata", ".flextext"},
 	Detect:     detectFLEx,

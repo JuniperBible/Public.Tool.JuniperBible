@@ -17,6 +17,7 @@ import (
 
 // Config defines the ECM format plugin.
 var Config = &format.Config{
+	PluginID:   "format.ecm",
 	Name:       "ECM",
 	Extensions: []string{".ecm", ".txt"},
 	Detect:     detectECM,

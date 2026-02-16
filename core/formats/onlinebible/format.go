@@ -17,6 +17,7 @@ import (
 
 // Config defines the Online Bible format plugin.
 var Config = &format.Config{
+	PluginID:   "format.onlinebible",
 	Name:       "OnlineBible",
 	Extensions: []string{".ont"},
 	Detect:     detectOnlineBible,

@@ -15,6 +15,7 @@ import (
 
 // Config defines the directory format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.dir",
 	Name:       "dir",
 	Extensions: []string{}, // No extensions for directories
 	Detect:     detectDir,

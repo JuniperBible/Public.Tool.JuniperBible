@@ -18,6 +18,7 @@ import (
 
 // Config defines the CrossWire format plugin.
 var Config = &format.Config{
+	PluginID:   "format.crosswire",
 	Name:       "crosswire",
 	Extensions: []string{".zip"},
 	Detect:     detectCrossWire,

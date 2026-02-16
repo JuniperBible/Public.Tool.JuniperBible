@@ -18,6 +18,7 @@ import (
 
 // Config defines the TEI format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.tei",
 	Name:       "TEI",
 	Extensions: []string{".tei", ".xml"},
 	Detect:     detectTEI,

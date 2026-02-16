@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
 )
 
 func TestParseConfFile(t *testing.T) {
@@ -105,7 +108,7 @@ Version=2.0.0
 }
 
 func TestDetectResult(t *testing.T) {
-	result := DetectResult{
+	result := ipc.DetectResult{
 		Detected: true,
 		Format:   "sword",
 		Reason:   "SWORD module detected",
@@ -116,7 +119,7 @@ func TestDetectResult(t *testing.T) {
 		t.Fatalf("failed to marshal: %v", err)
 	}
 
-	var parsed DetectResult
+	var parsed ipc.DetectResult
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -150,10 +153,10 @@ func TestSwordModuleStruct(t *testing.T) {
 }
 
 func TestExtractIRResult(t *testing.T) {
-	result := ExtractIRResult{
+	result := ipc.ExtractIRResult{
 		IRPath:    "/tmp/test.ir.json",
 		LossClass: "L2",
-		LossReport: &LossReport{
+		LossReport: &ipc.LossReport{
 			SourceFormat: "SWORD",
 			TargetFormat: "IR",
 			LossClass:    "L2",
@@ -166,7 +169,7 @@ func TestExtractIRResult(t *testing.T) {
 		t.Fatalf("failed to marshal: %v", err)
 	}
 
-	var parsed ExtractIRResult
+	var parsed ipc.ExtractIRResult
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
@@ -180,7 +183,7 @@ func TestExtractIRResult(t *testing.T) {
 }
 
 func TestEmitNativeResult(t *testing.T) {
-	result := EmitNativeResult{
+	result := ipc.EmitNativeResult{
 		OutputPath: "/tmp/output/",
 		Format:     "SWORD",
 		LossClass:  "L2",
@@ -192,7 +195,7 @@ func TestEmitNativeResult(t *testing.T) {
 }
 
 func TestCorpusStruct(t *testing.T) {
-	corpus := Corpus{
+	corpus := ir.Corpus{
 		ID:           "TestBible",
 		Version:      "1.0.0",
 		ModuleType:   "BIBLE",
@@ -203,7 +206,7 @@ func TestCorpusStruct(t *testing.T) {
 		Attributes: map[string]string{
 			"_sword_module_name": "TestBible",
 		},
-		Documents: []*Document{
+		Documents: []*ir.Document{
 			{
 				ID:    "Gen",
 				Title: "Genesis",
@@ -228,7 +231,7 @@ func TestCorpusStruct(t *testing.T) {
 
 func TestIPCStructs(t *testing.T) {
 	// Test IPCRequest
-	req := IPCRequest{
+	req := ipc.Request{
 		Command: "detect",
 		Args: map[string]interface{}{
 			"path": "/test/path",
@@ -240,7 +243,7 @@ func TestIPCStructs(t *testing.T) {
 		t.Fatalf("failed to marshal request: %v", err)
 	}
 
-	var parsedReq IPCRequest
+	var parsedReq ipc.Request
 	if err := json.Unmarshal(data, &parsedReq); err != nil {
 		t.Fatalf("failed to unmarshal request: %v", err)
 	}
@@ -250,7 +253,7 @@ func TestIPCStructs(t *testing.T) {
 	}
 
 	// Test IPCResponse
-	resp := IPCResponse{
+	resp := ipc.Response{
 		Status: "ok",
 		Result: map[string]bool{"detected": true},
 	}
@@ -260,7 +263,7 @@ func TestIPCStructs(t *testing.T) {
 		t.Fatalf("failed to marshal response: %v", err)
 	}
 
-	var parsedResp IPCResponse
+	var parsedResp ipc.Response
 	if err := json.Unmarshal(respData, &parsedResp); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
@@ -271,11 +274,11 @@ func TestIPCStructs(t *testing.T) {
 }
 
 func TestLossReportStruct(t *testing.T) {
-	report := LossReport{
+	report := ipc.LossReport{
 		SourceFormat: "SWORD",
 		TargetFormat: "IR",
 		LossClass:    "L2",
-		LostElements: []LostElement{
+		LostElements: []ipc.LostElement{
 			{
 				Path:        "Gen.1.1",
 				ElementType: "verse_content",
@@ -299,8 +302,8 @@ func TestLossReportStruct(t *testing.T) {
 }
 
 func TestEnumerateResult(t *testing.T) {
-	result := EnumerateResult{
-		Entries: []EnumerateEntry{
+	result := ipc.EnumerateResult{
+		Entries: []ipc.EnumerateEntry{
 			{
 				Path:      "mods.d/kjv.conf",
 				SizeBytes: 256,

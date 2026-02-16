@@ -29,6 +29,7 @@ import (
 
 // Config defines the MyBible format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.mybible",
 	Name:       "MyBible",
 	Extensions: []string{".sqlite3", ".SQLite3"},
 	Detect:     detect,

@@ -22,6 +22,7 @@ import (
 
 // Config defines the SQLite format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.sqlite",
 	Name:       "SQLite",
 	Extensions: []string{".db", ".sqlite", ".sqlite3"},
 	Detect:     detect,

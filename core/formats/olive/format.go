@@ -26,6 +26,7 @@ import (
 
 // Config defines the Olive Tree format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.olive",
 	Name:       "OliveTree",
 	Extensions: []string{".ot4i", ".oti", ".otm", ".pdb"},
 	Detect:     detect,

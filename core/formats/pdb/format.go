@@ -17,6 +17,7 @@ import (
 
 // Config defines the PDB format plugin.
 var Config = &format.Config{
+	PluginID:   "format.pdb",
 	Name:       "PDB",
 	Extensions: []string{".pdb"},
 	Detect:     detectPDB,

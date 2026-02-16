@@ -20,6 +20,7 @@ import (
 
 // Config defines the OSIS format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.osis",
 	Name:       "OSIS",
 	Extensions: []string{".osis", ".xml"},
 	Detect:     detectFunc,

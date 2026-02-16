@@ -17,6 +17,7 @@ import (
 
 // Config defines the Logos format plugin.
 var Config = &format.Config{
+	PluginID:   "format.logos",
 	Name:       "Logos",
 	Extensions: []string{".logos", ".lbxlls"},
 	Detect:     detectLogos,

@@ -17,6 +17,7 @@ import (
 
 // Config defines the OSHB format plugin.
 var Config = &format.Config{
+	PluginID:   "format.oshb",
 	Name:       "OSHB",
 	Extensions: []string{".txt", ".tsv"},
 	Detect:     detectOSHB,

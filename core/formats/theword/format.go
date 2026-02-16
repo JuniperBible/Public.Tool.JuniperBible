@@ -23,6 +23,7 @@ import (
 
 // Config defines the TheWord format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.theword",
 	Name:       "TheWord",
 	Extensions: []string{".ont", ".nt", ".twm"},
 	Detect:     detect,

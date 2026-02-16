@@ -30,6 +30,7 @@ import (
 
 // Config defines the MySword format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.mysword",
 	Name:       "MySword",
 	Extensions: []string{".mybible", ".commentaries.mybible", ".dictionary.mybible"},
 	Detect:     detect,

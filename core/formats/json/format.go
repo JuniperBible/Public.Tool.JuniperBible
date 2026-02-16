@@ -57,6 +57,7 @@ type JSONVerse struct {
 
 // Config defines the JSON format plugin.
 var Config = &format.Config{
+	PluginID:   "format.json",
 	Name:       "JSON",
 	Extensions: []string{".json"},
 	Detect:     detectJSON,

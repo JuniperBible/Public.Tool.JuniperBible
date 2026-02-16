@@ -20,6 +20,7 @@ import (
 
 // Config defines the USX format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.usx",
 	Name:       "USX",
 	Extensions: []string{".usx"},
 	Detect:     detectUSXWrapper,

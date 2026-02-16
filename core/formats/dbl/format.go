@@ -16,6 +16,7 @@ import (
 
 // Config defines the DBL format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.dbl",
 	Name:       "DBL",
 	Extensions: []string{".zip", ".dbl"},
 	Detect:     detectDBL,

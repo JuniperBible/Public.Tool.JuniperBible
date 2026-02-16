@@ -22,6 +22,7 @@ import (
 
 // Config defines the Accordance format plugin.
 var Config = &format.Config{
+	PluginID:   "format.accordance",
 	Name:       "Accordance",
 	Extensions: []string{".amod", ".accordance"},
 	Detect:     detectAccordance,

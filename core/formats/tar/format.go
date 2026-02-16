@@ -20,6 +20,7 @@ import (
 
 // Config defines the TAR format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.tar",
 	Name:       "tar",
 	Extensions: []string{".tar", ".tar.gz", ".tgz", ".tar.xz", ".txz"},
 	Detect:     detectTAR,

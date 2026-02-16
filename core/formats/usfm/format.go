@@ -20,6 +20,7 @@ import (
 
 // Config defines the USFM format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.usfm",
 	Name:       "USFM",
 	Extensions: []string{".usfm", ".sfm", ".ptx"},
 	Detect:     detectUSFM,

@@ -25,6 +25,7 @@ import (
 
 // Config defines the TXT format plugin.
 var Config = &format.Config{
+	PluginID:   "format.txt",
 	Name:       "TXT",
 	Extensions: []string{".txt", ".text"},
 	Detect:     detectTXT,

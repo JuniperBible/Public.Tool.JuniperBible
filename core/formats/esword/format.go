@@ -26,6 +26,7 @@ import (
 
 // Config defines the e-Sword format plugin configuration.
 var Config = &format.Config{
+	PluginID:   "format.esword",
 	Name:       "e-Sword",
 	Extensions: []string{".bblx", ".cmtx", ".dctx"},
 	Detect:     detect,

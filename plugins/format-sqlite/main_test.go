@@ -10,6 +10,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
 )
 
 // createTestDB creates a minimal Capsule SQLite Bible database for testing.
@@ -47,7 +50,7 @@ func TestSQLiteDetect(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, "test.db")
 	createTestDB(t, dbPath)
 
-	req := IPCRequest{
+	req := ipc.Request{
 		Command: "detect",
 		Args:    map[string]interface{}{"path": dbPath},
 	}
@@ -83,7 +86,7 @@ func TestSQLiteDetectNonSQLite(t *testing.T) {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
-	req := IPCRequest{
+	req := ipc.Request{
 		Command: "detect",
 		Args:    map[string]interface{}{"path": txtPath},
 	}
@@ -119,7 +122,7 @@ func TestSQLiteExtractIR(t *testing.T) {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
-	req := IPCRequest{
+	req := ipc.Request{
 		Command: "extract-ir",
 		Args: map[string]interface{}{
 			"path":       dbPath,
@@ -151,7 +154,7 @@ func TestSQLiteExtractIR(t *testing.T) {
 		t.Fatalf("failed to read IR file: %v", err)
 	}
 
-	var corpus Corpus
+	var corpus ir.Corpus
 	if err := json.Unmarshal(irData, &corpus); err != nil {
 		t.Fatalf("failed to parse IR: %v", err)
 	}
@@ -175,32 +178,32 @@ func TestSQLiteEmitNative(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	corpus := Corpus{
+	corpus := ir.Corpus{
 		ID:         "test",
 		Version:    "1.0.0",
 		ModuleType: "BIBLE",
 		Title:      "Test Bible",
 		Language:   "en",
-		Documents: []*Document{
+		Documents: []*ir.Document{
 			{
 				ID:    "Gen",
 				Title: "Genesis",
 				Order: 1,
-				ContentBlocks: []*ContentBlock{
+				ContentBlocks: []*ir.ContentBlock{
 					{
 						ID:       "cb-1",
 						Sequence: 1,
 						Text:     "In the beginning.",
-						Anchors: []*Anchor{
+						Anchors: []*ir.Anchor{
 							{
 								ID:       "a-1-0",
 								Position: 0,
-								Spans: []*Span{
+								Spans: []*ir.Span{
 									{
 										ID:            "s-Gen.1.1",
 										Type:          "VERSE",
 										StartAnchorID: "a-1-0",
-										Ref: &Ref{
+										Ref: &ir.Ref{
 											Book:    "Gen",
 											Chapter: 1,
 											Verse:   1,
@@ -231,7 +234,7 @@ func TestSQLiteEmitNative(t *testing.T) {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
-	req := IPCRequest{
+	req := ipc.Request{
 		Command: "emit-native",
 		Args: map[string]interface{}{
 			"ir_path":    irPath,
@@ -289,7 +292,7 @@ func TestSQLiteRoundTrip(t *testing.T) {
 	os.MkdirAll(outDir, 0755)
 
 	// Extract IR
-	extractReq := IPCRequest{
+	extractReq := ipc.Request{
 		Command: "extract-ir",
 		Args: map[string]interface{}{
 			"path":       dbPath,
@@ -306,7 +309,7 @@ func TestSQLiteRoundTrip(t *testing.T) {
 	irPath := extractResult["ir_path"].(string)
 
 	// Emit native
-	emitReq := IPCRequest{
+	emitReq := ipc.Request{
 		Command: "emit-native",
 		Args: map[string]interface{}{
 			"ir_path":    irPath,
@@ -378,7 +381,7 @@ func TestSQLiteIngest(t *testing.T) {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
-	req := IPCRequest{
+	req := ipc.Request{
 		Command: "ingest",
 		Args: map[string]interface{}{
 			"path":       dbPath,
@@ -408,7 +411,7 @@ func TestSQLiteIngest(t *testing.T) {
 }
 
 // executePlugin runs the plugin with a request and returns the response.
-func executePlugin(t *testing.T, req *IPCRequest) *IPCResponse {
+func executePlugin(t *testing.T, req *ipc.Request) *ipc.Response {
 	t.Helper()
 
 	pluginPath := "./format-sqlite"
@@ -434,7 +437,7 @@ func executePlugin(t *testing.T, req *IPCRequest) *IPCResponse {
 
 	if err := cmd.Run(); err != nil {
 		if stdout.Len() > 0 {
-			var resp IPCResponse
+			var resp ipc.Response
 			if err := json.Unmarshal(stdout.Bytes(), &resp); err == nil {
 				return &resp
 			}
@@ -442,7 +445,7 @@ func executePlugin(t *testing.T, req *IPCRequest) *IPCResponse {
 		t.Fatalf("plugin execution failed: %v\nstderr: %s", err, stderr.String())
 	}
 
-	var resp IPCResponse
+	var resp ipc.Response
 	if err := json.Unmarshal(stdout.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to parse response: %v\noutput: %s", err, stdout.String())
 	}

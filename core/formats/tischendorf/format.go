@@ -17,6 +17,7 @@ import (
 
 // Config defines the Tischendorf format plugin.
 var Config = &format.Config{
+	PluginID:   "format.tischendorf",
 	Name:       "Tischendorf",
 	Extensions: []string{".txt"},
 	Detect:     detectTischendorf,

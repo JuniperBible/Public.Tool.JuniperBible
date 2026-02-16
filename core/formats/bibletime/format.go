@@ -18,6 +18,7 @@ import (
 
 // Config defines the BibleTime format plugin.
 var Config = &format.Config{
+	PluginID:  "format.bibletime",
 	Name:      "BIBLETIME",
 	Detect:    detectBibleTime,
 	Parse:     parseBibleTime,

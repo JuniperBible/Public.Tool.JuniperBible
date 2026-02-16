@@ -188,7 +188,9 @@ func TestFormatDetector_DetectFileFormat_WithPlugins(t *testing.T) {
 	detector := NewFormatDetector(loader)
 
 	// Should fall back to extension detection since plugin binary doesn't exist
-	result := detector.DetectFileFormat("test.xml")
+	// Use a path that doesn't exist on disk to ensure extension-based fallback
+	// (format.file plugin detects any existing file via os.Stat)
+	result := detector.DetectFileFormat("/nonexistent/path/to/test.xml")
 	if result != "osis" {
 		t.Errorf("DetectFileFormat with plugins = %q, want %q", result, "osis")
 	}
@@ -196,9 +198,11 @@ func TestFormatDetector_DetectFileFormat_WithPlugins(t *testing.T) {
 
 func TestPackageLevelDetectFileFormat(t *testing.T) {
 	// Test package-level wrapper function
-	result := detectFileFormat("test.xml")
+	// Use a path that doesn't exist on disk to ensure extension-based fallback
+	// (format.file plugin detects any existing file via os.Stat)
+	result := detectFileFormat("/nonexistent/path/to/test.xml")
 	if result != "osis" {
-		t.Errorf("detectFileFormat(%q) = %q, want %q", "test.xml", result, "osis")
+		t.Errorf("detectFileFormat(%q) = %q, want %q", "/nonexistent/path/to/test.xml", result, "osis")
 	}
 }
 

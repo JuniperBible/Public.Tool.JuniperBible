@@ -1,6 +1,8 @@
 package testing_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	ftesting "github.com/FocuswithJustin/JuniperBible/core/formats/testing"
@@ -29,6 +31,7 @@ func parseExampleTXT(path string) (*ir.Corpus, error) {
 		Version:    "1.0.0",
 		ModuleType: "BIBLE",
 		Title:      "Example Bible",
+		LossClass:  "L3", // TXT format has significant loss
 		Documents: []*ir.Document{
 			{
 				ID:    "Gen",
@@ -50,8 +53,13 @@ func parseExampleTXT(path string) (*ir.Corpus, error) {
 // emitExampleTXT is a simplified emitter for demonstration
 func emitExampleTXT(corpus *ir.Corpus, outputDir string) (string, error) {
 	// In a real implementation, this would convert IR to TXT format
-	// For this example, we just return a dummy path
-	return outputDir + "/example.txt", nil
+	// For this example, we create a simple output file
+	outputPath := filepath.Join(outputDir, "example.txt")
+	content := "Gen 1:1 In the beginning.\nGen 1:2 And the earth was void.\n"
+	if err := os.WriteFile(outputPath, []byte(content), 0600); err != nil {
+		return "", err
+	}
+	return outputPath, nil
 }
 
 // TestExampleFormat demonstrates how to use the testing framework
@@ -69,7 +77,8 @@ Gen 1:2 And the earth was void.
 		},
 		ExpectedLossClass: "L3",
 		RoundTrip:         false, // TXT typically has loss
-		NegativeDetection: "<html><body>Not a TXT Bible</body></html>",
+		// Note: NegativeDetection is not used here because TXT uses extension-based
+		// detection which can't distinguish content types within .txt files.
 	})
 }
 
@@ -131,7 +140,15 @@ func parseExampleJSON(path string) (*ir.Corpus, error) {
 }
 
 func emitExampleJSON(corpus *ir.Corpus, outputDir string) (string, error) {
-	return outputDir + "/test.json", nil
+	outputPath := filepath.Join(outputDir, "test.json")
+	content := `{
+  "meta": {"id": "test", "title": "Test Bible"},
+  "books": []
+}`
+	if err := os.WriteFile(outputPath, []byte(content), 0600); err != nil {
+		return "", err
+	}
+	return outputPath, nil
 }
 
 // TestExampleJSONWithRoundTrip demonstrates L0 round-trip testing

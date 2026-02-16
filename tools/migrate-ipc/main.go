@@ -67,6 +67,10 @@ func migrateFile(path string) error {
 	if err != nil {
 		return err
 	}
+	if src == nil {
+		// File was skipped (already migrated or doesn't need migration)
+		return nil
+	}
 
 	// Parse the file
 	fset := token.NewFileSet()

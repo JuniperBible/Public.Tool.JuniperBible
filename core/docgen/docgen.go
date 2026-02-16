@@ -94,7 +94,7 @@ func (g *Generator) LoadPlugins() ([]PluginManifest, error) {
 		}
 	}
 
-	// Walk format plugins
+	// Walk format plugins in plugins/format/*/ (old style)
 	formatDir := filepath.Join(g.PluginDir, "format")
 	if entries, err := os.ReadDir(formatDir); err == nil {
 		for _, entry := range entries {
@@ -108,7 +108,23 @@ func (g *Generator) LoadPlugins() ([]PluginManifest, error) {
 		}
 	}
 
-	// Walk tool plugins
+	// Walk format plugins in plugins/format-*/ (new hyphenated style)
+	if entries, err := os.ReadDir(g.PluginDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			if !strings.HasPrefix(entry.Name(), "format-") {
+				continue
+			}
+			manifestPath := filepath.Join(g.PluginDir, entry.Name(), "plugin.json")
+			if manifest, err := loadManifest(manifestPath); err == nil {
+				plugins = append(plugins, manifest)
+			}
+		}
+	}
+
+	// Walk tool plugins in plugins/tool/*/
 	toolDir := filepath.Join(g.PluginDir, "tool")
 	if entries, err := os.ReadDir(toolDir); err == nil {
 		for _, entry := range entries {
@@ -116,6 +132,22 @@ func (g *Generator) LoadPlugins() ([]PluginManifest, error) {
 				continue
 			}
 			manifestPath := filepath.Join(toolDir, entry.Name(), "plugin.json")
+			if manifest, err := loadManifest(manifestPath); err == nil {
+				plugins = append(plugins, manifest)
+			}
+		}
+	}
+
+	// Walk tool plugins in plugins/tool-*/ (new hyphenated style)
+	if entries, err := os.ReadDir(g.PluginDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			if !strings.HasPrefix(entry.Name(), "tool-") {
+				continue
+			}
+			manifestPath := filepath.Join(g.PluginDir, entry.Name(), "plugin.json")
 			if manifest, err := loadManifest(manifestPath); err == nil {
 				plugins = append(plugins, manifest)
 			}

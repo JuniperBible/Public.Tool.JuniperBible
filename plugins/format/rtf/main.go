@@ -216,67 +216,107 @@ func handleExtractIR(args map[string]interface{}) {
 	})
 }
 
+// rtfStripState holds the state during RTF stripping
+type rtfStripState struct {
+	result  strings.Builder
+	inGroup int
+}
+
+// isLetter checks if a byte is an ASCII letter
+func isLetter(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+}
+
+// isDigitOrMinus checks if a byte is a digit or minus sign
+func isDigitOrMinus(b byte) bool {
+	return (b >= '0' && b <= '9') || b == '-'
+}
+
+// handleEscapedChar processes escaped special characters
+func handleEscapedChar(rtf string, i int, state *rtfStripState) int {
+	if i+1 >= len(rtf) {
+		return i
+	}
+
+	nextChar := rtf[i+1]
+	if nextChar == '\\' || nextChar == '{' || nextChar == '}' {
+		state.result.WriteByte(nextChar)
+		return i + 1
+	}
+	return i
+}
+
+// parseControlWord extracts a control word starting at position i+1
+func parseControlWord(rtf string, i int) (word string, endPos int) {
+	j := i + 1
+	for j < len(rtf) && isLetter(rtf[j]) {
+		j++
+	}
+	for j < len(rtf) && isDigitOrMinus(rtf[j]) {
+		j++
+	}
+	if j < len(rtf) && rtf[j] == ' ' {
+		j++
+	}
+	word = rtf[i+1 : min(j, len(rtf))]
+	return word, j
+}
+
+// isLineBreakWord checks if a control word represents a line break
+func isLineBreakWord(word string) bool {
+	return strings.HasPrefix(word, "par") || strings.HasPrefix(word, "line")
+}
+
+// handleControlSequence processes a backslash control sequence
+func handleControlSequence(rtf string, i int, state *rtfStripState) int {
+	if i+1 >= len(rtf) {
+		return i
+	}
+
+	if rtf[i+1] == '\'' {
+		return i + 3
+	}
+
+	newPos := handleEscapedChar(rtf, i, state)
+	if newPos > i {
+		return newPos
+	}
+
+	word, endPos := parseControlWord(rtf, i)
+	if isLineBreakWord(word) {
+		state.result.WriteByte('\n')
+	}
+	return endPos - 1
+}
+
+// shouldOutputChar determines if a character should be added to output
+func shouldOutputChar(ch byte, inGroup int) bool {
+	return ch != '\n' && ch != '\r' && inGroup <= 1
+}
+
 // stripRTF extracts plain text from RTF content
 func stripRTF(rtf string) string {
-	// Remove RTF groups and control words
-	var result strings.Builder
-	inGroup := 0
-	skipNext := false
+	state := &rtfStripState{}
 
 	for i := 0; i < len(rtf); i++ {
-		if skipNext {
-			skipNext = false
-			continue
-		}
-
 		ch := rtf[i]
 		switch ch {
 		case '{':
-			inGroup++
+			state.inGroup++
 		case '}':
-			inGroup--
+			state.inGroup--
 		case '\\':
-			// Skip control word
-			if i+1 < len(rtf) {
-				if rtf[i+1] == '\'' {
-					// Hex escape like \'e9 - skip 3 chars
-					i += 3
-				} else if rtf[i+1] == '\\' || rtf[i+1] == '{' || rtf[i+1] == '}' {
-					// Escaped special char
-					result.WriteByte(rtf[i+1])
-					i++
-				} else {
-					// Skip control word
-					j := i + 1
-					for j < len(rtf) && ((rtf[j] >= 'a' && rtf[j] <= 'z') || (rtf[j] >= 'A' && rtf[j] <= 'Z')) {
-						j++
-					}
-					// Skip optional numeric parameter
-					for j < len(rtf) && (rtf[j] >= '0' && rtf[j] <= '9' || rtf[j] == '-') {
-						j++
-					}
-					// Skip optional space after control word
-					if j < len(rtf) && rtf[j] == ' ' {
-						j++
-					}
-					// Check for line break
-					word := rtf[i+1 : min(j, len(rtf))]
-					if strings.HasPrefix(word, "par") || strings.HasPrefix(word, "line") {
-						result.WriteByte('\n')
-					}
-					i = j - 1
-				}
-			}
+			i = handleControlSequence(rtf, i, state)
 		case '\n', '\r':
 			// Ignore newlines in RTF
 		default:
-			if inGroup <= 1 { // Only output text at top level or first group
-				result.WriteByte(ch)
+			if shouldOutputChar(ch, state.inGroup) {
+				state.result.WriteByte(ch)
 			}
 		}
 	}
 
-	return strings.TrimSpace(result.String())
+	return strings.TrimSpace(state.result.String())
 }
 
 func min(a, b int) int {

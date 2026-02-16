@@ -41,139 +41,180 @@ var bookNames = map[string]string{
 	"3JN": "3 John", "JUD": "Jude", "REV": "Revelation",
 }
 
-// parseUSFMToIR converts USFM text to IR Corpus
-func parseUSFMToIR(data []byte) (*ir.Corpus, error) {
-	corpus := &ir.Corpus{
-		Version:    "1.0.0",
-		ModuleType: ir.ModuleBible,
-		LossClass:  ir.LossL0,
-		Documents:  []*ir.Document{},
+// parserState holds the parsing context
+type parserState struct {
+	corpus     *ir.Corpus
+	currentDoc *ir.Document
+	blockSeq   int
+}
+
+// markerHandler is a function that processes a specific marker
+type markerHandler func(state *parserState, value string)
+
+// markerHandlers maps marker types to their handler functions
+var markerHandlers = map[string]markerHandler{
+	"id":   handleIDMarker,
+	"h":    handleHeaderMarker,
+	"toc1": handleHeaderMarker,
+	"toc2": handleHeaderMarker,
+	"toc3": handleHeaderMarker,
+	"mt":   handleTitleMarker,
+	"mt1":  handleTitleMarker,
+	"mt2":  handleTitleMarker,
+	"mt3":  handleTitleMarker,
+	"c":    handleChapterMarker,
+	"v":    handleVerseMarker,
+	"p":    handleTextBlockMarker,
+	"m":    handleTextBlockMarker,
+	"pi":   handleTextBlockMarker,
+	"mi":   handleTextBlockMarker,
+	"nb":   handleTextBlockMarker,
+	"q":    handleTextBlockMarker,
+	"q1":   handleTextBlockMarker,
+	"q2":   handleTextBlockMarker,
+	"q3":   handleTextBlockMarker,
+	"qr":   handleTextBlockMarker,
+	"qc":   handleTextBlockMarker,
+	"qm":   handleTextBlockMarker,
+}
+
+// handleIDMarker processes book ID markers
+func handleIDMarker(state *parserState, value string) {
+	idParts := strings.Fields(value)
+	if len(idParts) == 0 {
+		return
 	}
 
-	var currentDoc *ir.Document
-	var blockSeq int
+	bookID := strings.ToUpper(idParts[0])
+	state.corpus.ID = bookID
+	state.currentDoc = &ir.Document{
+		ID:            bookID,
+		Order:         len(state.corpus.Documents) + 1,
+		ContentBlocks: []*ir.ContentBlock{},
+	}
+	if name, ok := bookNames[bookID]; ok {
+		state.currentDoc.Title = name
+	}
+	state.corpus.Documents = append(state.corpus.Documents, state.currentDoc)
+}
+
+// handleHeaderMarker processes header and TOC markers
+func handleHeaderMarker(state *parserState, value string) {
+	if state.currentDoc != nil && value != "" && state.currentDoc.Title == "" {
+		state.currentDoc.Title = value
+	}
+}
+
+// handleTitleMarker processes main title markers
+func handleTitleMarker(state *parserState, value string) {
+	if state.corpus.Title == "" && value != "" {
+		state.corpus.Title = value
+	}
+}
+
+// handleChapterMarker processes chapter markers
+func handleChapterMarker(state *parserState, value string) {
+	// Chapter marker (parsing simplified for now)
+	_ = value
+}
+
+// handleVerseMarker processes verse markers
+func handleVerseMarker(state *parserState, value string) {
+	if state.currentDoc == nil {
+		return
+	}
+
+	verseText := extractVerseText(value)
+	if verseText == "" {
+		return
+	}
+
+	state.blockSeq++
+	block := createContentBlock(state.blockSeq, verseText, true)
+	state.currentDoc.ContentBlocks = append(state.currentDoc.ContentBlocks, block)
+}
+
+// handleTextBlockMarker processes paragraph and poetry markers
+func handleTextBlockMarker(state *parserState, value string) {
+	if state.currentDoc == nil || value == "" {
+		return
+	}
+
+	state.blockSeq++
+	block := createContentBlock(state.blockSeq, value, false)
+	state.currentDoc.ContentBlocks = append(state.currentDoc.ContentBlocks, block)
+}
+
+// extractVerseText extracts the text portion from a verse marker value
+func extractVerseText(value string) string {
+	if matches := verseNumRegex.FindStringSubmatch(value); len(matches) > 0 {
+		return strings.TrimSpace(value[len(matches[0]):])
+	}
+	return value
+}
+
+// createContentBlock creates a content block with optional anchor
+func createContentBlock(seq int, text string, withAnchor bool) *ir.ContentBlock {
+	block := &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", seq),
+		Sequence: seq,
+		Text:     text,
+	}
+
+	if withAnchor {
+		block.Anchors = []*ir.Anchor{
+			{
+				ID:             fmt.Sprintf("a-%d-0", seq),
+				ContentBlockID: fmt.Sprintf("cb-%d", seq),
+				CharOffset:     0,
+			},
+		}
+	}
+
+	block.ComputeHash()
+	return block
+}
+
+// processMarkerLine parses and processes a line containing a USFM marker
+func processMarkerLine(state *parserState, line string) {
+	parts := strings.SplitN(line, " ", 2)
+	marker := strings.TrimPrefix(parts[0], "\\")
+
+	var value string
+	if len(parts) > 1 {
+		value = parts[1]
+	}
+
+	if handler, ok := markerHandlers[marker]; ok {
+		handler(state, value)
+	}
+}
+
+// parseUSFMToIR converts USFM text to IR Corpus
+func parseUSFMToIR(data []byte) (*ir.Corpus, error) {
+	state := &parserState{
+		corpus: &ir.Corpus{
+			Version:    "1.0.0",
+			ModuleType: ir.ModuleBible,
+			LossClass:  ir.LossL0,
+			Documents:  []*ir.Document{},
+		},
+	}
 
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || !strings.HasPrefix(line, "\\") {
 			continue
 		}
-
-		// Parse markers
-		if strings.HasPrefix(trimmed, "\\") {
-			parts := strings.SplitN(trimmed, " ", 2)
-			marker := strings.TrimPrefix(parts[0], "\\")
-			var value string
-			if len(parts) > 1 {
-				value = parts[1]
-			}
-
-			switch marker {
-			case "id":
-				// Book ID
-				idParts := strings.Fields(value)
-				if len(idParts) > 0 {
-					bookID := strings.ToUpper(idParts[0])
-					corpus.ID = bookID
-					currentDoc = &ir.Document{
-						ID:            bookID,
-						Order:         len(corpus.Documents) + 1,
-						ContentBlocks: []*ir.ContentBlock{},
-					}
-					if name, ok := bookNames[bookID]; ok {
-						currentDoc.Title = name
-					}
-					corpus.Documents = append(corpus.Documents, currentDoc)
-				}
-
-			case "h", "toc1", "toc2", "toc3":
-				// Header/TOC entries - stored in document attributes (not used in simplified version)
-				if currentDoc != nil && value != "" {
-					if marker == "h" && currentDoc.Title == "" {
-						currentDoc.Title = value
-					}
-				}
-
-			case "mt", "mt1", "mt2", "mt3":
-				// Main title
-				if corpus.Title == "" && value != "" {
-					corpus.Title = value
-				}
-
-			case "c":
-				// Chapter marker (parsing simplified for now)
-				_ = value
-
-			case "v":
-				// Verse
-				if currentDoc != nil {
-					verseText := value
-
-					// Parse verse number
-					if matches := verseNumRegex.FindStringSubmatch(value); len(matches) > 0 {
-						// Extract text after verse number (verse number parsing simplified for now)
-						verseText = strings.TrimSpace(value[len(matches[0]):])
-					}
-
-					if verseText != "" {
-						blockSeq++
-
-						block := &ir.ContentBlock{
-							ID:       fmt.Sprintf("cb-%d", blockSeq),
-							Sequence: blockSeq,
-							Text:     verseText,
-							Anchors: []*ir.Anchor{
-								{
-									ID:             fmt.Sprintf("a-%d-0", blockSeq),
-									ContentBlockID: fmt.Sprintf("cb-%d", blockSeq),
-									CharOffset:     0,
-								},
-							},
-						}
-
-						// Compute hash
-						block.ComputeHash()
-
-						currentDoc.ContentBlocks = append(currentDoc.ContentBlocks, block)
-					}
-				}
-
-			case "p", "m", "pi", "mi", "nb":
-				// Paragraph markers - may contain text
-				if currentDoc != nil && value != "" {
-					blockSeq++
-					block := &ir.ContentBlock{
-						ID:       fmt.Sprintf("cb-%d", blockSeq),
-						Sequence: blockSeq,
-						Text:     value,
-					}
-					block.ComputeHash()
-					currentDoc.ContentBlocks = append(currentDoc.ContentBlocks, block)
-				}
-
-			case "q", "q1", "q2", "q3", "qr", "qc", "qm":
-				// Poetry markers
-				if currentDoc != nil && value != "" {
-					blockSeq++
-					block := &ir.ContentBlock{
-						ID:       fmt.Sprintf("cb-%d", blockSeq),
-						Sequence: blockSeq,
-						Text:     value,
-					}
-					block.ComputeHash()
-					currentDoc.ContentBlocks = append(currentDoc.ContentBlocks, block)
-				}
-			}
-		}
+		processMarkerLine(state, line)
 	}
 
 	// Compute source hash
 	h := sha256.Sum256(data)
-	corpus.SourceHash = hex.EncodeToString(h[:])
+	state.corpus.SourceHash = hex.EncodeToString(h[:])
 
-	return corpus, nil
+	return state.corpus, nil
 }
 
 // emitUSFMFromIR converts IR Corpus back to USFM text

@@ -234,6 +234,83 @@ var magicBytes = []struct {
 	{FileTypeSQLite, []byte("SQLite format 3"), 0},
 }
 
+// fileTypeValidationRule defines how to validate a specific file type combination.
+type fileTypeValidationRule struct {
+	expectedType FileType
+	detectedType FileType
+	isValid      bool
+}
+
+// validFileTypeCombinations maps expected+detected type combinations to validity.
+// This lookup table replaces complex conditional logic.
+var validFileTypeCombinations = buildValidCombinations()
+
+// buildValidCombinations creates the lookup table for valid file type combinations.
+func buildValidCombinations() map[string]bool {
+	combos := make(map[string]bool)
+
+	// Compressed tar formats (compression wrapper hides tar signature)
+	combos[makeKey(FileTypeTarXZ, FileTypeXZ)] = true
+	combos[makeKey(FileTypeTarGZ, FileTypeGzip)] = true
+
+	// Single compression formats
+	combos[makeKey(FileTypeXZ, FileTypeXZ)] = true
+	combos[makeKey(FileTypeGzip, FileTypeGzip)] = true
+
+	// All exact matches are valid
+	for _, ft := range []FileType{
+		FileTypeTar, FileTypeZip, FileTypeSQLite,
+		FileTypeXML, FileTypeJSON, FileTypeText,
+	} {
+		combos[makeKey(ft, ft)] = true
+	}
+
+	return combos
+}
+
+// makeKey creates a lookup key from expected and detected types.
+func makeKey(expected, detected FileType) string {
+	return string(expected) + "|" + string(detected)
+}
+
+// isTextBasedType checks if a file type is text-based (XML, JSON, or plain text).
+func isTextBasedType(ft FileType) bool {
+	return ft == FileTypeXML || ft == FileTypeJSON || ft == FileTypeText
+}
+
+// validateTextBasedFile validates text-based files when magic bytes can't detect the type.
+func validateTextBasedFile(buf []byte, expectedType, detectedType FileType) (FileType, bool) {
+	if detectedType != FileTypeUnknown {
+		return FileTypeUnknown, false
+	}
+
+	if !isTextBasedType(expectedType) {
+		return FileTypeUnknown, false
+	}
+
+	if isLikelyText(buf) {
+		return expectedType, true
+	}
+
+	return FileTypeUnknown, false
+}
+
+// resolveTypeMismatch handles cases where detected and expected types don't match.
+func resolveTypeMismatch(expectedType, detectedType FileType) (FileType, error) {
+	// If we couldn't detect the type, trust the extension
+	if detectedType == FileTypeUnknown {
+		return expectedType, nil
+	}
+
+	// Both types are known but don't match - this is an error
+	if expectedType != FileTypeUnknown {
+		return FileTypeUnknown, fmt.Errorf("file type mismatch: extension suggests %s but content is %s", expectedType, detectedType)
+	}
+
+	// Only detected type is known
+	return detectedType, nil
+}
+
 // ValidateFileType validates that a file's content matches its claimed type based on filename extension.
 // It reads the file's magic bytes to verify the actual file type.
 // Returns the detected file type or an error if the file type doesn't match expectations.
@@ -252,47 +329,18 @@ func ValidateFileType(reader io.Reader, filename string) (FileType, error) {
 	// Determine expected type from extension
 	expectedType := detectFileTypeFromExtension(filename)
 
-	// Special case: .tar.xz and .tar.gz files
-	// XZ and Gzip are compression wrappers, so we can't detect tar until decompressed
-	if expectedType == FileTypeTarXZ && detectedType == FileTypeXZ {
-		return FileTypeTarXZ, nil
-	}
-	if expectedType == FileTypeTarGZ && detectedType == FileTypeGzip {
-		return FileTypeTarGZ, nil
-	}
-
-	// For single-compression formats (.xz, .gz), allow them
-	if expectedType == FileTypeXZ && detectedType == FileTypeXZ {
-		return FileTypeXZ, nil
-	}
-	if expectedType == FileTypeGzip && detectedType == FileTypeGzip {
-		return FileTypeGzip, nil
-	}
-
-	// Exact match is always valid
-	if detectedType == expectedType {
-		return detectedType, nil
-	}
-
-	// Allow XML/JSON/text files (harder to distinguish by magic bytes)
-	if detectedType == FileTypeUnknown && (expectedType == FileTypeXML || expectedType == FileTypeJSON || expectedType == FileTypeText) {
-		// Light validation: check if it looks like text
-		if isLikelyText(buf) {
-			return expectedType, nil
-		}
-	}
-
-	// Type mismatch
-	if detectedType != FileTypeUnknown && expectedType != FileTypeUnknown {
-		return FileTypeUnknown, fmt.Errorf("file type mismatch: extension suggests %s but content is %s", expectedType, detectedType)
-	}
-
-	// If we couldn't detect the type, return the expected type
-	if detectedType == FileTypeUnknown {
+	// Check if this is a valid combination using lookup table
+	if validFileTypeCombinations[makeKey(expectedType, detectedType)] {
 		return expectedType, nil
 	}
 
-	return detectedType, nil
+	// Handle text-based files (harder to distinguish by magic bytes)
+	if validType, ok := validateTextBasedFile(buf, expectedType, detectedType); ok {
+		return validType, nil
+	}
+
+	// Resolve any type mismatches
+	return resolveTypeMismatch(expectedType, detectedType)
 }
 
 // detectFileTypeFromMagic detects file type from magic bytes.

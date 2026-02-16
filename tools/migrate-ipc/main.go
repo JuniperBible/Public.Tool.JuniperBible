@@ -62,124 +62,170 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func migrateFile(path string) error {
-	// Read the file
-	src, err := os.ReadFile(path)
+	// Read and validate the file
+	src, err := readAndValidateFile(path)
 	if err != nil {
 		return err
 	}
 
-	// Skip if already migrated
-	if bytes.Contains(src, []byte("github.com/FocuswithJustin/JuniperBible/plugins/ipc")) {
-		fmt.Printf("  Already migrated, skipping: %s\n", path)
-		return nil
-	}
-
-	// Skip if no IPCRequest type (not a plugin that needs migration)
-	if !bytes.Contains(src, []byte("type IPCRequest struct")) {
-		fmt.Printf("  No IPCRequest type, skipping: %s\n", path)
-		return nil
-	}
-
+	// Parse the file
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, src, parser.ParseComments)
 	if err != nil {
 		return fmt.Errorf("parse error: %w", err)
 	}
 
-	// Track what we need to do
-	var declsToRemove []ast.Decl
-	needsIPCImport := false
-
-	// First pass: identify declarations to remove
-	for _, decl := range file.Decls {
-		switch d := decl.(type) {
-		case *ast.GenDecl:
-			if d.Tok == token.TYPE {
-				for _, spec := range d.Specs {
-					ts, ok := spec.(*ast.TypeSpec)
-					if ok {
-						if _, shouldRemove := typesToRemove[ts.Name.Name]; shouldRemove {
-							declsToRemove = append(declsToRemove, decl)
-							needsIPCImport = true
-						}
-					}
-				}
-			}
-		case *ast.FuncDecl:
-			if d.Recv == nil { // Not a method
-				if funcsToRemove[d.Name.Name] {
-					declsToRemove = append(declsToRemove, decl)
-				}
-			}
-		}
-	}
-
-	// Add ipc import if needed
+	// Transform the AST
+	declsToRemove, needsIPCImport := identifyDeclsToRemove(file)
 	if needsIPCImport {
 		addIPCImport(file)
 	}
-
-	// Remove identified declarations
 	file.Decls = filterDecls(file.Decls, declsToRemove)
 
-	// Second pass: rewrite type references and function calls
-	ast.Inspect(file, func(n ast.Node) bool {
-		switch node := n.(type) {
-		case *ast.Ident:
-			// Type identifier replacements are handled via parent nodes
-			// (CompositeLit, etc.) since we need to change Ident to SelectorExpr
-			_ = node
-		case *ast.CallExpr:
-			// Replace respond() -> ipc.MustRespond()
-			// Replace respondError() -> ipc.RespondError()
-			if ident, ok := node.Fun.(*ast.Ident); ok {
-				switch ident.Name {
-				case "respond":
-					node.Fun = &ast.SelectorExpr{
-						X:   ast.NewIdent("ipc"),
-						Sel: ast.NewIdent("MustRespond"),
-					}
-				case "respondError":
-					// Check if it's respondError(fmt.Sprintf(...))
-					if len(node.Args) == 1 {
-						if call, ok := node.Args[0].(*ast.CallExpr); ok {
-							if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-								if x, ok := sel.X.(*ast.Ident); ok && x.Name == "fmt" && sel.Sel.Name == "Sprintf" {
-									// Convert to ipc.RespondErrorf(format, args...)
-									node.Fun = &ast.SelectorExpr{
-										X:   ast.NewIdent("ipc"),
-										Sel: ast.NewIdent("RespondErrorf"),
-									}
-									node.Args = call.Args
-									return true
-								}
-							}
-						}
-					}
-					node.Fun = &ast.SelectorExpr{
-						X:   ast.NewIdent("ipc"),
-						Sel: ast.NewIdent("RespondError"),
-					}
-				}
+	// Rewrite AST nodes
+	rewriteFunctionCalls(file)
+	rewriteCompositeLits(file)
+	rewriteMainFunc(file)
+
+	// Format and write the result
+	return formatAndWriteFile(path, fset, file)
+}
+
+// readAndValidateFile reads a file and checks if it needs migration.
+// Returns nil, nil if the file should be skipped.
+func readAndValidateFile(path string) ([]byte, error) {
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Skip if already migrated
+	if bytes.Contains(src, []byte("github.com/FocuswithJustin/JuniperBible/plugins/ipc")) {
+		fmt.Printf("  Already migrated, skipping: %s\n", path)
+		return nil, nil
+	}
+
+	// Skip if no IPCRequest type (not a plugin that needs migration)
+	if !bytes.Contains(src, []byte("type IPCRequest struct")) {
+		fmt.Printf("  No IPCRequest type, skipping: %s\n", path)
+		return nil, nil
+	}
+
+	return src, nil
+}
+
+// identifyDeclsToRemove finds declarations that should be removed during migration.
+// Returns the list of declarations to remove and whether IPC import is needed.
+func identifyDeclsToRemove(file *ast.File) ([]ast.Decl, bool) {
+	var declsToRemove []ast.Decl
+	needsIPCImport := false
+
+	for _, decl := range file.Decls {
+		switch d := decl.(type) {
+		case *ast.GenDecl:
+			if shouldRemoveTypeDecl(d) {
+				declsToRemove = append(declsToRemove, decl)
+				needsIPCImport = true
 			}
+		case *ast.FuncDecl:
+			if shouldRemoveFuncDecl(d) {
+				declsToRemove = append(declsToRemove, decl)
+			}
+		}
+	}
+
+	return declsToRemove, needsIPCImport
+}
+
+// shouldRemoveTypeDecl checks if a type declaration should be removed.
+func shouldRemoveTypeDecl(d *ast.GenDecl) bool {
+	if d.Tok != token.TYPE {
+		return false
+	}
+
+	for _, spec := range d.Specs {
+		if ts, ok := spec.(*ast.TypeSpec); ok {
+			if _, shouldRemove := typesToRemove[ts.Name.Name]; shouldRemove {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// shouldRemoveFuncDecl checks if a function declaration should be removed.
+func shouldRemoveFuncDecl(d *ast.FuncDecl) bool {
+	// Only remove top-level functions, not methods
+	return d.Recv == nil && funcsToRemove[d.Name.Name]
+}
+
+// rewriteFunctionCalls rewrites function calls from old IPC functions to new ones.
+func rewriteFunctionCalls(file *ast.File) {
+	ast.Inspect(file, func(n ast.Node) bool {
+		if callExpr, ok := n.(*ast.CallExpr); ok {
+			rewriteCallExpr(callExpr)
 		}
 		return true
 	})
+}
 
-	// Rewrite composite literals with type references
-	rewriteCompositeLits(file)
+// rewriteCallExpr rewrites a single call expression if it matches migration patterns.
+func rewriteCallExpr(node *ast.CallExpr) {
+	ident, ok := node.Fun.(*ast.Ident)
+	if !ok {
+		return
+	}
 
-	// Rewrite the main function to use ipc.ReadRequest()
-	rewriteMainFunc(file)
+	switch ident.Name {
+	case "respond":
+		node.Fun = &ast.SelectorExpr{
+			X:   ast.NewIdent("ipc"),
+			Sel: ast.NewIdent("MustRespond"),
+		}
+	case "respondError":
+		rewriteRespondError(node)
+	}
+}
 
-	// Format and write
+// rewriteRespondError rewrites respondError calls, handling fmt.Sprintf optimization.
+func rewriteRespondError(node *ast.CallExpr) {
+	// Check if it's respondError(fmt.Sprintf(...))
+	if len(node.Args) == 1 {
+		if call, ok := node.Args[0].(*ast.CallExpr); ok {
+			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+				if x, ok := sel.X.(*ast.Ident); ok && x.Name == "fmt" && sel.Sel.Name == "Sprintf" {
+					// Convert to ipc.RespondErrorf(format, args...)
+					node.Fun = &ast.SelectorExpr{
+						X:   ast.NewIdent("ipc"),
+						Sel: ast.NewIdent("RespondErrorf"),
+					}
+					node.Args = call.Args
+					return
+				}
+			}
+		}
+	}
+	node.Fun = &ast.SelectorExpr{
+		X:   ast.NewIdent("ipc"),
+		Sel: ast.NewIdent("RespondError"),
+	}
+}
+
+// formatAndWriteFile formats the AST and writes it to disk with post-processing.
+func formatAndWriteFile(path string, fset *token.FileSet, file *ast.File) error {
 	var buf bytes.Buffer
 	if err := formatNode(&buf, fset, file); err != nil {
 		return fmt.Errorf("format error: %w", err)
 	}
 
 	// Post-process: replace remaining type references that AST couldn't handle
-	output := buf.String()
+	output := postProcessTypeReferences(buf.String())
+
+	return os.WriteFile(path, []byte(output), 0644)
+}
+
+// postProcessTypeReferences replaces type references that AST transformation missed.
+func postProcessTypeReferences(output string) string {
 	for oldType, newType := range typesToRemove {
 		// Replace in variable declarations like "var req IPCRequest"
 		output = strings.ReplaceAll(output, "var req "+oldType, "var req "+newType)
@@ -187,8 +233,7 @@ func migrateFile(path string) error {
 		// Replace in slice types
 		output = strings.ReplaceAll(output, "[]"+oldType, "[]"+newType)
 	}
-
-	return os.WriteFile(path, []byte(output), 0644)
+	return output
 }
 
 func addIPCImport(file *ast.File) {

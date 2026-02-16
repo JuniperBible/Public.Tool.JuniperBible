@@ -1,5 +1,20 @@
 # Code Complexity Reduction TODO
 
+## Round 6 - Completed (11 functions)
+- [x] parseZefaniaToIR: CC 27->6 (plugins/format-zefania/main_sdk.go) - 8 helpers
+- [x] parseZefaniaToIR: CC 27->6 (plugins/format-zefania/main.go) - 11 helpers
+- [x] parseZefaniaToIR: CC 27->2 (plugins/format/zefania/main.go) - 12 helpers
+- [x] stripRTF: CC 26->7 (4 files) - 7 helpers each
+- [x] parseUSFMToIR: CC 27->4 (internal/formats/usfm/parser.go) - 9 helpers
+- [x] ValidateFileType: CC 21->6 (internal/validation/validation.go) - 5 helpers
+- [x] run: CC 16->5 (tools/docgen/main.go) - 3 helpers
+- [x] preloadCapsuleMetadata: CC 14->6 (internal/web/handlers.go) - 6 helpers
+- [x] migrateFile: CC 14->4 (tools/migrate-ipc/main.go) - 9 helpers
+- [x] extractCapsule: CC 15->3 (internal/web/handlers.go) - 5 helpers
+- [x] readCapsule: CC 13->4 (internal/web/handlers.go) - 3 helpers
+
+---
+
 ## Round 5 - Completed (11 functions)
 - [x] cmdIngest: CC 37->3, 139->9 lines (9 helpers)
 - [x] parseUSXToIR (format/usx/main_sdk.go): CC 31->3, 120->35 lines (11 helpers)
@@ -36,7 +51,7 @@
 ---
 
 ## Stats
-- Total functions refactored: 22
-- Total helper functions extracted: ~200+
-- Average CC reduction: 85%
-- Files modified across all rounds: 30+
+- Total functions refactored: 33
+- Total helper functions extracted: ~280+
+- Average CC reduction: 80%
+- Files modified across all rounds: 45+

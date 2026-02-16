@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/FocuswithJustin/JuniperBible/core/docgen"
 )
@@ -34,73 +35,103 @@ func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
-// run executes the docgen logic and returns the exit code.
-func run(args []string, stdout, stderr io.Writer) int {
+// config holds the parsed command-line configuration.
+type config struct {
+	cmd       string
+	outputDir string
+	pluginDir string
+}
+
+// parseArgs parses command-line arguments and returns the configuration.
+func parseArgs(args []string) (config, error) {
 	if len(args) < 1 {
-		printUsageTo(stderr)
-		return 1
+		return config{}, fmt.Errorf("no command specified")
 	}
 
-	cmd := args[0]
-	outputDir := "docs"
-	pluginDir := "plugins"
+	cfg := config{
+		cmd:       args[0],
+		outputDir: "docs",
+		pluginDir: "plugins",
+	}
 
 	// Parse flags
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
 		case "--output", "-o":
 			if i+1 < len(args) {
-				outputDir = args[i+1]
+				cfg.outputDir = args[i+1]
 				i++
 			}
 		case "--plugins", "-p":
 			if i+1 < len(args) {
-				pluginDir = args[i+1]
+				cfg.pluginDir = args[i+1]
 				i++
 			}
 		}
 	}
 
 	// Resolve to absolute paths
-	outputDir, _ = filepath.Abs(outputDir)
-	pluginDir, _ = filepath.Abs(pluginDir)
+	cfg.outputDir, _ = filepath.Abs(cfg.outputDir)
+	cfg.pluginDir, _ = filepath.Abs(cfg.pluginDir)
 
-	gen := newGenerator(pluginDir, outputDir)
+	return cfg, nil
+}
 
-	var err error
-	switch cmd {
+// isHelpCommand returns true if the command is a help command.
+func isHelpCommand(cmd string) bool {
+	return cmd == "help" || cmd == "-h" || cmd == "--help"
+}
+
+// executeCommand executes the specified command and returns an error if any.
+func executeCommand(cfg config, gen generator, stdout io.Writer) error {
+	switch cfg.cmd {
 	case "plugins":
 		fmt.Fprintf(stdout, "Generating PLUGINS.md...\n")
-		err = gen.GeneratePlugins()
+		return gen.GeneratePlugins()
 	case "formats":
 		fmt.Fprintf(stdout, "Generating FORMATS.md...\n")
-		err = gen.GenerateFormats()
+		return gen.GenerateFormats()
 	case "cli":
 		fmt.Fprintf(stdout, "Generating CLI_REFERENCE.md...\n")
-		err = gen.GenerateCLI()
+		return gen.GenerateCLI()
 	case "all":
 		fmt.Fprintf(stdout, "Generating all documentation...\n")
-		fmt.Fprintf(stdout, "  Plugin dir: %s\n", pluginDir)
-		fmt.Fprintf(stdout, "  Output dir: %s\n", outputDir)
+		fmt.Fprintf(stdout, "  Plugin dir: %s\n", cfg.pluginDir)
+		fmt.Fprintf(stdout, "  Output dir: %s\n", cfg.outputDir)
 		fmt.Fprintln(stdout)
-		err = gen.GenerateAll()
-	case "help", "-h", "--help":
-		printUsageTo(stdout)
-		return 0
+		return gen.GenerateAll()
 	default:
-		fmt.Fprintf(stderr, "Unknown command: %s\n", cmd)
+		return fmt.Errorf("unknown command: %s", cfg.cmd)
+	}
+}
+
+// run executes the docgen logic and returns the exit code.
+func run(args []string, stdout, stderr io.Writer) int {
+	cfg, err := parseArgs(args)
+	if err != nil {
 		printUsageTo(stderr)
 		return 1
 	}
 
-	if err != nil {
-		fmt.Fprintf(stderr, "Error: %v\n", err)
+	if isHelpCommand(cfg.cmd) {
+		printUsageTo(stdout)
+		return 0
+	}
+
+	gen := newGenerator(cfg.pluginDir, cfg.outputDir)
+
+	if err := executeCommand(cfg, gen, stdout); err != nil {
+		// Handle unknown command with special formatting
+		if strings.HasPrefix(err.Error(), "unknown command:") {
+			fmt.Fprintf(stderr, "Unknown command: %s\n", strings.TrimPrefix(err.Error(), "unknown command: "))
+			printUsageTo(stderr)
+		} else {
+			fmt.Fprintf(stderr, "Error: %v\n", err)
+		}
 		return 1
 	}
 
-	if cmd != "help" && cmd != "-h" && cmd != "--help" {
-		fmt.Fprintln(stdout, "Documentation generated successfully!")
-	}
+	fmt.Fprintln(stdout, "Documentation generated successfully!")
 	return 0
 }
 

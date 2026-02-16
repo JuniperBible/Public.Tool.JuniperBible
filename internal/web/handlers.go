@@ -256,19 +256,8 @@ func saveDiskMetadataCache(capsules map[string]DiskCapsuleMetadata) error {
 // preloadCapsuleMetadata preloads metadata for all capsules in parallel.
 // Uses a disk cache to avoid scanning archives on subsequent startups.
 // This should be called during startup warmup.
-func preloadCapsuleMetadata() {
-	capsules := listCapsules()
-	if len(capsules) == 0 {
-		return
-	}
-
-	// Load existing disk cache
-	diskCache := loadDiskMetadataCache()
-	if diskCache == nil {
-		diskCache = make(map[string]DiskCapsuleMetadata)
-	}
-
-	// Build a map of current capsule files for quick lookup
+// buildCurrentFilesMap creates a map of capsule names to their file info
+func buildCurrentFilesMap(capsules []CapsuleInfo) map[string]os.FileInfo {
 	currentFiles := make(map[string]os.FileInfo)
 	for _, c := range capsules {
 		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
@@ -276,10 +265,27 @@ func preloadCapsuleMetadata() {
 			currentFiles[c.Name] = info
 		}
 	}
+	return currentFiles
+}
 
-	// Find capsules that need scanning (not in cache or modified)
-	var needsScan []CapsuleInfo
-	cacheHits := 0
+// isCacheValid checks if the cached metadata is still valid for the given file
+func isCacheValid(cached DiskCapsuleMetadata, info os.FileInfo) bool {
+	return cached.ModTime == info.ModTime().Unix() && cached.Size == info.Size()
+}
+
+// loadCachedMetadata loads cached metadata into the in-memory cache
+func loadCachedMetadata(c CapsuleInfo, cached DiskCapsuleMetadata) {
+	fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
+	capsuleMetadataCache.Lock()
+	capsuleMetadataCache.data[fullPath] = CapsuleMetadata{
+		IsCAS: cached.IsCAS,
+		HasIR: cached.HasIR,
+	}
+	capsuleMetadataCache.Unlock()
+}
+
+// partitionCapsulesByCache separates capsules into those with valid cache and those needing scan
+func partitionCapsulesByCache(capsules []CapsuleInfo, diskCache map[string]DiskCapsuleMetadata, currentFiles map[string]os.FileInfo) (needsScan []CapsuleInfo, cacheHits int) {
 	for _, c := range capsules {
 		info := currentFiles[c.Name]
 		if info == nil {
@@ -287,40 +293,28 @@ func preloadCapsuleMetadata() {
 		}
 
 		cached, ok := diskCache[c.Name]
-		if ok && cached.ModTime == info.ModTime().Unix() && cached.Size == info.Size() {
+		if ok && isCacheValid(cached, info) {
 			// Cache hit - use cached values
-			fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
-			capsuleMetadataCache.Lock()
-			capsuleMetadataCache.data[fullPath] = CapsuleMetadata{
-				IsCAS: cached.IsCAS,
-				HasIR: cached.HasIR,
-			}
-			capsuleMetadataCache.Unlock()
+			loadCachedMetadata(c, cached)
 			cacheHits++
 		} else {
 			// Cache miss - needs scanning
 			needsScan = append(needsScan, c)
 		}
 	}
+	return needsScan, cacheHits
+}
 
-	log.Printf("[CACHE] Disk metadata cache: %d hits, %d need scanning", cacheHits, len(needsScan))
+// metaResult holds the result of scanning a capsule
+type metaResult struct {
+	name     string
+	path     string
+	meta     CapsuleMetadata
+	diskMeta DiskCapsuleMetadata
+}
 
-	if len(needsScan) == 0 {
-		capsuleMetadataCache.Lock()
-		capsuleMetadataCache.timestamp = time.Now()
-		capsuleMetadataCache.Unlock()
-		log.Printf("[CACHE] All %d capsules loaded from disk cache", cacheHits)
-		return
-	}
-
-	// Scan capsules that need it
-	type metaResult struct {
-		name     string
-		path     string
-		meta     CapsuleMetadata
-		diskMeta DiskCapsuleMetadata
-	}
-
+// scanCapsulesInParallel scans capsules that need metadata extraction
+func scanCapsulesInParallel(needsScan []CapsuleInfo, currentFiles map[string]os.FileInfo) map[string]DiskCapsuleMetadata {
 	pool := NewWorkerPool[CapsuleInfo, metaResult](maxWorkers, len(needsScan))
 	pool.Start(func(c CapsuleInfo) metaResult {
 		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
@@ -347,6 +341,7 @@ func preloadCapsuleMetadata() {
 	pool.Close()
 
 	// Collect results
+	diskCache := make(map[string]DiskCapsuleMetadata)
 	for r := range pool.Results() {
 		capsuleMetadataCache.Lock()
 		capsuleMetadataCache.data[r.path] = r.meta
@@ -354,9 +349,51 @@ func preloadCapsuleMetadata() {
 		diskCache[r.name] = r.diskMeta
 	}
 
+	return diskCache
+}
+
+// updateCacheTimestamp marks the cache as freshly updated
+func updateCacheTimestamp() {
 	capsuleMetadataCache.Lock()
 	capsuleMetadataCache.timestamp = time.Now()
 	capsuleMetadataCache.Unlock()
+}
+
+func preloadCapsuleMetadata() {
+	capsules := listCapsules()
+	if len(capsules) == 0 {
+		return
+	}
+
+	// Load existing disk cache
+	diskCache := loadDiskMetadataCache()
+	if diskCache == nil {
+		diskCache = make(map[string]DiskCapsuleMetadata)
+	}
+
+	// Build a map of current capsule files for quick lookup
+	currentFiles := buildCurrentFilesMap(capsules)
+
+	// Find capsules that need scanning (not in cache or modified)
+	needsScan, cacheHits := partitionCapsulesByCache(capsules, diskCache, currentFiles)
+
+	log.Printf("[CACHE] Disk metadata cache: %d hits, %d need scanning", cacheHits, len(needsScan))
+
+	if len(needsScan) == 0 {
+		updateCacheTimestamp()
+		log.Printf("[CACHE] All %d capsules loaded from disk cache", cacheHits)
+		return
+	}
+
+	// Scan capsules that need it and collect results
+	scannedCache := scanCapsulesInParallel(needsScan, currentFiles)
+
+	// Merge scanned results into disk cache
+	for name, meta := range scannedCache {
+		diskCache[name] = meta
+	}
+
+	updateCacheTimestamp()
 
 	// Save updated disk cache
 	if err := saveDiskMetadataCache(diskCache); err != nil {
@@ -1938,25 +1975,35 @@ func extractCapsule(capsulePath, destDir string) error {
 	}
 	defer f.Close()
 
-	var tr *tar.Reader
+	tr, err := createTarReader(f, capsulePath)
+	if err != nil {
+		return err
+	}
 
+	return extractTarEntries(tr, destDir)
+}
+
+// createTarReader creates a tar reader based on the archive format
+func createTarReader(f *os.File, capsulePath string) (*tar.Reader, error) {
 	if strings.HasSuffix(capsulePath, ".tar.xz") {
 		xzr, err := xz.NewReader(f)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		tr = tar.NewReader(xzr)
+		return tar.NewReader(xzr), nil
 	} else if strings.HasSuffix(capsulePath, ".tar.gz") {
 		gzr, err := gzip.NewReader(f)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer gzr.Close()
-		tr = tar.NewReader(gzr)
-	} else {
-		return fmt.Errorf("unsupported archive format")
+		return tar.NewReader(gzr), nil
 	}
+	return nil, fmt.Errorf("unsupported archive format")
+}
 
+// extractTarEntries extracts all entries from a tar archive
+func extractTarEntries(tr *tar.Reader, destDir string) error {
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -1966,40 +2013,55 @@ func extractCapsule(capsulePath, destDir string) error {
 			return err
 		}
 
-		// Clean the path and remove any leading directory
-		name := header.Name
-		if idx := strings.Index(name, "/"); idx >= 0 {
-			name = name[idx+1:]
-		}
-		if name == "" {
-			continue
-		}
-
-		destPath := filepath.Join(destDir, name)
-
-		if header.FileInfo().IsDir() {
-			os.MkdirAll(destPath, 0755)
-			continue
-		}
-
-		os.MkdirAll(filepath.Dir(destPath), 0755)
-
-		outFile, err := os.Create(destPath)
-		if err != nil {
-			return err
-		}
-
-		if _, err := io.Copy(outFile, tr); err != nil {
-			outFile.Close()
-			return err
-		}
-		// Check Close() error for writes to detect disk full, etc.
-		if err := outFile.Close(); err != nil {
+		if err := extractTarEntry(header, tr, destDir); err != nil {
 			return err
 		}
 	}
-
 	return nil
+}
+
+// extractTarEntry extracts a single entry from the tar archive
+func extractTarEntry(header *tar.Header, tr *tar.Reader, destDir string) error {
+	name := cleanTarEntryName(header.Name)
+	if name == "" {
+		return nil
+	}
+
+	destPath := filepath.Join(destDir, name)
+
+	if header.FileInfo().IsDir() {
+		return os.MkdirAll(destPath, 0755)
+	}
+
+	return extractTarFile(destPath, tr)
+}
+
+// cleanTarEntryName removes leading directory from tar entry name
+func cleanTarEntryName(name string) string {
+	if idx := strings.Index(name, "/"); idx >= 0 {
+		name = name[idx+1:]
+	}
+	return name
+}
+
+// extractTarFile extracts a single file from the tar archive
+func extractTarFile(destPath string, tr *tar.Reader) error {
+	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		return err
+	}
+
+	outFile, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(outFile, tr); err != nil {
+		outFile.Close()
+		return err
+	}
+
+	// Check Close() error for writes to detect disk full, etc.
+	return outFile.Close()
 }
 
 // parseExtractIRResultFlexible parses extract-ir results from both single and multi-module formats.
@@ -2609,25 +2671,41 @@ func readCapsule(path string) (*CapsuleManifest, []ArtifactInfo, error) {
 	}
 	defer f.Close()
 
-	var reader io.Reader = f
+	reader, closeFunc, err := wrapWithDecompressor(f, path)
+	if err != nil {
+		return nil, nil, err
+	}
+	if closeFunc != nil {
+		defer closeFunc()
+	}
 
-	// Handle compression
+	tarReader := tar.NewReader(reader)
+	return extractCapsuleContents(tarReader)
+}
+
+// wrapWithDecompressor wraps the reader with appropriate decompressor based on file extension
+func wrapWithDecompressor(reader io.Reader, path string) (io.Reader, func(), error) {
 	if strings.HasSuffix(path, ".xz") {
 		xzReader, err := xz.NewReader(reader)
 		if err != nil {
 			return nil, nil, fmt.Errorf("xz decompress: %w", err)
 		}
-		reader = xzReader
-	} else if strings.HasSuffix(path, ".gz") {
+		return xzReader, nil, nil
+	}
+
+	if strings.HasSuffix(path, ".gz") {
 		gzReader, err := gzip.NewReader(reader)
 		if err != nil {
 			return nil, nil, fmt.Errorf("gzip decompress: %w", err)
 		}
-		defer gzReader.Close()
-		reader = gzReader
+		return gzReader, func() { gzReader.Close() }, nil
 	}
 
-	tarReader := tar.NewReader(reader)
+	return reader, nil, nil
+}
+
+// extractCapsuleContents reads manifest and artifacts from tar archive
+func extractCapsuleContents(tarReader *tar.Reader) (*CapsuleManifest, []ArtifactInfo, error) {
 	var manifest *CapsuleManifest
 	var artifacts []ArtifactInfo
 
@@ -2641,12 +2719,8 @@ func readCapsule(path string) (*CapsuleManifest, []ArtifactInfo, error) {
 		}
 
 		if header.Name == "manifest.json" {
-			data, err := io.ReadAll(tarReader)
+			manifest, err = parseManifestFromTar(tarReader)
 			if err != nil {
-				return nil, nil, err
-			}
-			manifest = &CapsuleManifest{}
-			if err := json.Unmarshal(data, manifest); err != nil {
 				return nil, nil, err
 			}
 		} else if !header.FileInfo().IsDir() {
@@ -2660,6 +2734,21 @@ func readCapsule(path string) (*CapsuleManifest, []ArtifactInfo, error) {
 	}
 
 	return manifest, artifacts, nil
+}
+
+// parseManifestFromTar reads and unmarshals manifest.json from tar reader
+func parseManifestFromTar(tarReader *tar.Reader) (*CapsuleManifest, error) {
+	data, err := io.ReadAll(tarReader)
+	if err != nil {
+		return nil, err
+	}
+
+	manifest := &CapsuleManifest{}
+	if err := json.Unmarshal(data, manifest); err != nil {
+		return nil, err
+	}
+
+	return manifest, nil
 }
 
 func readArtifactContent(capsulePath, artifactID string) (string, string, error) {

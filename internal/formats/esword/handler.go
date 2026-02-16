@@ -222,128 +222,14 @@ func (h *Handler) extractBibleIR(path, outputDir string) (*plugins.ExtractIRResu
 	}
 	defer parser.Close()
 
-	// Compute source hash
-	sourceData, err := os.ReadFile(path)
+	corpus, err := h.buildBibleCorpus(path, parser)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read source file: %w", err)
-	}
-	sourceHash := sha256.Sum256(sourceData)
-
-	// Create corpus
-	artifactID := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-	corpus := &ir.Corpus{
-		ID:           artifactID,
-		Version:      "1.0.0",
-		ModuleType:   ir.ModuleBible,
-		SourceFormat: "e-Sword",
-		SourceHash:   hex.EncodeToString(sourceHash[:]),
-		LossClass:    ir.LossL1,
-		Attributes:   make(map[string]string),
+		return nil, err
 	}
 
-	// Get metadata
-	metadata := parser.GetMetadata()
-	if metadata != nil {
-		if metadata.Title != "" {
-			corpus.Title = metadata.Title
-		}
-		if metadata.Abbreviation != "" {
-			corpus.Attributes["abbreviation"] = metadata.Abbreviation
-		}
-		if metadata.Information != "" {
-			corpus.Description = metadata.Information
-		}
-		if metadata.Version != "" {
-			corpus.Attributes["version"] = metadata.Version
-		}
-		if metadata.Font != "" {
-			corpus.Attributes["font"] = metadata.Font
-		}
-		if metadata.RightToLeft {
-			corpus.Attributes["right_to_left"] = "true"
-		}
-	}
-
-	// Get all verses
-	verses, err := parser.GetAllVerses()
+	irPath, err := writeCorpusToFile(corpus, outputDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get verses: %w", err)
-	}
-
-	// Group verses by book
-	bookDocs := make(map[int]*ir.Document)
-	sequence := 0
-
-	for _, verse := range verses {
-		// Get or create document for this book
-		doc, ok := bookDocs[verse.Book]
-		if !ok {
-			osisID := bookNumToOSIS(verse.Book)
-			doc = &ir.Document{
-				ID:         osisID,
-				Title:      osisID,
-				Order:      verse.Book,
-				Attributes: map[string]string{"book_num": fmt.Sprintf("%d", verse.Book)},
-			}
-			bookDocs[verse.Book] = doc
-		}
-
-		sequence++
-		osisID := bookNumToOSIS(verse.Book)
-		refID := fmt.Sprintf("%s.%d.%d", osisID, verse.Chapter, verse.Verse)
-
-		// Create content block for verse
-		hash := sha256.Sum256([]byte(verse.Scripture))
-		cb := &ir.ContentBlock{
-			ID:       fmt.Sprintf("cb-%d", sequence),
-			Sequence: sequence,
-			Text:     verse.Scripture,
-			Hash:     hex.EncodeToString(hash[:]),
-			Anchors: []*ir.Anchor{
-				{
-					ID:       fmt.Sprintf("a-%d-0", sequence),
-					Position: 0,
-					Spans: []*ir.Span{
-						{
-							ID:            fmt.Sprintf("s-%s", refID),
-							Type:          ir.SpanVerse,
-							StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
-							Ref: &ir.Ref{
-								Book:    osisID,
-								Chapter: verse.Chapter,
-								Verse:   verse.Verse,
-								OSISID:  refID,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		doc.ContentBlocks = append(doc.ContentBlocks, cb)
-	}
-
-	// Add documents to corpus in book order
-	for i := 1; i <= 66; i++ {
-		if doc, ok := bookDocs[i]; ok {
-			corpus.Documents = append(corpus.Documents, doc)
-		}
-	}
-
-	// Serialize IR to JSON
-	irData, err := json.MarshalIndent(corpus, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize IR: %w", err)
-	}
-
-	// Ensure output directory exists
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create output directory: %w", err)
-	}
-
-	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
-	if err := os.WriteFile(irPath, irData, 0600); err != nil {
-		return nil, fmt.Errorf("failed to write IR: %w", err)
+		return nil, err
 	}
 
 	return &plugins.ExtractIRResult{
@@ -353,11 +239,152 @@ func (h *Handler) extractBibleIR(path, outputDir string) (*plugins.ExtractIRResu
 			SourceFormat: "e-Sword",
 			TargetFormat: "IR",
 			LossClass:    "L1",
-			Warnings: []string{
-				"RTF formatting in Scripture field is simplified to plain text",
-			},
+			Warnings:     []string{"RTF formatting in Scripture field is simplified to plain text"},
 		},
 	}, nil
+}
+
+// buildBibleCorpus creates an IR corpus from parsed Bible data.
+func (h *Handler) buildBibleCorpus(path string, parser *BibleParser) (*ir.Corpus, error) {
+	sourceHash, err := computeFileHash(path)
+	if err != nil {
+		return nil, err
+	}
+
+	artifactID := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	corpus := &ir.Corpus{
+		ID:           artifactID,
+		Version:      "1.0.0",
+		ModuleType:   ir.ModuleBible,
+		SourceFormat: "e-Sword",
+		SourceHash:   sourceHash,
+		LossClass:    ir.LossL1,
+		Attributes:   make(map[string]string),
+	}
+
+	applyBibleMetadata(corpus, parser.GetMetadata())
+
+	verses, err := parser.GetAllVerses()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get verses: %w", err)
+	}
+
+	corpus.Documents = groupVersesIntoDocuments(verses)
+	return corpus, nil
+}
+
+// computeFileHash computes SHA256 hash of a file.
+func computeFileHash(path string) (string, error) {
+	sourceData, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read source file: %w", err)
+	}
+	hash := sha256.Sum256(sourceData)
+	return hex.EncodeToString(hash[:]), nil
+}
+
+// applyBibleMetadata applies e-Sword metadata to corpus.
+func applyBibleMetadata(corpus *ir.Corpus, metadata *BibleMetadata) {
+	if metadata == nil {
+		return
+	}
+	if metadata.Title != "" {
+		corpus.Title = metadata.Title
+	}
+	if metadata.Abbreviation != "" {
+		corpus.Attributes["abbreviation"] = metadata.Abbreviation
+	}
+	if metadata.Information != "" {
+		corpus.Description = metadata.Information
+	}
+	if metadata.Version != "" {
+		corpus.Attributes["version"] = metadata.Version
+	}
+	if metadata.Font != "" {
+		corpus.Attributes["font"] = metadata.Font
+	}
+	if metadata.RightToLeft {
+		corpus.Attributes["right_to_left"] = "true"
+	}
+}
+
+// groupVersesIntoDocuments groups verses by book and creates IR documents.
+func groupVersesIntoDocuments(verses []*BibleVerse) []*ir.Document {
+	bookDocs := make(map[int]*ir.Document)
+	sequence := 0
+
+	for _, verse := range verses {
+		doc := getOrCreateBookDoc(bookDocs, verse.Book)
+		sequence++
+		doc.ContentBlocks = append(doc.ContentBlocks, createVerseContentBlock(verse, sequence))
+	}
+
+	// Collect documents in canonical order
+	var docs []*ir.Document
+	for i := 1; i <= 66; i++ {
+		if doc, ok := bookDocs[i]; ok {
+			docs = append(docs, doc)
+		}
+	}
+	return docs
+}
+
+// getOrCreateBookDoc gets or creates an IR document for a book number.
+func getOrCreateBookDoc(bookDocs map[int]*ir.Document, bookNum int) *ir.Document {
+	if doc, ok := bookDocs[bookNum]; ok {
+		return doc
+	}
+	osisID := bookNumToOSIS(bookNum)
+	doc := &ir.Document{
+		ID:         osisID,
+		Title:      osisID,
+		Order:      bookNum,
+		Attributes: map[string]string{"book_num": fmt.Sprintf("%d", bookNum)},
+	}
+	bookDocs[bookNum] = doc
+	return doc
+}
+
+// createVerseContentBlock creates an IR content block for a verse.
+func createVerseContentBlock(verse *BibleVerse, sequence int) *ir.ContentBlock {
+	osisID := bookNumToOSIS(verse.Book)
+	refID := fmt.Sprintf("%s.%d.%d", osisID, verse.Chapter, verse.Verse)
+	hash := sha256.Sum256([]byte(verse.Scripture))
+
+	return &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", sequence),
+		Sequence: sequence,
+		Text:     verse.Scripture,
+		Hash:     hex.EncodeToString(hash[:]),
+		Anchors: []*ir.Anchor{{
+			ID:       fmt.Sprintf("a-%d-0", sequence),
+			Position: 0,
+			Spans: []*ir.Span{{
+				ID:            fmt.Sprintf("s-%s", refID),
+				Type:          ir.SpanVerse,
+				StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
+				Ref:           &ir.Ref{Book: osisID, Chapter: verse.Chapter, Verse: verse.Verse, OSISID: refID},
+			}},
+		}},
+	}
+}
+
+// writeCorpusToFile serializes corpus to JSON and writes to output directory.
+func writeCorpusToFile(corpus *ir.Corpus, outputDir string) (string, error) {
+	irData, err := json.MarshalIndent(corpus, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize IR: %w", err)
+	}
+
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	irPath := filepath.Join(outputDir, corpus.ID+".ir.json")
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
+		return "", fmt.Errorf("failed to write IR: %w", err)
+	}
+	return irPath, nil
 }
 
 // extractCommentaryIR extracts IR from a .cmtx file.

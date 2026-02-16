@@ -479,107 +479,127 @@ func GenerateIRForCapsule(capsulePath string, pluginsDir string) error {
 
 // CASToSword converts a CAS capsule to a SWORD module.
 func CASToSword(cfg CASToSwordConfig) error {
-	capsulePath, _ := filepath.Abs(cfg.Capsule)
-	outputDir := cfg.Output
-	moduleName := cfg.Name
+	capsulePath, outputDir, moduleName, err := resolveCASToSwordPaths(cfg)
+	if err != nil {
+		return err
+	}
 
-	// Default output to ~/.sword
+	printConversionHeader(capsulePath, outputDir, moduleName)
+
+	corpus, err := loadIRFromCapsule(capsulePath)
+	if err != nil {
+		return err
+	}
+
+	meta := extractCorpusMetadata(corpus, moduleName)
+	printCorpusInfo(corpus, meta)
+
+	confPath, dataPath, err := createSwordModuleStructure(outputDir, moduleName, meta)
+	if err != nil {
+		return err
+	}
+
+	printConversionComplete(confPath, dataPath)
+	return nil
+}
+
+// resolveCASToSwordPaths resolves and validates paths for CAS-to-SWORD conversion.
+func resolveCASToSwordPaths(cfg CASToSwordConfig) (capsulePath, outputDir, moduleName string, err error) {
+	capsulePath, _ = filepath.Abs(cfg.Capsule)
+	outputDir = cfg.Output
+	moduleName = cfg.Name
+
 	if outputDir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return fmt.Errorf("cannot determine home directory: %w", err)
+			return "", "", "", fmt.Errorf("cannot determine home directory: %w", err)
 		}
 		outputDir = filepath.Join(home, ".sword")
 	}
 
-	// Derive module name from capsule filename if not provided
 	if moduleName == "" {
-		base := filepath.Base(capsulePath)
-		moduleName = strings.TrimSuffix(base, ".capsule.tar.xz")
-		moduleName = strings.TrimSuffix(moduleName, ".capsule.tar.gz")
-		moduleName = strings.TrimSuffix(moduleName, ".tar.xz")
-		moduleName = strings.TrimSuffix(moduleName, ".tar.gz")
-		moduleName = strings.ToUpper(moduleName)
+		moduleName = deriveModuleName(capsulePath)
 	}
+	return capsulePath, outputDir, moduleName, nil
+}
 
-	fmt.Printf("Converting CAS capsule to SWORD module:\n")
-	fmt.Printf("  Input:  %s\n", capsulePath)
-	fmt.Printf("  Output: %s\n", outputDir)
-	fmt.Printf("  Module: %s\n", moduleName)
-	fmt.Println()
+// deriveModuleName extracts a module name from the capsule filename.
+func deriveModuleName(capsulePath string) string {
+	base := filepath.Base(capsulePath)
+	name := strings.TrimSuffix(base, ".capsule.tar.xz")
+	name = strings.TrimSuffix(name, ".capsule.tar.gz")
+	name = strings.TrimSuffix(name, ".tar.xz")
+	name = strings.TrimSuffix(name, ".tar.gz")
+	return strings.ToUpper(name)
+}
 
-	// Create temporary directory for unpacking
+// loadIRFromCapsule unpacks a capsule and loads the IR corpus.
+func loadIRFromCapsule(capsulePath string) (*ir.Corpus, error) {
 	tempDir, err := os.MkdirTemp("", "cas-to-sword-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Unpack the capsule
 	cap, err := capsule.Unpack(capsulePath, tempDir)
 	if err != nil {
-		return fmt.Errorf("failed to unpack capsule: %w", err)
+		return nil, fmt.Errorf("failed to unpack capsule: %w", err)
 	}
 
-	// Check if capsule has IR extractions
 	if len(cap.Manifest.IRExtractions) == 0 {
-		return fmt.Errorf("capsule has no IR - run 'capsule format ir generate' first")
+		return nil, fmt.Errorf("capsule has no IR - run 'capsule format ir generate' first")
 	}
 
-	// Get the first IR extraction and directly read the IR blob
 	var irRecord *capsule.IRRecord
 	for _, rec := range cap.Manifest.IRExtractions {
 		irRecord = rec
 		break
 	}
 
-	// Directly retrieve the IR blob from CAS
 	irBlobData, err := cap.GetStore().Retrieve(irRecord.IRBlobSHA256)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve IR blob: %w", err)
+		return nil, fmt.Errorf("failed to retrieve IR blob: %w", err)
 	}
 
-	// Parse the IR corpus directly
 	var corpus ir.Corpus
 	if err := json.Unmarshal(irBlobData, &corpus); err != nil {
-		return fmt.Errorf("failed to parse IR corpus: %w", err)
+		return nil, fmt.Errorf("failed to parse IR corpus: %w", err)
 	}
+	return &corpus, nil
+}
 
-	// Get metadata directly from IR Corpus
-	lang := corpus.Language
-	if lang == "" {
-		lang = "en"
-	}
-	description := corpus.Title
-	if description == "" {
-		description = moduleName + " Bible Module"
-	}
-	versification := corpus.Versification
-	if versification == "" {
-		versification = "KJV"
-	}
+type swordModuleMeta struct {
+	lang, description, versification string
+}
 
-	fmt.Printf("  IR ID:       %s\n", corpus.ID)
-	fmt.Printf("  Language:    %s\n", lang)
-	fmt.Printf("  Title:       %s\n", description)
-	fmt.Printf("  Versification: %s\n", versification)
-	fmt.Printf("  Documents:   %d\n", len(corpus.Documents))
-	fmt.Println()
+// extractCorpusMetadata extracts SWORD metadata from an IR corpus.
+func extractCorpusMetadata(corpus *ir.Corpus, moduleName string) swordModuleMeta {
+	meta := swordModuleMeta{lang: "en", description: moduleName + " Bible Module", versification: "KJV"}
+	if corpus.Language != "" {
+		meta.lang = corpus.Language
+	}
+	if corpus.Title != "" {
+		meta.description = corpus.Title
+	}
+	if corpus.Versification != "" {
+		meta.versification = corpus.Versification
+	}
+	return meta
+}
 
-	// Ensure output directories exist
+// createSwordModuleStructure creates the SWORD module directories and conf file.
+func createSwordModuleStructure(outputDir, moduleName string, meta swordModuleMeta) (confPath, dataPath string, err error) {
 	modsDir := filepath.Join(outputDir, "mods.d")
 	if err := os.MkdirAll(modsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create mods.d: %w", err)
+		return "", "", fmt.Errorf("failed to create mods.d: %w", err)
 	}
 
-	// Create a zText format module structure
-	dataPath := filepath.Join("modules", "texts", "ztext", strings.ToLower(moduleName))
+	dataPath = filepath.Join("modules", "texts", "ztext", strings.ToLower(moduleName))
 	fullDataPath := filepath.Join(outputDir, dataPath)
 	if err := os.MkdirAll(fullDataPath, 0755); err != nil {
-		return fmt.Errorf("failed to create data directory: %w", err)
+		return "", "", fmt.Errorf("failed to create data directory: %w", err)
 	}
 
-	// Create a basic .conf file with versification from IR
 	confContent := fmt.Sprintf(`[%s]
 DataPath=./%s/
 ModDrv=zText
@@ -594,21 +614,39 @@ Versification=%s
 Version=1.0
 LCSH=Bible.
 DistributionLicense=Copyrighted; Free non-commercial distribution
-`, moduleName, dataPath, lang, description, versification)
+`, moduleName, dataPath, meta.lang, meta.description, meta.versification)
 
-	confPath := filepath.Join(modsDir, strings.ToLower(moduleName)+".conf")
+	confPath = filepath.Join(modsDir, strings.ToLower(moduleName)+".conf")
 	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
-		return fmt.Errorf("failed to write conf file: %w", err)
+		return "", "", fmt.Errorf("failed to write conf file: %w", err)
 	}
+	return confPath, fullDataPath, nil
+}
 
+func printConversionHeader(capsulePath, outputDir, moduleName string) {
+	fmt.Printf("Converting CAS capsule to SWORD module:\n")
+	fmt.Printf("  Input:  %s\n", capsulePath)
+	fmt.Printf("  Output: %s\n", outputDir)
+	fmt.Printf("  Module: %s\n", moduleName)
+	fmt.Println()
+}
+
+func printCorpusInfo(corpus *ir.Corpus, meta swordModuleMeta) {
+	fmt.Printf("  IR ID:       %s\n", corpus.ID)
+	fmt.Printf("  Language:    %s\n", meta.lang)
+	fmt.Printf("  Title:       %s\n", meta.description)
+	fmt.Printf("  Versification: %s\n", meta.versification)
+	fmt.Printf("  Documents:   %d\n", len(corpus.Documents))
+	fmt.Println()
+}
+
+func printConversionComplete(confPath, dataPath string) {
 	fmt.Printf("Created SWORD module structure:\n")
 	fmt.Printf("  Config: %s\n", confPath)
-	fmt.Printf("  Data:   %s\n", fullDataPath)
+	fmt.Printf("  Data:   %s\n", dataPath)
 	fmt.Println()
 	fmt.Println("Note: To complete the conversion, use osis2mod or sword-utils to populate the module data.")
 	fmt.Println("      This command creates the structure; use tool plugins for data conversion.")
-
-	return nil
 }
 
 // ParseConf parses a SWORD conf file.

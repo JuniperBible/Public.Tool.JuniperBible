@@ -62,96 +62,121 @@ func NewNixExecutor(flakePath string) *NixExecutor {
 
 // ExecuteRequest runs a tool request and returns the result with transcript.
 func (e *NixExecutor) ExecuteRequest(ctx context.Context, req *Request, inputPaths []string) (*ExecutionResult, error) {
-	// SECURITY: Validate plugin ID and profile to prevent shell injection
-	if err := validateIdentifier(req.PluginID, "plugin ID"); err != nil {
-		return nil, fmt.Errorf("invalid request: %w", err)
-	}
-	if req.Profile != "" {
-		if err := validateIdentifier(req.Profile, "profile"); err != nil {
-			return nil, fmt.Errorf("invalid request: %w", err)
-		}
+	if err := e.validateRequest(req); err != nil {
+		return nil, err
 	}
 
-	// Create work directory
-	workDir, err := osMkdirTemp("", "capsule-run-*")
+	workDir, inDir, outDir, err := e.setupWorkDirs()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create work dir: %w", err)
+		return nil, err
 	}
 	defer os.RemoveAll(workDir)
 
-	inDir := filepath.Join(workDir, "in")
-	outDir := filepath.Join(workDir, "out")
+	if err := e.copyInputs(inputPaths, inDir); err != nil {
+		return nil, err
+	}
+
+	if err := e.writeRequest(req, inDir); err != nil {
+		return nil, err
+	}
+
+	result, err := e.runCommand(ctx, req, workDir, inDir, outDir)
+	if err != nil {
+		return nil, err
+	}
+
+	e.collectOutputs(result, outDir)
+	return result, nil
+}
+
+// validateRequest validates the plugin ID and profile for shell safety.
+func (e *NixExecutor) validateRequest(req *Request) error {
+	if err := validateIdentifier(req.PluginID, "plugin ID"); err != nil {
+		return fmt.Errorf("invalid request: %w", err)
+	}
+	if req.Profile != "" {
+		if err := validateIdentifier(req.Profile, "profile"); err != nil {
+			return fmt.Errorf("invalid request: %w", err)
+		}
+	}
+	return nil
+}
+
+// setupWorkDirs creates the work directory structure.
+func (e *NixExecutor) setupWorkDirs() (workDir, inDir, outDir string, err error) {
+	workDir, err = osMkdirTemp("", "capsule-run-*")
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to create work dir: %w", err)
+	}
+
+	inDir = filepath.Join(workDir, "in")
+	outDir = filepath.Join(workDir, "out")
 
 	if err := osMkdirAll(inDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create in dir: %w", err)
+		os.RemoveAll(workDir)
+		return "", "", "", fmt.Errorf("failed to create in dir: %w", err)
 	}
 	if err := osMkdirAll(outDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create out dir: %w", err)
+		os.RemoveAll(workDir)
+		return "", "", "", fmt.Errorf("failed to create out dir: %w", err)
 	}
+	return workDir, inDir, outDir, nil
+}
 
-	// Copy input files/directories
+// copyInputs copies input files/directories to the work directory.
+func (e *NixExecutor) copyInputs(inputPaths []string, inDir string) error {
 	for i, path := range inputPaths {
 		info, err := os.Stat(path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to stat input %d: %w", i, err)
+			return fmt.Errorf("failed to stat input %d: %w", i, err)
 		}
-
 		if info.IsDir() {
-			// Copy directory recursively
 			if err := copyDir(path, inDir); err != nil {
-				return nil, fmt.Errorf("failed to copy input dir %d: %w", i, err)
+				return fmt.Errorf("failed to copy input dir %d: %w", i, err)
 			}
 		} else {
-			// Copy single file
 			data, err := osReadFile(path)
 			if err != nil {
-				return nil, fmt.Errorf("failed to read input %d: %w", i, err)
+				return fmt.Errorf("failed to read input %d: %w", i, err)
 			}
 			dest := filepath.Join(inDir, filepath.Base(path))
 			if err := osWriteFile(dest, data, 0600); err != nil {
-				return nil, fmt.Errorf("failed to write input %d: %w", i, err)
+				return fmt.Errorf("failed to write input %d: %w", i, err)
 			}
 		}
 	}
+	return nil
+}
 
-	// Write request
+// writeRequest serializes and writes the request to the input directory.
+func (e *NixExecutor) writeRequest(req *Request, inDir string) error {
 	reqData, err := req.ToJSON()
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize request: %w", err)
+		return fmt.Errorf("failed to serialize request: %w", err)
 	}
 	if err := osWriteFile(filepath.Join(inDir, "request.json"), reqData, 0600); err != nil {
-		return nil, fmt.Errorf("failed to write request: %w", err)
+		return fmt.Errorf("failed to write request: %w", err)
 	}
+	return nil
+}
 
-	// Build the command based on plugin type
-	var cmd *exec.Cmd
+// runCommand executes the nix command and returns the result.
+func (e *NixExecutor) runCommand(ctx context.Context, req *Request, workDir, inDir, outDir string) (*ExecutionResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, e.Timeout)
 	defer cancel()
 
-	// Use nix develop or nix shell to get deterministic environment
-	nixArgs := []string{
-		"shell",
-		e.FlakePath + "#engine-tools",
-		"--command",
-	}
-
-	// Determine tool command based on plugin
+	nixArgs := []string{"shell", e.FlakePath + "#engine-tools", "--command"}
 	toolCmd := e.buildToolCommand(req, inDir, outDir)
 	nixArgs = append(nixArgs, "sh", "-c", toolCmd)
 
-	cmd = exec.CommandContext(ctxWithTimeout, "nix", nixArgs...)
+	cmd := exec.CommandContext(ctxWithTimeout, "nix", nixArgs...)
 	cmd.Dir = workDir
-
-	// Set deterministic environment
 	cmd.Env = []string{
-		"TZ=UTC",
-		"LC_ALL=C.UTF-8",
-		"LANG=C.UTF-8",
-		"HOME=" + workDir,
-		"PATH=/usr/bin:/bin",
+		"TZ=UTC", "LC_ALL=C.UTF-8", "LANG=C.UTF-8",
+		"HOME=" + workDir, "PATH=/usr/bin:/bin",
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -171,40 +196,33 @@ func (e *NixExecutor) ExecuteRequest(ctx context.Context, req *Request, inputPat
 		}
 	}
 
-	// Build result
-	result := &ExecutionResult{
+	return &ExecutionResult{
 		ExitCode:  exitCode,
 		Duration:  duration,
 		Stdout:    stdout.Bytes(),
 		Stderr:    stderr.Bytes(),
 		OutputDir: outDir,
-	}
+	}, nil
+}
 
-	// Read transcript if present
+// collectOutputs reads transcript and output blobs from the output directory.
+func (e *NixExecutor) collectOutputs(result *ExecutionResult, outDir string) {
 	transcriptPath := filepath.Join(outDir, "transcript.jsonl")
 	if data, err := safefile.ReadFile(transcriptPath); err == nil {
 		result.TranscriptData = data
 		result.TranscriptHash = cas.Hash(data)
 	}
 
-	// Collect output blobs
 	result.OutputBlobs = make(map[string][]byte)
 	entries, _ := os.ReadDir(outDir)
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if entry.IsDir() || entry.Name() == "transcript.jsonl" {
 			continue
 		}
-		name := entry.Name()
-		if name == "transcript.jsonl" {
-			continue
-		}
-		data, err := safefile.ReadFile(filepath.Join(outDir, name))
-		if err == nil {
-			result.OutputBlobs[name] = data
+		if data, err := safefile.ReadFile(filepath.Join(outDir, entry.Name())); err == nil {
+			result.OutputBlobs[entry.Name()] = data
 		}
 	}
-
-	return result, nil
 }
 
 // buildToolCommand builds the shell command for a given plugin.

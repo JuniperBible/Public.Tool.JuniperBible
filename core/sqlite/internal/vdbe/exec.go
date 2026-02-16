@@ -79,127 +79,92 @@ func (v *VDBE) Run() error {
 	return nil
 }
 
-// execInstruction executes a single instruction.
-func (v *VDBE) execInstruction(instr *Instruction) error {
-	switch instr.Opcode {
+// opcodeHandler is a function that executes a specific opcode.
+type opcodeHandler func(v *VDBE, instr *Instruction) error
 
+// opcodeDispatch maps opcodes to their handler functions.
+// Using a dispatch table reduces cyclomatic complexity vs switch statement.
+var opcodeDispatch = map[Opcode]opcodeHandler{
 	// Control flow opcodes
-	case OpInit:
-		return v.execInit(instr)
-	case OpGoto:
-		return v.execGoto(instr)
-	case OpGosub:
-		return v.execGosub(instr)
-	case OpReturn:
-		return v.execReturn(instr)
-	case OpHalt:
-		return v.execHalt(instr)
-	case OpIf:
-		return v.execIf(instr)
-	case OpIfNot:
-		return v.execIfNot(instr)
+	OpInit:   (*VDBE).execInit,
+	OpGoto:   (*VDBE).execGoto,
+	OpGosub:  (*VDBE).execGosub,
+	OpReturn: (*VDBE).execReturn,
+	OpHalt:   (*VDBE).execHalt,
+	OpIf:     (*VDBE).execIf,
+	OpIfNot:  (*VDBE).execIfNot,
 
 	// Register operations
-	case OpInteger:
-		return v.execInteger(instr)
-	case OpInt64:
-		return v.execInt64(instr)
-	case OpReal:
-		return v.execReal(instr)
-	case OpString, OpString8:
-		return v.execString(instr)
-	case OpBlob:
-		return v.execBlob(instr)
-	case OpNull:
-		return v.execNull(instr)
-	case OpCopy:
-		return v.execCopy(instr)
-	case OpMove:
-		return v.execMove(instr)
-	case OpSCopy:
-		return v.execSCopy(instr)
+	OpInteger: (*VDBE).execInteger,
+	OpInt64:   (*VDBE).execInt64,
+	OpReal:    (*VDBE).execReal,
+	OpString:  (*VDBE).execString,
+	OpString8: (*VDBE).execString,
+	OpBlob:    (*VDBE).execBlob,
+	OpNull:    (*VDBE).execNull,
+	OpCopy:    (*VDBE).execCopy,
+	OpMove:    (*VDBE).execMove,
+	OpSCopy:   (*VDBE).execSCopy,
 
 	// Cursor operations
-	case OpOpenRead:
-		return v.execOpenRead(instr)
-	case OpOpenWrite:
-		return v.execOpenWrite(instr)
-	case OpClose:
-		return v.execClose(instr)
-	case OpRewind:
-		return v.execRewind(instr)
-	case OpNext:
-		return v.execNext(instr)
-	case OpPrev:
-		return v.execPrev(instr)
-	case OpSeekGE:
-		return v.execSeekGE(instr)
-	case OpSeekLE:
-		return v.execSeekLE(instr)
-	case OpSeekRowid:
-		return v.execSeekRowid(instr)
+	OpOpenRead:  (*VDBE).execOpenRead,
+	OpOpenWrite: (*VDBE).execOpenWrite,
+	OpClose:     (*VDBE).execClose,
+	OpRewind:    (*VDBE).execRewind,
+	OpNext:      (*VDBE).execNext,
+	OpPrev:      (*VDBE).execPrev,
+	OpSeekGE:    (*VDBE).execSeekGE,
+	OpSeekLE:    (*VDBE).execSeekLE,
+	OpSeekRowid: (*VDBE).execSeekRowid,
 
 	// Data retrieval
-	case OpColumn:
-		return v.execColumn(instr)
-	case OpRowid:
-		return v.execRowid(instr)
-	case OpResultRow:
-		return v.execResultRow(instr)
+	OpColumn:    (*VDBE).execColumn,
+	OpRowid:     (*VDBE).execRowid,
+	OpResultRow: (*VDBE).execResultRow,
 
 	// Data modification
-	case OpNewRowid:
-		return v.execNewRowid(instr)
-	case OpMakeRecord:
-		return v.execMakeRecord(instr)
-	case OpInsert:
-		return v.execInsert(instr)
-	case OpDelete:
-		return v.execDelete(instr)
+	OpNewRowid:   (*VDBE).execNewRowid,
+	OpMakeRecord: (*VDBE).execMakeRecord,
+	OpInsert:     (*VDBE).execInsert,
+	OpDelete:     (*VDBE).execDelete,
 
 	// Comparison
-	case OpEq:
-		return v.execEq(instr)
-	case OpNe:
-		return v.execNe(instr)
-	case OpLt:
-		return v.execLt(instr)
-	case OpLe:
-		return v.execLe(instr)
-	case OpGt:
-		return v.execGt(instr)
-	case OpGe:
-		return v.execGe(instr)
+	OpEq: (*VDBE).execEq,
+	OpNe: (*VDBE).execNe,
+	OpLt: (*VDBE).execLt,
+	OpLe: (*VDBE).execLe,
+	OpGt: (*VDBE).execGt,
+	OpGe: (*VDBE).execGe,
 
 	// Arithmetic
-	case OpAdd:
-		return v.execAdd(instr)
-	case OpSubtract:
-		return v.execSubtract(instr)
-	case OpMultiply:
-		return v.execMultiply(instr)
-	case OpDivide:
-		return v.execDivide(instr)
-	case OpRemainder:
-		return v.execRemainder(instr)
+	OpAdd:       (*VDBE).execAdd,
+	OpSubtract:  (*VDBE).execSubtract,
+	OpMultiply:  (*VDBE).execMultiply,
+	OpDivide:    (*VDBE).execDivide,
+	OpRemainder: (*VDBE).execRemainder,
 
 	// Aggregate functions
-	case OpAggStep:
-		return v.execAggStep(instr)
-	case OpAggFinal:
-		return v.execAggFinal(instr)
+	OpAggStep:  (*VDBE).execAggStep,
+	OpAggFinal: (*VDBE).execAggFinal,
 
 	// Function calls
-	case OpFunction:
-		return v.execFunction(instr)
+	OpFunction: (*VDBE).execFunction,
 
-	case OpNoop:
-		// No operation
-		return nil
+	// No operation
+	OpNoop: (*VDBE).execNoop,
+}
 
-	default:
-		return fmt.Errorf("unimplemented opcode: %s", instr.Opcode.String())
+// execNoop handles the OpNoop instruction (no operation).
+func (v *VDBE) execNoop(_ *Instruction) error {
+	return nil
+}
+
+// execInstruction executes a single instruction using the dispatch table.
+func (v *VDBE) execInstruction(instr *Instruction) error {
+	if handler, ok := opcodeDispatch[instr.Opcode]; ok {
+		return handler(v, instr)
 	}
+	return fmt.Errorf("unimplemented opcode: %s", instr.Opcode.String())
 }
 
 // Control flow instruction implementations
@@ -909,113 +874,102 @@ func serialTypeLen(serialType uint64) int {
 	}
 }
 
-// parseSerialValue parses a value from the record body
+// parseSerialValue parses a SQLite record value based on its serial type.
 func parseSerialValue(data []byte, offset int, st uint64, mem *Mem) error {
 	switch st {
-	case 0: // NULL
+	case 0:
 		mem.SetNull()
 		return nil
-
-	case 8: // 0
+	case 8:
 		mem.SetInt(0)
 		return nil
-
-	case 9: // 1
+	case 9:
 		mem.SetInt(1)
 		return nil
-
-	case 1: // INT8
-		if offset >= len(data) {
-			mem.SetNull()
-			return fmt.Errorf("truncated int8")
-		}
-		mem.SetInt(int64(int8(data[offset])))
-		return nil
-
-	case 2: // INT16
-		if offset+2 > len(data) {
-			mem.SetNull()
-			return fmt.Errorf("truncated int16")
-		}
-		v := int64(int16(binary.BigEndian.Uint16(data[offset:])))
-		mem.SetInt(v)
-		return nil
-
-	case 3: // INT24
-		if offset+3 > len(data) {
-			mem.SetNull()
-			return fmt.Errorf("truncated int24")
-		}
-		v := int32(data[offset])<<16 | int32(data[offset+1])<<8 | int32(data[offset+2])
-		if v&0x800000 != 0 {
-			v |= ^0xffffff // Sign extend
-		}
-		mem.SetInt(int64(v))
-		return nil
-
-	case 4: // INT32
-		if offset+4 > len(data) {
-			mem.SetNull()
-			return fmt.Errorf("truncated int32")
-		}
-		v := int64(int32(binary.BigEndian.Uint32(data[offset:])))
-		mem.SetInt(v)
-		return nil
-
-	case 5: // INT48
-		if offset+6 > len(data) {
-			mem.SetNull()
-			return fmt.Errorf("truncated int48")
-		}
-		v := int64(data[offset])<<40 | int64(data[offset+1])<<32 |
-			int64(data[offset+2])<<24 | int64(data[offset+3])<<16 |
-			int64(data[offset+4])<<8 | int64(data[offset+5])
-		if v&0x800000000000 != 0 {
-			v |= ^0xffffffffffff // Sign extend
-		}
-		mem.SetInt(v)
-		return nil
-
-	case 6: // INT64
-		if offset+8 > len(data) {
-			mem.SetNull()
-			return fmt.Errorf("truncated int64")
-		}
-		v := int64(binary.BigEndian.Uint64(data[offset:]))
-		mem.SetInt(v)
-		return nil
-
-	case 7: // FLOAT64
-		if offset+8 > len(data) {
-			mem.SetNull()
-			return fmt.Errorf("truncated float64")
-		}
-		bits := binary.BigEndian.Uint64(data[offset:])
-		v := math.Float64frombits(bits)
-		mem.SetReal(v)
-		return nil
-
+	case 1, 2, 3, 4, 5, 6:
+		return parseSerialInt(data, offset, st, mem)
+	case 7:
+		return parseSerialFloat(data, offset, mem)
 	default:
-		// Blob or Text
-		length := serialTypeLen(st)
-		if offset+length > len(data) {
-			mem.SetNull()
-			return fmt.Errorf("truncated blob/text")
-		}
-
-		b := make([]byte, length)
-		copy(b, data[offset:offset+length])
-
-		if st%2 == 0 {
-			// Even: BLOB
-			mem.SetBlob(b)
-			return nil
-		} else {
-			// Odd: TEXT
-			mem.SetStr(string(b))
-			return nil
-		}
+		return parseSerialBlobOrText(data, offset, st, mem)
 	}
+}
+
+// parseSerialInt parses signed integers of various sizes (serial types 1-6).
+func parseSerialInt(data []byte, offset int, st uint64, mem *Mem) error {
+	size := serialTypeLen(st)
+	if offset+size > len(data) {
+		mem.SetNull()
+		return fmt.Errorf("truncated int%d", size*8)
+	}
+
+	var v int64
+	switch st {
+	case 1:
+		v = int64(int8(data[offset]))
+	case 2:
+		v = int64(int16(binary.BigEndian.Uint16(data[offset:])))
+	case 3:
+		v = parseSignedInt24(data[offset:])
+	case 4:
+		v = int64(int32(binary.BigEndian.Uint32(data[offset:])))
+	case 5:
+		v = parseSignedInt48(data[offset:])
+	case 6:
+		v = int64(binary.BigEndian.Uint64(data[offset:]))
+	}
+	mem.SetInt(v)
+	return nil
+}
+
+// parseSignedInt24 decodes a 3-byte big-endian signed integer.
+func parseSignedInt24(data []byte) int64 {
+	v := int32(data[0])<<16 | int32(data[1])<<8 | int32(data[2])
+	if v&0x800000 != 0 {
+		v |= ^0xffffff // Sign extend
+	}
+	return int64(v)
+}
+
+// parseSignedInt48 decodes a 6-byte big-endian signed integer.
+func parseSignedInt48(data []byte) int64 {
+	v := int64(data[0])<<40 | int64(data[1])<<32 |
+		int64(data[2])<<24 | int64(data[3])<<16 |
+		int64(data[4])<<8 | int64(data[5])
+	if v&0x800000000000 != 0 {
+		v |= ^0xffffffffffff // Sign extend
+	}
+	return v
+}
+
+// parseSerialFloat parses a float64 from record data (serial type 7).
+func parseSerialFloat(data []byte, offset int, mem *Mem) error {
+	if offset+8 > len(data) {
+		mem.SetNull()
+		return fmt.Errorf("truncated float64")
+	}
+	bits := binary.BigEndian.Uint64(data[offset:])
+	mem.SetReal(math.Float64frombits(bits))
+	return nil
+}
+
+// parseSerialBlobOrText parses blob or text from record data (serial types >= 12).
+func parseSerialBlobOrText(data []byte, offset int, st uint64, mem *Mem) error {
+	length := serialTypeLen(st)
+	if offset+length > len(data) {
+		mem.SetNull()
+		return fmt.Errorf("truncated blob/text")
+	}
+
+	b := make([]byte, length)
+	copy(b, data[offset:offset+length])
+
+	if st%2 == 0 {
+		mem.SetBlob(b)
+	} else {
+		mem.SetStr(string(b))
+	}
+	return nil
 }
 
 func (v *VDBE) execResultRow(instr *Instruction) error {
@@ -1131,128 +1085,139 @@ func memToInterface(m *Mem) interface{} {
 // - Data for each column
 func encodeSimpleRecord(values []interface{}) []byte {
 	if len(values) == 0 {
-		return []byte{0} // Empty record
+		return []byte{0}
 	}
 
-	// Build header and data separately
-	var header []byte
-	var data []byte
+	var header, data []byte
+	header = append(header, 0) // placeholder for header size
 
-	// Reserve space for header size (will update later)
-	header = append(header, 0)
-
-	// Process each value
 	for _, val := range values {
-		var serialType uint64
-		var valueData []byte
-
-		switch v := val.(type) {
-		case nil:
-			// NULL - serial type 0
-			serialType = 0
-
-		case int64:
-			// Integer - choose appropriate serial type based on value
-			if v == 0 {
-				serialType = 8 // 0 as special serial type
-			} else if v == 1 {
-				serialType = 9 // 1 as special serial type
-			} else if v >= -128 && v <= 127 {
-				serialType = 1 // INT8
-				valueData = []byte{byte(v)}
-			} else if v >= -32768 && v <= 32767 {
-				serialType = 2 // INT16
-				valueData = make([]byte, 2)
-				binary.BigEndian.PutUint16(valueData, uint16(v))
-			} else if v >= -8388608 && v <= 8388607 {
-				serialType = 3 // INT24
-				valueData = make([]byte, 3)
-				valueData[0] = byte(v >> 16)
-				valueData[1] = byte(v >> 8)
-				valueData[2] = byte(v)
-			} else if v >= -2147483648 && v <= 2147483647 {
-				serialType = 4 // INT32
-				valueData = make([]byte, 4)
-				binary.BigEndian.PutUint32(valueData, uint32(v))
-			} else {
-				serialType = 6 // INT64
-				valueData = make([]byte, 8)
-				binary.BigEndian.PutUint64(valueData, uint64(v))
-			}
-
-		case float64:
-			// REAL - serial type 7
-			serialType = 7
-			valueData = make([]byte, 8)
-			bits := math.Float64bits(v)
-			binary.BigEndian.PutUint64(valueData, bits)
-
-		case string:
-			// TEXT - serial type 2*len+13 (odd number)
-			valueData = []byte(v)
-			serialType = uint64(2*len(valueData) + 13)
-
-		case []byte:
-			// BLOB - serial type 2*len+12 (even number)
-			valueData = v
-			serialType = uint64(2*len(valueData) + 12)
-
-		default:
-			// Unsupported type - treat as NULL
-			serialType = 0
-		}
-
-		// Append serial type to header
+		serialType, valueData := encodeValue(val)
 		header = appendVarint(header, serialType)
-
-		// Append value data to data section
 		data = append(data, valueData...)
 	}
 
-	// Calculate final header size
-	headerSize := len(header)
+	return buildRecord(header, data)
+}
 
-	// Encode header size as varint
-	headerSizeVarint := encodeVarint(uint64(headerSize))
+// encodeValue encodes a value and returns its serial type and data bytes.
+func encodeValue(val interface{}) (uint64, []byte) {
+	switch v := val.(type) {
+	case nil:
+		return 0, nil
+	case int64:
+		return encodeInt64(v)
+	case float64:
+		return encodeFloat64(v)
+	case string:
+		return uint64(2*len(v) + 13), []byte(v)
+	case []byte:
+		return uint64(2*len(v) + 12), v
+	default:
+		return 0, nil
+	}
+}
 
-	// Build final record: header size + serial types + data
+// encodeInt64 encodes an int64 to its optimal SQLite serial type and bytes.
+func encodeInt64(v int64) (uint64, []byte) {
+	switch {
+	case v == 0:
+		return 8, nil
+	case v == 1:
+		return 9, nil
+	case v >= -128 && v <= 127:
+		return 1, []byte{byte(v)}
+	case v >= -32768 && v <= 32767:
+		buf := make([]byte, 2)
+		binary.BigEndian.PutUint16(buf, uint16(v))
+		return 2, buf
+	case v >= -8388608 && v <= 8388607:
+		return 3, []byte{byte(v >> 16), byte(v >> 8), byte(v)}
+	case v >= -2147483648 && v <= 2147483647:
+		buf := make([]byte, 4)
+		binary.BigEndian.PutUint32(buf, uint32(v))
+		return 4, buf
+	default:
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, uint64(v))
+		return 6, buf
+	}
+}
+
+// encodeFloat64 encodes a float64 to SQLite serial type 7 format.
+func encodeFloat64(v float64) (uint64, []byte) {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, math.Float64bits(v))
+	return 7, buf
+}
+
+// buildRecord assembles the final record from header and data.
+func buildRecord(header, data []byte) []byte {
+	headerSizeVarint := encodeVarint(uint64(len(header)))
 	record := make([]byte, 0, len(headerSizeVarint)+len(header)-1+len(data))
 	record = append(record, headerSizeVarint...)
-	record = append(record, header[1:]...) // Skip the placeholder byte
+	record = append(record, header[1:]...)
 	record = append(record, data...)
-
 	return record
 }
 
-// encodeVarint encodes a uint64 as a SQLite varint and returns the bytes
-// SQLite uses 7-bit continuation encoding (MSB set = more bytes follow)
+// encodeVarint encodes a uint64 as a SQLite varint and returns the bytes.
+// SQLite uses 7-bit continuation encoding (MSB set = more bytes follow).
 func encodeVarint(v uint64) []byte {
-	if v <= 0x7f {
-		return []byte{byte(v)}
+	n := varintLen(v)
+	return encodeVarintN(v, n)
+}
+
+// varintLen returns the number of bytes needed to encode v as a SQLite varint.
+func varintLen(v uint64) int {
+	// SQLite varint thresholds: 7, 14, 21, 28, 35, 42, 49, 56, 64 bits
+	switch {
+	case v <= 0x7f:
+		return 1
+	case v <= 0x3fff:
+		return 2
+	case v <= 0x1fffff:
+		return 3
+	case v <= 0xfffffff:
+		return 4
+	case v <= 0x7ffffffff:
+		return 5
+	case v <= 0x3ffffffffff:
+		return 6
+	case v <= 0x1ffffffffffff:
+		return 7
+	case v <= 0xffffffffffffff:
+		return 8
+	default:
+		return 9
 	}
-	if v <= 0x3fff {
-		return []byte{byte((v >> 7) | 0x80), byte(v & 0x7f)}
+}
+
+// encodeVarintN encodes v as an n-byte SQLite varint.
+func encodeVarintN(v uint64, n int) []byte {
+	if n == 9 {
+		// Special case: 9-byte varint has 8 continuation bytes + 8-bit final byte
+		return []byte{
+			byte((v>>57)&0x7f | 0x80), byte((v>>50)&0x7f | 0x80),
+			byte((v>>43)&0x7f | 0x80), byte((v>>36)&0x7f | 0x80),
+			byte((v>>29)&0x7f | 0x80), byte((v>>22)&0x7f | 0x80),
+			byte((v>>15)&0x7f | 0x80), byte((v>>8)&0x7f | 0x80),
+			byte(v),
+		}
 	}
-	if v <= 0x1fffff {
-		return []byte{byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
+
+	buf := make([]byte, n)
+	for i := n - 1; i > 0; i-- {
+		buf[i] = byte(v & 0x7f)
+		v >>= 7
 	}
-	if v <= 0xfffffff {
-		return []byte{byte((v>>21)&0x7f | 0x80), byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
+	buf[0] = byte(v & 0x7f)
+
+	// Set continuation bits on all but the last byte
+	for i := 0; i < n-1; i++ {
+		buf[i] |= 0x80
 	}
-	if v <= 0x7ffffffff {
-		return []byte{byte((v>>28)&0x7f | 0x80), byte((v>>21)&0x7f | 0x80), byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
-	}
-	if v <= 0x3ffffffffff {
-		return []byte{byte((v>>35)&0x7f | 0x80), byte((v>>28)&0x7f | 0x80), byte((v>>21)&0x7f | 0x80), byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
-	}
-	if v <= 0x1ffffffffffff {
-		return []byte{byte((v>>42)&0x7f | 0x80), byte((v>>35)&0x7f | 0x80), byte((v>>28)&0x7f | 0x80), byte((v>>21)&0x7f | 0x80), byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
-	}
-	if v <= 0xffffffffffffff {
-		return []byte{byte((v>>49)&0x7f | 0x80), byte((v>>42)&0x7f | 0x80), byte((v>>35)&0x7f | 0x80), byte((v>>28)&0x7f | 0x80), byte((v>>21)&0x7f | 0x80), byte((v>>14)&0x7f | 0x80), byte((v>>7)&0x7f | 0x80), byte(v & 0x7f)}
-	}
-	// 9 byte case - first 8 bytes hold 7 bits each, last byte holds 8 bits
-	return []byte{byte((v>>57)&0x7f | 0x80), byte((v>>50)&0x7f | 0x80), byte((v>>43)&0x7f | 0x80), byte((v>>36)&0x7f | 0x80), byte((v>>29)&0x7f | 0x80), byte((v>>22)&0x7f | 0x80), byte((v>>15)&0x7f | 0x80), byte((v>>8)&0x7f | 0x80), byte(v)}
+	return buf
 }
 
 // appendVarint appends a varint to a byte slice

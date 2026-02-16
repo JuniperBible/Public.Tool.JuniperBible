@@ -363,132 +363,157 @@ func Glob(pattern, str string) bool {
 	return globImpl([]byte(pattern), []byte(str))
 }
 
+// globState holds the state for glob pattern matching.
+type globState struct {
+	pattern []byte
+	str     []byte
+	pi      int // pattern index
+	si      int // string index
+}
+
 // globImpl implements the GLOB matching algorithm (case-sensitive).
 func globImpl(pattern, str []byte) bool {
-	pi := 0 // pattern index
-	si := 0 // string index
+	state := &globState{pattern: pattern, str: str}
+	return state.match()
+}
 
-	for pi < len(pattern) {
-		pc, psize := DecodeRune(pattern[pi:])
+// match performs the main glob matching loop.
+func (g *globState) match() bool {
+	for g.pi < len(g.pattern) {
+		pc, psize := DecodeRune(g.pattern[g.pi:])
 		if psize == 0 {
 			break
 		}
 
-		if pc == '*' {
-			// Match zero or more characters
-			pi += psize
-
-			// * at end matches everything
-			if pi >= len(pattern) {
-				return true
-			}
-
-			// Try matching at each position
-			for si <= len(str) {
-				if globImpl(pattern[pi:], str[si:]) {
-					return true
-				}
-				if si >= len(str) {
-					break
-				}
-				_, ssize := DecodeRune(str[si:])
-				if ssize == 0 {
-					break
-				}
-				si += ssize
-			}
-			return false
-		} else if pc == '?' {
-			// Match exactly one character
-			if si >= len(str) {
+		switch pc {
+		case '*':
+			return g.matchStar(psize)
+		case '?':
+			if !g.matchQuestion(psize) {
 				return false
 			}
-			_, ssize := DecodeRune(str[si:])
-			if ssize == 0 {
+		case '[':
+			if !g.matchCharClass(psize) {
 				return false
 			}
-			si += ssize
-			pi += psize
-			continue
-		} else if pc == '[' {
-			// Character class
-			pi += psize
-			if pi >= len(pattern) {
+		default:
+			if !g.matchLiteral(pc, psize) {
 				return false
 			}
-
-			if si >= len(str) {
-				return false
-			}
-			sc, ssize := DecodeRune(str[si:])
-			if ssize == 0 {
-				return false
-			}
-
-			// Parse character class
-			invert := false
-			if pi < len(pattern) && pattern[pi] == '^' {
-				invert = true
-				pi++
-			}
-
-			matched := false
-			for pi < len(pattern) {
-				cc, csize := DecodeRune(pattern[pi:])
-				if csize == 0 {
-					break
-				}
-				pi += csize
-
-				if cc == ']' {
-					break
-				}
-
-				// Check for range
-				if pi < len(pattern) && pattern[pi] == '-' && pi+1 < len(pattern) {
-					pi++ // skip '-'
-					cc2, csize2 := DecodeRune(pattern[pi:])
-					if csize2 == 0 {
-						break
-					}
-					pi += csize2
-					if sc >= cc && sc <= cc2 {
-						matched = true
-					}
-				} else if sc == cc {
-					matched = true
-				}
-			}
-
-			if invert {
-				matched = !matched
-			}
-			if !matched {
-				return false
-			}
-
-			si += ssize
-			continue
 		}
+	}
+	return g.si >= len(g.str)
+}
 
-		// Regular character matching
-		if si >= len(str) {
-			return false
+// matchStar handles the '*' wildcard (zero or more characters).
+func (g *globState) matchStar(psize int) bool {
+	g.pi += psize
+	if g.pi >= len(g.pattern) {
+		return true
+	}
+	for g.si <= len(g.str) {
+		if globImpl(g.pattern[g.pi:], g.str[g.si:]) {
+			return true
 		}
-
-		sc, ssize := DecodeRune(str[si:])
+		if g.si >= len(g.str) {
+			break
+		}
+		_, ssize := DecodeRune(g.str[g.si:])
 		if ssize == 0 {
-			return false
+			break
 		}
+		g.si += ssize
+	}
+	return false
+}
 
-		if pc != sc {
-			return false
-		}
+// matchQuestion handles the '?' wildcard (exactly one character).
+func (g *globState) matchQuestion(psize int) bool {
+	if g.si >= len(g.str) {
+		return false
+	}
+	_, ssize := DecodeRune(g.str[g.si:])
+	if ssize == 0 {
+		return false
+	}
+	g.si += ssize
+	g.pi += psize
+	return true
+}
 
-		pi += psize
-		si += ssize
+// matchCharClass handles '[...]' character classes.
+func (g *globState) matchCharClass(psize int) bool {
+	g.pi += psize
+	if g.pi >= len(g.pattern) || g.si >= len(g.str) {
+		return false
 	}
 
-	// Pattern exhausted, string should also be exhausted
-	return si >= len(str)
+	sc, ssize := DecodeRune(g.str[g.si:])
+	if ssize == 0 {
+		return false
+	}
+
+	invert, matched := g.parseCharClass(sc)
+	if invert {
+		matched = !matched
+	}
+	if !matched {
+		return false
+	}
+	g.si += ssize
+	return true
+}
+
+// parseCharClass parses a character class and checks if sc matches.
+func (g *globState) parseCharClass(sc rune) (invert, matched bool) {
+	if g.pi < len(g.pattern) && g.pattern[g.pi] == '^' {
+		invert = true
+		g.pi++
+	}
+
+	for g.pi < len(g.pattern) {
+		cc, csize := DecodeRune(g.pattern[g.pi:])
+		if csize == 0 {
+			break
+		}
+		g.pi += csize
+
+		if cc == ']' {
+			break
+		}
+
+		if g.isCharRange() {
+			g.pi++ // skip '-'
+			cc2, csize2 := DecodeRune(g.pattern[g.pi:])
+			if csize2 == 0 {
+				break
+			}
+			g.pi += csize2
+			if sc >= cc && sc <= cc2 {
+				matched = true
+			}
+		} else if sc == cc {
+			matched = true
+		}
+	}
+	return invert, matched
+}
+
+// isCharRange checks if the current position is a character range (a-z).
+func (g *globState) isCharRange() bool {
+	return g.pi < len(g.pattern) && g.pattern[g.pi] == '-' && g.pi+1 < len(g.pattern)
+}
+
+// matchLiteral handles literal character matching.
+func (g *globState) matchLiteral(pc rune, psize int) bool {
+	if g.si >= len(g.str) {
+		return false
+	}
+	sc, ssize := DecodeRune(g.str[g.si:])
+	if ssize == 0 || pc != sc {
+		return false
+	}
+	g.pi += psize
+	g.si += ssize
+	return true
 }

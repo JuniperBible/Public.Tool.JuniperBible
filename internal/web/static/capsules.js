@@ -9,13 +9,13 @@ function confirmDeleteCapsule(form) {
 
 // Generate IR tab functions
 function selectAllGenerate() {
-  document.querySelectorAll('#generate-table input[name="source"]').forEach(cb => cb.checked = true);
+  for (const cb of document.querySelectorAll('#generate-table input[name="source"]')) cb.checked = true;
   updateGenerateCount();
   updateSelectAllGenerateState();
 }
 
 function selectNoneGenerate() {
-  document.querySelectorAll('#generate-table input[name="source"]').forEach(cb => cb.checked = false);
+  for (const cb of document.querySelectorAll('#generate-table input[name="source"]')) cb.checked = false;
   updateGenerateCount();
   updateSelectAllGenerateState();
 }
@@ -43,13 +43,13 @@ function updateSelectAllGenerateState() {
 
 // Export tab functions
 function selectAllExport() {
-  document.querySelectorAll('#export-table input[name="source"]').forEach(cb => cb.checked = true);
+  for (const cb of document.querySelectorAll('#export-table input[name="source"]')) cb.checked = true;
   updateExportCount();
   updateSelectAllExportState();
 }
 
 function selectNoneExport() {
-  document.querySelectorAll('#export-table input[name="source"]').forEach(cb => cb.checked = false);
+  for (const cb of document.querySelectorAll('#export-table input[name="source"]')) cb.checked = false;
   updateExportCount();
   updateSelectAllExportState();
 }

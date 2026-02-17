@@ -10,7 +10,7 @@ function applyFilters() {
   const rows = document.querySelectorAll('#modules-table tbody tr');
   let visibleCount = 0;
 
-  rows.forEach(row => {
+  for (const row of rows) {
     const rowType = row.dataset.type || '';
     const rowLang = row.dataset.language || '';
     const rowName = row.dataset.name || '';
@@ -37,7 +37,7 @@ function updateTagStates() {
   const typeFilter = document.getElementById('filter-type').value;
   const langFilter = document.getElementById('filter-language').value;
 
-  document.querySelectorAll('.filter-tag').forEach(tag => {
+  for (const tag of document.querySelectorAll('.filter-tag')) {
     const filterType = tag.dataset.filterType;
     const filterValue = tag.dataset.filterValue;
     let isActive = false;

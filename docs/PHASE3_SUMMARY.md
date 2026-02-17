@@ -64,7 +64,7 @@ func main() {
 **Purpose**: Validates that a format has been properly converted to a thin wrapper.
 
 **Checks performed** (14 total):
-1. Plugin directory exists
+
 2. main.go exists
 3. Has `//go:build standalone` tag
 4. Line count ≤20 (warns if ≤30)
@@ -238,7 +238,7 @@ The canonical package provides:
 ## Next Steps
 
 ### Immediate
-1. **Complete Phase 2** for at least one format (recommend starting with `json` or `txt`)
+
    - Create `core/formats/<name>/format.go`
    - Implement `Config`, `Parse()`, `Emit()`
    - Create comprehensive tests
@@ -316,14 +316,14 @@ For full migration (Phase 3c) - **FUTURE**:
 
 ### Updating the Template
 If the thin wrapper pattern needs to change:
-1. Update `plugins/format-template/main.go.example`
+
 2. Update `scripts/convert-to-thin-wrapper.sh` generation logic
 3. Update `docs/THIN_WRAPPER_MIGRATION.md`
 4. Re-test with validation script
 
 ### Adding New Checks
 To add validation checks:
-1. Edit `scripts/validate-thin-wrapper.sh`
+
 2. Add new check with success/fail reporting
 3. Update documentation
 4. Test with existing formats

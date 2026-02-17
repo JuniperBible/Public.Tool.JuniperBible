@@ -297,7 +297,7 @@ Plugin builds even without `-tags standalone`
 Integration tests fail after wrapper conversion
 
 **Solution**:
-1. Check that canonical tests pass: `go test core/formats/<name>/...`
+
 2. Verify wrapper compiles: `go build -tags standalone ...`
 3. Test IPC protocol manually
 4. If issues persist, rollback and investigate canonical implementation

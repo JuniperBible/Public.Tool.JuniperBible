@@ -20,7 +20,7 @@ function applyFilters() {
   // Find the visible/active table with sword-module-table class
   const tables = document.querySelectorAll('.sword-module-table');
   let rows = [];
-  tables.forEach(table => {
+  for (const table of tables) {
     // Check if table is visible (in an active tab)
     const parent = table.closest('.tab-content');
     if (!parent || parent.classList.contains('active')) {
@@ -29,7 +29,7 @@ function applyFilters() {
   });
   let visibleCount = 0;
 
-  rows.forEach(row => {
+  for (const row of rows) {
     const rowType = row.dataset.type || '';
     const rowLang = row.dataset.language || '';
     const rowName = row.dataset.name || '';

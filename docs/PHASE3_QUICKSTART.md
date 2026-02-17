@@ -107,7 +107,7 @@ cp plugins/format-<name>/main.go.backup.TIMESTAMP plugins/format-<name>/main.go
 ## Migration Order
 
 Start simple, progress to complex:
-1. **Tier 1**: txt, json, xml (easiest)
+
 2. **Tier 2**: osis, usfm, usx
 3. **Tier 3**: zip, tar, epub
 4. **Tier 4**: esword, mybible, sqlite

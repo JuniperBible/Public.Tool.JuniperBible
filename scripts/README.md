@@ -52,7 +52,7 @@ Validates that a format plugin has been properly converted to a thin wrapper.
 ```
 
 **Checks** (14 total):
-1. Plugin directory exists
+
 2. main.go exists
 3. Has `//go:build standalone` tag
 4. Line count ≤20 lines

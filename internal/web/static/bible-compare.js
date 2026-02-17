@@ -4,7 +4,7 @@
 // Browse tab functionality
 function filterByLanguage(lang) {
   const cards = document.querySelectorAll('.bible-card');
-  cards.forEach(card => {
+  for (const card of cards) {
     if (!lang || card.dataset.language === lang) {
       card.style.display = '';
     } else {
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!searchTerm) return;
 
   const results = document.querySelectorAll('.result-text');
-  results.forEach(el => {
+  for (const el of results) {
     highlightSearchTermInElement(el, searchTerm);
   });
 });

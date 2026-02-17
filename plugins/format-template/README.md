@@ -9,7 +9,7 @@ This directory contains templates for creating thin wrapper format plugins as pa
 Template for a thin wrapper standalone plugin that delegates to a canonical format implementation in `core/formats/`.
 
 **Usage**:
-1. Replace `FORMATNAME` with your format's package name (e.g., `json`, `xml`, `osis`)
+
 2. Ensure the canonical implementation exists at `core/formats/FORMATNAME/`
 3. The canonical package must export a `Config` variable of type `*format.Config`
 
@@ -49,7 +49,7 @@ The script will:
 ### Thin Wrapper Pattern
 
 The thin wrapper pattern eliminates duplication by:
-1. **Single canonical implementation**: Format logic lives in `core/formats/<name>/format.go`
+
 2. **Shared SDK**: Common IPC handling in `plugins/sdk/format/format.go`
 3. **Minimal wrapper**: Standalone plugin is just a `main()` that calls `format.Run()`
 

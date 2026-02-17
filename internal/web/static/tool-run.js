@@ -11,7 +11,7 @@ function updateProfiles() {
 
   if (profilesData) {
     const profiles = profilesData.split(',');
-    profiles.forEach(function(p) {
+    for (const p of profiles) {
       const [id, desc] = p.split(':');
       if (id) {
         const option = document.createElement('option');

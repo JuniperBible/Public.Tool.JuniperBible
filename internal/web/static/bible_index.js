@@ -4,7 +4,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   // 1. Language filter buttons (Browse tab)
   const languageFilterButtons = document.querySelectorAll('.language-filter-btn');
-  languageFilterButtons.forEach(function(button) {
+  for (const button of languageFilterButtons) {
     button.addEventListener('click', function(e) {
       e.preventDefault();
       const language = this.dataset.language || '';
@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 2. Compare checkboxes (Compare tab)
   const compareCheckboxes = document.querySelectorAll('input[name="compare-bible"]');
-  compareCheckboxes.forEach(function(checkbox) {
+  for (const checkbox of compareCheckboxes) {
     checkbox.addEventListener('change', function() {
       updateComparison();
     });
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 7. Delete buttons (Manage tab)
   const deleteButtons = document.querySelectorAll('.delete-bible-btn');
-  deleteButtons.forEach(function(button) {
+  for (const button of deleteButtons) {
     button.addEventListener('click', function(e) {
       const bibleName = this.dataset.bibleName || 'this Bible';
       if (!confirm('Delete ' + bibleName + '? This will remove the IR data.')) {

@@ -12,7 +12,7 @@ function applyFilters() {
   const rows = document.querySelectorAll('#modules-table tbody tr');
   let visibleCount = 0;
 
-  rows.forEach(row => {
+  for (const row of rows) {
     const rowLang = row.dataset.language || '';
     const rowCategory = row.dataset.category || '';
     const rowLicense = row.dataset.license || '';
@@ -45,7 +45,7 @@ function updateTagStates() {
   const langFilter = document.getElementById('filter-language').value;
   const categoryFilter = document.getElementById('filter-category').value;
 
-  document.querySelectorAll('.filter-tag').forEach(tag => {
+  for (const tag of document.querySelectorAll('.filter-tag')) {
     const filterType = tag.dataset.filterType;
     const filterValue = tag.dataset.filterValue;
     let isActive = false;
@@ -114,7 +114,7 @@ function clearFilters() {
  * Select all visible (non-filtered) module checkboxes
  */
 function selectAllVisible() {
-  document.querySelectorAll('#modules-table tbody tr').forEach(row => {
+  for (const row of document.querySelectorAll('#modules-table tbody tr')) {
     if (row.style.display !== 'none') {
       const checkbox = row.querySelector('input[type="checkbox"]');
       if (checkbox) checkbox.checked = true;

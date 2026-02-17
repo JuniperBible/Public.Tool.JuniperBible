@@ -303,59 +303,116 @@
                 return;
             }
 
-            // Running tasks
-            if (runningTasks.length > 0) {
-                runningContainer.innerHTML = runningTasks.map(task => `
-                    <div class="task-item task-running" data-task-id="${this.escapeHtml(task.id)}">
-                        <div class="task-spinner"></div>
-                        <div class="task-info">
-                            <div class="task-name">${this.escapeHtml(task.name)}</div>
-                            <div class="task-message">${this.escapeHtml(task.message || 'Running...')}</div>
-                            ${task.progress ? `<div class="task-progress"><div class="task-progress-bar" style="width: ${parseInt(task.progress, 10) || 0}%"></div></div>` : ''}
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                runningContainer.innerHTML = '';
+            // Running tasks - use safe DOM manipulation
+            runningContainer.textContent = '';
+            for (const task of runningTasks) {
+                runningContainer.appendChild(this.createRunningTaskElement(task));
             }
 
-            // Queued tasks
+            // Queued tasks - use safe DOM manipulation
+            queuedContainer.textContent = '';
             if (queuedTasks.length > 0) {
-                queuedContainer.innerHTML = `
-                    <div class="task-queued-summary">
-                        <span class="task-queued-icon">&#9203;</span>
-                        ${queuedTasks.length} task${queuedTasks.length > 1 ? 's' : ''} queued
-                    </div>
-                `;
-            } else {
-                queuedContainer.innerHTML = '';
+                queuedContainer.appendChild(this.createQueuedSummaryElement(queuedTasks.length));
             }
 
-            // Completed tasks
-            if (completedTasks.length > 0) {
-                completedContainer.innerHTML = completedTasks.map(task => `
-                    <div class="task-item task-${this.getValidStatus(task.status)}" data-task-id="${this.escapeHtml(task.id)}">
-                        <div class="task-status-icon">${task.status === 'completed' ? '&#10003;' : '&#10007;'}</div>
-                        <div class="task-info">
-                            <div class="task-name">${this.escapeHtml(task.name)}</div>
-                            ${task.message ? `<div class="task-message">${this.escapeHtml(task.message)}</div>` : ''}
-                        </div>
-                    </div>
-                `).join('');
-
-                // Add click handlers for completed tasks
-                completedContainer.querySelectorAll('.task-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        const taskId = item.dataset.taskId;
-                        const task = this.tasks.get(taskId);
-                        if (task) {
-                            this.showTaskDetails(task);
-                        }
-                    });
+            // Completed tasks - use safe DOM manipulation
+            completedContainer.textContent = '';
+            for (const task of completedTasks) {
+                const element = this.createCompletedTaskElement(task);
+                element.addEventListener('click', () => {
+                    this.showTaskDetails(task);
                 });
-            } else {
-                completedContainer.innerHTML = '';
+                completedContainer.appendChild(element);
             }
+        }
+
+        /**
+         * Create a running task element using safe DOM manipulation
+         */
+        createRunningTaskElement(task) {
+            const item = document.createElement('div');
+            item.className = 'task-item task-running';
+            item.dataset.taskId = task.id;
+
+            const spinner = document.createElement('div');
+            spinner.className = 'task-spinner';
+            item.appendChild(spinner);
+
+            const info = document.createElement('div');
+            info.className = 'task-info';
+
+            const name = document.createElement('div');
+            name.className = 'task-name';
+            name.textContent = task.name;
+            info.appendChild(name);
+
+            const message = document.createElement('div');
+            message.className = 'task-message';
+            message.textContent = task.message || 'Running...';
+            info.appendChild(message);
+
+            if (task.progress) {
+                const progress = document.createElement('div');
+                progress.className = 'task-progress';
+                const progressBar = document.createElement('div');
+                progressBar.className = 'task-progress-bar';
+                progressBar.style.width = (parseInt(task.progress, 10) || 0) + '%';
+                progress.appendChild(progressBar);
+                info.appendChild(progress);
+            }
+
+            item.appendChild(info);
+            return item;
+        }
+
+        /**
+         * Create a queued summary element using safe DOM manipulation
+         */
+        createQueuedSummaryElement(count) {
+            const summary = document.createElement('div');
+            summary.className = 'task-queued-summary';
+
+            const icon = document.createElement('span');
+            icon.className = 'task-queued-icon';
+            icon.textContent = '\u23F3'; // Hourglass unicode
+            summary.appendChild(icon);
+
+            const text = document.createTextNode(' ' + count + ' task' + (count > 1 ? 's' : '') + ' queued');
+            summary.appendChild(text);
+
+            return summary;
+        }
+
+        /**
+         * Create a completed task element using safe DOM manipulation
+         */
+        createCompletedTaskElement(task) {
+            const item = document.createElement('div');
+            item.className = 'task-item task-' + this.getValidStatus(task.status);
+            item.dataset.taskId = task.id;
+
+            const statusIcon = document.createElement('div');
+            statusIcon.className = 'task-status-icon';
+            statusIcon.textContent = task.status === 'completed' ? '\u2713' : '\u2717'; // Check or X
+            item.appendChild(statusIcon);
+
+            const info = document.createElement('div');
+            info.className = 'task-info';
+
+            const name = document.createElement('div');
+            name.className = 'task-name';
+            name.textContent = task.name;
+            info.appendChild(name);
+
+            if (task.message) {
+                const message = document.createElement('div');
+                message.className = 'task-message';
+                message.textContent = task.message;
+                info.appendChild(message);
+            }
+
+            item.appendChild(info);
+            return item;
         }
 
         showPanel() {

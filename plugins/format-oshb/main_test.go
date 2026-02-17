@@ -58,7 +58,7 @@ func TestOSHBExtractIR(t *testing.T) {
 	oshbPath := filepath.Join(tmpDir, "oshb.txt")
 	createTestOSHB(t, oshbPath)
 	outputDir := filepath.Join(tmpDir, "output")
-	os.MkdirAll(outputDir, 0755)
+	os.MkdirAll(outputDir, 0700)
 
 	resp := executePlugin(t, &ipc.Request{Command: "extract-ir", Args: map[string]interface{}{"path": oshbPath, "output_dir": outputDir}})
 	if resp.Status != "ok" {
@@ -78,7 +78,7 @@ func TestOSHBEmitNative(t *testing.T) {
 	irPath := filepath.Join(tmpDir, "test.ir.json")
 	os.WriteFile(irPath, irData, 0600)
 	outputDir := filepath.Join(tmpDir, "output")
-	os.MkdirAll(outputDir, 0755)
+	os.MkdirAll(outputDir, 0700)
 
 	resp := executePlugin(t, &ipc.Request{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outputDir}})
 	if resp.Status != "ok" {
@@ -98,8 +98,8 @@ func TestOSHBRoundTrip(t *testing.T) {
 	originalData, _ := os.ReadFile(oshbPath)
 	irDir := filepath.Join(tmpDir, "ir")
 	outDir := filepath.Join(tmpDir, "output")
-	os.MkdirAll(irDir, 0755)
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(irDir, 0700)
+	os.MkdirAll(outDir, 0700)
 
 	extractResp := executePlugin(t, &ipc.Request{Command: "extract-ir", Args: map[string]interface{}{"path": oshbPath, "output_dir": irDir}})
 	irPath := extractResp.Result.(map[string]interface{})["ir_path"].(string)
@@ -118,7 +118,7 @@ func TestOSHBIngest(t *testing.T) {
 	oshbPath := filepath.Join(tmpDir, "oshb.txt")
 	createTestOSHB(t, oshbPath)
 	outputDir := filepath.Join(tmpDir, "blobs")
-	os.MkdirAll(outputDir, 0755)
+	os.MkdirAll(outputDir, 0700)
 
 	resp := executePlugin(t, &ipc.Request{Command: "ingest", Args: map[string]interface{}{"path": oshbPath, "output_dir": outputDir}})
 	if resp.Status != "ok" {

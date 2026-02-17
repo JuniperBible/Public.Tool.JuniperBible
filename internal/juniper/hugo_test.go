@@ -235,7 +235,7 @@ func TestGetLicenseText(t *testing.T) {
 func TestGetLicenseText_FromFile(t *testing.T) {
 	tempDir := t.TempDir()
 	dataPath := filepath.Join(tempDir, "modules", "texts", "ztext", "kjv")
-	os.MkdirAll(dataPath, 0755)
+	os.MkdirAll(dataPath, 0700)
 
 	// Create LICENSE file
 	licenseContent := "This is the license from file"
@@ -546,7 +546,7 @@ func TestHugo(t *testing.T) {
 	t.Run("no modules found", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		cfg := HugoConfig{
 			Path:   tempDir,
@@ -562,7 +562,7 @@ func TestHugo(t *testing.T) {
 	t.Run("no modules specified", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		// Create a module
 		kjvConf := []byte(`[KJV]
@@ -584,7 +584,7 @@ ModDrv=zText`)
 	t.Run("module not found", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		// Create a module
 		kjvConf := []byte(`[KJV]

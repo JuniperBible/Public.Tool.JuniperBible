@@ -106,7 +106,7 @@ type Capsule struct {
 
 // New creates a new empty capsule at the given root directory.
 func New(root string) (*Capsule, error) {
-	if err := os.MkdirAll(root, 0755); err != nil {
+	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, errors.NewIO("create directory", root, err)
 	}
 
@@ -306,7 +306,7 @@ func DetectCompression(archivePath string) (CompressionType, error) {
 // Auto-detects compression format (XZ or gzip).
 func Unpack(archivePath, destDir string) (*Capsule, error) {
 	// Create destination directory
-	if err := osMkdirAllUnpack(destDir, 0755); err != nil {
+	if err := osMkdirAllUnpack(destDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
@@ -368,12 +368,12 @@ func Unpack(archivePath, destDir string) (*Capsule, error) {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := osMkdirAllUnpack(destPath, 0755); err != nil {
+			if err := osMkdirAllUnpack(destPath, 0700); err != nil {
 				return nil, fmt.Errorf("failed to create directory: %w", err)
 			}
 		case tar.TypeReg:
 			// Ensure parent directory exists
-			if err := osMkdirAllUnpack(filepath.Dir(destPath), 0755); err != nil {
+			if err := osMkdirAllUnpack(filepath.Dir(destPath), 0700); err != nil {
 				return nil, fmt.Errorf("failed to create parent directory: %w", err)
 			}
 

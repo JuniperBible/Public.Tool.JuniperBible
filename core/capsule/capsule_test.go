@@ -1113,10 +1113,10 @@ func TestIngestFileDuplicateIDs(t *testing.T) {
 	// Create two files with the same name in different directories
 	dir1 := filepath.Join(tempDir, "dir1")
 	dir2 := filepath.Join(tempDir, "dir2")
-	if err := os.MkdirAll(dir1, 0755); err != nil {
+	if err := os.MkdirAll(dir1, 0700); err != nil {
 		t.Fatalf("failed to create dir1: %v", err)
 	}
-	if err := os.MkdirAll(dir2, 0755); err != nil {
+	if err := os.MkdirAll(dir2, 0700); err != nil {
 		t.Fatalf("failed to create dir2: %v", err)
 	}
 
@@ -1615,7 +1615,7 @@ func TestUnpackMissingManifest(t *testing.T) {
 	tarWriter := tar.NewWriter(gzWriter)
 
 	// Write a dummy file, no manifest
-	header := &tar.Header{Name: "dummy.txt", Mode: 0644, Size: 4}
+	header := &tar.Header{Name: "dummy.txt", Mode: 0600, Size: 4}
 	if err := tarWriter.WriteHeader(header); err != nil {
 		t.Fatalf("failed to write header: %v", err)
 	}
@@ -1658,7 +1658,7 @@ func TestUnpackInvalidManifest(t *testing.T) {
 
 	// Write invalid manifest
 	invalidManifest := []byte("not valid json{{{")
-	header := &tar.Header{Name: "manifest.json", Mode: 0644, Size: int64(len(invalidManifest))}
+	header := &tar.Header{Name: "manifest.json", Mode: 0600, Size: int64(len(invalidManifest))}
 	if err := tarWriter.WriteHeader(header); err != nil {
 		t.Fatalf("failed to write header: %v", err)
 	}
@@ -1697,7 +1697,7 @@ func TestUnpackPathTraversal(t *testing.T) {
 	tarWriter := tar.NewWriter(gzWriter)
 
 	// Write path traversal file (should be skipped)
-	header := &tar.Header{Name: "../escape.txt", Mode: 0644, Size: 4}
+	header := &tar.Header{Name: "../escape.txt", Mode: 0600, Size: 4}
 	if err := tarWriter.WriteHeader(header); err != nil {
 		t.Fatalf("failed to write header: %v", err)
 	}
@@ -1708,7 +1708,7 @@ func TestUnpackPathTraversal(t *testing.T) {
 	// Write valid manifest
 	manifest := NewManifest()
 	manifestData, _ := manifest.ToJSON()
-	header = &tar.Header{Name: "manifest.json", Mode: 0644, Size: int64(len(manifestData))}
+	header = &tar.Header{Name: "manifest.json", Mode: 0600, Size: int64(len(manifestData))}
 	if err := tarWriter.WriteHeader(header); err != nil {
 		t.Fatalf("failed to write manifest header: %v", err)
 	}
@@ -1752,14 +1752,14 @@ func TestUnpackWithDirectories(t *testing.T) {
 	tarWriter := tar.NewWriter(gzWriter)
 
 	// Write a directory entry
-	header := &tar.Header{Name: "subdir/", Mode: 0755, Typeflag: tar.TypeDir}
+	header := &tar.Header{Name: "subdir/", Mode: 0700, Typeflag: tar.TypeDir}
 	if err := tarWriter.WriteHeader(header); err != nil {
 		t.Fatalf("failed to write dir header: %v", err)
 	}
 
 	// Write a file in that directory
 	content := []byte("file in subdir")
-	header = &tar.Header{Name: "subdir/file.txt", Mode: 0644, Size: int64(len(content))}
+	header = &tar.Header{Name: "subdir/file.txt", Mode: 0600, Size: int64(len(content))}
 	if err := tarWriter.WriteHeader(header); err != nil {
 		t.Fatalf("failed to write file header: %v", err)
 	}
@@ -1770,7 +1770,7 @@ func TestUnpackWithDirectories(t *testing.T) {
 	// Write valid manifest
 	manifest := NewManifest()
 	manifestData, _ := manifest.ToJSON()
-	header = &tar.Header{Name: "manifest.json", Mode: 0644, Size: int64(len(manifestData))}
+	header = &tar.Header{Name: "manifest.json", Mode: 0600, Size: int64(len(manifestData))}
 	if err := tarWriter.WriteHeader(header); err != nil {
 		t.Fatalf("failed to write manifest header: %v", err)
 	}
@@ -2332,7 +2332,7 @@ func TestUnpackMkdirAllDestError(t *testing.T) {
 	tarWriter := tar.NewWriter(gzWriter)
 	manifest := NewManifest()
 	manifestData, _ := manifest.ToJSON()
-	header := &tar.Header{Name: "manifest.json", Mode: 0644, Size: int64(len(manifestData))}
+	header := &tar.Header{Name: "manifest.json", Mode: 0600, Size: int64(len(manifestData))}
 	tarWriter.WriteHeader(header)
 	tarWriter.Write(manifestData)
 	tarWriter.Close()
@@ -2370,13 +2370,13 @@ func TestUnpackTypeDirMkdirAllError(t *testing.T) {
 	tarWriter := tar.NewWriter(gzWriter)
 
 	// Add directory entry
-	dirHeader := &tar.Header{Name: "subdir/", Mode: 0755, Typeflag: tar.TypeDir}
+	dirHeader := &tar.Header{Name: "subdir/", Mode: 0700, Typeflag: tar.TypeDir}
 	tarWriter.WriteHeader(dirHeader)
 
 	// Add manifest
 	manifest := NewManifest()
 	manifestData, _ := manifest.ToJSON()
-	header := &tar.Header{Name: "manifest.json", Mode: 0644, Size: int64(len(manifestData))}
+	header := &tar.Header{Name: "manifest.json", Mode: 0600, Size: int64(len(manifestData))}
 	tarWriter.WriteHeader(header)
 	tarWriter.Write(manifestData)
 	tarWriter.Close()
@@ -2422,7 +2422,7 @@ func TestUnpackTypeRegParentMkdirAllError(t *testing.T) {
 
 	// Add nested file
 	fileContent := []byte("content")
-	fileHeader := &tar.Header{Name: "nested/file.txt", Mode: 0644, Size: int64(len(fileContent))}
+	fileHeader := &tar.Header{Name: "nested/file.txt", Mode: 0600, Size: int64(len(fileContent))}
 	tarWriter.WriteHeader(fileHeader)
 	tarWriter.Write(fileContent)
 
@@ -2469,7 +2469,7 @@ func TestUnpackReadAllError(t *testing.T) {
 
 	// Add file
 	fileContent := []byte("content")
-	fileHeader := &tar.Header{Name: "file.txt", Mode: 0644, Size: int64(len(fileContent))}
+	fileHeader := &tar.Header{Name: "file.txt", Mode: 0600, Size: int64(len(fileContent))}
 	tarWriter.WriteHeader(fileHeader)
 	tarWriter.Write(fileContent)
 
@@ -2509,7 +2509,7 @@ func TestUnpackWriteFileError(t *testing.T) {
 
 	// Add file
 	fileContent := []byte("content")
-	fileHeader := &tar.Header{Name: "file.txt", Mode: 0644, Size: int64(len(fileContent))}
+	fileHeader := &tar.Header{Name: "file.txt", Mode: 0600, Size: int64(len(fileContent))}
 	tarWriter.WriteHeader(fileHeader)
 	tarWriter.Write(fileContent)
 
@@ -2550,7 +2550,7 @@ func TestUnpackCASStoreError(t *testing.T) {
 	// Add manifest
 	manifest := NewManifest()
 	manifestData, _ := manifest.ToJSON()
-	header := &tar.Header{Name: "manifest.json", Mode: 0644, Size: int64(len(manifestData))}
+	header := &tar.Header{Name: "manifest.json", Mode: 0600, Size: int64(len(manifestData))}
 	tarWriter.WriteHeader(header)
 	tarWriter.Write(manifestData)
 

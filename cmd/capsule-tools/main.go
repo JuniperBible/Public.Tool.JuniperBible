@@ -140,7 +140,7 @@ func runRun(args []string) {
 		}
 		defer os.RemoveAll(workDir)
 	} else {
-		if err := os.MkdirAll(workDir, 0755); err != nil {
+		if err := os.MkdirAll(workDir, 0700); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create output directory: %v\n", err)
 			os.Exit(1)
 		}

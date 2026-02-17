@@ -38,7 +38,7 @@ func (h *embeddedHandler) Ingest(path, outputDir string) (*plugins.IngestResult,
 	hashHex := hex.EncodeToString(hash[:])
 
 	blobDir := filepath.Join(outputDir, hashHex[:2])
-	if err := os.MkdirAll(blobDir, 0755); err != nil {
+	if err := os.MkdirAll(blobDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create blob dir: %w", err)
 	}
 

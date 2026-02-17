@@ -37,10 +37,10 @@ func TestList(t *testing.T) {
 				// Create tool directories with capsule subdirectories
 				toolDir1 := filepath.Join(dir, "tool1", "capsule")
 				toolDir2 := filepath.Join(dir, "tool2", "capsule")
-				if err := os.MkdirAll(toolDir1, 0755); err != nil {
+				if err := os.MkdirAll(toolDir1, 0700); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.MkdirAll(toolDir2, 0755); err != nil {
+				if err := os.MkdirAll(toolDir2, 0700); err != nil {
 					t.Fatal(err)
 				}
 				return dir
@@ -91,7 +91,7 @@ func TestArchive(t *testing.T) {
 
 				// Create a test binary
 				binPath := filepath.Join(dir, "testbin")
-				if err := os.WriteFile(binPath, []byte("fake binary"), 0755); err != nil {
+				if err := os.WriteFile(binPath, []byte("fake binary"), 0700); err != nil {
 					t.Fatal(err)
 				}
 
@@ -115,7 +115,7 @@ func TestArchive(t *testing.T) {
 				dir := t.TempDir()
 
 				binPath := filepath.Join(dir, "testbin")
-				if err := os.WriteFile(binPath, []byte("fake binary"), 0755); err != nil {
+				if err := os.WriteFile(binPath, []byte("fake binary"), 0700); err != nil {
 					t.Fatal(err)
 				}
 
@@ -686,13 +686,13 @@ func TestArchiveErrorCreatingArchive(t *testing.T) {
 	dir := t.TempDir()
 
 	binPath := filepath.Join(dir, "testbin")
-	if err := os.WriteFile(binPath, []byte("fake binary"), 0755); err != nil {
+	if err := os.WriteFile(binPath, []byte("fake binary"), 0700); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a directory where the output file should be
 	outPath := filepath.Join(dir, "output")
-	if err := os.Mkdir(outPath, 0755); err != nil {
+	if err := os.Mkdir(outPath, 0700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -732,7 +732,7 @@ func TestRunWithWriteError(t *testing.T) {
 	if err := os.Mkdir(outDir, 0555); err != nil { // Read-only
 		t.Fatal(err)
 	}
-	defer os.Chmod(outDir, 0755) // Restore permissions for cleanup
+	defer os.Chmod(outDir, 0700) // Restore permissions for cleanup
 
 	cfg := RunConfig{
 		ToolID:    "test-tool",
@@ -774,13 +774,13 @@ func TestArchiveWithMultipleBinaries(t *testing.T) {
 	bin2Path := filepath.Join(dir, "bin2")
 	bin3Path := filepath.Join(dir, "bin3")
 
-	if err := os.WriteFile(bin1Path, []byte("fake binary 1"), 0755); err != nil {
+	if err := os.WriteFile(bin1Path, []byte("fake binary 1"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(bin2Path, []byte("fake binary 2"), 0755); err != nil {
+	if err := os.WriteFile(bin2Path, []byte("fake binary 2"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(bin3Path, []byte("fake binary 3"), 0755); err != nil {
+	if err := os.WriteFile(bin3Path, []byte("fake binary 3"), 0700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -818,15 +818,15 @@ func TestListWithMixedContent(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create some tool directories with capsule subdirectories
-	if err := os.MkdirAll(filepath.Join(dir, "tool1", "capsule"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "tool1", "capsule"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(dir, "tool2", "capsule"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "tool2", "capsule"), 0700); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a directory without capsule subdir (should be ignored)
-	if err := os.MkdirAll(filepath.Join(dir, "nottool"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "nottool"), 0700); err != nil {
 		t.Fatal(err)
 	}
 

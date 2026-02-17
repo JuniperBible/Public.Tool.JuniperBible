@@ -26,7 +26,7 @@ func createTestTarGz(t *testing.T, dir string) string {
 	content := []byte("hello world")
 	if err := tw.WriteHeader(&tar.Header{
 		Name: "test/hello.txt",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(content)),
 	}); err != nil {
 		t.Fatalf("write header: %v", err)
@@ -39,7 +39,7 @@ func createTestTarGz(t *testing.T, dir string) string {
 	irContent := []byte(`{"test": true}`)
 	if err := tw.WriteHeader(&tar.Header{
 		Name: "test/bible.ir.json",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(irContent)),
 	}); err != nil {
 		t.Fatalf("write header: %v", err)
@@ -70,7 +70,7 @@ func createTestTarXz(t *testing.T, dir string) string {
 	// Add blobs directory (CAS indicator)
 	if err := tw.WriteHeader(&tar.Header{
 		Name:     "capsule/blobs/",
-		Mode:     0755,
+		Mode:     0700,
 		Typeflag: tar.TypeDir,
 	}); err != nil {
 		t.Fatalf("write header: %v", err)
@@ -80,7 +80,7 @@ func createTestTarXz(t *testing.T, dir string) string {
 	content := []byte("blob content")
 	if err := tw.WriteHeader(&tar.Header{
 		Name: "capsule/blobs/sha256/ab/abcd1234",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(content)),
 	}); err != nil {
 		t.Fatalf("write header: %v", err)
@@ -109,7 +109,7 @@ func createTestTarGzInvalidIR(t *testing.T, dir string) string {
 	irContent := []byte(`{invalid json}`)
 	if err := tw.WriteHeader(&tar.Header{
 		Name: "test/bible.ir.json",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(irContent)),
 	}); err != nil {
 		t.Fatalf("write header: %v", err)

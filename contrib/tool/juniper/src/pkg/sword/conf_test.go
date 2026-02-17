@@ -584,7 +584,7 @@ func TestDiscoverModules(t *testing.T) {
 	// Create temp sword directory with mods.d
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("Failed to create mods.d: %v", err)
 	}
 
@@ -637,7 +637,7 @@ func TestLoadAllModules(t *testing.T) {
 	// Create temp sword directory structure
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("Failed to create mods.d: %v", err)
 	}
 
@@ -693,7 +693,7 @@ func TestLoadAllModules_WithInvalidConf(t *testing.T) {
 	// Create temp sword directory structure
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("Failed to create mods.d: %v", err)
 	}
 
@@ -713,7 +713,7 @@ ModDrv=zText
 	}
 	// Make it a directory to cause Open to fail (on most systems)
 	os.Remove(invalidPath)
-	os.Mkdir(invalidPath, 0755)
+	os.Mkdir(invalidPath, 0700)
 
 	modules, err := LoadAllModules(tmpDir)
 	if err != nil {
@@ -737,7 +737,7 @@ func TestLoadAllModules_EmptyDir(t *testing.T) {
 	// Create temp sword directory structure with empty mods.d
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("Failed to create mods.d: %v", err)
 	}
 

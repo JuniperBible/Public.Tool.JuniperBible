@@ -35,7 +35,7 @@ func Start(cfg Config) error {
 	}
 
 	// Ensure capsules directory exists
-	if err := os.MkdirAll(ServerConfig.CapsulesDir, 0755); err != nil {
+	if err := os.MkdirAll(ServerConfig.CapsulesDir, 0700); err != nil {
 		return fmt.Errorf("failed to create capsules directory: %w", err)
 	}
 

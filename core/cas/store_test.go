@@ -597,13 +597,13 @@ func TestStoreCreateTempError(t *testing.T) {
 
 	// Create the prefix directory but make it read-only
 	prefixPath := filepath.Join(tempDir, "blobs", "sha256", prefix)
-	if err := os.MkdirAll(prefixPath, 0755); err != nil {
+	if err := os.MkdirAll(prefixPath, 0700); err != nil {
 		t.Fatalf("failed to create prefix dir: %v", err)
 	}
 	if err := os.Chmod(prefixPath, 0555); err != nil {
 		t.Fatalf("failed to chmod: %v", err)
 	}
-	defer os.Chmod(prefixPath, 0755) // Restore for cleanup
+	defer os.Chmod(prefixPath, 0700) // Restore for cleanup
 
 	_, err = store.Store(testData)
 	if err == nil {
@@ -636,7 +636,7 @@ func TestRetrieveReadError(t *testing.T) {
 	if err := os.Remove(blobPath); err != nil {
 		t.Fatalf("failed to remove blob: %v", err)
 	}
-	if err := os.MkdirAll(blobPath, 0755); err != nil {
+	if err := os.MkdirAll(blobPath, 0700); err != nil {
 		t.Fatalf("failed to create directory: %v", err)
 	}
 
@@ -669,13 +669,13 @@ func TestStoreWithBlake3StoreError(t *testing.T) {
 
 	// Create the prefix directory and make it read-only
 	prefixPath := filepath.Join(tempDir, "blobs", "sha256", prefix)
-	if err := os.MkdirAll(prefixPath, 0755); err != nil {
+	if err := os.MkdirAll(prefixPath, 0700); err != nil {
 		t.Fatalf("failed to create prefix dir: %v", err)
 	}
 	if err := os.Chmod(prefixPath, 0555); err != nil {
 		t.Fatalf("failed to chmod: %v", err)
 	}
-	defer os.Chmod(prefixPath, 0755)
+	defer os.Chmod(prefixPath, 0700)
 
 	_, err = store.StoreWithBlake3(testData)
 	if err == nil {
@@ -705,7 +705,7 @@ func TestCreateBlake3PointerMkdirError(t *testing.T) {
 	pointerDir := filepath.Join(tempDir, "blobs", "blake3", blake3Prefix)
 
 	// Create parent dir first
-	if err := os.MkdirAll(filepath.Dir(pointerDir), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(pointerDir), 0700); err != nil {
 		t.Fatalf("failed to create parent: %v", err)
 	}
 	// Create a file where directory should be
@@ -745,7 +745,7 @@ func TestLookupBlake3ReadError(t *testing.T) {
 	if err := os.Remove(pointerPath); err != nil {
 		t.Fatalf("failed to remove pointer: %v", err)
 	}
-	if err := os.MkdirAll(pointerPath, 0755); err != nil {
+	if err := os.MkdirAll(pointerPath, 0700); err != nil {
 		t.Fatalf("failed to create directory: %v", err)
 	}
 
@@ -807,13 +807,13 @@ func TestCreateBlake3PointerCreateTempError(t *testing.T) {
 
 	// Create the pointer directory but make it read-only
 	pointerDir := filepath.Join(tempDir, "blobs", "blake3", blake3Prefix)
-	if err := os.MkdirAll(pointerDir, 0755); err != nil {
+	if err := os.MkdirAll(pointerDir, 0700); err != nil {
 		t.Fatalf("failed to create pointer dir: %v", err)
 	}
 	if err := os.Chmod(pointerDir, 0555); err != nil {
 		t.Fatalf("failed to chmod: %v", err)
 	}
-	defer os.Chmod(pointerDir, 0755)
+	defer os.Chmod(pointerDir, 0700)
 
 	_, err = store.StoreWithBlake3(testData)
 	if err == nil {

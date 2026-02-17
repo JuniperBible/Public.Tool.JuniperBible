@@ -69,7 +69,7 @@ func StoreBlob(outputDir string, data []byte) (hashHex string, err error) {
 	hashHex = hex.EncodeToString(hash[:])
 
 	blobDir := filepath.Join(outputDir, hashHex[:2])
-	if err := os.MkdirAll(blobDir, 0755); err != nil {
+	if err := os.MkdirAll(blobDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create blob directory: %w", err)
 	}
 

@@ -44,7 +44,7 @@ func NewZTextWriter(dataPath string, vers *Versification) *ZTextWriter {
 // Returns the number of verses written.
 func (w *ZTextWriter) WriteModule(corpus *IRCorpus) (int, error) {
 	// Create data directory
-	if err := os.MkdirAll(w.dataPath, 0755); err != nil {
+	if err := os.MkdirAll(w.dataPath, 0700); err != nil {
 		return 0, fmt.Errorf("failed to create data path: %w", err)
 	}
 
@@ -271,12 +271,12 @@ func EmitZText(corpus *IRCorpus, outputDir string) (*EmitResult, error) {
 
 	// Create directory structure
 	modsDir := filepath.Join(outputDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create mods.d: %w", err)
 	}
 
 	dataPath := filepath.Join(outputDir, "modules", "texts", "ztext", stringToLower(corpus.ID))
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
+	if err := os.MkdirAll(dataPath, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create data path: %w", err)
 	}
 

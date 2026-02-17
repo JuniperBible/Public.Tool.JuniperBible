@@ -49,7 +49,7 @@ func TestValidateProfile(t *testing.T) {
       </chapter>
     </div>
   </osisText>
-</osis>`), 0644)
+</osis>`), 0600)
 
 	reqFile := filepath.Join(tempDir, "request.json")
 	req := map[string]interface{}{
@@ -61,7 +61,7 @@ func TestValidateProfile(t *testing.T) {
 	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	cmd := exec.Command("./tool-gobible-creator", "run", "--request", reqFile, "--out", outDir)
 	cmd.Dir = pluginDir(t)
@@ -84,7 +84,7 @@ func TestInfoProfile(t *testing.T) {
   <osisText osisIDWork="TestBible" xml:lang="en">
     <header><work osisWork="TestBible"/></header>
   </osisText>
-</osis>`), 0644)
+</osis>`), 0600)
 
 	reqFile := filepath.Join(tempDir, "request.json")
 	req := map[string]interface{}{
@@ -96,7 +96,7 @@ func TestInfoProfile(t *testing.T) {
 	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	cmd := exec.Command("./tool-gobible-creator", "run", "--request", reqFile, "--out", outDir)
 	cmd.Dir = pluginDir(t)
@@ -129,7 +129,7 @@ func TestCreateProfile(t *testing.T) {
       </chapter>
     </div>
   </osisText>
-</osis>`), 0644)
+</osis>`), 0600)
 
 	// Create collection file
 	collectionFile := filepath.Join(tempDir, "collection.txt")
@@ -137,7 +137,7 @@ func TestCreateProfile(t *testing.T) {
 Source-Text: `+osisFile+`
 Phone-Image-Width: 128
 Phone-Image-Height: 128
-`), 0644)
+`), 0600)
 
 	reqFile := filepath.Join(tempDir, "request.json")
 	req := map[string]interface{}{
@@ -152,7 +152,7 @@ Phone-Image-Height: 128
 	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	cmd := exec.Command("./tool-gobible-creator", "run", "--request", reqFile, "--out", outDir)
 	cmd.Dir = pluginDir(t)

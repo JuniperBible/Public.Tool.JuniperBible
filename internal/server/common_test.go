@@ -213,7 +213,7 @@ func TestAbsPathErrorCondition(t *testing.T) {
 
 	// Create a temporary directory
 	tmpDir := filepath.Join("/tmp", "test_abs_path_"+t.Name())
-	err := os.Mkdir(tmpDir, 0755)
+	err := os.Mkdir(tmpDir, 0700)
 	if err != nil && !os.IsExist(err) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

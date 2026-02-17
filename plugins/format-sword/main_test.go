@@ -22,7 +22,7 @@ func TestParseConfFile(t *testing.T) {
 
 	// Create mods.d directory
 	modsD := filepath.Join(tempDir, "mods.d")
-	if err := os.MkdirAll(modsD, 0755); err != nil {
+	if err := os.MkdirAll(modsD, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -70,13 +70,13 @@ func TestParseSwordModules(t *testing.T) {
 
 	// Create mods.d directory
 	modsD := filepath.Join(tempDir, "mods.d")
-	if err := os.MkdirAll(modsD, 0755); err != nil {
+	if err := os.MkdirAll(modsD, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
 	// Create modules directory
 	modulesDir := filepath.Join(tempDir, "modules")
-	if err := os.MkdirAll(modulesDir, 0755); err != nil {
+	if err := os.MkdirAll(modulesDir, 0700); err != nil {
 		t.Fatalf("failed to create modules: %v", err)
 	}
 

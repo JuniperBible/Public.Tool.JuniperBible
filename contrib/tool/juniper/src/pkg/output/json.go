@@ -219,7 +219,7 @@ func (g *Generator) GenerateFromModules(modules []*sword.Module, swordDir string
 
 	// Write individual auxiliary files (one per Bible)
 	auxDir := filepath.Join(g.OutputDir, "bibles_auxiliary")
-	if err := os.MkdirAll(auxDir, 0755); err != nil {
+	if err := os.MkdirAll(auxDir, 0700); err != nil {
 		return fmt.Errorf("creating bibles_auxiliary directory: %w", err)
 	}
 
@@ -337,7 +337,7 @@ func (g *Generator) generateTags(module *sword.Module) []string {
 
 // writeJSON writes data to a JSON file with proper formatting.
 func (g *Generator) writeJSON(path string, data interface{}) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
 

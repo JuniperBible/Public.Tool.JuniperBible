@@ -91,7 +91,7 @@ read input
 echo '{"status":"ok","result":{"received":true}}'
 `
 	scriptPath := filepath.Join(tempDir, "mock-plugin.sh")
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -541,7 +541,7 @@ sleep 10
 echo '{"status":"ok","result":{}}'
 `
 	scriptPath := filepath.Join(tempDir, "timeout-plugin.sh")
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -585,7 +585,7 @@ echo "error message" >&2
 exit 1
 `
 	scriptPath := filepath.Join(tempDir, "error-plugin.sh")
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -628,7 +628,7 @@ read input
 echo "not valid json"
 `
 	scriptPath := filepath.Join(tempDir, "invalid-json-plugin.sh")
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -941,7 +941,7 @@ read input
 echo '{"status":"ok","result":{"ir_path":"/tmp/test.json","loss_class":"L0"}}'
 `
 	scriptPath := filepath.Join(tempDir, "format-fallback-test")
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -992,7 +992,7 @@ read input
 echo '{"status":"ok","result":{"ir_path":"/tmp/test.json"}}'
 `
 	scriptPath := filepath.Join(tempDir, "format-nofallback-test")
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -1067,7 +1067,7 @@ read input
 echo '{"status":"ok","result":{"source":"external"}}'
 `
 	scriptPath := filepath.Join(tempDir, "format-priority-test")
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -1228,7 +1228,7 @@ read input
 echo '{"status":"ok","result":{"source":"fallback"}}'
 `
 	scriptPath := filepath.Join(tempDir, "format-embedded-fb")
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 

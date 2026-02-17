@@ -87,10 +87,10 @@ func PrepareWorkDir(workDir string, req *Request) error {
 	outDir := filepath.Join(workDir, "out")
 
 	// Create directories
-	if err := os.MkdirAll(inDir, 0755); err != nil {
+	if err := os.MkdirAll(inDir, 0700); err != nil {
 		return fmt.Errorf("failed to create in directory: %w", err)
 	}
-	if err := os.MkdirAll(outDir, 0755); err != nil {
+	if err := os.MkdirAll(outDir, 0700); err != nil {
 		return fmt.Errorf("failed to create out directory: %w", err)
 	}
 
@@ -107,7 +107,7 @@ func PrepareWorkDir(workDir string, req *Request) error {
 	// Write runner.sh
 	runnerScript := generateRunnerScript(req)
 	runnerPath := filepath.Join(inDir, "runner.sh")
-	if err := os.WriteFile(runnerPath, []byte(runnerScript), 0755); err != nil {
+	if err := os.WriteFile(runnerPath, []byte(runnerScript), 0700); err != nil {
 		return fmt.Errorf("failed to write runner.sh: %w", err)
 	}
 

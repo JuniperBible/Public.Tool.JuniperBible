@@ -87,7 +87,7 @@ func (j *Journal) Open() error {
 	j.file, err = os.OpenFile(
 		j.filename,
 		os.O_RDWR|os.O_CREATE|os.O_TRUNC,
-		0644,
+		0600,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to open journal file: %w", err)
@@ -482,7 +482,7 @@ func (j *Journal) ZeroHeader() error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	f, err := os.OpenFile(j.filename, os.O_WRONLY, 0644)
+	f, err := os.OpenFile(j.filename, os.O_WRONLY, 0600)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

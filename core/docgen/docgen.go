@@ -61,7 +61,7 @@ func NewGenerator(pluginDir, outputDir string) *Generator {
 
 // GenerateAll generates all documentation files.
 func (g *Generator) GenerateAll() error {
-	if err := os.MkdirAll(g.OutputDir, 0755); err != nil {
+	if err := os.MkdirAll(g.OutputDir, 0700); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
 

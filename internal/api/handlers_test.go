@@ -213,8 +213,8 @@ func TestHandlePlugins(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create plugin directories
-	os.MkdirAll(filepath.Join(tmpDir, "format", "osis"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "tool", "libsword"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "format", "osis"), 0700)
+	os.MkdirAll(filepath.Join(tmpDir, "tool", "libsword"), 0700)
 
 	originalDir := ServerConfig.PluginsDir
 	ServerConfig.PluginsDir = tmpDir
@@ -448,7 +448,7 @@ func TestCreateCapsuleHandlerFileCreateError(t *testing.T) {
 	// Use a read-only directory to trigger file creation error
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
 	os.MkdirAll(readOnlyDir, 0555)
-	defer os.Chmod(readOnlyDir, 0755) // Restore permissions for cleanup
+	defer os.Chmod(readOnlyDir, 0700) // Restore permissions for cleanup
 
 	originalDir := ServerConfig.CapsulesDir
 	ServerConfig.CapsulesDir = readOnlyDir
@@ -723,11 +723,11 @@ func TestDeleteCapsuleHandlerRemoveError(t *testing.T) {
 
 	// Create a read-only directory with a file
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
-	os.MkdirAll(readOnlyDir, 0755)
+	os.MkdirAll(readOnlyDir, 0700)
 	capsuleFile := filepath.Join(readOnlyDir, "test.tar.xz")
 	os.WriteFile(capsuleFile, []byte("test content"), 0600)
 	os.Chmod(readOnlyDir, 0555)       // Make directory read-only
-	defer os.Chmod(readOnlyDir, 0755) // Restore permissions for cleanup
+	defer os.Chmod(readOnlyDir, 0700) // Restore permissions for cleanup
 
 	originalDir := ServerConfig.CapsulesDir
 	ServerConfig.CapsulesDir = readOnlyDir
@@ -948,8 +948,8 @@ func TestListPlugins(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create plugin directories
-	os.MkdirAll(filepath.Join(tmpDir, "format", "json"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "tool", "pandoc"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "format", "json"), 0700)
+	os.MkdirAll(filepath.Join(tmpDir, "tool", "pandoc"), 0700)
 
 	originalDir := ServerConfig.PluginsDir
 	ServerConfig.PluginsDir = tmpDir
@@ -1246,7 +1246,7 @@ func TestReadCapsuleReadError(t *testing.T) {
 	// Write header with incorrect size (larger than actual data)
 	tw.WriteHeader(&tar.Header{
 		Name: "manifest.json",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(manifestJSON) + 1000), // Intentionally wrong size
 	})
 	tw.Write(manifestJSON)
@@ -1393,7 +1393,7 @@ func createTestCapsuleXZ(t *testing.T, path string) {
 	manifestJSON, _ := json.Marshal(manifest)
 	tw.WriteHeader(&tar.Header{
 		Name: "manifest.json",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(manifestJSON)),
 	})
 	tw.Write(manifestJSON)
@@ -1402,7 +1402,7 @@ func createTestCapsuleXZ(t *testing.T, path string) {
 	testData := []byte("test content")
 	tw.WriteHeader(&tar.Header{
 		Name: "test.txt",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(testData)),
 	})
 	tw.Write(testData)
@@ -1440,7 +1440,7 @@ func createTestCapsuleGZ(t *testing.T, path string) {
 	manifestJSON, _ := json.Marshal(manifest)
 	tw.WriteHeader(&tar.Header{
 		Name: "manifest.json",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(manifestJSON)),
 	})
 	tw.Write(manifestJSON)
@@ -1449,7 +1449,7 @@ func createTestCapsuleGZ(t *testing.T, path string) {
 	testData := []byte("test content gz")
 	tw.WriteHeader(&tar.Header{
 		Name: "test.txt",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(testData)),
 	})
 	tw.Write(testData)
@@ -1489,7 +1489,7 @@ func createTestCapsuleTar(t *testing.T, path string) {
 	manifestJSON, _ := json.Marshal(manifest)
 	tw.WriteHeader(&tar.Header{
 		Name: "manifest.json",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(manifestJSON)),
 	})
 	tw.Write(manifestJSON)
@@ -1498,7 +1498,7 @@ func createTestCapsuleTar(t *testing.T, path string) {
 	testData := []byte("test content tar")
 	tw.WriteHeader(&tar.Header{
 		Name: "test.txt",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(testData)),
 	})
 	tw.Write(testData)
@@ -1519,7 +1519,7 @@ func createTestCapsuleWithDirectory(t *testing.T, path string) {
 	manifestJSON, _ := json.Marshal(manifest)
 	tw.WriteHeader(&tar.Header{
 		Name: "manifest.json",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(manifestJSON)),
 	})
 	tw.Write(manifestJSON)
@@ -1527,7 +1527,7 @@ func createTestCapsuleWithDirectory(t *testing.T, path string) {
 	// Add directory entry
 	tw.WriteHeader(&tar.Header{
 		Name:     "subdir/",
-		Mode:     0755,
+		Mode:     0700,
 		Typeflag: tar.TypeDir,
 	})
 
@@ -1535,7 +1535,7 @@ func createTestCapsuleWithDirectory(t *testing.T, path string) {
 	testData := []byte("test content")
 	tw.WriteHeader(&tar.Header{
 		Name: "subdir/test.txt",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(testData)),
 	})
 	tw.Write(testData)
@@ -1569,7 +1569,7 @@ func createTestCapsuleWithInvalidManifest(t *testing.T, path string) {
 	invalidJSON := []byte("{invalid json")
 	tw.WriteHeader(&tar.Header{
 		Name: "manifest.json",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(invalidJSON)),
 	})
 	tw.Write(invalidJSON)
@@ -1578,7 +1578,7 @@ func createTestCapsuleWithInvalidManifest(t *testing.T, path string) {
 	testData := []byte("test content")
 	tw.WriteHeader(&tar.Header{
 		Name: "test.txt",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(testData)),
 	})
 	tw.Write(testData)

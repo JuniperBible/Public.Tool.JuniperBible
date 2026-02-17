@@ -50,7 +50,7 @@ func TestSFMExtractIR(t *testing.T) {
 	sfmPath := filepath.Join(tmpDir, "test.sfm")
 	createTestSFM(t, sfmPath)
 	outputDir := filepath.Join(tmpDir, "output")
-	os.MkdirAll(outputDir, 0755)
+	os.MkdirAll(outputDir, 0700)
 	resp := executePlugin(t, &ipc.Request{Command: "extract-ir", Args: map[string]interface{}{"path": sfmPath, "output_dir": outputDir}})
 	if resp.Status != "ok" {
 		t.Fatalf("expected ok: %s", resp.Error)
@@ -65,7 +65,7 @@ func TestSFMEmitNative(t *testing.T) {
 	irPath := filepath.Join(tmpDir, "test.ir.json")
 	os.WriteFile(irPath, irData, 0600)
 	outputDir := filepath.Join(tmpDir, "output")
-	os.MkdirAll(outputDir, 0755)
+	os.MkdirAll(outputDir, 0700)
 	resp := executePlugin(t, &ipc.Request{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outputDir}})
 	if resp.Result.(map[string]interface{})["format"] != "SFM" {
 		t.Error("expected SFM format")
@@ -80,8 +80,8 @@ func TestSFMRoundTrip(t *testing.T) {
 	originalData, _ := os.ReadFile(sfmPath)
 	irDir := filepath.Join(tmpDir, "ir")
 	outDir := filepath.Join(tmpDir, "output")
-	os.MkdirAll(irDir, 0755)
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(irDir, 0700)
+	os.MkdirAll(outDir, 0700)
 	extractResp := executePlugin(t, &ipc.Request{Command: "extract-ir", Args: map[string]interface{}{"path": sfmPath, "output_dir": irDir}})
 	irPath := extractResp.Result.(map[string]interface{})["ir_path"].(string)
 	emitResp := executePlugin(t, &ipc.Request{Command: "emit-native", Args: map[string]interface{}{"ir_path": irPath, "output_dir": outDir}})
@@ -98,7 +98,7 @@ func TestSFMIngest(t *testing.T) {
 	sfmPath := filepath.Join(tmpDir, "test.sfm")
 	createTestSFM(t, sfmPath)
 	outputDir := filepath.Join(tmpDir, "blobs")
-	os.MkdirAll(outputDir, 0755)
+	os.MkdirAll(outputDir, 0700)
 	resp := executePlugin(t, &ipc.Request{Command: "ingest", Args: map[string]interface{}{"path": sfmPath, "output_dir": outputDir}})
 	blobHash := resp.Result.(map[string]interface{})["blob_sha256"].(string)
 	if _, err := os.Stat(filepath.Join(outputDir, blobHash[:2], blobHash)); os.IsNotExist(err) {

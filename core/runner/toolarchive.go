@@ -104,21 +104,21 @@ func LoadToolArchive(capsulePath string) (*ToolArchive, error) {
 func (t *ToolArchive) ExtractTo(destDir string) error {
 	// Create bin directory
 	binDir := filepath.Join(destDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
 	// Create lib directory if needed
 	if len(t.Libraries) > 0 {
 		libDir := filepath.Join(destDir, "lib")
-		if err := os.MkdirAll(libDir, 0755); err != nil {
+		if err := os.MkdirAll(libDir, 0700); err != nil {
 			return fmt.Errorf("failed to create lib directory: %w", err)
 		}
 	}
 
 	// Extract executables
 	for name, artifactID := range t.Executables {
-		if err := t.extractArtifact(artifactID, filepath.Join(binDir, name), 0755); err != nil {
+		if err := t.extractArtifact(artifactID, filepath.Join(binDir, name), 0700); err != nil {
 			return fmt.Errorf("failed to extract executable %s: %w", name, err)
 		}
 	}
@@ -126,7 +126,7 @@ func (t *ToolArchive) ExtractTo(destDir string) error {
 	// Extract libraries
 	for name, artifactID := range t.Libraries {
 		libDir := filepath.Join(destDir, "lib")
-		if err := t.extractArtifact(artifactID, filepath.Join(libDir, name), 0644); err != nil {
+		if err := t.extractArtifact(artifactID, filepath.Join(libDir, name), 0600); err != nil {
 			return fmt.Errorf("failed to extract library %s: %w", name, err)
 		}
 	}

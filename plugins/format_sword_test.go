@@ -24,8 +24,8 @@ func TestFormatSwordDetect(t *testing.T) {
 	// Create SWORD module structure
 	modsD := filepath.Join(tempDir, "mods.d")
 	modulesDir := filepath.Join(tempDir, "modules", "texts", "ztext", "kjv")
-	os.MkdirAll(modsD, 0755)
-	os.MkdirAll(modulesDir, 0755)
+	os.MkdirAll(modsD, 0700)
+	os.MkdirAll(modulesDir, 0700)
 
 	confContent := `[KJV]
 DataPath=./modules/texts/ztext/kjv/
@@ -77,8 +77,8 @@ func TestFormatSwordEnumerate(t *testing.T) {
 	// Create SWORD module structure
 	modsD := filepath.Join(tempDir, "mods.d")
 	modulesDir := filepath.Join(tempDir, "modules", "texts", "ztext", "kjv")
-	os.MkdirAll(modsD, 0755)
-	os.MkdirAll(modulesDir, 0755)
+	os.MkdirAll(modsD, 0700)
+	os.MkdirAll(modulesDir, 0700)
 
 	confContent := `[KJV]
 DataPath=./modules/texts/ztext/kjv/

@@ -40,10 +40,10 @@ func (m *Migrator) Migrate(moduleFilter []string) (*MigrateResult, error) {
 
 	// Ensure destination directories exist
 	incomingDir := filepath.Join(m.DestDir, "incoming")
-	if err := os.MkdirAll(filepath.Join(incomingDir, "mods.d"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(incomingDir, "mods.d"), 0700); err != nil {
 		return nil, fmt.Errorf("failed to create destination directories: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Join(incomingDir, "modules"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(incomingDir, "modules"), 0700); err != nil {
 		return nil, fmt.Errorf("failed to create modules directory: %w", err)
 	}
 
@@ -111,7 +111,7 @@ func (m *Migrator) migrateModule(mod *sword.Module, destDir string) error {
 // copyFile copies a single file.
 func copyFile(src, dst string) error {
 	// Create destination directory
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0700); err != nil {
 		return err
 	}
 

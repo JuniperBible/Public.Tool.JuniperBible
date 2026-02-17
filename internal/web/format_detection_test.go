@@ -163,7 +163,7 @@ func TestFormatDetector_DetectFileFormat_WithPlugins(t *testing.T) {
 
 	// Create a mock plugin manifest
 	pluginDir := filepath.Join(tmpDir, "format.test")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 

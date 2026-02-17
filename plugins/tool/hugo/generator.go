@@ -148,13 +148,13 @@ func (g *Generator) GenerateFromInput(bibles []InputBible) (*GenerateResult, err
 	}
 
 	// Create output directory
-	if err := os.MkdirAll(g.OutputDir, 0755); err != nil {
+	if err := os.MkdirAll(g.OutputDir, 0700); err != nil {
 		return nil, fmt.Errorf("creating output directory: %w", err)
 	}
 
 	// Create auxiliary directory
 	auxDir := filepath.Join(g.OutputDir, "bibles_auxiliary")
-	if err := os.MkdirAll(auxDir, 0755); err != nil {
+	if err := os.MkdirAll(auxDir, 0700); err != nil {
 		return nil, fmt.Errorf("creating auxiliary directory: %w", err)
 	}
 
@@ -279,7 +279,7 @@ func (g *Generator) GenerateFromFile(inputPath string) (*GenerateResult, error) 
 
 // writeJSON writes data to a JSON file with proper formatting.
 func (g *Generator) writeJSON(path string, data interface{}) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
 

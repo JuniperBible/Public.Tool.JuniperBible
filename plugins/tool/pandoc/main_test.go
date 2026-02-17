@@ -60,7 +60,7 @@ func TestConvertProfile(t *testing.T) {
 	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	cmd := exec.Command("./tool-pandoc", "run", "--request", reqFile, "--out", outDir)
 	cmd.Dir = pluginDir(t)
@@ -95,7 +95,7 @@ func TestListFormatsProfile(t *testing.T) {
 	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	cmd := exec.Command("./tool-pandoc", "run", "--request", reqFile, "--out", outDir)
 	cmd.Dir = pluginDir(t)
@@ -125,7 +125,7 @@ author: Test Author
 # Content
 
 Some text here.
-`), 0644)
+`), 0600)
 
 	reqFile := filepath.Join(tempDir, "request.json")
 	req := map[string]interface{}{
@@ -137,7 +137,7 @@ Some text here.
 	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	cmd := exec.Command("./tool-pandoc", "run", "--request", reqFile, "--out", outDir)
 	cmd.Dir = pluginDir(t)

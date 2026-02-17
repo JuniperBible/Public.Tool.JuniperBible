@@ -94,12 +94,12 @@ func TestCreateToolArchiveStoreError(t *testing.T) {
 
 	// Create a binary
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "test")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 
@@ -248,12 +248,12 @@ func TestCreateToolArchivePackError(t *testing.T) {
 
 	// Create a binary
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "test")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 

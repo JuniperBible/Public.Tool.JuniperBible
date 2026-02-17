@@ -17,10 +17,10 @@ func createMockZTextModule(t *testing.T, tmpDir string) (*ConfFile, string) {
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	dataDir := filepath.Join(tmpDir, "modules", "texts", "ztext", "testmod")
 
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 
@@ -386,10 +386,10 @@ func createMockZTextModuleNT(t *testing.T, tmpDir string) (*ConfFile, string) {
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	dataDir := filepath.Join(tmpDir, "modules", "texts", "ztext", "ntmod")
 
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 
@@ -536,7 +536,7 @@ func TestOpenZTextModuleWithAbsolutePath(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	dataDir := filepath.Join(tmpDir, "data")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 
@@ -565,7 +565,7 @@ func TestOpenZTextModuleBadBzsPath(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	dataDir := filepath.Join(tmpDir, "modules", "texts", "ztext", "badmod")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 

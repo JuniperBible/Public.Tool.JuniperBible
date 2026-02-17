@@ -212,7 +212,7 @@ func createFolderBackup(destPath string, files []backupFile) error {
 	for _, f := range files {
 		destFile := filepath.Join(destPath, f.DestPath)
 
-		if err := os.MkdirAll(filepath.Dir(destFile), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(destFile), 0700); err != nil {
 			return err
 		}
 
@@ -224,7 +224,7 @@ func createFolderBackup(destPath string, files []backupFile) error {
 }
 
 func createZipBackup(destPath string, files []backupFile) error {
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), 0700); err != nil {
 		return err
 	}
 
@@ -275,7 +275,7 @@ func addFileToZip(zw *zip.Writer, srcPath, destPath string) error {
 }
 
 func createTarGzBackup(destPath string, files []backupFile) error {
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), 0700); err != nil {
 		return err
 	}
 
@@ -301,7 +301,7 @@ func createTarGzBackup(destPath string, files []backupFile) error {
 }
 
 func createTarXzBackup(destPath string, files []backupFile) error {
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), 0700); err != nil {
 		return err
 	}
 
@@ -369,7 +369,7 @@ func addFileToTar(tw *tar.Writer, srcPath, destPath string) error {
 }
 
 func create7zBackup(destPath string, files []backupFile) error {
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), 0700); err != nil {
 		return err
 	}
 
@@ -383,7 +383,7 @@ func create7zBackup(destPath string, files []backupFile) error {
 	// Copy files to temp dir
 	for _, f := range files {
 		destFile := filepath.Join(tmpDir, f.DestPath)
-		if err := os.MkdirAll(filepath.Dir(destFile), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(destFile), 0700); err != nil {
 			return err
 		}
 		if err := copyFile(f.SrcPath, destFile); err != nil {

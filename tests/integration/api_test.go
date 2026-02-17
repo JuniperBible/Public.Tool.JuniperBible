@@ -31,10 +31,10 @@ func setupTestAPI(t *testing.T) (*httptest.Server, string, func()) {
 	capsulesDir := filepath.Join(tempDir, "capsules")
 	pluginsDir := filepath.Join(tempDir, "plugins")
 
-	if err := os.MkdirAll(capsulesDir, 0755); err != nil {
+	if err := os.MkdirAll(capsulesDir, 0700); err != nil {
 		t.Fatalf("failed to create capsules dir: %v", err)
 	}
-	if err := os.MkdirAll(pluginsDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginsDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 

@@ -23,7 +23,7 @@ func createTestModsArchive(t *testing.T, confFiles map[string]string) []byte {
 	for name, content := range confFiles {
 		hdr := &tar.Header{
 			Name: "mods.d/" + name,
-			Mode: 0644,
+			Mode: 0600,
 			Size: int64(len(content)),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -353,7 +353,7 @@ func TestExtractModsArchive_OverwriteExisting(t *testing.T) {
 
 	// Create existing file
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 	existingPath := filepath.Join(modsDir, "kjv.conf")
 	os.WriteFile(existingPath, []byte("old content"), 0600)
 

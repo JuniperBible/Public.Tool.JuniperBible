@@ -271,7 +271,7 @@ Version=1.0
 `
 	hdr := &tar.Header{
 		Name: "mods.d/testmod.conf",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(confContent)),
 	}
 	tw.WriteHeader(hdr)
@@ -401,7 +401,7 @@ func TestListInstalled(t *testing.T) {
 
 	// Create mods.d directory with a conf file
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -450,13 +450,13 @@ func TestVerifyValid(t *testing.T) {
 
 	// Create mods.d directory with conf
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create data directory with a file
 	dataDir := filepath.Join(tmpDir, "modules", "texts", "ztext", "testmod")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600); err != nil {
@@ -489,7 +489,7 @@ func TestVerifyMissingData(t *testing.T) {
 
 	// Create mods.d directory with conf
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -522,13 +522,13 @@ func TestUninstallModule(t *testing.T) {
 
 	// Create mods.d directory with conf
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create data directory
 	dataDir := filepath.Join(tmpDir, "modules", "texts", "ztext", "testmod")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600); err != nil {

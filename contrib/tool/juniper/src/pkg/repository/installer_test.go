@@ -24,7 +24,7 @@ func createTestModuleArchive(t *testing.T, files map[string][]byte) []byte {
 	for name, content := range files {
 		hdr := &tar.Header{
 			Name: name,
-			Mode: 0644,
+			Mode: 0600,
 			Size: int64(len(content)),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -163,10 +163,10 @@ func TestInstaller_Uninstall(t *testing.T) {
 	os.WriteFile(confPath, []byte(`[TestModule]
 DataPath=./modules/texts/ztext/testmodule/
 ModDrv=zText
-`), 0644)
+`), 0600)
 
 	dataDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "testmodule")
-	os.MkdirAll(dataDir, 0755)
+	os.MkdirAll(dataDir, 0700)
 	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600)
 	os.WriteFile(filepath.Join(dataDir, "ot.bzv"), []byte("data"), 0600)
 	os.WriteFile(filepath.Join(dataDir, "ot.bzz"), []byte("data"), 0600)
@@ -304,7 +304,7 @@ func TestInstaller_CheckUpdates(t *testing.T) {
 DataPath=./modules/texts/ztext/kjv/
 ModDrv=zText
 Version=1.0
-`), 0644)
+`), 0600)
 
 	// Server has newer version
 	modsArchive := createTestModsArchive(t, map[string]string{
@@ -451,10 +451,10 @@ func TestInstaller_ValidateModule(t *testing.T) {
 	os.WriteFile(filepath.Join(cfg.ModsDir(), "kjv.conf"), []byte(`[KJV]
 DataPath=./modules/texts/ztext/kjv/
 ModDrv=zText
-`), 0644)
+`), 0600)
 
 	dataDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "kjv")
-	os.MkdirAll(dataDir, 0755)
+	os.MkdirAll(dataDir, 0700)
 	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600)
 	os.WriteFile(filepath.Join(dataDir, "ot.bzv"), []byte("data"), 0600)
 	os.WriteFile(filepath.Join(dataDir, "ot.bzz"), []byte("data"), 0600)
@@ -497,7 +497,7 @@ func TestInstaller_ValidateModule_MissingData(t *testing.T) {
 	os.WriteFile(filepath.Join(cfg.ModsDir(), "kjv.conf"), []byte(`[KJV]
 DataPath=./modules/texts/ztext/kjv/
 ModDrv=zText
-`), 0644)
+`), 0600)
 
 	client, _ := NewClient(ClientOptions{})
 	installer := NewInstaller(cfg, client)
@@ -523,7 +523,7 @@ InstallSize=15
 	os.WriteFile(filepath.Join(cfg.ModsDir(), "kjv.conf"), []byte(confContent), 0600)
 
 	dataDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "kjv")
-	os.MkdirAll(dataDir, 0755)
+	os.MkdirAll(dataDir, 0700)
 	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("12345"), 0600)      // 5 bytes
 	os.WriteFile(filepath.Join(dataDir, "nt.bzs"), []byte("1234567890"), 0600) // 10 bytes
 
@@ -567,7 +567,7 @@ InstallSize=100
 	os.WriteFile(filepath.Join(cfg.ModsDir(), "kjv.conf"), []byte(confContent), 0600)
 
 	dataDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "kjv")
-	os.MkdirAll(dataDir, 0755)
+	os.MkdirAll(dataDir, 0700)
 	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("12345"), 0600) // 5 bytes
 
 	client, _ := NewClient(ClientOptions{})
@@ -612,19 +612,19 @@ func TestInstaller_VerifyAllModules(t *testing.T) {
 	os.WriteFile(filepath.Join(cfg.ModsDir(), "kjv.conf"), []byte(`[KJV]
 DataPath=./modules/texts/ztext/kjv/
 ModDrv=zText
-`), 0644)
+`), 0600)
 	os.WriteFile(filepath.Join(cfg.ModsDir(), "drc.conf"), []byte(`[DRC]
 DataPath=./modules/texts/ztext/drc/
 ModDrv=zText
-`), 0644)
+`), 0600)
 
 	// Create data for both
 	kjvDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "kjv")
-	os.MkdirAll(kjvDir, 0755)
+	os.MkdirAll(kjvDir, 0700)
 	os.WriteFile(filepath.Join(kjvDir, "ot.bzs"), []byte("data"), 0600)
 
 	drcDir := filepath.Join(cfg.SwordDir, "modules", "texts", "ztext", "drc")
-	os.MkdirAll(drcDir, 0755)
+	os.MkdirAll(drcDir, 0700)
 	os.WriteFile(filepath.Join(drcDir, "ot.bzs"), []byte("data"), 0600)
 
 	client, _ := NewClient(ClientOptions{})

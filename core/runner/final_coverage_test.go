@@ -40,7 +40,7 @@ func TestExecuteRequestInDirError(t *testing.T) {
 	if err := os.Chmod(unreadableDir, 0000); err != nil {
 		t.Fatalf("failed to chmod dir: %v", err)
 	}
-	defer os.Chmod(unreadableDir, 0755)
+	defer os.Chmod(unreadableDir, 0700)
 
 	// Use the unreadable directory as input - this tests the directory copy failure path
 	_, err = executor.ExecuteRequest(nil, req, []string{unreadableDir})
@@ -138,7 +138,7 @@ func TestPrepareWorkDirInDirError(t *testing.T) {
 	req := NewRequest("test", "test")
 
 	// Create work dir with file named "in" to cause directory creation failure
-	if err := os.MkdirAll(workDir, 0755); err != nil {
+	if err := os.MkdirAll(workDir, 0700); err != nil {
 		t.Fatalf("failed to create work dir: %v", err)
 	}
 
@@ -209,7 +209,7 @@ func TestCopyDirSuccess(t *testing.T) {
 
 	// Create nested structure
 	nested := filepath.Join(srcDir, "a", "b", "c")
-	if err := os.MkdirAll(nested, 0755); err != nil {
+	if err := os.MkdirAll(nested, 0700); err != nil {
 		t.Fatalf("failed to create nested dir: %v", err)
 	}
 
@@ -248,12 +248,12 @@ func TestExtractExecutableError(t *testing.T) {
 
 	// Create archive
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "test")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 
@@ -276,7 +276,7 @@ func TestExtractExecutableError(t *testing.T) {
 
 	// Create extract directory and make bin directory read-only
 	extractDir := filepath.Join(tempDir, "extract")
-	if err := os.MkdirAll(extractDir, 0755); err != nil {
+	if err := os.MkdirAll(extractDir, 0700); err != nil {
 		t.Fatalf("failed to create extract dir: %v", err)
 	}
 
@@ -284,7 +284,7 @@ func TestExtractExecutableError(t *testing.T) {
 	if err := os.MkdirAll(binExtractDir, 0500); err != nil {
 		t.Fatalf("failed to create bin extract dir: %v", err)
 	}
-	defer os.Chmod(binExtractDir, 0755)
+	defer os.Chmod(binExtractDir, 0700)
 
 	// This should fail when trying to write to read-only bin directory
 	err = archive.ExtractTo(extractDir)
@@ -307,12 +307,12 @@ func TestExtractLibraryError(t *testing.T) {
 
 	// Create archive
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "test")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 

@@ -511,7 +511,7 @@ ModDrv=zText`)
 
 		tw.WriteHeader(&tar.Header{
 			Name: "kjv.conf",
-			Mode: 0644,
+			Mode: 0600,
 			Size: int64(len(conf1)),
 		})
 		tw.Write(conf1)
@@ -524,7 +524,7 @@ ModDrv=RawText`)
 
 		tw.WriteHeader(&tar.Header{
 			Name: "asv.conf",
-			Mode: 0644,
+			Mode: 0600,
 			Size: int64(len(conf2)),
 		})
 		tw.Write(conf2)
@@ -532,14 +532,14 @@ ModDrv=RawText`)
 		// Add a directory (should be skipped)
 		tw.WriteHeader(&tar.Header{
 			Name:     "mods.d/",
-			Mode:     0755,
+			Mode:     0700,
 			Typeflag: tar.TypeDir,
 		})
 
 		// Add a non-.conf file (should be skipped)
 		tw.WriteHeader(&tar.Header{
 			Name: "readme.txt",
-			Mode: 0644,
+			Mode: 0600,
 			Size: 5,
 		})
 		tw.Write([]byte("hello"))
@@ -650,7 +650,7 @@ func TestListInstalled(t *testing.T) {
 	t.Run("with installed modules", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		confData := []byte(`[KJV]
 Description=King James Version
@@ -685,7 +685,7 @@ func TestUninstall(t *testing.T) {
 	t.Run("module not installed", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		err := Uninstall("KJV", tempDir)
 		if err == nil {
@@ -699,10 +699,10 @@ func TestUninstall(t *testing.T) {
 	t.Run("successful uninstall", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		dataDir := filepath.Join(tempDir, "modules", "texts", "ztext", "kjv")
-		os.MkdirAll(dataDir, 0755)
+		os.MkdirAll(dataDir, 0700)
 		os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600)
 
 		confData := []byte(`[KJV]
@@ -734,7 +734,7 @@ func TestVerify(t *testing.T) {
 	t.Run("module not installed", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		result, err := Verify("KJV", tempDir)
 		if err != nil {
@@ -751,10 +751,10 @@ func TestVerify(t *testing.T) {
 	t.Run("valid module", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		dataDir := filepath.Join(tempDir, "modules", "texts", "ztext", "kjv")
-		os.MkdirAll(dataDir, 0755)
+		os.MkdirAll(dataDir, 0700)
 		os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600)
 
 		confData := []byte(`[KJV]
@@ -776,7 +776,7 @@ DataPath=./modules/texts/ztext/kjv/`)
 	t.Run("missing data directory", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		confData := []byte(`[KJV]
 Description=King James Version
@@ -800,10 +800,10 @@ DataPath=./modules/texts/ztext/kjv/`)
 	t.Run("empty data directory", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		dataDir := filepath.Join(tempDir, "modules", "texts", "ztext", "kjv")
-		os.MkdirAll(dataDir, 0755)
+		os.MkdirAll(dataDir, 0700)
 
 		confData := []byte(`[KJV]
 Description=King James Version
@@ -827,10 +827,10 @@ DataPath=./modules/texts/ztext/kjv/`)
 	t.Run("data path is file not directory", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		dataFile := filepath.Join(tempDir, "modules", "texts", "ztext", "kjv")
-		os.MkdirAll(filepath.Dir(dataFile), 0755)
+		os.MkdirAll(filepath.Dir(dataFile), 0700)
 		os.WriteFile(dataFile, []byte("not a directory"), 0600)
 
 		confData := []byte(`[KJV]
@@ -969,7 +969,7 @@ ModDrv=UnknownDriver`),
 func TestListInstalled_InvalidConf(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Write an invalid conf file
 	os.WriteFile(filepath.Join(modsDir, "invalid.conf"), []byte("invalid"), 0600)
@@ -987,11 +987,11 @@ func TestListInstalled_InvalidConf(t *testing.T) {
 func TestListInstalled_NonConfFiles(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Create non-.conf files and directories
 	os.WriteFile(filepath.Join(modsDir, "readme.txt"), []byte("hello"), 0600)
-	os.Mkdir(filepath.Join(modsDir, "subdir"), 0755)
+	os.Mkdir(filepath.Join(modsDir, "subdir"), 0700)
 
 	modules, err := ListInstalled(tempDir)
 	if err != nil {
@@ -1005,11 +1005,11 @@ func TestListInstalled_NonConfFiles(t *testing.T) {
 func TestUninstall_ReadConfError(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Create an unreadable conf file (directory instead of file)
 	confPath := filepath.Join(modsDir, "kjv.conf")
-	os.Mkdir(confPath, 0755)
+	os.Mkdir(confPath, 0700)
 
 	err := Uninstall("KJV", tempDir)
 	if err == nil {
@@ -1020,7 +1020,7 @@ func TestUninstall_ReadConfError(t *testing.T) {
 func TestUninstall_InvalidConf(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Write invalid conf
 	confPath := filepath.Join(modsDir, "kjv.conf")
@@ -1035,7 +1035,7 @@ func TestUninstall_InvalidConf(t *testing.T) {
 func TestVerify_InvalidConf(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Write invalid conf
 	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte("invalid"), 0600)
@@ -1052,11 +1052,11 @@ func TestVerify_InvalidConf(t *testing.T) {
 func TestVerify_ReadConfError(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Create conf as directory
 	confPath := filepath.Join(modsDir, "kjv.conf")
-	os.Mkdir(confPath, 0755)
+	os.Mkdir(confPath, 0700)
 
 	result, err := Verify("KJV", tempDir)
 	if err != nil {
@@ -1081,7 +1081,7 @@ ModDrv=zText`)
 
 	tw.WriteHeader(&tar.Header{
 		Name: "kjv.conf",
-		Mode: 0644,
+		Mode: 0600,
 		Size: int64(len(conf1)),
 	})
 	tw.Write(conf1)
@@ -1089,7 +1089,7 @@ ModDrv=zText`)
 	// Add a conf with wrong size header (corrupted)
 	tw.WriteHeader(&tar.Header{
 		Name: "asv.conf",
-		Mode: 0644,
+		Mode: 0600,
 		Size: 1, // Wrong size - will cause read error
 	})
 	// Don't write enough data - this will cause read error that ParseModsArchive handles
@@ -1139,7 +1139,7 @@ ModDrv=zText`)
 
 		tw.WriteHeader(&tar.Header{
 			Name: "kjv.conf",
-			Mode: 0644,
+			Mode: 0600,
 			Size: int64(len(conf)),
 		})
 		tw.Write(conf)
@@ -1165,7 +1165,7 @@ func TestExtractZipArchive_ExplicitDirectory(t *testing.T) {
 	dirHeader := &zip.FileHeader{
 		Name: "testdir/",
 	}
-	dirHeader.SetMode(0755 | os.ModeDir)
+	dirHeader.SetMode(0700 | os.ModeDir)
 	_, err := zw.CreateHeader(dirHeader)
 	if err != nil {
 		t.Fatalf("Failed to create directory header: %v", err)
@@ -1249,11 +1249,11 @@ func TestClient_Download_ServerErrors(t *testing.T) {
 func TestListInstalled_ReadError(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Create a conf file as a directory (will cause read error)
 	confPath := filepath.Join(modsDir, "test.conf")
-	os.Mkdir(confPath, 0755)
+	os.Mkdir(confPath, 0700)
 
 	// Should skip unreadable files
 	modules, err := ListInstalled(tempDir)
@@ -1269,7 +1269,7 @@ func TestListInstalled_ReadError(t *testing.T) {
 func TestVerify_NoDataPath(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Conf without DataPath
 	confData := []byte(`[TEST]
@@ -1292,7 +1292,7 @@ ModDrv=zText`)
 func TestUninstall_MissingDataDir(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Conf with DataPath that doesn't exist
 	confData := []byte(`[TEST]

@@ -1243,7 +1243,7 @@ func extractIRFromSource(loader *plugins.Loader, extractDir, tempDir, sourceForm
 
 	// Extract IR
 	irDir := filepath.Join(tempDir, "ir")
-	os.MkdirAll(irDir, 0755)
+	os.MkdirAll(irDir, 0700)
 
 	extractReq := plugins.NewExtractIRRequest(contentPath, irDir)
 	extractResp, err := plugins.ExecutePlugin(sourcePlugin, extractReq)
@@ -1279,7 +1279,7 @@ func emitTargetFormat(loader *plugins.Loader, irPath, tempDir, targetFormat, sou
 	}
 
 	emitDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(emitDir, 0755)
+	os.MkdirAll(emitDir, 0700)
 
 	emitReq := plugins.NewEmitNativeRequest(irPath, emitDir)
 	emitResp, err := plugins.ExecutePlugin(targetPlugin, emitReq)
@@ -1307,7 +1307,7 @@ func emitTargetFormat(loader *plugins.Loader, irPath, tempDir, targetFormat, sou
 // createConvertedCapsule creates a new capsule with converted content.
 func createConvertedCapsule(tempDir, outputPath, irPath, sourcePath, fullPath, sourceFormat, targetFormat, extractLoss, emitLoss string) *ConvertResult {
 	newCapsuleDir := filepath.Join(tempDir, "new-capsule")
-	os.MkdirAll(newCapsuleDir, 0755)
+	os.MkdirAll(newCapsuleDir, 0700)
 
 	// Copy converted output
 	outputData, err := os.ReadFile(outputPath)
@@ -1572,7 +1572,7 @@ func performPluginIRExtraction(contentPath, detectedFormat, tempDir string) (*pl
 	}
 
 	irDir := filepath.Join(tempDir, "ir")
-	os.MkdirAll(irDir, 0755)
+	os.MkdirAll(irDir, 0700)
 
 	extractReq := plugins.NewExtractIRRequest(contentPath, irDir)
 	extractResp, err := plugins.ExecutePlugin(sourcePlugin, extractReq)
@@ -1733,7 +1733,7 @@ func performCASToSWORD(sourcePath string) *ConvertResult {
 	}
 
 	swordDir := filepath.Join(tempDir, "sword-capsule")
-	if err := os.MkdirAll(swordDir, 0755); err != nil {
+	if err := os.MkdirAll(swordDir, 0700); err != nil {
 		return &ConvertResult{Success: false, Message: fmt.Sprintf("Failed to create SWORD directory: %v", err)}
 	}
 
@@ -1827,7 +1827,7 @@ func extractArtifactFilesToSWORD(extractDir, swordDir string, artifact *CASArtif
 		}
 
 		destPath := filepath.Join(swordDir, file.Path)
-		os.MkdirAll(filepath.Dir(destPath), 0755)
+		os.MkdirAll(filepath.Dir(destPath), 0700)
 		os.WriteFile(destPath, content, 0600)
 	}
 
@@ -2031,7 +2031,7 @@ func extractTarEntry(header *tar.Header, tr *tar.Reader, destDir string) error {
 	destPath := filepath.Join(destDir, name)
 
 	if header.FileInfo().IsDir() {
-		return os.MkdirAll(destPath, 0755)
+		return os.MkdirAll(destPath, 0700)
 	}
 
 	return extractTarFile(destPath, tr)
@@ -2047,7 +2047,7 @@ func cleanTarEntryName(name string) string {
 
 // extractTarFile extracts a single file from the tar archive
 func extractTarFile(destPath string, tr *tar.Reader) error {
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), 0700); err != nil {
 		return err
 	}
 
@@ -3030,7 +3030,7 @@ func performIngest(file io.Reader, filename string, size int64) *IngestResult {
 
 	// Create capsule directory
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	os.MkdirAll(capsuleDir, 0755)
+	os.MkdirAll(capsuleDir, 0700)
 
 	// Copy file to capsule
 	data, _ := os.ReadFile(uploadPath)
@@ -4522,7 +4522,7 @@ func findSWORDConfFile(modsDir, moduleID string) (filename, fullPath string) {
 
 // setupCapsuleDirectory creates the capsule directory structure and copies the conf file.
 func setupCapsuleDirectory(capsuleDir, confPath, confFilename string) error {
-	if err := os.MkdirAll(filepath.Join(capsuleDir, "mods.d"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(capsuleDir, "mods.d"), 0700); err != nil {
 		return fmt.Errorf("failed to create capsule structure: %w", err)
 	}
 
@@ -4558,7 +4558,7 @@ func copyModuleData(swordDir, dataPath, capsuleDir string) error {
 		return fmt.Errorf("module data path is not a directory: %s", srcData)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(destData), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destData), 0700); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
 
@@ -4799,7 +4799,7 @@ func runToolPlugin(pluginID, profile, capsulePath, artifactID string) *ToolRunRe
 		}
 		fullCapsulePath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
 		inputPath := filepath.Join(outputDir, "input")
-		if err := os.MkdirAll(inputPath, 0755); err == nil {
+		if err := os.MkdirAll(inputPath, 0700); err == nil {
 			// Extract the artifact
 			if extractedPath, err := extractArtifact(fullCapsulePath, artifactID, inputPath); err == nil {
 				reqData["args"] = map[string]string{"input": extractedPath}

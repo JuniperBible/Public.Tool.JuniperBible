@@ -159,7 +159,7 @@ func OpenWithPageSize(filename string, readOnly bool, pageSize int) (*Pager, err
 	if readOnly {
 		pager.file, err = os.OpenFile(filename, os.O_RDONLY, 0)
 	} else {
-		pager.file, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
+		pager.file, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
 	}
 
 	if err != nil {
@@ -640,7 +640,7 @@ func (p *Pager) openJournal() error {
 	p.journalFile, err = os.OpenFile(
 		p.journalFilename,
 		os.O_RDWR|os.O_CREATE|os.O_TRUNC,
-		0644,
+		0600,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to open journal file: %w", err)
@@ -728,7 +728,7 @@ func (p *Pager) finalizeJournal() error {
 
 // zeroJournalHeader zeroes the journal header to mark it as invalid.
 func (p *Pager) zeroJournalHeader() error {
-	f, err := os.OpenFile(p.journalFilename, os.O_WRONLY, 0644)
+	f, err := os.OpenFile(p.journalFilename, os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}

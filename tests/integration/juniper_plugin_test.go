@@ -270,8 +270,8 @@ func TestJuniperSwordDetect(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	modulesDir := filepath.Join(tmpDir, "modules")
-	os.MkdirAll(modsDir, 0755)
-	os.MkdirAll(modulesDir, 0755)
+	os.MkdirAll(modsDir, 0700)
+	os.MkdirAll(modulesDir, 0700)
 
 	// Create a minimal conf file
 	confContent := `[TestModule]

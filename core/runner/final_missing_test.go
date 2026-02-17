@@ -56,7 +56,7 @@ func TestExecuteRequestOutputBlobsWithSubdirectory(t *testing.T) {
 			outDir := filepath.Join(testWorkDir, "out")
 			// Create a subdirectory in output
 			subDir := filepath.Join(outDir, "subdir")
-			if mkErr := os.MkdirAll(subDir, 0755); mkErr == nil {
+			if mkErr := os.MkdirAll(subDir, 0700); mkErr == nil {
 				// Create a file in the subdirectory
 				os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested"), 0600)
 			}
@@ -122,10 +122,10 @@ func TestExecuteRequestSuccessWithOutputFiles(t *testing.T) {
 	inDir := filepath.Join(workDir, "in")
 	outDir := filepath.Join(workDir, "out")
 
-	if err := os.MkdirAll(inDir, 0755); err != nil {
+	if err := os.MkdirAll(inDir, 0700); err != nil {
 		t.Fatalf("failed to create in dir: %v", err)
 	}
-	if err := os.MkdirAll(outDir, 0755); err != nil {
+	if err := os.MkdirAll(outDir, 0700); err != nil {
 		t.Fatalf("failed to create out dir: %v", err)
 	}
 
@@ -138,7 +138,7 @@ func TestExecuteRequestSuccessWithOutputFiles(t *testing.T) {
 	}
 	// Create a subdirectory that should be skipped
 	subDir := filepath.Join(outDir, "subdir")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, 0700); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(subDir, "nested.txt"), []byte("nested"), 0600); err != nil {
@@ -217,7 +217,7 @@ func TestCreateToolArchiveCompleteSuccess(t *testing.T) {
 
 	// Create multiple binaries to test the loop
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
@@ -226,7 +226,7 @@ func TestCreateToolArchiveCompleteSuccess(t *testing.T) {
 		name := fmt.Sprintf("tool%d", i)
 		path := filepath.Join(binDir, name)
 		content := []byte(fmt.Sprintf("binary %d content", i))
-		if err := os.WriteFile(path, content, 0755); err != nil {
+		if err := os.WriteFile(path, content, 0700); err != nil {
 			t.Fatalf("failed to write %s: %v", name, err)
 		}
 		binaries[name] = path

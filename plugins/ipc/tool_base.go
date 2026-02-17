@@ -186,7 +186,7 @@ func LoadToolRequest(reqPath, outDir string) *ToolRunRequest {
 	}
 
 	req.OutDir = outDir
-	if err := os.MkdirAll(outDir, 0755); err != nil {
+	if err := os.MkdirAll(outDir, 0700); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create output dir: %v\n", err)
 		os.Exit(1)
 	}

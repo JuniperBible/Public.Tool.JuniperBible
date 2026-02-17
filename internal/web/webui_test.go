@@ -97,7 +97,7 @@ func setupSampleDataTest(t *testing.T, bibles ...string) (string, func()) {
 	tempDir := t.TempDir()
 
 	// Create plugins directory (even if empty)
-	os.MkdirAll(filepath.Join(tempDir, "plugins", "format"), 0755)
+	os.MkdirAll(filepath.Join(tempDir, "plugins", "format"), 0700)
 
 	// Copy requested capsules with generated IR
 	for _, bible := range bibles {

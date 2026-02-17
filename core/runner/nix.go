@@ -112,11 +112,11 @@ func (e *NixExecutor) setupWorkDirs() (workDir, inDir, outDir string, err error)
 	inDir = filepath.Join(workDir, "in")
 	outDir = filepath.Join(workDir, "out")
 
-	if err := osMkdirAll(inDir, 0755); err != nil {
+	if err := osMkdirAll(inDir, 0700); err != nil {
 		os.RemoveAll(workDir)
 		return "", "", "", fmt.Errorf("failed to create in dir: %w", err)
 	}
-	if err := osMkdirAll(outDir, 0755); err != nil {
+	if err := osMkdirAll(outDir, 0700); err != nil {
 		os.RemoveAll(workDir)
 		return "", "", "", fmt.Errorf("failed to create out dir: %w", err)
 	}

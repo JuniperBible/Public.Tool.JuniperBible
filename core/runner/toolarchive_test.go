@@ -19,7 +19,7 @@ func TestToolRegistry(t *testing.T) {
 
 	// Create a mock tool directory
 	toolDir := filepath.Join(tempDir, "test-tool", "capsule")
-	if err := os.MkdirAll(toolDir, 0755); err != nil {
+	if err := os.MkdirAll(toolDir, 0700); err != nil {
 		t.Fatalf("failed to create tool dir: %v", err)
 	}
 
@@ -87,12 +87,12 @@ func TestCreateAndLoadToolArchive(t *testing.T) {
 
 	// Create a mock binary
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "testtool")
-	if err := os.WriteFile(testBinary, []byte("#!/bin/sh\necho hello"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("#!/bin/sh\necho hello"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 
@@ -198,17 +198,17 @@ func TestExtractToWithLibraries(t *testing.T) {
 
 	// Create mock binary and library
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "testtool")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 
 	libDir := filepath.Join(tempDir, "lib")
-	if err := os.MkdirAll(libDir, 0755); err != nil {
+	if err := os.MkdirAll(libDir, 0700); err != nil {
 		t.Fatalf("failed to create lib dir: %v", err)
 	}
 
@@ -264,18 +264,18 @@ func TestToolRegistryLoadTool(t *testing.T) {
 
 	// Create a tool archive
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "testtool")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 
 	// Create tool directory structure
 	toolCapsuleDir := filepath.Join(tempDir, "testtool", "capsule")
-	if err := os.MkdirAll(toolCapsuleDir, 0755); err != nil {
+	if err := os.MkdirAll(toolCapsuleDir, 0700); err != nil {
 		t.Fatalf("failed to create capsule dir: %v", err)
 	}
 
@@ -340,12 +340,12 @@ func TestToolRegistryLoadToolAlternativeNames(t *testing.T) {
 
 	// Create a tool archive with alternative name
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "testtool")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 
@@ -415,12 +415,12 @@ func TestCreateToolArchiveErrors(t *testing.T) {
 	// Test with invalid destination
 	if os.Getuid() != 0 {
 		binDir := filepath.Join(tempDir, "bin")
-		if err := os.MkdirAll(binDir, 0755); err != nil {
+		if err := os.MkdirAll(binDir, 0700); err != nil {
 			t.Fatalf("failed to create bin dir: %v", err)
 		}
 
 		testBinary := filepath.Join(binDir, "test")
-		if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+		if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 			t.Fatalf("failed to write test binary: %v", err)
 		}
 
@@ -501,7 +501,7 @@ func TestToolRegistryLoadToolArchiveError(t *testing.T) {
 
 	// Create a corrupted archive file
 	toolCapsuleDir := filepath.Join(tempDir, "badtool", "capsule")
-	if err := os.MkdirAll(toolCapsuleDir, 0755); err != nil {
+	if err := os.MkdirAll(toolCapsuleDir, 0700); err != nil {
 		t.Fatalf("failed to create capsule dir: %v", err)
 	}
 

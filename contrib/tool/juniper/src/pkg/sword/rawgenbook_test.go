@@ -14,7 +14,7 @@ func createTestRawGenBookModule(t *testing.T) (string, *Module) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 	modDir := filepath.Join(tmpDir, "testbook")
-	if err := os.MkdirAll(modDir, 0755); err != nil {
+	if err := os.MkdirAll(modDir, 0700); err != nil {
 		t.Fatalf("creating module dir: %v", err)
 	}
 
@@ -289,7 +289,7 @@ func TestRawGenBookParser_Module(t *testing.T) {
 func TestRawGenBookParser_NoFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 	emptyDir := filepath.Join(tmpDir, "empty")
-	if err := os.MkdirAll(emptyDir, 0755); err != nil {
+	if err := os.MkdirAll(emptyDir, 0700); err != nil {
 		t.Fatalf("creating empty dir: %v", err)
 	}
 

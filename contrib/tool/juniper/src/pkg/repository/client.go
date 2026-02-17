@@ -178,7 +178,7 @@ func (c *Client) DownloadToFile(ctx context.Context, url, destPath string) error
 
 	// Create parent directories if needed
 	dir := filepath.Dir(destPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("creating directory: %w", err)
 	}
 

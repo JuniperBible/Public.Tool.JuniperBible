@@ -75,7 +75,7 @@ func createTestSwordInstallation(t *testing.T) string {
 
 	// Create mods.d directory
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -97,7 +97,7 @@ Versification=KJV
 
 	// Create data directory with minimal zText files
 	dataDir := filepath.Join(tmpDir, "modules", "texts", "ztext", "testmod")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 

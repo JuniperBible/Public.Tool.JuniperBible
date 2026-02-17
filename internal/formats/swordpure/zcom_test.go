@@ -17,10 +17,10 @@ func createMockZComModule(t *testing.T, tmpDir string) (*ConfFile, string) {
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	dataDir := filepath.Join(tmpDir, "modules", "comments", "zcom", "testcom")
 
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 
@@ -487,7 +487,7 @@ func TestZComParserLoadAbsolutePath(t *testing.T) {
 
 	// Create data directory with absolute path
 	dataDir := filepath.Join(tmpDir, "data")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 
@@ -532,10 +532,10 @@ func createMockZComModuleNT(t *testing.T, tmpDir string) (*ConfFile, string) {
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	dataDir := filepath.Join(tmpDir, "modules", "comments", "zcom", "ntcom")
 
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 
@@ -666,7 +666,7 @@ func TestZComParserLoadBadBzsPath(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	dataDir := filepath.Join(tmpDir, "modules", "comments", "zcom", "badmod")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 

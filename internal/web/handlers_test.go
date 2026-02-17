@@ -87,7 +87,7 @@ func createTestCapsuleTarGz(t *testing.T, path string, files map[string][]byte) 
 	for name, content := range files {
 		header := &tar.Header{
 			Name: baseName + "/" + name,
-			Mode: 0644,
+			Mode: 0600,
 			Size: int64(len(content)),
 		}
 		if err := tw.WriteHeader(header); err != nil {
@@ -123,7 +123,7 @@ func createTestCapsuleTarXz(t *testing.T, path string, files map[string][]byte) 
 	for name, content := range files {
 		header := &tar.Header{
 			Name: baseName + "/" + name,
-			Mode: 0644,
+			Mode: 0600,
 			Size: int64(len(content)),
 		}
 		if err := tw.WriteHeader(header); err != nil {
@@ -309,7 +309,7 @@ func TestListToolPlugins(t *testing.T) {
 
 	// Create tool plugins directory with proper plugin.json
 	toolDir := filepath.Join(tmpDir, "tool", "libsword")
-	os.MkdirAll(toolDir, 0755)
+	os.MkdirAll(toolDir, 0700)
 	manifest := `{"plugin_id": "tool.libsword", "name": "libsword", "version": "1.0.0", "kind": "tool", "entrypoint": "tool-libsword"}`
 	os.WriteFile(filepath.Join(toolDir, "plugin.json"), []byte(manifest), 0600)
 
@@ -502,7 +502,7 @@ func TestFindContentFile(t *testing.T) {
 			name: "SWORD module",
 			createFiles: func(dir string) {
 				modsDir := filepath.Join(dir, "mods.d")
-				os.MkdirAll(modsDir, 0755)
+				os.MkdirAll(modsDir, 0700)
 				os.WriteFile(filepath.Join(modsDir, "test.conf"), []byte("[Test]"), 0600)
 			},
 			expectedFormat: "sword-pure",
@@ -545,7 +545,7 @@ func TestFindContentFile(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			testDir := filepath.Join(tmpDir, tc.name)
-			os.MkdirAll(testDir, 0755)
+			os.MkdirAll(testDir, 0700)
 			defer os.RemoveAll(testDir)
 
 			tc.createFiles(testDir)
@@ -839,8 +839,8 @@ func TestHandlePlugins(t *testing.T) {
 	defer func() { ServerConfig.PluginsDir = originalDir }()
 
 	// Create test plugin directories
-	os.MkdirAll(filepath.Join(tmpDir, "format", "osis"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "tool", "test"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "format", "osis"), 0700)
+	os.MkdirAll(filepath.Join(tmpDir, "tool", "test"), 0700)
 
 	req := httptest.NewRequest(http.MethodGet, "/plugins", nil)
 	w := httptest.NewRecorder()
@@ -964,7 +964,7 @@ func TestExtractCapsule(t *testing.T) {
 			tc.createFunc(t, capsulePath, tc.files)
 
 			extractDir := filepath.Join(tmpDir, "extract-"+tc.name)
-			os.MkdirAll(extractDir, 0755)
+			os.MkdirAll(extractDir, 0700)
 			defer os.RemoveAll(extractDir)
 
 			err := extractCapsule(capsulePath, extractDir)
@@ -987,7 +987,7 @@ func TestExtractCapsule(t *testing.T) {
 		os.WriteFile(unsupportedPath, []byte("fake zip"), 0600)
 
 		extractDir := filepath.Join(tmpDir, "extract-unsupported")
-		os.MkdirAll(extractDir, 0755)
+		os.MkdirAll(extractDir, 0700)
 		defer os.RemoveAll(extractDir)
 
 		err := extractCapsule(unsupportedPath, extractDir)
@@ -1082,12 +1082,12 @@ func TestCreateCapsuleTarGzFromDir(t *testing.T) {
 
 	// Create source directory with files
 	srcDir := filepath.Join(tmpDir, "source")
-	os.MkdirAll(srcDir, 0755)
+	os.MkdirAll(srcDir, 0700)
 	os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0600)
 	os.WriteFile(filepath.Join(srcDir, "file2.txt"), []byte("content2"), 0600)
 
 	subDir := filepath.Join(srcDir, "subdir")
-	os.MkdirAll(subDir, 0755)
+	os.MkdirAll(subDir, 0700)
 	os.WriteFile(filepath.Join(subDir, "file3.txt"), []byte("content3"), 0600)
 
 	dstPath := filepath.Join(tmpDir, "output.tar.gz")
@@ -1273,12 +1273,12 @@ func TestCopyDir(t *testing.T) {
 
 	// Create source directory with files
 	srcDir := filepath.Join(tmpDir, "source")
-	os.MkdirAll(srcDir, 0755)
+	os.MkdirAll(srcDir, 0700)
 	os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0600)
 	os.WriteFile(filepath.Join(srcDir, "file2.txt"), []byte("content2"), 0600)
 
 	subDir := filepath.Join(srcDir, "subdir")
-	os.MkdirAll(subDir, 0755)
+	os.MkdirAll(subDir, 0700)
 	os.WriteFile(filepath.Join(subDir, "file3.txt"), []byte("content3"), 0600)
 
 	dstDir := filepath.Join(tmpDir, "destination")

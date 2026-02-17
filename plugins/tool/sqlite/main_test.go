@@ -63,7 +63,7 @@ func TestQueryProfile(t *testing.T) {
 	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	pluginCmd := exec.Command("./tool-sqlite", "run", "--request", reqFile, "--out", outDir)
 	pluginCmd.Dir = pluginDir(t)
@@ -100,7 +100,7 @@ func TestTablesProfile(t *testing.T) {
 	os.WriteFile(reqFile, reqData, 0600)
 
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	pluginCmd := exec.Command("./tool-sqlite", "run", "--request", reqFile, "--out", outDir)
 	pluginCmd.Dir = pluginDir(t)

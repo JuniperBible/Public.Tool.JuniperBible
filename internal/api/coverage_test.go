@@ -362,7 +362,7 @@ func TestStart_RateLimitDefaultBurst(t *testing.T) {
 func TestStart_PluginsExternal(t *testing.T) {
 	tmpDir := t.TempDir()
 	pluginsDir := filepath.Join(tmpDir, "plugins")
-	os.MkdirAll(pluginsDir, 0755)
+	os.MkdirAll(pluginsDir, 0700)
 
 	cfg := Config{
 		Port:            0,

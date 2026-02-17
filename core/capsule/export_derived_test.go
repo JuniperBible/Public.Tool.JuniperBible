@@ -42,7 +42,7 @@ func setupTestPluginLoader(t *testing.T, pluginNames []string) (*plugins.Loader,
 // createTestPlugin creates a minimal plugin directory
 func createTestPlugin(t *testing.T, baseDir, name string) {
 	pluginPath := filepath.Join(baseDir, name)
-	if err := os.MkdirAll(pluginPath, 0755); err != nil {
+	if err := os.MkdirAll(pluginPath, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -64,7 +64,7 @@ func createTestPlugin(t *testing.T, baseDir, name string) {
 	}
 
 	entrypointPath := filepath.Join(pluginPath, "plugin.sh")
-	if err := os.WriteFile(entrypointPath, []byte("#!/bin/bash\necho test"), 0755); err != nil {
+	if err := os.WriteFile(entrypointPath, []byte("#!/bin/bash\necho test"), 0700); err != nil {
 		t.Fatalf("failed to write entrypoint: %v", err)
 	}
 }
@@ -567,7 +567,7 @@ func TestExtractIRFromPluginError(t *testing.T) {
 
 	// Create a plugin with invalid entrypoint
 	pluginDir := filepath.Join(tempDir, "plugin")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -585,7 +585,7 @@ func TestExtractIRFromPluginError(t *testing.T) {
 	}
 
 	outputDir := filepath.Join(tempDir, "output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -605,7 +605,7 @@ func TestEmitNativeFromPluginError(t *testing.T) {
 
 	// Create a plugin with invalid entrypoint
 	pluginDir := filepath.Join(tempDir, "plugin")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -623,7 +623,7 @@ func TestEmitNativeFromPluginError(t *testing.T) {
 	}
 
 	outputDir := filepath.Join(tempDir, "output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 

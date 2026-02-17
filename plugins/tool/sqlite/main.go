@@ -107,7 +107,7 @@ func runTool() {
 	var req ToolRunRequest
 	json.Unmarshal(reqData, &req)
 	req.OutDir = outDir
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 	executeProfile(&req)
 }
 

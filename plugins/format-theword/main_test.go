@@ -118,7 +118,7 @@ And God said, Let there be light.
 	}
 
 	outputDir := filepath.Join(tmpDir, "output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -229,7 +229,7 @@ func TestTheWordEmitNative(t *testing.T) {
 	}
 
 	outputDir := filepath.Join(tmpDir, "output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -298,8 +298,8 @@ And God said, Let the waters be gathered.
 
 	irDir := filepath.Join(tmpDir, "ir")
 	outDir := filepath.Join(tmpDir, "output")
-	os.MkdirAll(irDir, 0755)
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(irDir, 0700)
+	os.MkdirAll(outDir, 0700)
 
 	// Extract IR
 	extractReq := ipc.Request{
@@ -374,7 +374,7 @@ And the earth was void.
 	}
 
 	outputDir := filepath.Join(tmpDir, "blobs")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 

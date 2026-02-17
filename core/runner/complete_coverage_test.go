@@ -82,16 +82,16 @@ func TestCreateToolArchiveSuccessAllPaths(t *testing.T) {
 
 	// Create binaries
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	bin1 := filepath.Join(binDir, "tool1")
 	bin2 := filepath.Join(binDir, "tool2")
-	if err := os.WriteFile(bin1, []byte("binary1"), 0755); err != nil {
+	if err := os.WriteFile(bin1, []byte("binary1"), 0700); err != nil {
 		t.Fatalf("failed to write bin1: %v", err)
 	}
-	if err := os.WriteFile(bin2, []byte("binary2"), 0755); err != nil {
+	if err := os.WriteFile(bin2, []byte("binary2"), 0700); err != nil {
 		t.Fatalf("failed to write bin2: %v", err)
 	}
 
@@ -251,12 +251,12 @@ func TestLoadToolMultiplePaths(t *testing.T) {
 
 	// Create binary
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "testtool")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 
@@ -269,7 +269,7 @@ func TestLoadToolMultiplePaths(t *testing.T) {
 
 	for i, pattern := range patterns {
 		testDir := filepath.Join(tempDir, "test"+string(rune('a'+i)))
-		if err := os.MkdirAll(testDir, 0755); err != nil {
+		if err := os.MkdirAll(testDir, 0700); err != nil {
 			t.Fatalf("failed to create test dir: %v", err)
 		}
 

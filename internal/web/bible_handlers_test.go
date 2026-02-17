@@ -351,7 +351,7 @@ func TestHandleBibleIndex(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clean up and setup
 			os.RemoveAll(tempDir)
-			os.MkdirAll(tempDir, 0755)
+			os.MkdirAll(tempDir, 0700)
 			tt.setup()
 
 			req := httptest.NewRequest(http.MethodGet, tt.path, nil)

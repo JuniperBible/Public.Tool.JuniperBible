@@ -109,7 +109,7 @@ func TestHandlerDetectNoConfFiles(t *testing.T) {
 
 	// Create empty mods.d directory
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -553,7 +553,7 @@ func TestHandlerExtractIREncryptedModule(t *testing.T) {
 
 	// Create mock encrypted module
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -595,7 +595,7 @@ func TestHandlerExtractIRNonBibleModule(t *testing.T) {
 
 	// Create mock commentary module (non-Bible)
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -636,7 +636,7 @@ func TestHandlerExtractIRUncompressedModule(t *testing.T) {
 
 	// Create mock uncompressed Bible module
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 

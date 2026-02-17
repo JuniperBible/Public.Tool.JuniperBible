@@ -180,7 +180,7 @@ func testIngest(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 	t.Helper()
 
 	outputDir := filepath.Join(tmpDir, "blobs")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -223,7 +223,7 @@ func testExtractIR(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 	t.Helper()
 
 	outputDir := filepath.Join(tmpDir, "ir")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -263,7 +263,7 @@ func testEmitNative(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 
 	// First extract IR
 	irDir := filepath.Join(tmpDir, "ir-emit")
-	if err := os.MkdirAll(irDir, 0755); err != nil {
+	if err := os.MkdirAll(irDir, 0700); err != nil {
 		t.Fatalf("failed to create ir dir: %v", err)
 	}
 
@@ -274,7 +274,7 @@ func testEmitNative(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 
 	// Then emit native
 	outputDir := filepath.Join(tmpDir, "output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -309,7 +309,7 @@ func testRoundTrip(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 
 	// Extract IR
 	irDir := filepath.Join(tmpDir, "ir-roundtrip")
-	if err := os.MkdirAll(irDir, 0755); err != nil {
+	if err := os.MkdirAll(irDir, 0700); err != nil {
 		t.Fatalf("failed to create ir dir: %v", err)
 	}
 
@@ -320,7 +320,7 @@ func testRoundTrip(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 
 	// Emit native
 	outputDir := filepath.Join(tmpDir, "roundtrip-output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -517,7 +517,7 @@ func makeTestIngestHandler(cfg *format.Config) func(map[string]interface{}) (int
 
 		// Store blob
 		blobDir := filepath.Join(outputDir, hashStr[:2])
-		if err := os.MkdirAll(blobDir, 0755); err != nil {
+		if err := os.MkdirAll(blobDir, 0700); err != nil {
 			return nil, err
 		}
 

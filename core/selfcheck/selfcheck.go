@@ -309,7 +309,7 @@ func (e *Executor) executeRunToolStep(step *RunToolStep) error {
 
 	// Prepare input directory
 	inputDir := filepath.Join(e.tempDir, step.OutputKey+"_inputs")
-	if err := os.MkdirAll(inputDir, 0755); err != nil {
+	if err := os.MkdirAll(inputDir, 0700); err != nil {
 		return fmt.Errorf("failed to create input dir: %w", err)
 	}
 
@@ -338,7 +338,7 @@ func (e *Executor) executeRunToolStep(step *RunToolStep) error {
 
 	// Create output directory
 	outputDir := filepath.Join(e.tempDir, step.OutputKey+"_output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
 
@@ -397,7 +397,7 @@ func (e *Executor) executeExtractIRStep(step *ExtractIRStep) error {
 
 	// Output directory for IR
 	irOutputDir := filepath.Join(e.tempDir, step.OutputKey+"_ir")
-	if err := os.MkdirAll(irOutputDir, 0755); err != nil {
+	if err := os.MkdirAll(irOutputDir, 0700); err != nil {
 		return fmt.Errorf("failed to create IR output dir: %w", err)
 	}
 
@@ -448,7 +448,7 @@ func (e *Executor) executeEmitNativeStep(step *EmitNativeStep) error {
 
 	// Output directory for native format
 	nativeOutputDir := filepath.Join(e.tempDir, step.OutputKey+"_native")
-	if err := os.MkdirAll(nativeOutputDir, 0755); err != nil {
+	if err := os.MkdirAll(nativeOutputDir, 0700); err != nil {
 		return fmt.Errorf("failed to create native output dir: %w", err)
 	}
 

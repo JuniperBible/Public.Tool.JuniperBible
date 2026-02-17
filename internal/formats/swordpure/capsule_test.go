@@ -121,7 +121,7 @@ func TestCreateTarGZ(t *testing.T) {
 
 	// Create source directory with test files
 	srcDir := filepath.Join(tmpDir, "source")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 
@@ -182,7 +182,7 @@ func TestCreateModuleCapsule(t *testing.T) {
 
 	// Create output directory
 	outputDir := filepath.Join(tmpDir, "output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -207,7 +207,7 @@ func TestCreateModuleCapsuleConfNotFound(t *testing.T) {
 
 	// Create empty SWORD structure (no conf file)
 	modsDir := filepath.Join(tmpDir, "sword", "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -229,10 +229,10 @@ func TestCreateModuleCapsuleCaseInsensitiveConf(t *testing.T) {
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	dataDir := filepath.Join(tmpDir, "modules", "texts", "ztext", "testmod")
 
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 
@@ -272,7 +272,7 @@ func TestCreateModuleCapsuleNoDataPath(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -305,7 +305,7 @@ func TestExtractIRToCapsule(t *testing.T) {
 
 	// Create IR output directory
 	irDir := filepath.Join(tmpDir, "ir")
-	if err := os.MkdirAll(irDir, 0755); err != nil {
+	if err := os.MkdirAll(irDir, 0700); err != nil {
 		t.Fatalf("failed to create ir dir: %v", err)
 	}
 
@@ -332,7 +332,7 @@ func TestCreateTarGZWithSubdirectory(t *testing.T) {
 	// Create source directory with subdirectory
 	srcDir := filepath.Join(tmpDir, "source")
 	subDir := filepath.Join(srcDir, "subdir")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, 0700); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
 
@@ -398,7 +398,7 @@ func TestRunListCmdNoBibles(t *testing.T) {
 
 	// Create mods.d with a non-Bible module
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -434,7 +434,7 @@ func TestRunListCmdWithLongDescription(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -472,7 +472,7 @@ func TestRunListCmdWithEncryptedModule(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -722,7 +722,7 @@ func TestRunIngestCmdNoBibles(t *testing.T) {
 
 	// Create mods.d with only a non-Bible module
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -754,7 +754,7 @@ func TestRunIngestCmdEncryptedModule(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -840,10 +840,10 @@ func TestCreateModuleCapsuleShortDataPath(t *testing.T) {
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	dataDir := filepath.Join(tmpDir, "d") // Short data path
 
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 
@@ -880,7 +880,7 @@ func TestCreateModuleCapsuleDataPathNotFound(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -914,7 +914,7 @@ func TestCreateTarGZWithXZExtension(t *testing.T) {
 
 	// Create source directory with test files
 	srcDir := filepath.Join(tmpDir, "source")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 
@@ -945,7 +945,7 @@ func TestCreateTarGZWithNoExtension(t *testing.T) {
 
 	// Create source directory with test files
 	srcDir := filepath.Join(tmpDir, "source")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 
@@ -976,7 +976,7 @@ func TestRunIngestCmdWithCreateCapsuleError(t *testing.T) {
 
 	// Create a mock module that will fail during capsule creation
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -1072,10 +1072,10 @@ func TestExtractIRToCapsuleWithEmptyModule(t *testing.T) {
 	// Create conf with valid path but empty data (OpenZTextModule will succeed but corpus extraction may fail)
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	dataDir := filepath.Join(tmpDir, "modules", "texts", "ztext", "emptymod")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
 
@@ -1095,7 +1095,7 @@ Lang=en
 	}
 
 	irDir := filepath.Join(tmpDir, "ir")
-	if err := os.MkdirAll(irDir, 0755); err != nil {
+	if err := os.MkdirAll(irDir, 0700); err != nil {
 		t.Fatalf("failed to create ir dir: %v", err)
 	}
 

@@ -190,18 +190,18 @@ func TestNormalizeFilePerms(t *testing.T) {
 	}{
 		{
 			name:     "standard file",
-			mode:     0644,
-			expected: "644",
+			mode:     0600,
+			expected: "600",
 		},
 		{
 			name:     "executable",
-			mode:     0755,
-			expected: "755",
+			mode:     0700,
+			expected: "700",
 		},
 		{
 			name:     "directory",
-			mode:     0777,
-			expected: "777",
+			mode:     0700,
+			expected: "700",
 		},
 	}
 

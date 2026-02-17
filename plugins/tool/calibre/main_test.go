@@ -91,7 +91,7 @@ func TestConvertProfile(t *testing.T) {
 
 	// Run plugin
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	cmd := exec.Command("./tool-calibre", "run", "--request", reqFile, "--out", outDir)
 	cmd.Dir = pluginDir(t)
@@ -157,7 +157,7 @@ func TestCreateEpubProfile(t *testing.T) {
 
 	// Run plugin
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	cmd := exec.Command("./tool-calibre", "run", "--request", reqFile, "--out", outDir)
 	cmd.Dir = pluginDir(t)
@@ -211,7 +211,7 @@ func TestListFormatsProfile(t *testing.T) {
 
 	// Run plugin
 	outDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(outDir, 0755)
+	os.MkdirAll(outDir, 0700)
 
 	cmd := exec.Command("./tool-calibre", "run", "--request", reqFile, "--out", outDir)
 	cmd.Dir = pluginDir(t)
@@ -255,7 +255,7 @@ func TestTranscriptDeterminism(t *testing.T) {
 		os.WriteFile(reqFile, reqData, 0600)
 
 		outDir := filepath.Join(tempDir, "output", string(rune('0'+i)))
-		os.MkdirAll(outDir, 0755)
+		os.MkdirAll(outDir, 0700)
 
 		cmd := exec.Command("./tool-calibre", "run", "--request", reqFile, "--out", outDir)
 		cmd.Dir = pluginDir(t)

@@ -121,7 +121,7 @@ func TestFormatFileIngest(t *testing.T) {
 	}
 
 	outputDir := filepath.Join(tempDir, "output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -342,7 +342,7 @@ func TestFormatDirEnumerate(t *testing.T) {
 	// Create some files and subdirs
 	os.WriteFile(filepath.Join(tempDir, "a.txt"), []byte("a"), 0600)
 	os.WriteFile(filepath.Join(tempDir, "b.txt"), []byte("b"), 0600)
-	os.MkdirAll(filepath.Join(tempDir, "subdir"), 0755)
+	os.MkdirAll(filepath.Join(tempDir, "subdir"), 0700)
 	os.WriteFile(filepath.Join(tempDir, "subdir", "c.txt"), []byte("c"), 0600)
 
 	pluginDir := ensurePluginBuilt(t, "format-dir")

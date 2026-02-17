@@ -63,7 +63,7 @@ func (c *Capsule) exportIdentity(artifact *Artifact, destPath string) error {
 	}
 
 	// Ensure parent directory exists
-	if err := osMkdirAllExport(filepath.Dir(destPath), 0755); err != nil {
+	if err := osMkdirAllExport(filepath.Dir(destPath), 0700); err != nil {
 		return fmt.Errorf("failed to create parent directory: %w", err)
 	}
 
@@ -182,7 +182,7 @@ func (c *Capsule) ExportDerived(artifactID string, opts DerivedExportOptions, de
 
 	// Step 1: Extract IR from source
 	irDir := filepath.Join(tempDir, "ir")
-	if err := osMkdirAllExport(irDir, 0755); err != nil {
+	if err := osMkdirAllExport(irDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create IR dir: %w", err)
 	}
 
@@ -193,7 +193,7 @@ func (c *Capsule) ExportDerived(artifactID string, opts DerivedExportOptions, de
 
 	// Step 2: Emit native format from IR
 	outputDir := filepath.Join(tempDir, "output")
-	if err := osMkdirAllExport(outputDir, 0755); err != nil {
+	if err := osMkdirAllExport(outputDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create output dir: %w", err)
 	}
 
@@ -203,7 +203,7 @@ func (c *Capsule) ExportDerived(artifactID string, opts DerivedExportOptions, de
 	}
 
 	// Move output to destination
-	if err := osMkdirAllExport(filepath.Dir(destPath), 0755); err != nil {
+	if err := osMkdirAllExport(filepath.Dir(destPath), 0700); err != nil {
 		return nil, fmt.Errorf("failed to create destination dir: %w", err)
 	}
 

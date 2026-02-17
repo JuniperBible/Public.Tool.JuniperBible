@@ -533,14 +533,14 @@ func ExtractZipArchive(data []byte, destDir string) error {
 		}
 
 		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(destPath, 0755); err != nil {
+			if err := os.MkdirAll(destPath, 0700); err != nil {
 				return fmt.Errorf("creating directory: %w", err)
 			}
 			continue
 		}
 
 		// Create parent directory
-		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(destPath), 0700); err != nil {
 			return fmt.Errorf("creating parent directory: %w", err)
 		}
 

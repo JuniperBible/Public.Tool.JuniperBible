@@ -108,7 +108,7 @@ func (h *Handler) Ingest(path, outputDir string) (*plugins.IngestResult, error) 
 	hashHex := hex.EncodeToString(hash[:])
 
 	blobDir := filepath.Join(outputDir, hashHex[:2])
-	if err := os.MkdirAll(blobDir, 0755); err != nil {
+	if err := os.MkdirAll(blobDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create blob dir: %w", err)
 	}
 
@@ -151,7 +151,7 @@ func (h *Handler) Enumerate(path string) (*plugins.EnumerateResult, error) {
 // ExtractIR implements EmbeddedFormatHandler.ExtractIR.
 func (h *Handler) ExtractIR(path, outputDir string) (*plugins.ExtractIRResult, error) {
 	// Create output directory
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create output dir: %w", err)
 	}
 

@@ -14,7 +14,7 @@ func TestCreateTarGz(t *testing.T) {
 
 	// Create source directory structure
 	srcDir := filepath.Join(tempDir, "src")
-	if err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0600); err != nil {
@@ -59,7 +59,7 @@ func TestCreateTarGz_NoParentDir(t *testing.T) {
 
 	// Create source directory
 	srcDir := filepath.Join(tempDir, "src")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("test"), 0600); err != nil {
@@ -79,7 +79,7 @@ func TestCreateTarGz_EmptyDir(t *testing.T) {
 
 	// Create empty source directory
 	srcDir := filepath.Join(tempDir, "empty")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 
@@ -100,7 +100,7 @@ func TestCreateCapsuleTarGz(t *testing.T) {
 
 	// Create source directory
 	srcDir := filepath.Join(tempDir, "mycapsule")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(srcDir, "manifest.json"), []byte("{}"), 0600); err != nil {
@@ -141,7 +141,7 @@ func TestCreateCapsuleTarGzFromPath(t *testing.T) {
 
 	// Create source directory
 	srcDir := filepath.Join(tempDir, "srcdata")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(srcDir, "manifest.json"), []byte("{}"), 0600); err != nil {
@@ -206,7 +206,7 @@ func TestCreateTarGz_InvalidDestination(t *testing.T) {
 
 	// Create source directory
 	srcDir := filepath.Join(tempDir, "src")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("test"), 0600); err != nil {
@@ -232,13 +232,13 @@ func TestCreateTarGz_FileOpenError(t *testing.T) {
 
 	// Create source directory with a file we can't open
 	srcDir := filepath.Join(tempDir, "src")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 
 	// Create a subdirectory with a file
 	subDir := filepath.Join(srcDir, "subdir")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, 0700); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
 	testFile := filepath.Join(subDir, "test.txt")
@@ -250,7 +250,7 @@ func TestCreateTarGz_FileOpenError(t *testing.T) {
 	if err := os.Chmod(testFile, 0000); err != nil {
 		t.Fatalf("failed to chmod file: %v", err)
 	}
-	defer os.Chmod(testFile, 0644) // cleanup
+	defer os.Chmod(testFile, 0600) // cleanup
 
 	dstPath := filepath.Join(tempDir, "test.tar.gz")
 	err := CreateTarGz(srcDir, dstPath, "test", false)
@@ -265,7 +265,7 @@ func TestCreateTarGz_DeepNesting(t *testing.T) {
 	// Create source directory with deeply nested structure
 	srcDir := filepath.Join(tempDir, "src")
 	deepDir := filepath.Join(srcDir, "a", "b", "c", "d", "e")
-	if err := os.MkdirAll(deepDir, 0755); err != nil {
+	if err := os.MkdirAll(deepDir, 0700); err != nil {
 		t.Fatalf("failed to create nested dir: %v", err)
 	}
 
@@ -298,10 +298,10 @@ func TestCreateTarGz_WithMultipleFiles(t *testing.T) {
 
 	// Create source directory with multiple files and directories
 	srcDir := filepath.Join(tempDir, "src")
-	if err := os.MkdirAll(filepath.Join(srcDir, "dir1"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(srcDir, "dir1"), 0700); err != nil {
 		t.Fatalf("failed to create dir1: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(srcDir, "dir2"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(srcDir, "dir2"), 0700); err != nil {
 		t.Fatalf("failed to create dir2: %v", err)
 	}
 

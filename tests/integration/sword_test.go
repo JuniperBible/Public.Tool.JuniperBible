@@ -141,7 +141,7 @@ func TestOsis2ModCreateModule(t *testing.T) {
 
 	// Create output directory
 	modPath := filepath.Join(tempDir, "modules", "texts", "ztext", "testmod")
-	if err := os.MkdirAll(modPath, 0755); err != nil {
+	if err := os.MkdirAll(modPath, 0700); err != nil {
 		t.Fatalf("failed to create module dir: %v", err)
 	}
 

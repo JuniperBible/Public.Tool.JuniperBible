@@ -191,12 +191,12 @@ func selectSpecificModules(modules []*Module, names []string) []*Module {
 
 // setupOutputDirectories creates the necessary output directories.
 func setupOutputDirectories(output string) (string, error) {
-	if err := os.MkdirAll(output, 0755); err != nil {
+	if err := os.MkdirAll(output, 0700); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	auxDir := filepath.Join(output, "bibles_auxiliary")
-	if err := os.MkdirAll(auxDir, 0755); err != nil {
+	if err := os.MkdirAll(auxDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create auxiliary directory: %w", err)
 	}
 

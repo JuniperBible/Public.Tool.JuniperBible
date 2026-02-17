@@ -183,7 +183,7 @@ func Ingest(cfg IngestConfig) error {
 	}
 
 	// Create output directory
-	if err := os.MkdirAll(cfg.Output, 0755); err != nil {
+	if err := os.MkdirAll(cfg.Output, 0700); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -245,7 +245,7 @@ func IngestModule(swordPath string, module *Module, outputPath string) error {
 	// Create capsule structure
 	capsuleDir := filepath.Join(tempDir, "capsule")
 	modsDir := filepath.Join(capsuleDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create mods.d: %w", err)
 	}
 
@@ -257,7 +257,7 @@ func IngestModule(swordPath string, module *Module, outputPath string) error {
 
 	// Copy module data
 	destDataPath := filepath.Join(capsuleDir, dataPath)
-	if err := os.MkdirAll(filepath.Dir(destDataPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destDataPath), 0700); err != nil {
 		return fmt.Errorf("failed to create data dir: %w", err)
 	}
 	if err := fileutil.CopyDir(fullDataPath, destDataPath); err != nil {
@@ -336,7 +336,7 @@ func Install(cfg InstallConfig) error {
 	}
 
 	// Create output directory
-	if err := os.MkdirAll(cfg.Output, 0755); err != nil {
+	if err := os.MkdirAll(cfg.Output, 0700); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -409,7 +409,7 @@ func GenerateIRForCapsule(capsulePath string, pluginsDir string) error {
 
 	// Extract IR
 	irDir := filepath.Join(tempDir, "ir")
-	os.MkdirAll(irDir, 0755)
+	os.MkdirAll(irDir, 0700)
 
 	sourcePlugin, err := loader.GetPlugin("format." + sourceFormat)
 	if err != nil {
@@ -590,13 +590,13 @@ func extractCorpusMetadata(corpus *ir.Corpus, moduleName string) swordModuleMeta
 // createSwordModuleStructure creates the SWORD module directories and conf file.
 func createSwordModuleStructure(outputDir, moduleName string, meta swordModuleMeta) (confPath, dataPath string, err error) {
 	modsDir := filepath.Join(outputDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return "", "", fmt.Errorf("failed to create mods.d: %w", err)
 	}
 
 	dataPath = filepath.Join("modules", "texts", "ztext", strings.ToLower(moduleName))
 	fullDataPath := filepath.Join(outputDir, dataPath)
-	if err := os.MkdirAll(fullDataPath, 0755); err != nil {
+	if err := os.MkdirAll(fullDataPath, 0700); err != nil {
 		return "", "", fmt.Errorf("failed to create data directory: %w", err)
 	}
 

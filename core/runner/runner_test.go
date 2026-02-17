@@ -457,7 +457,7 @@ func TestCollectResults(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	outDir := filepath.Join(tempDir, "out")
-	if err := os.MkdirAll(outDir, 0755); err != nil {
+	if err := os.MkdirAll(outDir, 0700); err != nil {
 		t.Fatalf("failed to create out dir: %v", err)
 	}
 
@@ -508,7 +508,7 @@ func TestCollectResultsEmpty(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	outDir := filepath.Join(tempDir, "out")
-	if err := os.MkdirAll(outDir, 0755); err != nil {
+	if err := os.MkdirAll(outDir, 0700); err != nil {
 		t.Fatalf("failed to create out dir: %v", err)
 	}
 

@@ -702,7 +702,7 @@ func (c *RunCmd) Run() error {
 		if err != nil {
 			return fmt.Errorf("failed to resolve output directory path: %w", err)
 		}
-		if err := os.MkdirAll(outDir, 0755); err != nil {
+		if err := os.MkdirAll(outDir, 0700); err != nil {
 			return fmt.Errorf("failed to create output directory: %w", err)
 		}
 	}
@@ -820,7 +820,7 @@ func (c *ToolRunCmd) Run() error {
 
 	// Export artifact to temp directory for tool input
 	inputPath := filepath.Join(tempDir, "input", artifact.OriginalName)
-	if err := os.MkdirAll(filepath.Dir(inputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(inputPath), 0700); err != nil {
 		return fmt.Errorf("failed to create input dir: %w", err)
 	}
 	if err := cap.Export(artifactID, capsule.ExportModeIdentity, inputPath); err != nil {
@@ -1256,7 +1256,7 @@ func (c *ExtractIRCmd) Run() error {
 		return fmt.Errorf("failed to read IR: %w", err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0700); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
 	if err := os.WriteFile(outputPath, irData, 0600); err != nil {
@@ -1328,7 +1328,7 @@ func (c *EmitNativeCmd) Run() error {
 		return fmt.Errorf("failed to read output: %w", err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0700); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
 	if err := os.WriteFile(outputPath, outputData, 0600); err != nil {
@@ -1414,7 +1414,7 @@ func (c *ConvertCmd) Run() error {
 	// Step 1: Extract IR from source
 	fmt.Println("Step 1: Extracting IR from source...")
 	irDir := filepath.Join(tempDir, "ir")
-	os.MkdirAll(irDir, 0755)
+	os.MkdirAll(irDir, 0700)
 
 	extractReq := plugins.NewExtractIRRequest(inputPath, irDir)
 	extractResp, err := plugins.ExecutePlugin(sourcePlugin, extractReq)
@@ -1435,7 +1435,7 @@ func (c *ConvertCmd) Run() error {
 	// Step 2: Emit native format from IR
 	fmt.Println("\nStep 2: Emitting native format...")
 	emitDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(emitDir, 0755)
+	os.MkdirAll(emitDir, 0700)
 
 	emitReq := plugins.NewEmitNativeRequest(extractResult.IRPath, emitDir)
 	emitResp, err := plugins.ExecutePlugin(targetPlugin, emitReq)
@@ -1459,7 +1459,7 @@ func (c *ConvertCmd) Run() error {
 		return fmt.Errorf("failed to read output: %w", err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0700); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
 	if err := os.WriteFile(outputPath, outputData, 0600); err != nil {
@@ -1769,7 +1769,7 @@ func (c *JuniperIngestCmd) Run() error {
 	}
 
 	// Create output directory
-	if err := os.MkdirAll(c.Output, 0755); err != nil {
+	if err := os.MkdirAll(c.Output, 0700); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -1874,7 +1874,7 @@ func (c *JuniperInstallCmd) Run() error {
 	}
 
 	// Create output directory
-	if err := os.MkdirAll(c.Output, 0755); err != nil {
+	if err := os.MkdirAll(c.Output, 0700); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -2018,7 +2018,7 @@ func ingestSwordModule(swordPath string, module *juniperModule, outputPath strin
 	// Create capsule structure
 	capsuleDir := filepath.Join(tempDir, "capsule")
 	modsDir := filepath.Join(capsuleDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create mods.d: %w", err)
 	}
 
@@ -2030,7 +2030,7 @@ func ingestSwordModule(swordPath string, module *juniperModule, outputPath strin
 
 	// Copy module data
 	destDataPath := filepath.Join(capsuleDir, dataPath)
-	if err := os.MkdirAll(filepath.Dir(destDataPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destDataPath), 0700); err != nil {
 		return fmt.Errorf("failed to create data dir: %w", err)
 	}
 	if err := fileutil.CopyDir(fullDataPath, destDataPath); err != nil {
@@ -2155,7 +2155,7 @@ func (c *JuniperCASToSwordCmd) Run() error {
 
 	// Ensure output directories exist
 	modsDir := filepath.Join(outputDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create mods.d: %w", err)
 	}
 
@@ -2163,7 +2163,7 @@ func (c *JuniperCASToSwordCmd) Run() error {
 	// This creates a zText format module structure
 	dataPath := filepath.Join("modules", "texts", "ztext", strings.ToLower(moduleName))
 	fullDataPath := filepath.Join(outputDir, dataPath)
-	if err := os.MkdirAll(fullDataPath, 0755); err != nil {
+	if err := os.MkdirAll(fullDataPath, 0700); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
 
@@ -2267,7 +2267,7 @@ func (c *CapsuleConvertCmd) Run() error {
 	// Step 1: Extract IR
 	fmt.Println("Step 1: Extracting IR...")
 	irDir := filepath.Join(tempDir, "ir")
-	os.MkdirAll(irDir, 0755)
+	os.MkdirAll(irDir, 0700)
 
 	sourcePlugin, err := loader.GetPlugin("format." + sourceFormat)
 	if err != nil {
@@ -2294,7 +2294,7 @@ func (c *CapsuleConvertCmd) Run() error {
 	}
 
 	emitDir := filepath.Join(tempDir, "output")
-	os.MkdirAll(emitDir, 0755)
+	os.MkdirAll(emitDir, 0700)
 
 	emitReq := plugins.NewEmitNativeRequest(extractResult.IRPath, emitDir)
 	emitResp, err := plugins.ExecutePlugin(targetPlugin, emitReq)
@@ -2311,7 +2311,7 @@ func (c *CapsuleConvertCmd) Run() error {
 	// Step 3: Create new capsule
 	fmt.Println("Step 3: Creating new capsule...")
 	newCapsuleDir := filepath.Join(tempDir, "new-capsule")
-	os.MkdirAll(newCapsuleDir, 0755)
+	os.MkdirAll(newCapsuleDir, 0700)
 
 	// Copy converted output
 	outputData, err := safefile.ReadFile(emitResult.OutputPath)
@@ -2415,7 +2415,7 @@ func (c *GenerateIRCmd) Run() error {
 	// Extract IR
 	fmt.Println("Extracting IR...")
 	irDir := filepath.Join(tempDir, "ir")
-	os.MkdirAll(irDir, 0755)
+	os.MkdirAll(irDir, 0700)
 
 	sourcePlugin, err := loader.GetPlugin("format." + sourceFormat)
 	if err != nil {
@@ -2539,11 +2539,11 @@ func extractCapsuleArchive(capsulePath, destDir string) error {
 		destPath := filepath.Join(destDir, name)
 
 		if header.FileInfo().IsDir() {
-			os.MkdirAll(destPath, 0755)
+			os.MkdirAll(destPath, 0700)
 			continue
 		}
 
-		os.MkdirAll(filepath.Dir(destPath), 0755)
+		os.MkdirAll(filepath.Dir(destPath), 0700)
 		outFile, err := os.Create(destPath)
 		if err != nil {
 			return err
@@ -3093,7 +3093,7 @@ func runCapsuleTest(capsulePath, goldenDir, name string) (bool, error) {
 	if _, err := os.Stat(goldenPath); errors.Is(err, os.ErrNotExist) {
 		// No golden file - create one
 		reportJSON, _ := report.ToJSON()
-		os.MkdirAll(goldenDir, 0755)
+		os.MkdirAll(goldenDir, 0700)
 		os.WriteFile(goldenPath, reportJSON, 0600)
 		fmt.Printf("  [NEW]  %s: created golden file\n", name)
 		return true, nil
@@ -3149,7 +3149,7 @@ func runIngestTest(inputPath, goldenDir, name string) (bool, error) {
 	goldenPath := filepath.Join(goldenDir, name+".sha256")
 	if _, err := os.Stat(goldenPath); errors.Is(err, os.ErrNotExist) {
 		// Create golden
-		os.MkdirAll(goldenDir, 0755)
+		os.MkdirAll(goldenDir, 0700)
 		os.WriteFile(goldenPath, []byte(artifact.Hashes.SHA256+"\n"), 0600)
 		fmt.Printf("  [NEW]  %s: created golden hash\n", name)
 		return true, nil

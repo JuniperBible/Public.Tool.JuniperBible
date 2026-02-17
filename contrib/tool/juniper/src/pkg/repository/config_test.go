@@ -27,8 +27,8 @@ func TestLocalConfig_Load(t *testing.T) {
 	// Create a mock .sword directory structure
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	modulesDir := filepath.Join(tmpDir, "modules")
-	os.MkdirAll(modsDir, 0755)
-	os.MkdirAll(modulesDir, 0755)
+	os.MkdirAll(modsDir, 0700)
+	os.MkdirAll(modulesDir, 0700)
 
 	// Create a sample conf file
 	confContent := `[KJV]
@@ -61,7 +61,7 @@ func TestLocalConfig_Load_NonExistent(t *testing.T) {
 func TestLocalConfig_ListInstalledModules(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Create multiple conf files
 	confs := map[string]string{
@@ -102,7 +102,7 @@ Description=Douay-Rheims
 func TestLocalConfig_GetInstalledModule(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	confContent := `[KJV]
 DataPath=./modules/texts/ztext/kjv/
@@ -132,7 +132,7 @@ Version=2.5
 func TestLocalConfig_GetInstalledModule_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -149,7 +149,7 @@ func TestLocalConfig_GetInstalledModule_NotFound(t *testing.T) {
 func TestLocalConfig_IsModuleInstalled(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	confContent := `[KJV]
 DataPath=./modules/texts/ztext/kjv/
@@ -175,7 +175,7 @@ ModDrv=zText
 func TestLocalConfig_ModsDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -192,7 +192,7 @@ func TestLocalConfig_ModsDir(t *testing.T) {
 func TestLocalConfig_ModulesDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -233,7 +233,7 @@ func TestLocalConfig_EnsureDirectories(t *testing.T) {
 func TestLocalConfig_SaveInstallConf(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -260,7 +260,7 @@ func TestLocalConfig_SaveInstallConf(t *testing.T) {
 func TestLocalConfig_LoadInstallConf(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Create install.conf
 	confContent := `[General]
@@ -292,7 +292,7 @@ FTPSource=ftp.ebible.org|/sword|eBible.org
 func TestLocalConfig_LoadInstallConf_NoFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -314,7 +314,7 @@ func TestLocalConfig_LoadInstallConf_NoFile(t *testing.T) {
 func TestLocalConfig_GetModuleDataPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -344,7 +344,7 @@ func TestNewLocalConfig(t *testing.T) {
 func TestLocalConfig_ListInstalledModules_Empty(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	cfg, err := LoadLocalConfig(tmpDir)
 	if err != nil {
@@ -365,13 +365,13 @@ func TestLocalConfig_ListInstalledModules_Empty(t *testing.T) {
 func TestLocalConfig_ListInstalledModules_SkipsInvalid(t *testing.T) {
 	tmpDir := t.TempDir()
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Create valid and invalid conf files
 	os.WriteFile(filepath.Join(modsDir, "kjv.conf"), []byte(`[KJV]
 DataPath=./modules/texts/ztext/kjv/
 ModDrv=zText
-`), 0644)
+`), 0600)
 	os.WriteFile(filepath.Join(modsDir, "invalid.conf"), []byte("invalid content"), 0600)
 	os.WriteFile(filepath.Join(modsDir, "empty.conf"), []byte(""), 0600)
 

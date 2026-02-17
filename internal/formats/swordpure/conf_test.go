@@ -184,7 +184,7 @@ func TestFindConfFiles(t *testing.T) {
 
 	// Create a subdirectory (should be ignored)
 	subDir := filepath.Join(tmpDir, "subdir.conf")
-	if err := os.Mkdir(subDir, 0755); err != nil {
+	if err := os.Mkdir(subDir, 0700); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
 
@@ -215,7 +215,7 @@ func TestLoadModulesFromPath(t *testing.T) {
 
 	// Create mods.d directory
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.Mkdir(modsDir, 0755); err != nil {
+	if err := os.Mkdir(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 

@@ -1231,7 +1231,7 @@ func TestGenerator_WriteJSON_FilePermissions(t *testing.T) {
 	if err := os.MkdirAll(readOnlyDir, 0555); err != nil {
 		t.Fatalf("Failed to create read-only dir: %v", err)
 	}
-	defer os.Chmod(readOnlyDir, 0755)
+	defer os.Chmod(readOnlyDir, 0700)
 
 	gen := NewGenerator(readOnlyDir, "chapter")
 

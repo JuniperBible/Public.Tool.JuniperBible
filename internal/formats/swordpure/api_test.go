@@ -15,7 +15,7 @@ func TestListModules(t *testing.T) {
 
 	// Create a mock SWORD installation
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -86,7 +86,7 @@ func TestListModulesEmpty(t *testing.T) {
 
 	// Create empty mods.d directory
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -254,7 +254,7 @@ func TestDetectNoConfFiles(t *testing.T) {
 
 	// Create empty mods.d directory
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -312,7 +312,7 @@ func TestRenderVerseUnsupportedModuleType(t *testing.T) {
 
 	// Create a mock module with unsupported type (RawText)
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -341,7 +341,7 @@ func TestRenderAllUnsupportedModuleType(t *testing.T) {
 
 	// Create a mock module with unsupported type (RawText)
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -370,7 +370,7 @@ func TestDetectInvalidConfFile(t *testing.T) {
 
 	// Create mods.d with invalid conf file
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 

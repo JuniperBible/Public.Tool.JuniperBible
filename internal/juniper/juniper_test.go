@@ -281,7 +281,7 @@ func TestListModules(t *testing.T) {
 	t.Run("empty mods.d directory", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		modules, err := ListModules(tempDir)
 		if err != nil {
@@ -295,7 +295,7 @@ func TestListModules(t *testing.T) {
 	t.Run("with Bible modules", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		// Create Bible module
 		kjvConf := []byte(`[KJV]
@@ -327,13 +327,13 @@ ModDrv=RawCom`)
 	t.Run("skips non-.conf files", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		// Create non-.conf file
 		os.WriteFile(filepath.Join(modsDir, "readme.txt"), []byte("hello"), 0600)
 
 		// Create subdirectory
-		os.Mkdir(filepath.Join(modsDir, "subdir"), 0755)
+		os.Mkdir(filepath.Join(modsDir, "subdir"), 0700)
 
 		modules, err := ListModules(tempDir)
 		if err != nil {
@@ -358,7 +358,7 @@ func TestList(t *testing.T) {
 	t.Run("successful list", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		// Create a Bible module
 		kjvConf := []byte(`[KJV]
@@ -395,7 +395,7 @@ func TestIngest(t *testing.T) {
 	t.Run("no modules found", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		cfg := IngestConfig{
 			Path:   tempDir,
@@ -411,7 +411,7 @@ func TestIngest(t *testing.T) {
 	t.Run("no modules specified", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		// Create a module
 		kjvConf := []byte(`[KJV]
@@ -436,7 +436,7 @@ ModDrv=zText`)
 	t.Run("module not found", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		// Create a module
 		kjvConf := []byte(`[KJV]
@@ -461,7 +461,7 @@ func TestIngestModule(t *testing.T) {
 	t.Run("missing DataPath", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		confPath := filepath.Join(modsDir, "test.conf")
 		confData := []byte(`[TEST]
@@ -486,7 +486,7 @@ ModDrv=zText`)
 	t.Run("data path not found", func(t *testing.T) {
 		tempDir := t.TempDir()
 		modsDir := filepath.Join(tempDir, "mods.d")
-		os.MkdirAll(modsDir, 0755)
+		os.MkdirAll(modsDir, 0700)
 
 		confPath := filepath.Join(modsDir, "test.conf")
 		confData := []byte(`[TEST]
@@ -635,7 +635,7 @@ Description=Test`,
 func TestIngest_EncryptedModule(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Create encrypted module
 	encConf := []byte(`[ENC]
@@ -648,7 +648,7 @@ DataPath=./modules/texts/ztext/enc/`)
 
 	// Create the data directory
 	dataDir := filepath.Join(tempDir, "modules", "texts", "ztext", "enc")
-	os.MkdirAll(dataDir, 0755)
+	os.MkdirAll(dataDir, 0700)
 	os.WriteFile(filepath.Join(dataDir, "ot.bzs"), []byte("data"), 0600)
 
 	cfg := IngestConfig{

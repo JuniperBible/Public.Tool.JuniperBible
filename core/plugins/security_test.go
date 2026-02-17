@@ -16,7 +16,7 @@ func TestValidatePluginPath(t *testing.T) {
 
 	// Create a valid plugin file
 	validPluginPath := filepath.Join(tmpDir, "test-plugin")
-	if err := os.WriteFile(validPluginPath, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+	if err := os.WriteFile(validPluginPath, []byte("#!/bin/sh\necho test"), 0700); err != nil {
 		t.Fatalf("failed to create test plugin: %v", err)
 	}
 
@@ -73,12 +73,12 @@ func TestValidatePluginPathWithRestrictions(t *testing.T) {
 
 	// Create plugin files
 	allowedPlugin := filepath.Join(allowedDir, "allowed-plugin")
-	if err := os.WriteFile(allowedPlugin, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+	if err := os.WriteFile(allowedPlugin, []byte("#!/bin/sh\necho test"), 0700); err != nil {
 		t.Fatalf("failed to create allowed plugin: %v", err)
 	}
 
 	disallowedPlugin := filepath.Join(disallowedDir, "disallowed-plugin")
-	if err := os.WriteFile(disallowedPlugin, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+	if err := os.WriteFile(disallowedPlugin, []byte("#!/bin/sh\necho test"), 0700); err != nil {
 		t.Fatalf("failed to create disallowed plugin: %v", err)
 	}
 
@@ -187,7 +187,7 @@ func TestSecureEntrypointPath(t *testing.T) {
 
 	// Create plugin executable
 	pluginPath := filepath.Join(tmpDir, "format-test")
-	if err := os.WriteFile(pluginPath, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+	if err := os.WriteFile(pluginPath, []byte("#!/bin/sh\necho test"), 0700); err != nil {
 		t.Fatalf("failed to create plugin: %v", err)
 	}
 
@@ -280,7 +280,7 @@ func TestValidatePluginPathSymlink(t *testing.T) {
 
 	// Create a real plugin file
 	realPath := filepath.Join(tmpDir, "real-plugin")
-	if err := os.WriteFile(realPath, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+	if err := os.WriteFile(realPath, []byte("#!/bin/sh\necho test"), 0700); err != nil {
 		t.Fatalf("failed to create real plugin: %v", err)
 	}
 
@@ -317,7 +317,7 @@ func TestValidatePluginPathSymlinkRestricted(t *testing.T) {
 
 	// Create a real plugin in disallowed directory
 	realPath := filepath.Join(disallowedDir, "real-plugin")
-	if err := os.WriteFile(realPath, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+	if err := os.WriteFile(realPath, []byte("#!/bin/sh\necho test"), 0700); err != nil {
 		t.Fatalf("failed to create real plugin: %v", err)
 	}
 
@@ -350,7 +350,7 @@ func TestValidatePluginPathDirectory(t *testing.T) {
 
 	// Create a subdirectory (not a regular file)
 	subDir := filepath.Join(tmpDir, "plugin-dir")
-	if err := os.Mkdir(subDir, 0755); err != nil {
+	if err := os.Mkdir(subDir, 0700); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
 
@@ -468,12 +468,12 @@ func TestValidatePluginDirectoryAbsError(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	validPlugin := filepath.Join(tmpDir, "test-plugin")
-	if err := os.WriteFile(validPlugin, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+	if err := os.WriteFile(validPlugin, []byte("#!/bin/sh\necho test"), 0700); err != nil {
 		t.Fatalf("failed to create plugin: %v", err)
 	}
 
 	allowedDir := filepath.Join(tmpDir, "allowed")
-	if err := os.MkdirAll(allowedDir, 0755); err != nil {
+	if err := os.MkdirAll(allowedDir, 0700); err != nil {
 		t.Fatalf("failed to create allowed dir: %v", err)
 	}
 
@@ -502,7 +502,7 @@ func TestValidatePluginDirectoryRelError(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	validPlugin := filepath.Join(tmpDir, "test-plugin")
-	if err := os.WriteFile(validPlugin, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+	if err := os.WriteFile(validPlugin, []byte("#!/bin/sh\necho test"), 0700); err != nil {
 		t.Fatalf("failed to create plugin: %v", err)
 	}
 
@@ -561,7 +561,7 @@ func TestValidatePluginPathLstatOtherError(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	pluginPath := filepath.Join(tmpDir, "test-plugin")
-	if err := os.WriteFile(pluginPath, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+	if err := os.WriteFile(pluginPath, []byte("#!/bin/sh\necho test"), 0700); err != nil {
 		t.Fatalf("failed to create plugin: %v", err)
 	}
 

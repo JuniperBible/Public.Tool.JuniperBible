@@ -52,7 +52,7 @@ func (s *Store) createBlake3Pointer(blake3Hash, sha256Hash string) error {
 	prefix := blake3Hash[:2]
 	pointerDir := filepath.Join(s.root, "blobs", "blake3", prefix)
 
-	if err := os.MkdirAll(pointerDir, 0755); err != nil {
+	if err := os.MkdirAll(pointerDir, 0700); err != nil {
 		return fmt.Errorf("failed to create blake3 directory: %w", err)
 	}
 

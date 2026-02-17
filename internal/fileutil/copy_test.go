@@ -67,7 +67,7 @@ func TestCopyDir(t *testing.T) {
 
 	// Create source directory structure
 	srcDir := filepath.Join(tempDir, "src")
-	if err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0600); err != nil {
@@ -103,7 +103,7 @@ func TestCopyDir_Empty(t *testing.T) {
 
 	// Create empty source directory
 	srcDir := filepath.Join(tempDir, "empty")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 
@@ -156,7 +156,7 @@ func TestCopyDir_DeepNesting(t *testing.T) {
 	// Create deeply nested structure
 	srcDir := filepath.Join(tempDir, "src")
 	deepPath := filepath.Join(srcDir, "a", "b", "c", "d", "e")
-	if err := os.MkdirAll(deepPath, 0755); err != nil {
+	if err := os.MkdirAll(deepPath, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(deepPath, "deep.txt"), []byte("deep"), 0600); err != nil {
@@ -204,7 +204,7 @@ func TestCopyDir_DestinationBlocked(t *testing.T) {
 
 	// Create source directory with content
 	srcDir := filepath.Join(tempDir, "src")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0600); err != nil {
@@ -230,7 +230,7 @@ func TestCopyDir_CopyFileError(t *testing.T) {
 	// Create source directory with a subdirectory
 	srcDir := filepath.Join(tempDir, "src")
 	subDir := filepath.Join(srcDir, "subdir")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, 0700); err != nil {
 		t.Fatalf("failed to create subdirectory: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(subDir, "file.txt"), []byte("content"), 0600); err != nil {
@@ -239,7 +239,7 @@ func TestCopyDir_CopyFileError(t *testing.T) {
 
 	// Create destination directory
 	dstDir := filepath.Join(tempDir, "dst")
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, 0700); err != nil {
 		t.Fatalf("failed to create dst dir: %v", err)
 	}
 
@@ -261,7 +261,7 @@ func TestCopyDir_ReadDirError(t *testing.T) {
 
 	// Create a directory
 	srcDir := filepath.Join(tempDir, "src")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 
@@ -274,7 +274,7 @@ func TestCopyDir_ReadDirError(t *testing.T) {
 	if err := os.Chmod(srcDir, 0000); err != nil {
 		t.Fatalf("failed to chmod: %v", err)
 	}
-	defer os.Chmod(srcDir, 0755) // Restore permissions for cleanup
+	defer os.Chmod(srcDir, 0700) // Restore permissions for cleanup
 
 	dstDir := filepath.Join(tempDir, "dst")
 	err := CopyDir(srcDir, dstDir)
@@ -398,7 +398,7 @@ func TestCopyFile_ExecutableBit(t *testing.T) {
 
 	// Create a source file with executable permissions
 	srcPath := filepath.Join(tempDir, "executable.sh")
-	if err := os.WriteFile(srcPath, []byte("#!/bin/sh\necho test"), 0755); err != nil {
+	if err := os.WriteFile(srcPath, []byte("#!/bin/sh\necho test"), 0700); err != nil {
 		t.Fatalf("failed to create source file: %v", err)
 	}
 
@@ -430,7 +430,7 @@ func TestCopyFile_OpenFileError(t *testing.T) {
 
 	// Create a directory where the destination file should be
 	dstPath := filepath.Join(tempDir, "dst.txt")
-	if err := os.Mkdir(dstPath, 0755); err != nil {
+	if err := os.Mkdir(dstPath, 0700); err != nil {
 		t.Fatalf("failed to create dst directory: %v", err)
 	}
 
@@ -446,7 +446,7 @@ func TestCopyDir_CopyFileInLoopError(t *testing.T) {
 
 	// Create source directory with a file
 	srcDir := filepath.Join(tempDir, "src")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(srcDir, "file.txt"), []byte("content"), 0600); err != nil {
@@ -455,13 +455,13 @@ func TestCopyDir_CopyFileInLoopError(t *testing.T) {
 
 	// Create destination directory
 	dstDir := filepath.Join(tempDir, "dst")
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, 0700); err != nil {
 		t.Fatalf("failed to create dst dir: %v", err)
 	}
 
 	// Create a directory where the destination file should be (will cause CopyFile to fail)
 	dstFilePath := filepath.Join(dstDir, "file.txt")
-	if err := os.Mkdir(dstFilePath, 0755); err != nil {
+	if err := os.Mkdir(dstFilePath, 0700); err != nil {
 		t.Fatalf("failed to create blocking directory: %v", err)
 	}
 

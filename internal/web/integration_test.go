@@ -39,9 +39,9 @@ func TestWebUIIntegration(t *testing.T) {
 	clearAllCaches()
 
 	// Create a minimal plugins directory
-	os.MkdirAll(filepath.Join(ServerConfig.PluginsDir, "format", "sword"), 0755)
+	os.MkdirAll(filepath.Join(ServerConfig.PluginsDir, "format", "sword"), 0700)
 	os.WriteFile(filepath.Join(ServerConfig.PluginsDir, "format", "sword", "plugin.json"),
-		[]byte(`{"plugin_id":"format.sword","version":"1.0.0","kind":"format","entrypoint":"format-sword"}`), 0644)
+		[]byte(`{"plugin_id":"format.sword","version":"1.0.0","kind":"format","entrypoint":"format-sword"}`), 0600)
 
 	// Setup routes
 	mux := http.NewServeMux()

@@ -61,7 +61,7 @@ func (pt *PluginTest) WriteFile(name, content string) string {
 
 	path := filepath.Join(pt.tempDir, name)
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		pt.t.Fatalf("failed to create directory %s: %v", dir, err)
 	}
 
@@ -99,7 +99,7 @@ func (pt *PluginTest) Ingest(path string) *ipc.IngestResult {
 	pt.t.Helper()
 
 	outputDir := filepath.Join(pt.tempDir, "blobs")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		pt.t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -130,7 +130,7 @@ func (pt *PluginTest) ExtractIR(path string) (*ipc.ExtractIRResult, *ir.Corpus) 
 	pt.t.Helper()
 
 	outputDir := filepath.Join(pt.tempDir, "ir")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		pt.t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -166,7 +166,7 @@ func (pt *PluginTest) EmitNative(irPath string) *ipc.EmitNativeResult {
 	pt.t.Helper()
 
 	outputDir := filepath.Join(pt.tempDir, "output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		pt.t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -346,7 +346,7 @@ func (pt *PluginTest) MkdirAll(path string) string {
 	pt.t.Helper()
 
 	fullPath := filepath.Join(pt.tempDir, path)
-	if err := os.MkdirAll(fullPath, 0755); err != nil {
+	if err := os.MkdirAll(fullPath, 0700); err != nil {
 		pt.t.Fatalf("failed to create directory %s: %v", fullPath, err)
 	}
 	return fullPath

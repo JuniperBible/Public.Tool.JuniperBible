@@ -226,7 +226,7 @@ func TestMakeEmitNativeHandler(t *testing.T) {
 	}
 
 	outputDir := filepath.Join(tmpDir, "output")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 

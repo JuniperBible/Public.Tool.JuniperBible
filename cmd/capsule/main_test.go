@@ -320,7 +320,7 @@ func TestPluginsCmd_Run(t *testing.T) {
 
 	// Create a minimal plugin directory
 	pluginDir := filepath.Join(tempDir, "plugins")
-	os.MkdirAll(pluginDir, 0755)
+	os.MkdirAll(pluginDir, 0700)
 
 	cmd := &PluginsListCmd{
 		Dir: pluginDir,
@@ -340,7 +340,7 @@ func TestDetectCmd_Run_NoMatchingFormat(t *testing.T) {
 
 	// Set plugin dir to empty directory - but embedded plugins are still available
 	CLI.PluginDir = filepath.Join(tempDir, "plugins")
-	os.MkdirAll(CLI.PluginDir, 0755)
+	os.MkdirAll(CLI.PluginDir, 0700)
 	defer func() { CLI.PluginDir = "" }()
 
 	cmd := &DetectCmd{
@@ -363,7 +363,7 @@ func TestEnumerateCmd_Run_NoMatchingPlugin(t *testing.T) {
 
 	// Set plugin dir to empty directory
 	CLI.PluginDir = filepath.Join(tempDir, "plugins")
-	os.MkdirAll(CLI.PluginDir, 0755)
+	os.MkdirAll(CLI.PluginDir, 0700)
 	defer func() { CLI.PluginDir = "" }()
 
 	cmd := &EnumerateCmd{
@@ -398,7 +398,7 @@ func TestTestCmd_Run(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			fixturesDir := filepath.Join(tempDir, "fixtures")
-			os.MkdirAll(fixturesDir, 0755)
+			os.MkdirAll(fixturesDir, 0700)
 
 			if tt.setupFn != nil {
 				tt.setupFn(t, fixturesDir)
@@ -516,7 +516,7 @@ func TestExtractIRCmd_Run_InvalidFormat(t *testing.T) {
 
 	// Set plugin dir
 	CLI.PluginDir = filepath.Join(tempDir, "plugins")
-	os.MkdirAll(CLI.PluginDir, 0755)
+	os.MkdirAll(CLI.PluginDir, 0700)
 	defer func() { CLI.PluginDir = "" }()
 
 	cmd := &ExtractIRCmd{
@@ -540,7 +540,7 @@ func TestEmitNativeCmd_Run_InvalidFormat(t *testing.T) {
 
 	// Set plugin dir
 	CLI.PluginDir = filepath.Join(tempDir, "plugins")
-	os.MkdirAll(CLI.PluginDir, 0755)
+	os.MkdirAll(CLI.PluginDir, 0700)
 	defer func() { CLI.PluginDir = "" }()
 
 	cmd := &EmitNativeCmd{
@@ -564,7 +564,7 @@ func TestConvertCmd_Run_WithEmbeddedPlugins(t *testing.T) {
 
 	// Even with empty external plugin dir, embedded plugins are available
 	CLI.PluginDir = filepath.Join(tempDir, "plugins")
-	os.MkdirAll(CLI.PluginDir, 0755)
+	os.MkdirAll(CLI.PluginDir, 0700)
 	defer func() { CLI.PluginDir = "" }()
 
 	cmd := &ConvertCmd{
@@ -668,7 +668,7 @@ func TestToolArchiveCmd_Run_InvalidBinary(t *testing.T) {
 func TestToolListCmd_Run(t *testing.T) {
 	tempDir := t.TempDir()
 	contribDir := filepath.Join(tempDir, "contrib", "tool")
-	os.MkdirAll(contribDir, 0755)
+	os.MkdirAll(contribDir, 0700)
 
 	cmd := &ToolListCmd{
 		ContribDir: contribDir,
@@ -710,7 +710,7 @@ func TestDocgenCmd_Run(t *testing.T) {
 			tempDir := t.TempDir()
 			outputDir := filepath.Join(tempDir, "docs")
 			pluginDir := filepath.Join(tempDir, "plugins")
-			os.MkdirAll(pluginDir, 0755)
+			os.MkdirAll(pluginDir, 0700)
 
 			// Set plugin dir
 			CLI.PluginDir = pluginDir
@@ -749,7 +749,7 @@ func TestJuniperListCmd_Run_WithSWORD(t *testing.T) {
 	tempDir := t.TempDir()
 	swordPath := filepath.Join(tempDir, "sword")
 	modsDir := filepath.Join(swordPath, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Create a sample conf file
 	confContent := `[KJV]
@@ -978,7 +978,7 @@ func TestCopyDirRecursive(t *testing.T) {
 			name: "copy nested directory",
 			setupFn: func(t *testing.T, srcDir string) {
 				subDir := filepath.Join(srcDir, "subdir")
-				os.MkdirAll(subDir, 0755)
+				os.MkdirAll(subDir, 0700)
 				createTestFile(t, srcDir, "root.txt", "root content")
 				createTestFile(t, subDir, "nested.txt", "nested content")
 			},
@@ -998,7 +998,7 @@ func TestCopyDirRecursive(t *testing.T) {
 			tempDir := t.TempDir()
 			srcDir := filepath.Join(tempDir, "src")
 			dstDir := filepath.Join(tempDir, "dst")
-			os.MkdirAll(srcDir, 0755)
+			os.MkdirAll(srcDir, 0700)
 
 			if tt.setupFn != nil {
 				tt.setupFn(t, srcDir)
@@ -1114,7 +1114,7 @@ func TestFindConvertibleContent(t *testing.T) {
 			name: "find SWORD module",
 			setupFn: func(t *testing.T, dir string) {
 				modsDir := filepath.Join(dir, "mods.d")
-				os.MkdirAll(modsDir, 0755)
+				os.MkdirAll(modsDir, 0700)
 				createTestFile(t, modsDir, "kjv.conf", "[KJV]")
 			},
 			wantFormat:   "sword",
@@ -1311,7 +1311,7 @@ func TestIsCASCapsule(t *testing.T) {
 			setupFn: func(t *testing.T, tempDir string) string {
 				// Create a simple tar.gz without blobs/ directory
 				capsuleDir := filepath.Join(tempDir, "simple")
-				os.MkdirAll(capsuleDir, 0755)
+				os.MkdirAll(capsuleDir, 0700)
 				createTestFile(t, capsuleDir, "test.txt", "content")
 				createTestFile(t, capsuleDir, "manifest.json", `{"version":"1.0"}`)
 
@@ -1329,7 +1329,7 @@ func TestIsCASCapsule(t *testing.T) {
 				// Create a tar.gz with blobs/ directory
 				capsuleDir := filepath.Join(tempDir, "cas")
 				blobsDir := filepath.Join(capsuleDir, "blobs", "sha256", "ab")
-				os.MkdirAll(blobsDir, 0755)
+				os.MkdirAll(blobsDir, 0700)
 				createTestFile(t, blobsDir, "abc123", "blob content")
 				createTestFile(t, capsuleDir, "manifest.json", `{"version":"1.0"}`)
 
@@ -1434,7 +1434,7 @@ func TestPrintIRInfo(t *testing.T) {
 func TestRunCapsuleTest(t *testing.T) {
 	tempDir := t.TempDir()
 	goldenDir := filepath.Join(tempDir, "goldens")
-	os.MkdirAll(goldenDir, 0755)
+	os.MkdirAll(goldenDir, 0700)
 
 	packedPath := createPackedCapsule(t, tempDir, "test content")
 
@@ -1460,7 +1460,7 @@ func TestRunCapsuleTest(t *testing.T) {
 func TestRunIngestTest(t *testing.T) {
 	tempDir := t.TempDir()
 	goldenDir := filepath.Join(tempDir, "goldens")
-	os.MkdirAll(goldenDir, 0755)
+	os.MkdirAll(goldenDir, 0700)
 
 	inputFile := createTestFile(t, tempDir, "input.txt", "test content")
 
@@ -1510,7 +1510,7 @@ func TestCreateCapsuleTarGz(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			srcDir := filepath.Join(tempDir, "src")
-			os.MkdirAll(srcDir, 0755)
+			os.MkdirAll(srcDir, 0700)
 
 			if tt.setupFn != nil {
 				tt.setupFn(t, srcDir)
@@ -1537,7 +1537,7 @@ func TestIngestSwordModule(t *testing.T) {
 	tempDir := t.TempDir()
 	swordPath := filepath.Join(tempDir, "sword")
 	modsDir := filepath.Join(swordPath, "mods.d")
-	os.MkdirAll(modsDir, 0755)
+	os.MkdirAll(modsDir, 0700)
 
 	// Create test module
 	confContent := `[TEST]
@@ -1550,7 +1550,7 @@ DataPath=./modules/texts/ztext/test/
 
 	// Create data path
 	dataPath := filepath.Join(swordPath, "modules", "texts", "ztext", "test")
-	os.MkdirAll(dataPath, 0755)
+	os.MkdirAll(dataPath, 0700)
 	createTestFile(t, dataPath, "ot", "old testament data")
 	createTestFile(t, dataPath, "nt", "new testament data")
 
@@ -1607,7 +1607,7 @@ func BenchmarkHash(b *testing.B) {
 func BenchmarkCopyDirRecursive(b *testing.B) {
 	tempDir := b.TempDir()
 	srcDir := filepath.Join(tempDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	os.MkdirAll(srcDir, 0700)
 
 	// Create some test files
 	for i := 0; i < 10; i++ {
@@ -1829,7 +1829,7 @@ func TestTestCmd_Run_WithCapsules(t *testing.T) {
 	tempDir := t.TempDir()
 	fixturesDir := filepath.Join(tempDir, "fixtures")
 	goldenDir := filepath.Join(fixturesDir, "goldens")
-	os.MkdirAll(goldenDir, 0755)
+	os.MkdirAll(goldenDir, 0700)
 
 	// Create a test capsule
 	packedPath := createPackedCapsule(t, tempDir, "test content")
@@ -1860,8 +1860,8 @@ func TestTestCmd_Run_WithInputs(t *testing.T) {
 	fixturesDir := filepath.Join(tempDir, "fixtures")
 	inputsDir := filepath.Join(fixturesDir, "inputs")
 	goldenDir := filepath.Join(fixturesDir, "goldens")
-	os.MkdirAll(inputsDir, 0755)
-	os.MkdirAll(goldenDir, 0755)
+	os.MkdirAll(inputsDir, 0700)
+	os.MkdirAll(goldenDir, 0700)
 
 	// Create a test input file
 	createTestFile(t, inputsDir, "test.txt", "test input content")
@@ -1913,7 +1913,7 @@ func TestIngestCmd_Run_DirectoryIngest(t *testing.T) {
 	// Create a directory with files - IngestCmd expects a file, not directory
 	// so this should fail
 	inputDir := filepath.Join(tempDir, "input")
-	os.MkdirAll(inputDir, 0755)
+	os.MkdirAll(inputDir, 0700)
 	createTestFile(t, inputDir, "file1.txt", "content 1")
 
 	outputPath := filepath.Join(tempDir, "output.capsule.tar.xz")
@@ -1934,7 +1934,7 @@ func TestIngestCmd_Run_NestedDirectory(t *testing.T) {
 
 	// Create nested directories
 	nestedDir := filepath.Join(tempDir, "a", "b", "c")
-	os.MkdirAll(nestedDir, 0755)
+	os.MkdirAll(nestedDir, 0700)
 	testFile := createTestFile(t, nestedDir, "deep.txt", "deep content")
 
 	outputPath := filepath.Join(tempDir, "output.capsule.tar.xz")
@@ -2067,7 +2067,7 @@ func TestExtractCapsuleArchive_TarGz(t *testing.T) {
 
 	// Create a valid tar.gz archive
 	srcDir := filepath.Join(tempDir, "src")
-	os.MkdirAll(srcDir, 0755)
+	os.MkdirAll(srcDir, 0700)
 	createTestFile(t, srcDir, "test.txt", "test content")
 
 	archivePath := filepath.Join(tempDir, "test.tar.gz")
@@ -2402,7 +2402,7 @@ func TestJuniperIngestCmd_Run_NoSWORDPath(t *testing.T) {
 func TestJuniperIngestCmd_Run_EmptyModsD(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -2424,7 +2424,7 @@ func TestJuniperIngestCmd_Run_EmptyModsD(t *testing.T) {
 func TestJuniperIngestCmd_Run_NoBibleModules(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -2453,7 +2453,7 @@ DataPath=./modules/comments/rawcom/test/
 func TestJuniperIngestCmd_Run_SpecifyNoModules(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -2486,7 +2486,7 @@ DataPath=./modules/texts/ztext/testbible/
 func TestJuniperIngestCmd_Run_ModuleNotFound(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -2519,7 +2519,7 @@ DataPath=./modules/texts/ztext/testbible/
 func TestJuniperIngestCmd_Run_EncryptedModule(t *testing.T) {
 	tempDir := t.TempDir()
 	modsDir := filepath.Join(tempDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -2629,7 +2629,7 @@ func TestCapsuleConvertCmd_Run_NoConvertibleContent(t *testing.T) {
 
 	// Create a capsule with no convertible content (just a text file)
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	os.MkdirAll(capsuleDir, 0755)
+	os.MkdirAll(capsuleDir, 0700)
 	os.WriteFile(filepath.Join(capsuleDir, "readme.txt"), []byte("just text"), 0600)
 
 	// Create manifest
@@ -2664,7 +2664,7 @@ func TestCapsuleConvertCmd_Run_WithEmbeddedPlugins(t *testing.T) {
 
 	// Create a capsule with USFM content
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	os.MkdirAll(capsuleDir, 0755)
+	os.MkdirAll(capsuleDir, 0700)
 
 	// Create a minimal USFM file
 	usfmContent := `\id GEN
@@ -2687,7 +2687,7 @@ func TestCapsuleConvertCmd_Run_WithEmbeddedPlugins(t *testing.T) {
 	// Even with external plugin dir empty, embedded plugins provide USFM/OSIS support
 	origPluginDir := CLI.PluginDir
 	CLI.PluginDir = filepath.Join(tempDir, "no-plugins")
-	os.MkdirAll(CLI.PluginDir, 0755)
+	os.MkdirAll(CLI.PluginDir, 0700)
 	defer func() { CLI.PluginDir = origPluginDir }()
 
 	cmd := &CapsuleConvertCmd{
@@ -2709,7 +2709,7 @@ func TestGenerateIRCmd_Run_NoConvertibleContent(t *testing.T) {
 
 	// Create a capsule with no convertible content
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	os.MkdirAll(capsuleDir, 0755)
+	os.MkdirAll(capsuleDir, 0700)
 	os.WriteFile(filepath.Join(capsuleDir, "readme.txt"), []byte("just text"), 0600)
 
 	manifest := map[string]interface{}{
@@ -2741,7 +2741,7 @@ func TestGenerateIRCmd_Run_AlreadyHasIR(t *testing.T) {
 
 	// Create a capsule that already has IR
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	os.MkdirAll(capsuleDir, 0755)
+	os.MkdirAll(capsuleDir, 0700)
 
 	// Create IR file
 	os.WriteFile(filepath.Join(capsuleDir, "test.ir.json"), []byte(`{"format":"ir"}`), 0600)
@@ -2776,7 +2776,7 @@ func TestGenerateIRCmd_Run_WithEmbeddedPlugins(t *testing.T) {
 
 	// Create a capsule with USFM content but no IR
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	os.MkdirAll(capsuleDir, 0755)
+	os.MkdirAll(capsuleDir, 0700)
 
 	usfmContent := `\id GEN
 \c 1
@@ -2798,7 +2798,7 @@ func TestGenerateIRCmd_Run_WithEmbeddedPlugins(t *testing.T) {
 	// Even with external plugin dir empty, embedded plugins provide USFM IR extraction
 	origPluginDir := CLI.PluginDir
 	CLI.PluginDir = filepath.Join(tempDir, "no-plugins")
-	os.MkdirAll(CLI.PluginDir, 0755)
+	os.MkdirAll(CLI.PluginDir, 0700)
 	defer func() { CLI.PluginDir = origPluginDir }()
 
 	cmd := &GenerateIRCmd{
@@ -3304,8 +3304,8 @@ func TestToolArchiveCmd_Run_ValidBinaries(t *testing.T) {
 	bin2 := createTestFile(t, tempDir, "tool2", "#!/bin/sh\necho tool2")
 
 	// Make them executable
-	os.Chmod(bin1, 0755)
-	os.Chmod(bin2, 0755)
+	os.Chmod(bin1, 0700)
+	os.Chmod(bin2, 0700)
 
 	outputPath := filepath.Join(tempDir, "tools.capsule.tar.xz")
 
@@ -3687,7 +3687,7 @@ func TestExportCmd_Run_ReadError(t *testing.T) {
 
 	// Try to export to a directory (should fail)
 	invalidOutput := filepath.Join(tempDir, "subdir")
-	os.MkdirAll(invalidOutput, 0755)
+	os.MkdirAll(invalidOutput, 0700)
 
 	cmd := &ExportCmd{
 		Capsule:  packedPath,

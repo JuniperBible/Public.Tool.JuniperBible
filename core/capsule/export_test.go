@@ -203,7 +203,7 @@ func TestExportMultipleFiles(t *testing.T) {
 
 	// Export each file and verify
 	exportDir := filepath.Join(tempDir, "exports")
-	if err := os.MkdirAll(exportDir, 0755); err != nil {
+	if err := os.MkdirAll(exportDir, 0700); err != nil {
 		t.Fatalf("failed to create export dir: %v", err)
 	}
 

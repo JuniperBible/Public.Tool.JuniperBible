@@ -100,7 +100,7 @@ func TestCopyDir(t *testing.T) {
 	// Create source directory structure
 	srcDir := t.TempDir()
 	srcSubDir := filepath.Join(srcDir, "subdir")
-	if err := os.MkdirAll(srcSubDir, 0755); err != nil {
+	if err := os.MkdirAll(srcSubDir, 0700); err != nil {
 		t.Fatalf("Failed to create source subdir: %v", err)
 	}
 
@@ -170,7 +170,7 @@ func TestCopyDir_PreservesStructure(t *testing.T) {
 	// Create nested structure
 	dirs := []string{"a", "a/b", "a/b/c", "x/y/z"}
 	for _, dir := range dirs {
-		if err := os.MkdirAll(filepath.Join(srcDir, dir), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(srcDir, dir), 0700); err != nil {
 			t.Fatalf("Failed to create %s: %v", dir, err)
 		}
 		// Create a file in each
@@ -204,7 +204,7 @@ func TestMigrator_Migrate_EmptySource(t *testing.T) {
 	// Create empty SWORD-like directory structure
 	srcDir := t.TempDir()
 	modsDir := filepath.Join(srcDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("Failed to create mods.d: %v", err)
 	}
 
@@ -237,7 +237,7 @@ func TestMigrator_ListModules_EmptySource(t *testing.T) {
 	// Create empty SWORD-like directory structure
 	srcDir := t.TempDir()
 	modsDir := filepath.Join(srcDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("Failed to create mods.d: %v", err)
 	}
 
@@ -268,7 +268,7 @@ func createTestModule(t *testing.T, srcDir, modID string) {
 
 	// Create mods.d directory and conf file
 	modsDir := filepath.Join(srcDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("Failed to create mods.d: %v", err)
 	}
 
@@ -284,7 +284,7 @@ func createTestModule(t *testing.T, srcDir, modID string) {
 
 	// Create data directory with a test file
 	dataDir := filepath.Join(srcDir, "modules", "texts", "ztext", modID)
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("Failed to create data directory: %v", err)
 	}
 
@@ -478,7 +478,7 @@ func TestCopyDir_NestedEmpty(t *testing.T) {
 
 	// Create nested empty directories
 	nestedPath := filepath.Join(srcDir, "a", "b", "c")
-	if err := os.MkdirAll(nestedPath, 0755); err != nil {
+	if err := os.MkdirAll(nestedPath, 0700); err != nil {
 		t.Fatalf("Failed to create nested dirs: %v", err)
 	}
 
@@ -529,7 +529,7 @@ func createTestModuleMissingData(t *testing.T, srcDir, modID string) {
 
 	// Create mods.d directory and conf file
 	modsDir := filepath.Join(srcDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("Failed to create mods.d: %v", err)
 	}
 
@@ -612,7 +612,7 @@ func TestCopyFile_DestinationDirNotWritable(t *testing.T) {
 	if err := os.MkdirAll(readOnlyDir, 0555); err != nil {
 		t.Fatalf("Failed to create read-only dir: %v", err)
 	}
-	defer os.Chmod(readOnlyDir, 0755) // Restore permissions for cleanup
+	defer os.Chmod(readOnlyDir, 0700) // Restore permissions for cleanup
 
 	// Try to copy to a path inside the read-only directory
 	dstFile := filepath.Join(readOnlyDir, "subdir", "dest.txt")
@@ -634,7 +634,7 @@ func TestCopyDir_SourceNotReadable(t *testing.T) {
 	if err := os.MkdirAll(unreadableDir, 0000); err != nil {
 		t.Fatalf("Failed to create unreadable dir: %v", err)
 	}
-	defer os.Chmod(unreadableDir, 0755) // Restore permissions for cleanup
+	defer os.Chmod(unreadableDir, 0700) // Restore permissions for cleanup
 
 	dstDir := filepath.Join(t.TempDir(), "dest")
 	err := copyDir(srcDir, dstDir)
@@ -656,7 +656,7 @@ func TestCopyDir_CopyFileError(t *testing.T) {
 	if err := os.WriteFile(unreadableFile, []byte("content"), 0000); err != nil {
 		t.Fatalf("Failed to create unreadable file: %v", err)
 	}
-	defer os.Chmod(unreadableFile, 0644) // Restore permissions for cleanup
+	defer os.Chmod(unreadableFile, 0600) // Restore permissions for cleanup
 
 	dstDir := filepath.Join(t.TempDir(), "dest")
 	err := copyDir(srcDir, dstDir)
@@ -672,7 +672,7 @@ func createTestModuleUnreadableConf(t *testing.T, srcDir, modID string) {
 
 	// Create mods.d directory
 	modsDir := filepath.Join(srcDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("Failed to create mods.d: %v", err)
 	}
 
@@ -688,7 +688,7 @@ func createTestModuleUnreadableConf(t *testing.T, srcDir, modID string) {
 
 	// Create data directory with a test file
 	dataDir := filepath.Join(srcDir, "modules", "texts", "ztext", modID)
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		t.Fatalf("Failed to create data directory: %v", err)
 	}
 	testFile := filepath.Join(dataDir, "test.bzz")
@@ -728,7 +728,7 @@ func TestMigrator_Migrate_ConfCopyError(t *testing.T) {
 	if err := os.Chmod(confPath, 0000); err != nil {
 		t.Fatalf("Failed to make conf unreadable: %v", err)
 	}
-	defer os.Chmod(confPath, 0644) // Restore for cleanup
+	defer os.Chmod(confPath, 0600) // Restore for cleanup
 
 	// Migration will fail because LoadAllModules can't parse the conf anymore
 	// This tests that the migrate code handles LoadAllModules errors gracefully
@@ -759,7 +759,7 @@ func TestMigrator_Migrate_DataCopyError(t *testing.T) {
 	if err := os.Chmod(dataFile, 0000); err != nil {
 		t.Fatalf("Failed to make data unreadable: %v", err)
 	}
-	defer os.Chmod(dataFile, 0644) // Restore for cleanup
+	defer os.Chmod(dataFile, 0600) // Restore for cleanup
 
 	dstDir := t.TempDir()
 	m := NewMigrator(srcDir, dstDir)

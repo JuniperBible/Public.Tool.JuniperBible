@@ -266,7 +266,7 @@ func TestNixExecutorIntegration(t *testing.T) {
 
 	// Create mock mods.d directory
 	modsDir := filepath.Join(tmpDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
 	}
 
@@ -316,7 +316,7 @@ func TestCopyDir(t *testing.T) {
 	}
 
 	subDir := filepath.Join(srcDir, "subdir")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, 0700); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
 
@@ -420,7 +420,7 @@ func TestExecuteRequestWithDirectory(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	inputDir := filepath.Join(tmpDir, "inputdir")
-	if err := os.MkdirAll(inputDir, 0755); err != nil {
+	if err := os.MkdirAll(inputDir, 0700); err != nil {
 		t.Fatalf("failed to create input dir: %v", err)
 	}
 
@@ -664,7 +664,7 @@ func TestExecuteRequestCopyDirError(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	inputDir := filepath.Join(tmpDir, "input")
-	if err := os.MkdirAll(inputDir, 0755); err != nil {
+	if err := os.MkdirAll(inputDir, 0700); err != nil {
 		t.Fatalf("failed to create input dir: %v", err)
 	}
 

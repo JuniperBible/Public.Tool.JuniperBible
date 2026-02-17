@@ -16,7 +16,7 @@ import (
 // If createParentDir is true, parent directories of dstPath are created.
 func CreateTarGz(srcDir, dstPath, baseDir string, createParentDir bool) error {
 	if createParentDir {
-		if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dstPath), 0700); err != nil {
 			return fmt.Errorf("failed to create parent directory: %w", err)
 		}
 	}

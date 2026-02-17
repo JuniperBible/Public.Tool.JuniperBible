@@ -30,7 +30,7 @@ func TestParsePluginManifest(t *testing.T) {
 	}`
 
 	pluginDir := filepath.Join(tempDir, "plugins", "format-zip")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -87,7 +87,7 @@ func TestDiscoverPlugins(t *testing.T) {
 	pluginsDir := filepath.Join(tempDir, "plugins")
 	for _, p := range plugins {
 		dir := filepath.Join(pluginsDir, p.name)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0700); err != nil {
 			t.Fatalf("failed to create %s: %v", p.name, err)
 		}
 		manifestPath := filepath.Join(dir, "plugin.json")
@@ -133,7 +133,7 @@ func TestLoaderGetPlugin(t *testing.T) {
 
 	// Create a plugin
 	pluginDir := filepath.Join(tempDir, "plugins", "format-zip")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -197,7 +197,7 @@ func TestPluginKindFiltering(t *testing.T) {
 	pluginsDir := filepath.Join(tempDir, "plugins")
 	for _, p := range plugins {
 		dir := filepath.Join(pluginsDir, p.name)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0700); err != nil {
 			t.Fatalf("failed to create %s: %v", p.name, err)
 		}
 		manifestPath := filepath.Join(dir, "plugin.json")
@@ -251,7 +251,7 @@ func TestPluginManifestWithIRSupport(t *testing.T) {
 	}`
 
 	pluginDir := filepath.Join(tempDir, "format-osis")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -383,7 +383,7 @@ func TestLoaderGetIRCapablePlugins(t *testing.T) {
 	pluginsDir := filepath.Join(tempDir, "plugins")
 	for _, p := range plugins {
 		dir := filepath.Join(pluginsDir, p.name)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0700); err != nil {
 			t.Fatalf("failed to create %s: %v", p.name, err)
 		}
 		manifestPath := filepath.Join(dir, "plugin.json")
@@ -435,7 +435,7 @@ func TestNestedPluginDiscovery(t *testing.T) {
 	// Create format plugins in nested structure
 	for _, name := range []string{"osis", "usfm"} {
 		dir := filepath.Join(formatDir, name)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0700); err != nil {
 			t.Fatalf("failed to create %s: %v", name, err)
 		}
 		content := `{"plugin_id": "format.` + name + `", "version": "1.0.0", "kind": "format", "entrypoint": "format-` + name + `"}`
@@ -446,7 +446,7 @@ func TestNestedPluginDiscovery(t *testing.T) {
 
 	// Create tool plugin in nested structure
 	libswordDir := filepath.Join(toolDir, "libsword")
-	if err := os.MkdirAll(libswordDir, 0755); err != nil {
+	if err := os.MkdirAll(libswordDir, 0700); err != nil {
 		t.Fatalf("failed to create libsword dir: %v", err)
 	}
 	content := `{"plugin_id": "tool.libsword", "version": "1.0.0", "kind": "tool", "entrypoint": "tool-libsword"}`
@@ -520,7 +520,7 @@ func TestExamplePluginKind(t *testing.T) {
 
 	// Create example plugin in nested structure: plugins/example/test-plugin/
 	exampleDir := filepath.Join(tempDir, "plugins", "example", "test-plugin")
-	if err := os.MkdirAll(exampleDir, 0755); err != nil {
+	if err := os.MkdirAll(exampleDir, 0700); err != nil {
 		t.Fatalf("failed to create example dir: %v", err)
 	}
 
@@ -580,7 +580,7 @@ func TestJuniperPluginKind(t *testing.T) {
 
 	// Create juniper plugin in nested structure
 	juniperDir := filepath.Join(tempDir, "plugins", "juniper", "test-plugin")
-	if err := os.MkdirAll(juniperDir, 0755); err != nil {
+	if err := os.MkdirAll(juniperDir, 0700); err != nil {
 		t.Fatalf("failed to create juniper dir: %v", err)
 	}
 	content := `{"plugin_id": "juniper.test", "version": "1.0.0", "kind": "juniper", "entrypoint": "juniper-test"}`
@@ -654,7 +654,7 @@ func TestListPlugins(t *testing.T) {
 	pluginsDir := filepath.Join(tempDir, "plugins")
 	for _, p := range plugins {
 		dir := filepath.Join(pluginsDir, p.name)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0700); err != nil {
 			t.Fatalf("failed to create %s: %v", p.name, err)
 		}
 		manifestPath := filepath.Join(dir, "plugin.json")
@@ -791,7 +791,7 @@ func TestDiscoverPluginsWithInvalidPlugins(t *testing.T) {
 
 	// Create a valid plugin
 	validDir := filepath.Join(pluginsDir, "format-valid")
-	if err := os.MkdirAll(validDir, 0755); err != nil {
+	if err := os.MkdirAll(validDir, 0700); err != nil {
 		t.Fatalf("failed to create valid dir: %v", err)
 	}
 	validContent := `{"plugin_id": "format.valid", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -801,7 +801,7 @@ func TestDiscoverPluginsWithInvalidPlugins(t *testing.T) {
 
 	// Create an invalid plugin (missing required field)
 	invalidDir := filepath.Join(pluginsDir, "format-invalid")
-	if err := os.MkdirAll(invalidDir, 0755); err != nil {
+	if err := os.MkdirAll(invalidDir, 0700); err != nil {
 		t.Fatalf("failed to create invalid dir: %v", err)
 	}
 	invalidContent := `{"version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -811,7 +811,7 @@ func TestDiscoverPluginsWithInvalidPlugins(t *testing.T) {
 
 	// Create a directory without plugin.json
 	noManifestDir := filepath.Join(pluginsDir, "format-nomanifest")
-	if err := os.MkdirAll(noManifestDir, 0755); err != nil {
+	if err := os.MkdirAll(noManifestDir, 0700); err != nil {
 		t.Fatalf("failed to create no-manifest dir: %v", err)
 	}
 
@@ -864,7 +864,7 @@ func TestDiscoverPluginsWithNestedInvalid(t *testing.T) {
 
 	// Create valid plugin in nested structure
 	validDir := filepath.Join(formatDir, "valid")
-	if err := os.MkdirAll(validDir, 0755); err != nil {
+	if err := os.MkdirAll(validDir, 0700); err != nil {
 		t.Fatalf("failed to create valid dir: %v", err)
 	}
 	validContent := `{"plugin_id": "format.valid", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -874,7 +874,7 @@ func TestDiscoverPluginsWithNestedInvalid(t *testing.T) {
 
 	// Create invalid plugin in nested structure
 	invalidDir := filepath.Join(formatDir, "invalid")
-	if err := os.MkdirAll(invalidDir, 0755); err != nil {
+	if err := os.MkdirAll(invalidDir, 0700); err != nil {
 		t.Fatalf("failed to create invalid dir: %v", err)
 	}
 	invalidContent := `{"plugin_id": "", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -927,7 +927,7 @@ func TestLoadPluginFromDirNoManifest(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	pluginDir := filepath.Join(tempDir, "plugin")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -946,13 +946,13 @@ func TestDiscoverPluginsWithFiles(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	pluginsDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginsDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginsDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 
 	// Create a valid plugin
 	validDir := filepath.Join(pluginsDir, "format-valid")
-	if err := os.MkdirAll(validDir, 0755); err != nil {
+	if err := os.MkdirAll(validDir, 0700); err != nil {
 		t.Fatalf("failed to create valid dir: %v", err)
 	}
 	validContent := `{"plugin_id": "format.valid", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -986,13 +986,13 @@ func TestDiscoverPluginsInKindDirWithFiles(t *testing.T) {
 
 	pluginsDir := filepath.Join(tempDir, "plugins")
 	formatDir := filepath.Join(pluginsDir, "format")
-	if err := os.MkdirAll(formatDir, 0755); err != nil {
+	if err := os.MkdirAll(formatDir, 0700); err != nil {
 		t.Fatalf("failed to create format dir: %v", err)
 	}
 
 	// Create a valid plugin
 	validDir := filepath.Join(formatDir, "valid")
-	if err := os.MkdirAll(validDir, 0755); err != nil {
+	if err := os.MkdirAll(validDir, 0700); err != nil {
 		t.Fatalf("failed to create valid dir: %v", err)
 	}
 	validContent := `{"plugin_id": "format.valid", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -1057,7 +1057,7 @@ func TestLoadFromDirAlwaysIncompatiblePlugins(t *testing.T) {
 	// Create a plugin with a very high minimum host version requirement
 	// This should fail compatibility check
 	incompatDir := filepath.Join(pluginsDir, "format-incompat")
-	if err := os.MkdirAll(incompatDir, 0755); err != nil {
+	if err := os.MkdirAll(incompatDir, 0700); err != nil {
 		t.Fatalf("failed to create incompat dir: %v", err)
 	}
 	// Require host version 99.0.0 which will fail compatibility
@@ -1068,7 +1068,7 @@ func TestLoadFromDirAlwaysIncompatiblePlugins(t *testing.T) {
 
 	// Create a compatible plugin
 	compatDir := filepath.Join(pluginsDir, "format-compat")
-	if err := os.MkdirAll(compatDir, 0755); err != nil {
+	if err := os.MkdirAll(compatDir, 0700); err != nil {
 		t.Fatalf("failed to create compat dir: %v", err)
 	}
 	compatContent := `{"plugin_id": "format.compat", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -1113,7 +1113,7 @@ func TestDiscoverPluginsKindDirReadError(t *testing.T) {
 
 	// Create a valid plugin first
 	validDir := filepath.Join(pluginsDir, "valid-plugin")
-	if err := os.MkdirAll(validDir, 0755); err != nil {
+	if err := os.MkdirAll(validDir, 0700); err != nil {
 		t.Fatalf("failed to create valid dir: %v", err)
 	}
 	validContent := `{"plugin_id": "test.valid", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -1161,7 +1161,7 @@ func TestLoadFromDirExternalDisabled(t *testing.T) {
 
 	pluginsDir := filepath.Join(tempDir, "plugins")
 	pluginDir := filepath.Join(pluginsDir, "format-test")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 	content := `{"plugin_id": "format.test", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -1207,7 +1207,7 @@ func TestLoadFromDirExternalEnabled(t *testing.T) {
 
 	pluginsDir := filepath.Join(tempDir, "plugins")
 	pluginDir := filepath.Join(pluginsDir, "format-test")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 	content := `{"plugin_id": "format.enabled", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -1318,7 +1318,7 @@ func TestLoadFromDirIncompatiblePlugins(t *testing.T) {
 
 	// Create a plugin with very high minimum host version
 	incompatDir := filepath.Join(pluginsDir, "format-incompat")
-	if err := os.MkdirAll(incompatDir, 0755); err != nil {
+	if err := os.MkdirAll(incompatDir, 0700); err != nil {
 		t.Fatalf("failed to create incompat dir: %v", err)
 	}
 	incompatContent := `{"plugin_id": "format.incompat2", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin", "min_host_version": "99.0.0"}`
@@ -1349,7 +1349,7 @@ func TestDiscoverPluginsAbsolutePathConversion(t *testing.T) {
 
 	pluginsDir := filepath.Join(tempDir, "plugins")
 	pluginDir := filepath.Join(pluginsDir, "format-test")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 	content := `{"plugin_id": "format.abs-test", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -1452,7 +1452,7 @@ func TestDiscoverPluginsMixedValidInvalid(t *testing.T) {
 
 	// Create a valid flat-structure plugin
 	validFlatDir := filepath.Join(pluginsDir, "format-valid-flat")
-	if err := os.MkdirAll(validFlatDir, 0755); err != nil {
+	if err := os.MkdirAll(validFlatDir, 0700); err != nil {
 		t.Fatalf("failed to create valid flat dir: %v", err)
 	}
 	validContent := `{"plugin_id": "format.valid-flat", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -1463,7 +1463,7 @@ func TestDiscoverPluginsMixedValidInvalid(t *testing.T) {
 	// Create a valid nested plugin
 	formatDir := filepath.Join(pluginsDir, "format")
 	validNestedDir := filepath.Join(formatDir, "valid-nested")
-	if err := os.MkdirAll(validNestedDir, 0755); err != nil {
+	if err := os.MkdirAll(validNestedDir, 0700); err != nil {
 		t.Fatalf("failed to create valid nested dir: %v", err)
 	}
 	validNestedContent := `{"plugin_id": "format.valid-nested", "version": "1.0.0", "kind": "format", "entrypoint": "bin/plugin"}`
@@ -1473,7 +1473,7 @@ func TestDiscoverPluginsMixedValidInvalid(t *testing.T) {
 
 	// Create an invalid nested plugin (no plugin.json)
 	invalidNestedDir := filepath.Join(formatDir, "invalid-nested")
-	if err := os.MkdirAll(invalidNestedDir, 0755); err != nil {
+	if err := os.MkdirAll(invalidNestedDir, 0700); err != nil {
 		t.Fatalf("failed to create invalid nested dir: %v", err)
 	}
 

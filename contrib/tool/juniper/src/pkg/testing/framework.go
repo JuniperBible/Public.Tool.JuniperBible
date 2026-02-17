@@ -205,7 +205,7 @@ func LoadGoldenFile(path string) (*GoldenFile, error) {
 // SaveGoldenFile saves content as a golden file.
 func SaveGoldenFile(path, content string) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
 	return os.WriteFile(path, []byte(content), 0600)

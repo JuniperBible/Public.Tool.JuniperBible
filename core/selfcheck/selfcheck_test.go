@@ -1552,7 +1552,7 @@ func TestIRFidelityCheckFailsWithHighLossClass(t *testing.T) {
 
 	// Create an IR file with a higher loss class
 	irDir := filepath.Join(tempDir, "ir")
-	if err := os.MkdirAll(irDir, 0755); err != nil {
+	if err := os.MkdirAll(irDir, 0700); err != nil {
 		t.Fatalf("failed to create IR dir: %v", err)
 	}
 	irPath := filepath.Join(irDir, "high_loss.ir.json")
@@ -2898,7 +2898,7 @@ func TestTranscriptEqualCheckMissingRunB(t *testing.T) {
 // createTestPluginWithKind creates a plugin with a specific kind for testing.
 func createTestPluginWithKind(t *testing.T, baseDir, name, kind string) {
 	pluginPath := filepath.Join(baseDir, name)
-	if err := os.MkdirAll(pluginPath, 0755); err != nil {
+	if err := os.MkdirAll(pluginPath, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -2925,7 +2925,7 @@ func createTestPluginWithKind(t *testing.T, baseDir, name, kind string) {
 cat > /dev/null  # consume stdin
 echo '{"status":"ok"}'
 `
-	if err := os.WriteFile(entrypointPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(entrypointPath, []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write entrypoint: %v", err)
 	}
 }
@@ -2940,7 +2940,7 @@ func TestRunToolStepNotToolPlugin(t *testing.T) {
 
 	// Create a format plugin (not a tool plugin)
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithKind(t, pluginDir, "format-plugin", "format")
@@ -2991,7 +2991,7 @@ func TestRunToolStepInputNotFound(t *testing.T) {
 
 	// Create a tool plugin
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithKind(t, pluginDir, "tool-plugin", "tool")
@@ -3043,7 +3043,7 @@ func TestRunToolStepSuccess(t *testing.T) {
 
 	// Create a tool plugin
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithKind(t, pluginDir, "tool-plugin", "tool")
@@ -3095,7 +3095,7 @@ func TestRunToolStepWithArtifactInput(t *testing.T) {
 
 	// Create a tool plugin
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithKind(t, pluginDir, "tool-plugin", "tool")
@@ -3157,7 +3157,7 @@ func TestRunToolStepWithPreviousOutput(t *testing.T) {
 
 	// Create a tool plugin
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithKind(t, pluginDir, "tool-plugin", "tool")
@@ -3218,13 +3218,13 @@ func TestRunToolStepWithTranscript(t *testing.T) {
 
 	// Create a tool plugin that writes a transcript
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 
 	// Create plugin directory
 	toolPluginPath := filepath.Join(pluginDir, "tool-with-transcript")
-	if err := os.MkdirAll(toolPluginPath, 0755); err != nil {
+	if err := os.MkdirAll(toolPluginPath, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -3254,7 +3254,7 @@ fi
 
 echo '{"status":"ok"}'
 `
-	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.sh"), []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.sh"), []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write entrypoint: %v", err)
 	}
 
@@ -3310,12 +3310,12 @@ func TestRunToolStepErrorResponse(t *testing.T) {
 
 	// Create a tool plugin that returns an error
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 
 	toolPluginPath := filepath.Join(pluginDir, "error-tool")
-	if err := os.MkdirAll(toolPluginPath, 0755); err != nil {
+	if err := os.MkdirAll(toolPluginPath, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -3335,7 +3335,7 @@ func TestRunToolStepErrorResponse(t *testing.T) {
 cat > /dev/null
 echo '{"status":"error","error":"intentional test error"}'
 `
-	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.sh"), []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(toolPluginPath, "plugin.sh"), []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write entrypoint: %v", err)
 	}
 
@@ -3392,7 +3392,7 @@ func TestRunToolStepInputDirError(t *testing.T) {
 
 	// Create a tool plugin
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithKind(t, pluginDir, "tool-plugin", "tool")
@@ -3410,7 +3410,7 @@ func TestRunToolStepInputDirError(t *testing.T) {
 
 	// Create executor's temp directory manually
 	execTempDir := filepath.Join(tempDir, "exec-temp")
-	if err := os.MkdirAll(execTempDir, 0755); err != nil {
+	if err := os.MkdirAll(execTempDir, 0700); err != nil {
 		t.Fatalf("failed to create exec temp dir: %v", err)
 	}
 
@@ -3462,7 +3462,7 @@ func TestRunToolStepOutputDirError(t *testing.T) {
 
 	// Create a tool plugin
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithKind(t, pluginDir, "tool-plugin", "tool")
@@ -3480,7 +3480,7 @@ func TestRunToolStepOutputDirError(t *testing.T) {
 
 	// Create executor's temp directory manually
 	execTempDir := filepath.Join(tempDir, "exec-temp")
-	if err := os.MkdirAll(execTempDir, 0755); err != nil {
+	if err := os.MkdirAll(execTempDir, 0700); err != nil {
 		t.Fatalf("failed to create exec temp dir: %v", err)
 	}
 
@@ -3532,7 +3532,7 @@ func TestRunToolStepEmptyOriginalName(t *testing.T) {
 
 	// Create a tool plugin
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithKind(t, pluginDir, "tool-plugin", "tool")
@@ -3597,7 +3597,7 @@ func TestRunToolStepExportFailure(t *testing.T) {
 
 	// Create a tool plugin
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithKind(t, pluginDir, "tool-plugin", "tool")
@@ -3657,12 +3657,12 @@ func TestRunToolStepPluginExecutionFailure(t *testing.T) {
 
 	// Create a tool plugin with a non-executable entrypoint
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 
 	toolPluginPath := filepath.Join(pluginDir, "broken-tool")
-	if err := os.MkdirAll(toolPluginPath, 0755); err != nil {
+	if err := os.MkdirAll(toolPluginPath, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -3725,7 +3725,7 @@ echo '{"status":"ok"}'
 // createTestPluginWithIRSupport creates a plugin with IR extraction/emission support.
 func createTestPluginWithIRSupport(t *testing.T, baseDir, name string, canExtract, canEmit bool) {
 	pluginPath := filepath.Join(baseDir, name)
-	if err := os.MkdirAll(pluginPath, 0755); err != nil {
+	if err := os.MkdirAll(pluginPath, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -3772,7 +3772,7 @@ else
     echo '{"status":"ok"}'
 fi
 `
-	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.sh"), []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.sh"), []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write entrypoint: %v", err)
 	}
 }
@@ -3787,7 +3787,7 @@ func TestExtractIRStepWithPlugin(t *testing.T) {
 
 	// Create a plugin with IR extraction support
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithIRSupport(t, pluginDir, "ir-plugin", true, false)
@@ -3909,7 +3909,7 @@ func TestExtractIRStepMkdirError(t *testing.T) {
 
 	// Create executor's temp directory manually
 	execTempDir := filepath.Join(tempDir, "exec-temp")
-	if err := os.MkdirAll(execTempDir, 0755); err != nil {
+	if err := os.MkdirAll(execTempDir, 0700); err != nil {
 		t.Fatalf("failed to create exec temp dir: %v", err)
 	}
 
@@ -3963,13 +3963,13 @@ func TestExtractIRStepWriteError(t *testing.T) {
 
 	// Create executor's temp directory manually
 	execTempDir := filepath.Join(tempDir, "exec-temp")
-	if err := os.MkdirAll(execTempDir, 0755); err != nil {
+	if err := os.MkdirAll(execTempDir, 0700); err != nil {
 		t.Fatalf("failed to create exec temp dir: %v", err)
 	}
 
 	// Create a directory where the IR file should be written (to cause write failure)
 	blockingDir := filepath.Join(execTempDir, "ir_output.ir.json")
-	if err := os.MkdirAll(blockingDir, 0755); err != nil {
+	if err := os.MkdirAll(blockingDir, 0700); err != nil {
 		t.Fatalf("failed to create blocking dir: %v", err)
 	}
 
@@ -4001,12 +4001,12 @@ func TestExtractIRStepPluginExecutionError(t *testing.T) {
 
 	// Create a plugin with IR support but broken execution
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 
 	pluginPath := filepath.Join(pluginDir, "broken-ir-plugin")
-	if err := os.MkdirAll(pluginPath, 0755); err != nil {
+	if err := os.MkdirAll(pluginPath, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -4088,12 +4088,12 @@ func TestExtractIRStepPluginParseError(t *testing.T) {
 
 	// Create a plugin that returns invalid result
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 
 	pluginPath := filepath.Join(pluginDir, "bad-result-plugin")
-	if err := os.MkdirAll(pluginPath, 0755); err != nil {
+	if err := os.MkdirAll(pluginPath, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -4119,7 +4119,7 @@ func TestExtractIRStepPluginParseError(t *testing.T) {
 cat > /dev/null
 echo '{"status":"error","error":"intentional test error"}'
 `
-	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.sh"), []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.sh"), []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -4179,7 +4179,7 @@ func TestEmitNativeStepWithPlugin(t *testing.T) {
 
 	// Create a plugin with IR emission support
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 	createTestPluginWithIRSupport(t, pluginDir, "emit-plugin", false, true)
@@ -4253,7 +4253,7 @@ func TestEmitNativeStepMkdirError(t *testing.T) {
 
 	// Create executor's temp directory manually
 	execTempDir := filepath.Join(tempDir, "exec-temp")
-	if err := os.MkdirAll(execTempDir, 0755); err != nil {
+	if err := os.MkdirAll(execTempDir, 0700); err != nil {
 		t.Fatalf("failed to create exec temp dir: %v", err)
 	}
 
@@ -4303,7 +4303,7 @@ func TestEmitNativeStepReadError(t *testing.T) {
 
 	// Create executor's temp directory manually
 	execTempDir := filepath.Join(tempDir, "exec-temp")
-	if err := os.MkdirAll(execTempDir, 0755); err != nil {
+	if err := os.MkdirAll(execTempDir, 0700); err != nil {
 		t.Fatalf("failed to create exec temp dir: %v", err)
 	}
 
@@ -4342,7 +4342,7 @@ func TestEmitNativeStepWriteError(t *testing.T) {
 
 	// Create executor's temp directory manually
 	execTempDir := filepath.Join(tempDir, "exec-temp")
-	if err := os.MkdirAll(execTempDir, 0755); err != nil {
+	if err := os.MkdirAll(execTempDir, 0700); err != nil {
 		t.Fatalf("failed to create exec temp dir: %v", err)
 	}
 
@@ -4354,7 +4354,7 @@ func TestEmitNativeStepWriteError(t *testing.T) {
 
 	// Create a directory where the native output file should be written
 	blockingDir := filepath.Join(execTempDir, "native_output")
-	if err := os.MkdirAll(blockingDir, 0755); err != nil {
+	if err := os.MkdirAll(blockingDir, 0700); err != nil {
 		t.Fatalf("failed to create blocking dir: %v", err)
 	}
 
@@ -4386,12 +4386,12 @@ func TestEmitNativeStepPluginExecutionError(t *testing.T) {
 
 	// Create a plugin with IR emit support but broken execution
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 
 	pluginPath := filepath.Join(pluginDir, "broken-emit-plugin")
-	if err := os.MkdirAll(pluginPath, 0755); err != nil {
+	if err := os.MkdirAll(pluginPath, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -4480,12 +4480,12 @@ func TestEmitNativeStepPluginParseError(t *testing.T) {
 
 	// Create a plugin that returns error status
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugins dir: %v", err)
 	}
 
 	pluginPath := filepath.Join(pluginDir, "bad-emit-plugin")
-	if err := os.MkdirAll(pluginPath, 0755); err != nil {
+	if err := os.MkdirAll(pluginPath, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
@@ -4510,7 +4510,7 @@ func TestEmitNativeStepPluginParseError(t *testing.T) {
 cat > /dev/null
 echo '{"status":"error","error":"intentional test error"}'
 `
-	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.sh"), []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(filepath.Join(pluginPath, "plugin.sh"), []byte(scriptContent), 0700); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
@@ -4583,7 +4583,7 @@ func TestCompareIRStepReadErrorA(t *testing.T) {
 
 	// Create executor's temp directory manually
 	execTempDir := filepath.Join(tempDir, "exec-temp")
-	if err := os.MkdirAll(execTempDir, 0755); err != nil {
+	if err := os.MkdirAll(execTempDir, 0700); err != nil {
 		t.Fatalf("failed to create exec temp dir: %v", err)
 	}
 
@@ -4631,7 +4631,7 @@ func TestCompareIRStepReadErrorB(t *testing.T) {
 
 	// Create executor's temp directory manually
 	execTempDir := filepath.Join(tempDir, "exec-temp")
-	if err := os.MkdirAll(execTempDir, 0755); err != nil {
+	if err := os.MkdirAll(execTempDir, 0700); err != nil {
 		t.Fatalf("failed to create exec temp dir: %v", err)
 	}
 
@@ -4966,7 +4966,7 @@ func TestCompareIRStepWriteErrorActual(t *testing.T) {
 
 	// Create executor's temp directory manually
 	execTempDir := filepath.Join(tempDir, "exec-temp")
-	if err := os.MkdirAll(execTempDir, 0755); err != nil {
+	if err := os.MkdirAll(execTempDir, 0700); err != nil {
 		t.Fatalf("failed to create exec temp dir: %v", err)
 	}
 
@@ -4982,7 +4982,7 @@ func TestCompareIRStepWriteErrorActual(t *testing.T) {
 
 	// Create a directory where the output file should be written
 	blockingDir := filepath.Join(execTempDir, "comparison.json")
-	if err := os.MkdirAll(blockingDir, 0755); err != nil {
+	if err := os.MkdirAll(blockingDir, 0700); err != nil {
 		t.Fatalf("failed to create blocking dir: %v", err)
 	}
 

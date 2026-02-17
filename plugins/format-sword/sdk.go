@@ -248,10 +248,10 @@ func emitSword(corpus *ir.Corpus, outputDir string) (string, error) {
 	modsD := filepath.Join(moduleDir, "mods.d")
 	modulesDir := filepath.Join(moduleDir, "modules")
 
-	if err := os.MkdirAll(modsD, 0755); err != nil {
+	if err := os.MkdirAll(modsD, 0700); err != nil {
 		return "", fmt.Errorf("failed to create mods.d: %w", err)
 	}
-	if err := os.MkdirAll(modulesDir, 0755); err != nil {
+	if err := os.MkdirAll(modulesDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create modules: %w", err)
 	}
 

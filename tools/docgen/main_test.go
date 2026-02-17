@@ -65,12 +65,12 @@ func TestRunPlugins(t *testing.T) {
 
 	// Create a minimal plugin directory structure
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
 	outputDir := filepath.Join(tempDir, "docs")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -92,12 +92,12 @@ func TestRunFormats(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
 	outputDir := filepath.Join(tempDir, "docs")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -119,12 +119,12 @@ func TestRunCLI(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
 	outputDir := filepath.Join(tempDir, "docs")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 
@@ -146,12 +146,12 @@ func TestRunAll(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	pluginDir := filepath.Join(tempDir, "plugins")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}
 
 	outputDir := filepath.Join(tempDir, "docs")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
 	}
 

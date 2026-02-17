@@ -99,7 +99,7 @@ func TestExtractArtifactMissing(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "output")
-	err = archive.extractArtifact("missing-id", destPath, 0755)
+	err = archive.extractArtifact("missing-id", destPath, 0700)
 	if err == nil {
 		t.Error("expected error for missing artifact")
 	}
@@ -203,13 +203,13 @@ func TestPrepareWorkDirWriteRequestError(t *testing.T) {
 
 	// Create the in directory first
 	inDir := filepath.Join(workDir, "in")
-	if err := os.MkdirAll(inDir, 0755); err != nil {
+	if err := os.MkdirAll(inDir, 0700); err != nil {
 		t.Fatalf("failed to create in dir: %v", err)
 	}
 
 	// Create request.json as a directory to cause write failure
 	reqPath := filepath.Join(inDir, "request.json")
-	if err := os.Mkdir(reqPath, 0755); err != nil {
+	if err := os.Mkdir(reqPath, 0700); err != nil {
 		t.Fatalf("failed to create request.json dir: %v", err)
 	}
 
@@ -236,13 +236,13 @@ func TestPrepareWorkDirWriteRunnerError(t *testing.T) {
 
 	// Create the in directory first
 	inDir := filepath.Join(workDir, "in")
-	if err := os.MkdirAll(inDir, 0755); err != nil {
+	if err := os.MkdirAll(inDir, 0700); err != nil {
 		t.Fatalf("failed to create in dir: %v", err)
 	}
 
 	// Create runner.sh as a directory to cause write failure
 	runnerPath := filepath.Join(inDir, "runner.sh")
-	if err := os.Mkdir(runnerPath, 0755); err != nil {
+	if err := os.Mkdir(runnerPath, 0700); err != nil {
 		t.Fatalf("failed to create runner.sh dir: %v", err)
 	}
 
@@ -290,12 +290,12 @@ func TestCreateToolArchiveMarshalError(t *testing.T) {
 
 	// Create a binary
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "test")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 
@@ -334,7 +334,7 @@ func TestListToolsNoTools(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create some non-tool directories
-	if err := os.MkdirAll(filepath.Join(tempDir, "notool"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tempDir, "notool"), 0700); err != nil {
 		t.Fatalf("failed to create directory: %v", err)
 	}
 
@@ -360,12 +360,12 @@ func TestLoadToolAlternativeLocation(t *testing.T) {
 
 	// Create a tool archive
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "testtool")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 
@@ -407,12 +407,12 @@ func TestExtractToLibDirError(t *testing.T) {
 
 	// Create a basic archive
 	binDir := filepath.Join(tempDir, "bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 
 	testBinary := filepath.Join(binDir, "test")
-	if err := os.WriteFile(testBinary, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(testBinary, []byte("binary"), 0700); err != nil {
 		t.Fatalf("failed to write test binary: %v", err)
 	}
 
@@ -438,7 +438,7 @@ func TestExtractToLibDirError(t *testing.T) {
 
 	// Create a file where lib directory would be to cause mkdir failure
 	extractDir := filepath.Join(tempDir, "extract")
-	if err := os.MkdirAll(filepath.Join(extractDir, "bin"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(extractDir, "bin"), 0700); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
 	// Create "lib" as a file instead of directory
@@ -546,7 +546,7 @@ func TestWriteTranscriptWriteError(t *testing.T) {
 	if err := os.Chmod(tempDir, 0500); err != nil {
 		t.Fatalf("failed to chmod dir: %v", err)
 	}
-	defer os.Chmod(tempDir, 0755) // Restore permissions for cleanup
+	defer os.Chmod(tempDir, 0700) // Restore permissions for cleanup
 
 	events := []TranscriptEvent{
 		{Type: EventEngineInfo, Seq: 1},
@@ -573,7 +573,7 @@ func TestCopyDirMkdirError(t *testing.T) {
 
 	// Create a subdirectory
 	subDir := filepath.Join(srcDir, "subdir")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
+	if err := os.MkdirAll(subDir, 0700); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
 
@@ -612,7 +612,7 @@ func TestExtractArtifactRetrieveError(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "output")
-	err = archive.extractArtifact("test", destPath, 0755)
+	err = archive.extractArtifact("test", destPath, 0700)
 	if err == nil {
 		t.Error("expected error when retrieving non-existent blob")
 	}
@@ -656,7 +656,7 @@ func TestExtractArtifactWriteError(t *testing.T) {
 	}
 
 	// Try to write to /proc which should fail
-	err = archive.extractArtifact("test", "/proc/invalid/output", 0755)
+	err = archive.extractArtifact("test", "/proc/invalid/output", 0700)
 	if err == nil {
 		t.Error("expected error when writing to invalid location")
 	}
@@ -681,7 +681,7 @@ func TestPrepareWorkDirOutDirError(t *testing.T) {
 	req := NewRequest("test", "test")
 
 	// Create work dir with file named "out" to cause directory creation failure
-	if err := os.MkdirAll(workDir, 0755); err != nil {
+	if err := os.MkdirAll(workDir, 0700); err != nil {
 		t.Fatalf("failed to create work dir: %v", err)
 	}
 
@@ -743,7 +743,7 @@ func TestListToolsStatError(t *testing.T) {
 
 	// Create a tool directory
 	toolDir := filepath.Join(tempDir, "testtool")
-	if err := os.MkdirAll(toolDir, 0755); err != nil {
+	if err := os.MkdirAll(toolDir, 0700); err != nil {
 		t.Fatalf("failed to create tool dir: %v", err)
 	}
 

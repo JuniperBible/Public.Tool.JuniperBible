@@ -466,7 +466,7 @@ func runExtract(cmd *cobra.Command, args []string) error {
 	}
 
 	// Write output files
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return fmt.Errorf("creating output directory: %w", err)
 	}
 
@@ -478,7 +478,7 @@ func runExtract(cmd *cobra.Command, args []string) error {
 
 	// Write individual Bible files to bibles_auxiliary/ directory
 	auxDir := filepath.Join(outputDir, "bibles_auxiliary")
-	if err := os.MkdirAll(auxDir, 0755); err != nil {
+	if err := os.MkdirAll(auxDir, 0700); err != nil {
 		return fmt.Errorf("creating bibles_auxiliary directory: %w", err)
 	}
 

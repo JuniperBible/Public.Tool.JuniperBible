@@ -143,7 +143,7 @@ func TestValidatePath_SymbolicLinkEscape(t *testing.T) {
 	// Create temporary directory structure
 	baseDir := t.TempDir()
 	subDir := filepath.Join(baseDir, "subdir")
-	if err := os.Mkdir(subDir, 0755); err != nil {
+	if err := os.Mkdir(subDir, 0700); err != nil {
 		t.Fatalf("Failed to create subdir: %v", err)
 	}
 
@@ -497,7 +497,7 @@ func TestValidatePath_Consistency(t *testing.T) {
 
 	// Create directory structure
 	subdir := filepath.Join(baseDir, "subdir")
-	if err := os.Mkdir(subdir, 0755); err != nil {
+	if err := os.Mkdir(subdir, 0700); err != nil {
 		t.Fatalf("Failed to create subdir: %v", err)
 	}
 

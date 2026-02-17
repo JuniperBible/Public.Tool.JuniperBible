@@ -46,7 +46,7 @@ type Store struct {
 func NewStore(root string) (*Store, error) {
 	// Create the blobs/sha256 directory structure
 	blobDir := filepath.Join(root, "blobs", "sha256")
-	if err := os.MkdirAll(blobDir, 0755); err != nil {
+	if err := os.MkdirAll(blobDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create blob directory: %w", err)
 	}
 
@@ -69,7 +69,7 @@ func (s *Store) Store(data []byte) (string, error) {
 
 	// Create the prefix directory if needed
 	prefixDir := filepath.Dir(blobPath)
-	if err := os.MkdirAll(prefixDir, 0755); err != nil {
+	if err := os.MkdirAll(prefixDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create prefix directory: %w", err)
 	}
 

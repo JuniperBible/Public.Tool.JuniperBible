@@ -203,7 +203,7 @@ func runTool() {
 	}
 
 	req.OutDir = outDir
-	if err := os.MkdirAll(outDir, 0755); err != nil {
+	if err := os.MkdirAll(outDir, 0700); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create output dir: %v\n", err)
 		os.Exit(1)
 	}
@@ -509,7 +509,7 @@ func profileOsis2Mod(req *ToolRunRequest, transcript *ipc.Transcript) error {
 	// Build osis2mod command
 	// osis2mod <output_path> <osis_file> [options]
 	modOutDir := filepath.Join(req.OutDir, "modules", "texts", "ztext", strings.ToLower(moduleName))
-	if err := os.MkdirAll(modOutDir, 0755); err != nil {
+	if err := os.MkdirAll(modOutDir, 0700); err != nil {
 		return fmt.Errorf("failed to create module directory: %w", err)
 	}
 
@@ -539,7 +539,7 @@ func profileOsis2Mod(req *ToolRunRequest, transcript *ipc.Transcript) error {
 
 	// Create mods.d directory and conf file
 	modsDir := filepath.Join(req.OutDir, "mods.d")
-	if err := os.MkdirAll(modsDir, 0755); err != nil {
+	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create mods.d directory: %w", err)
 	}
 

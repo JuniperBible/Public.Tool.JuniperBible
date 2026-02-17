@@ -389,13 +389,13 @@ func TestGenerateAllErrorOnGeneratePlugins(t *testing.T) {
 	outputDir := filepath.Join(tempDir, "output")
 
 	// Create output dir first
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("Failed to create output dir: %v", err)
 	}
 
 	// Create PLUGINS.md as a directory to cause os.Create to fail
 	pluginsPath := filepath.Join(outputDir, "PLUGINS.md")
-	if err := os.Mkdir(pluginsPath, 0755); err != nil {
+	if err := os.Mkdir(pluginsPath, 0700); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 
@@ -415,13 +415,13 @@ func TestGenerateAllErrorOnGenerateFormats(t *testing.T) {
 	outputDir := filepath.Join(tempDir, "output")
 
 	// Create output dir first
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("Failed to create output dir: %v", err)
 	}
 
 	// Create FORMATS.md as a directory to cause os.Create to fail
 	formatsPath := filepath.Join(outputDir, "FORMATS.md")
-	if err := os.Mkdir(formatsPath, 0755); err != nil {
+	if err := os.Mkdir(formatsPath, 0700); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 
@@ -441,13 +441,13 @@ func TestGenerateAllErrorOnGenerateCLI(t *testing.T) {
 	outputDir := filepath.Join(tempDir, "output")
 
 	// Create output dir first
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("Failed to create output dir: %v", err)
 	}
 
 	// Create CLI_REFERENCE.md as a directory to cause os.Create to fail
 	cliPath := filepath.Join(outputDir, "CLI_REFERENCE.md")
-	if err := os.Mkdir(cliPath, 0755); err != nil {
+	if err := os.Mkdir(cliPath, 0700); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 
@@ -468,10 +468,10 @@ func TestLoadPluginsWithFiles(t *testing.T) {
 	// Create format and tool directories
 	formatDir := filepath.Join(tempDir, "format")
 	toolDir := filepath.Join(tempDir, "tool")
-	if err := os.MkdirAll(formatDir, 0755); err != nil {
+	if err := os.MkdirAll(formatDir, 0700); err != nil {
 		t.Fatalf("Failed to create format dir: %v", err)
 	}
-	if err := os.MkdirAll(toolDir, 0755); err != nil {
+	if err := os.MkdirAll(toolDir, 0700); err != nil {
 		t.Fatalf("Failed to create tool dir: %v", err)
 	}
 
@@ -488,7 +488,7 @@ func TestLoadPluginsWithFiles(t *testing.T) {
 
 	// Create a valid plugin directory
 	validPluginDir := filepath.Join(formatDir, "test-plugin")
-	if err := os.MkdirAll(validPluginDir, 0755); err != nil {
+	if err := os.MkdirAll(validPluginDir, 0700); err != nil {
 		t.Fatalf("Failed to create plugin dir: %v", err)
 	}
 
@@ -561,7 +561,7 @@ func TestWritePluginsDocWithToolPlugins(t *testing.T) {
 
 	// Create tool directory
 	toolDir := filepath.Join(tempDir, "tool")
-	if err := os.MkdirAll(toolDir, 0755); err != nil {
+	if err := os.MkdirAll(toolDir, 0700); err != nil {
 		t.Fatalf("Failed to create tool dir: %v", err)
 	}
 
@@ -573,7 +573,7 @@ func TestWritePluginsDocWithToolPlugins(t *testing.T) {
 
 	// Create a valid tool plugin
 	pluginDir := filepath.Join(toolDir, "test-tool")
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		t.Fatalf("Failed to create plugin dir: %v", err)
 	}
 
@@ -798,7 +798,7 @@ func TestLoadPluginsWithPermissionDenied(t *testing.T) {
 	targetDir := filepath.Join(parentDir, "target")
 
 	// Create the structure
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0700); err != nil {
 		t.Fatalf("Failed to create directory structure: %v", err)
 	}
 
@@ -806,7 +806,7 @@ func TestLoadPluginsWithPermissionDenied(t *testing.T) {
 	if err := os.Chmod(parentDir, 0000); err != nil {
 		t.Fatalf("Failed to chmod parent dir: %v", err)
 	}
-	defer os.Chmod(parentDir, 0755) // Restore for cleanup
+	defer os.Chmod(parentDir, 0700) // Restore for cleanup
 
 	// Now try to stat the target directory
 	g := NewGenerator(targetDir, t.TempDir())

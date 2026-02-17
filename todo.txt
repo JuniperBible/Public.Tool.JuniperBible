@@ -1,0 +1,192 @@
+# JuniperBible Task List
+# Format: https://github.com/todotxt/todo.txt
+#
+# Syntax:
+#   (A) Priority A task
+#   x Completed task
+#   +Project @Context due:YYYY-MM-DD key:value
+#
+# Projects: +coverage +sdk +sqlite +dedup +juniper +diatheke
+# Contexts: @core @internal @plugin @docs @test @cli
+
+# =============================================================================
+# COVERAGE SPRINT (v0.2.0)
+# =============================================================================
+
+(A) Increase core/plugins coverage from 77.5% to 100% +coverage @core
+(A) Increase core/cache coverage from 83.9% to 100% +coverage @core
+(A) Increase core/epub coverage from 87.7% to 100% +coverage @core
+(A) Increase core/sqlite coverage from 90.9% to 100% +coverage @core
+(A) Increase core/xml coverage from 91.8% to 100% +coverage @core
+(A) Increase core/errors coverage from 91.8% to 100% +coverage @core
+(B) Increase core/runner coverage from 96.7% to 100% +coverage @core
+(B) Increase core/docgen coverage from 97.0% to 100% +coverage @core
+(B) Increase core/cas coverage from 99.0% to 100% +coverage @core
+(B) Increase core/capsule coverage from 99.7% to 100% +coverage @core
+(B) Increase core/selfcheck coverage from 99.7% to 100% +coverage @core
+
+# Internal format plugins (priority: below 85%)
+(A) Increase internal/formats/swordpure coverage from 3.8% to 100% +coverage @internal
+(A) Increase internal/formats/usfm coverage from 48.1% to 100% +coverage @internal
+(A) Increase internal/formats/usx coverage from 51.5% to 100% +coverage @internal
+(A) Increase internal/formats/tischendorf coverage from 57.6% to 100% +coverage @internal
+(A) Increase internal/formats/osis coverage from 59.2% to 100% +coverage @internal
+(A) Increase internal/formats/mysword coverage from 62.2% to 100% +coverage @internal
+(A) Increase internal/formats/esword coverage from 73.3% to 100% +coverage @internal
+(B) Increase internal/formats/txt coverage from 81.1% to 100% +coverage @internal
+
+# Internal format plugins (medium priority: 85-95%)
+(B) Increase internal/formats/mybible coverage from 86.5% to 100% +coverage @internal
+(B) Increase internal/formats/bibletime coverage from 89.1% to 100% +coverage @internal
+(B) Increase internal/formats/zip coverage from 89.1% to 100% +coverage @internal
+(B) Increase internal/formats/crosswire coverage from 93.4% to 100% +coverage @internal
+
+# Internal format plugins (low priority: >95%)
+(C) Increase internal/formats/json coverage from 95.5% to 100% +coverage @internal
+(C) Increase internal/formats/tar coverage from 95.9% to 100% +coverage @internal
+(C) Increase internal/formats/ecm coverage from 96.8% to 100% +coverage @internal
+(C) Increase internal/formats/onlinebible coverage from 96.8% to 100% +coverage @internal
+(C) Increase internal/formats/olive coverage from 98.5% to 100% +coverage @internal
+(C) Increase internal/formats/html coverage from 99.3% to 100% +coverage @internal
+
+# Internal packages needing tests
+(A) Add tests for internal/juniper package (0% coverage) +coverage @internal
+(A) Add tests for internal/juniper/repoman package (0% coverage) +coverage @internal
+(A) Add tests for internal/logging package (0% coverage) +coverage @internal
+(A) Add tests for internal/tools (10 packages, 0% coverage) +coverage @internal
+
+# Internal packages needing improvement
+(B) Increase internal/validation coverage from 48.8% to 85%+ +coverage @internal
+(B) Increase internal/web coverage from 36.8% to 85%+ +coverage @internal
+(B) Increase internal/fileutil coverage from 79.4% to 85%+ +coverage @internal
+(B) Increase internal/api coverage from 80.3% to 85%+ +coverage @internal
+(B) Increase internal/server coverage from 81.4% to 85%+ +coverage @internal
+
+# =============================================================================
+# SDK MIGRATION
+# =============================================================================
+
+x 2026-02-15 Create plugins/ipc/PROTOCOL.md +sdk @docs
+x 2026-02-15 Create plugins/ipc/testdata golden fixtures +sdk @test
+x 2026-02-15 Create plugins/ipc/testutil normalization helpers +sdk @test
+x 2026-02-15 Document error envelope rules +sdk @docs
+x 2026-02-15 Create plugins/sdk/runtime dispatch and lifecycle +sdk @plugin
+x 2026-02-15 Create plugins/sdk/format FormatConfig and Run +sdk @plugin
+x 2026-02-15 Create plugins/sdk/tool ToolConfig and Run +sdk @plugin
+x 2026-02-15 Create plugins/sdk/ir corpus read/write hashing +sdk @plugin
+x 2026-02-15 Create plugins/sdk/blob store and artifact IDs +sdk @plugin
+x 2026-02-15 Create plugins/sdk/errors standardized codes +sdk @plugin
+x 2026-02-15 Create plugins/sdk/types IPC re-exports +sdk @plugin
+x 2026-02-15 Create plugins/sdk/README.md +sdk @docs
+x 2026-02-15 Create scripts/parity-test.sh +sdk @test
+x 2026-02-15 Migrate format plugins batch 1 (txt, zip, tar, xml, file, dir, rtf, html) +sdk @plugin
+x 2026-02-15 Migrate format plugins batch 2 (json, zefania, tei, sfm, pdb, odf, tischendorf, morphgnt, sblgnt, ecm) +sdk @plugin
+x 2026-02-15 Migrate format plugins batch 3 (osis, usfm, usx, esword, mysword, mybible, theword, gobible, onlinebible, sqlite, olive, flex) +sdk @plugin
+x 2026-02-15 Migrate format plugins batch 4 (sword, sword-pure, crosswire, logos, accordance, dbl, epub, oshb) +sdk @plugin
+x 2026-02-15 Migrate tool plugins (pandoc, calibre, unrtf, hugo, libsword, libxml2, sqlite, usfm2osis, gobible-creator, repoman) +sdk @plugin
+
+(B) Create internal/formats/sdk_adapter.go +sdk @internal
+(B) Verify all handlers work through SDK adapter +sdk @test
+(C) Refactor handlers to use SDK directly (optional) +sdk @internal
+(C) Create cmd/gen-plugin generator +sdk @cli
+(C) Create make gen target for codegen +sdk @cli
+(C) Verify idempotent generation +sdk @test
+(B) Create plugin decision tree documentation +sdk @docs
+(B) Create 10-minute plugin tutorial +sdk @docs
+(B) Create IPC plugin migration guide +sdk @docs
+
+# =============================================================================
+# CODE DEDUPLICATION (Phase 3)
+# =============================================================================
+
+(A) Convert all 33 plugins/format-*/ to 5-15 line thin wrappers +dedup @plugin
+(A) Delete plugins/format/*/ (42 embedded duplicates except base/) +dedup @plugin
+(A) Delete internal/formats/*/ (42 internal duplicates except base/) +dedup @internal
+(B) Create scripts/verify-standalone-builds.sh +dedup @cli
+(B) Create scripts/lint-wrappers.sh +dedup @cli
+(B) Add Makefile targets for CI enforcement +dedup @cli
+
+x 2026-02-15 Create plugins/sdk/testing/testing.go test harness +dedup @test
+x 2026-02-15 Create plugins/sdk/testing/fixtures/fixtures.go shared test data +dedup @test
+x 2026-02-15 Enhance plugins/sdk/format with RegisterEmbedded support +dedup @plugin
+x 2026-02-15 Create canonical packages for Tier 1 formats (txt, json, xml, markdown, html, rtf) +dedup @core
+x 2026-02-15 Create canonical packages for Tier 2 formats (osis, usfm, usx, zefania, tei, sfm) +dedup @core
+x 2026-02-15 Create canonical packages for Tier 3 formats (zip, tar, dir, file, epub, odf, dbl) +dedup @core
+x 2026-02-15 Create canonical packages for Tier 4 formats (esword, mysword, mybible, theword, olive, sqlite) +dedup @core
+x 2026-02-15 Create canonical packages for Tier 5 formats (sword, sword-pure, bibletime, crosswire, logos, accordance, gobible, pdb, morphgnt, sblgnt, oshb, tischendorf, na28app, flex, onlinebible, ecm) +dedup @core
+x 2026-02-15 Create core/formats/testing/suite.go table-driven test framework +dedup @test
+x 2026-02-15 Migrate all format tests to canonical locations +dedup @test
+
+# =============================================================================
+# PURE GO SQLITE
+# =============================================================================
+
+x 2026-01-16 Implement Pager layer (page cache, file I/O, journaling) +sqlite @core
+x 2026-01-16 Implement B-tree layer (page parsing, cell operations, cursor) +sqlite @core
+x 2026-01-16 Implement VDBE layer (bytecode execution, Step until ResultRow/Halt) +sqlite @core
+x 2026-01-16 Implement Driver layer (database/sql compatible) +sqlite @core
+x 2026-01-16 Implement varint encoding (7-bit continuation format) +sqlite @core
+x 2026-01-16 Implement record encoding (serial types, column values) +sqlite @core
+x 2026-01-16 Implement CREATE TABLE (VDBE compilation, btree pages) +sqlite @core
+x 2026-01-16 Implement INSERT (parameter binding, record creation) +sqlite @core
+x 2026-01-16 Implement SELECT (cursor iteration, column extraction) +sqlite @core
+x 2026-01-16 Implement transactions (BEGIN, COMMIT, ROLLBACK) +sqlite @core
+x 2026-01-16 Implement prepared statements (compilation, execution, reset) +sqlite @core
+
+(B) Implement schema persistence (write/read sqlite_master) +sqlite @core
+(B) Add ORDER BY support using sorter cursor +sqlite @core
+(B) Complete UPDATE/DELETE implementation +sqlite @core
+(B) Add WHERE clause with index support +sqlite @core
+(C) Implement JOINs +sqlite @core
+(C) Implement subqueries +sqlite @core
+(C) Implement CREATE INDEX +sqlite @core
+
+# =============================================================================
+# JUNIPER SUBMODULE
+# =============================================================================
+
+# Test coverage improvements
+(B) Add tests for pkg/sword to reach 90%+ +juniper @test
+(B) Add tests for pkg/output to reach 90%+ +juniper @test
+(B) Add tests for pkg/repository (FTP mocking required) +juniper @test
+(B) Add end-to-end verse comparison tests +juniper @test
+
+# InstallMgr replacement CLI
+(B) Add juniper repo list-sources command +juniper @cli
+(B) Add juniper repo refresh command +juniper @cli
+(B) Add juniper repo list command +juniper @cli
+(B) Add juniper repo install command +juniper @cli
+(B) Add juniper repo installed command +juniper @cli
+(B) Add juniper repo uninstall command +juniper @cli
+(B) Implement FTP client for CrossWire sources +juniper @cli
+(B) Add checksum verification for downloads +juniper @cli
+(B) Cache module index locally +juniper @cli
+
+# Versification system
+(C) Define Catholic/Catholic2 verse counts +juniper @core
+(C) Define NRSV/NRSVA verse counts +juniper @core
+(C) Define Synodal/SynodalProt verse counts +juniper @core
+(C) Define Leningrad/MT verse counts +juniper @core
+(C) Update pkg/output/json.go for output normalization +juniper @core
+(C) Create docs/versification-mapping.md +juniper @docs
+
+# Diatheke clone mode
+(C) Add juniper diatheke subcommand +diatheke @cli
+(C) Implement diatheke key flags (-b, -k, -f, -o, -l, -m) +diatheke @cli
+(C) Implement reference parser (Genesis 1:1, Gen 1:1, Gen.1.1) +diatheke @cli
+(C) Implement module auto-detection +diatheke @cli
+(C) Implement plain text output (-f plain) +diatheke @cli
+(C) Implement OSIS output (-f OSIS) +diatheke @cli
+(C) Implement HTML output (-f HTML) +diatheke @cli
+(C) Implement text search (-s type) +diatheke @cli
+(C) Create comparison tests with official diatheke +diatheke @test
+
+# =============================================================================
+# FUTURE IMPROVEMENTS
+# =============================================================================
+
+(D) Add GraphQL endpoint with gqlgen +future @core
+(D) Create schema.graphql +future @core
+(D) Implement GraphQL resolvers +future @core
+(D) Add /graphql endpoint +future @core
+(D) Profile and optimize hot paths +future @core

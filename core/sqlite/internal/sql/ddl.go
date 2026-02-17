@@ -243,43 +243,16 @@ func CompileDropTable(stmt *parser.DropTableStmt, schema *Schema, bt *btree.Btre
 
 // CompileCreateIndex generates VDBE bytecode for CREATE INDEX.
 func CompileCreateIndex(stmt *parser.CreateIndexStmt, schema *Schema, bt *btree.Btree) (*vdbe.VDBE, error) {
-	// Check if index already exists
-	if _, exists := schema.Indexes[stmt.Name]; exists {
-		if stmt.IfNotExists {
-			// IF NOT EXISTS - just return success without error
-			v := vdbe.New()
-			v.AddOp(vdbe.OpHalt, 0, 0, 0)
-			return v, nil
-		}
-		return nil, fmt.Errorf("index %q already exists", stmt.Name)
+	if v, done, err := checkIndexExists(stmt, schema); done {
+		return v, err
 	}
 
-	// Validate table exists
-	table := schema.GetTable(stmt.Table)
-	if table == nil {
-		return nil, fmt.Errorf("table %q does not exist", stmt.Table)
+	table, columnNames, err := validateIndexTarget(stmt, schema)
+	if err != nil {
+		return nil, err
 	}
 
-	// Validate columns exist in the table
-	columnNames := make([]string, len(stmt.Columns))
-	for i, col := range stmt.Columns {
-		columnNames[i] = col.Column
-		found := false
-		for _, tableCol := range table.Columns {
-			if tableCol.Name == col.Column {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return nil, fmt.Errorf("column %q does not exist in table %q", col.Column, stmt.Table)
-		}
-	}
-
-	// Allocate root page for the index
 	rootPage := allocateRootPage(bt)
-
-	// Create index definition
 	index := &Index{
 		Name:     stmt.Name,
 		Table:    stmt.Table,
@@ -287,93 +260,107 @@ func CompileCreateIndex(stmt *parser.CreateIndexStmt, schema *Schema, bt *btree.
 		Unique:   stmt.Unique,
 		RootPage: int(rootPage),
 	}
-
-	// Add index to schema
 	if err := schema.AddIndex(index); err != nil {
 		return nil, err
 	}
 
-	// Generate VDBE bytecode
+	return buildCreateIndexVDBE(stmt, index, table, columnNames, rootPage), nil
+}
+
+func checkIndexExists(stmt *parser.CreateIndexStmt, schema *Schema) (*vdbe.VDBE, bool, error) {
+	if _, exists := schema.Indexes[stmt.Name]; !exists {
+		return nil, false, nil
+	}
+	if stmt.IfNotExists {
+		v := vdbe.New()
+		v.AddOp(vdbe.OpHalt, 0, 0, 0)
+		return v, true, nil
+	}
+	return nil, true, fmt.Errorf("index %q already exists", stmt.Name)
+}
+
+func validateIndexTarget(stmt *parser.CreateIndexStmt, schema *Schema) (*Table, []string, error) {
+	table := schema.GetTable(stmt.Table)
+	if table == nil {
+		return nil, nil, fmt.Errorf("table %q does not exist", stmt.Table)
+	}
+	columnNames, err := resolveIndexColumns(stmt, table)
+	if err != nil {
+		return nil, nil, err
+	}
+	return table, columnNames, nil
+}
+
+func resolveIndexColumns(stmt *parser.CreateIndexStmt, table *Table) ([]string, error) {
+	tableColIndex := make(map[string]bool, len(table.Columns))
+	for _, col := range table.Columns {
+		tableColIndex[col.Name] = true
+	}
+	columnNames := make([]string, len(stmt.Columns))
+	for i, col := range stmt.Columns {
+		if !tableColIndex[col.Column] {
+			return nil, fmt.Errorf("column %q does not exist in table %q", col.Column, stmt.Table)
+		}
+		columnNames[i] = col.Column
+	}
+	return columnNames, nil
+}
+
+func findColumnIndex(table *Table, colName string) int {
+	for j, col := range table.Columns {
+		if col.Name == colName {
+			return j
+		}
+	}
+	return -1
+}
+
+func buildCreateIndexVDBE(stmt *parser.CreateIndexStmt, index *Index, table *Table, columnNames []string, rootPage uint32) *vdbe.VDBE {
 	v := vdbe.New()
 	v.SetReadOnly(false)
-
-	// Initialize the program
 	v.AddOp(vdbe.OpInit, 0, 0, 0)
 
-	// Create the CREATE INDEX SQL statement text for sqlite_master
 	createSQL := generateCreateIndexSQL(stmt)
-
-	// Register allocation for sqlite_master insert
 	v.AllocMemory(6)
+	v.AddOpWithP4Str(vdbe.OpString, 0, 1, 0, "index")
+	v.AddOpWithP4Str(vdbe.OpString, 0, 2, 0, index.Name)
+	v.AddOpWithP4Str(vdbe.OpString, 0, 3, 0, index.Table)
+	v.AddOpWithP4Int(vdbe.OpInteger, int(rootPage), 4, 0, int32(rootPage))
+	v.AddOpWithP4Str(vdbe.OpString, 0, 5, 0, createSQL)
 
-	// Load values into registers
-	v.AddOpWithP4Str(vdbe.OpString, 0, 1, 0, "index")                      // R[1] = "index"
-	v.AddOpWithP4Str(vdbe.OpString, 0, 2, 0, index.Name)                   // R[2] = index name
-	v.AddOpWithP4Str(vdbe.OpString, 0, 3, 0, index.Table)                  // R[3] = table name
-	v.AddOpWithP4Int(vdbe.OpInteger, int(rootPage), 4, 0, int32(rootPage)) // R[4] = rootpage
-	v.AddOpWithP4Str(vdbe.OpString, 0, 5, 0, createSQL)                    // R[5] = SQL
-
-	// Open cursor on sqlite_master
 	v.AllocCursors(2)
-	v.AddOp(vdbe.OpOpenWrite, 0, 1, 0) // Cursor 0 for sqlite_master
+	v.AddOp(vdbe.OpOpenWrite, 0, 1, 0)
+	v.AddOp(vdbe.OpMakeRecord, 1, 5, 6)
+	v.AddOp(vdbe.OpInsert, 0, 6, 0)
 
-	// Insert into sqlite_master
-	v.AddOp(vdbe.OpMakeRecord, 1, 5, 6) // Make record from R[1..5] into R[6]
-	v.AddOp(vdbe.OpInsert, 0, 6, 0)     // Insert R[6] into cursor 0
-
-	// Now populate the index by scanning the table
-	// Open cursor 1 on the table
 	v.AddOp(vdbe.OpOpenRead, 1, table.RootPage, 0)
-
-	// Open cursor for the new index (cursor 2, but we only allocated 2, so reuse or allocate more)
 	v.AllocCursors(3)
 	v.AddOp(vdbe.OpOpenWrite, 2, int(rootPage), 0)
 
-	// Scan the table and insert into index
 	addrRewind := v.AddOp(vdbe.OpRewind, 1, 0, 0)
 	addrLoop := v.NumOps()
 
-	// For each row, extract the indexed columns and insert into index
-	// This is simplified - real implementation would handle multiple columns properly
 	for i, colName := range columnNames {
-		// Find column index in table
-		colIdx := -1
-		for j, col := range table.Columns {
-			if col.Name == colName {
-				colIdx = j
-				break
-			}
-		}
-		if colIdx >= 0 {
-			// Read column into register
+		if colIdx := findColumnIndex(table, colName); colIdx >= 0 {
 			v.AddOp(vdbe.OpColumn, 1, colIdx, 10+i)
 		}
 	}
 
-	// Get rowid
 	v.AddOp(vdbe.OpRowid, 1, 7, 0)
-
-	// Make index record and insert
 	v.AddOp(vdbe.OpMakeRecord, 10, len(columnNames)+1, 8)
 	v.AddOp(vdbe.OpIdxInsert, 2, 8, 0)
-
-	// Next row
 	v.AddOp(vdbe.OpNext, 1, addrLoop, 0)
 
-	// Patch rewind jump
 	if instr, _ := v.GetInstruction(addrRewind); instr != nil {
 		instr.P2 = v.NumOps()
 	}
 
-	// Close cursors
 	v.AddOp(vdbe.OpClose, 0, 0, 0)
 	v.AddOp(vdbe.OpClose, 1, 0, 0)
 	v.AddOp(vdbe.OpClose, 2, 0, 0)
-
-	// Halt
 	v.AddOp(vdbe.OpHalt, 0, 0, 0)
 
-	return v, nil
+	return v
 }
 
 // createTableFromAST creates a Table definition from the parser AST.
@@ -495,7 +482,41 @@ func allocateRootPage(bt *btree.Btree) uint32 {
 	return uint32(len(bt.Pages) + 2)
 }
 
-// generateCreateTableSQL generates the CREATE TABLE SQL text from the AST.
+var simpleConstraintSQL = map[parser.ConstraintType]string{
+	parser.ConstraintNotNull: " NOT NULL",
+	parser.ConstraintUnique:  " UNIQUE",
+}
+
+func writeConstraint(sql *strings.Builder, constraint parser.ColumnConstraint) {
+	if text, ok := simpleConstraintSQL[constraint.Type]; ok {
+		sql.WriteString(text)
+		return
+	}
+	if constraint.Type == parser.ConstraintDefault {
+		sql.WriteString(" DEFAULT ")
+		sql.WriteString(constraint.Default.String())
+		return
+	}
+	if constraint.Type == parser.ConstraintPrimaryKey {
+		sql.WriteString(" PRIMARY KEY")
+		if constraint.PrimaryKey != nil && constraint.PrimaryKey.Autoincrement {
+			sql.WriteString(" AUTOINCREMENT")
+		}
+	}
+}
+
+func writeColumnDef(sql *strings.Builder, col parser.ColumnDef, sep string) {
+	sql.WriteString(sep)
+	sql.WriteString(col.Name)
+	if col.Type != "" {
+		sql.WriteString(" ")
+		sql.WriteString(col.Type)
+	}
+	for _, constraint := range col.Constraints {
+		writeConstraint(sql, constraint)
+	}
+}
+
 func generateCreateTableSQL(stmt *parser.CreateTableStmt) string {
 	var sql strings.Builder
 	sql.WriteString("CREATE TABLE ")
@@ -504,36 +525,13 @@ func generateCreateTableSQL(stmt *parser.CreateTableStmt) string {
 	}
 	sql.WriteString(stmt.Name)
 	sql.WriteString(" (")
-
 	for i, col := range stmt.Columns {
+		sep := ""
 		if i > 0 {
-			sql.WriteString(", ")
+			sep = ", "
 		}
-		sql.WriteString(col.Name)
-		if col.Type != "" {
-			sql.WriteString(" ")
-			sql.WriteString(col.Type)
-		}
-
-		// Add constraints
-		for _, constraint := range col.Constraints {
-			switch constraint.Type {
-			case parser.ConstraintPrimaryKey:
-				sql.WriteString(" PRIMARY KEY")
-				if constraint.PrimaryKey != nil && constraint.PrimaryKey.Autoincrement {
-					sql.WriteString(" AUTOINCREMENT")
-				}
-			case parser.ConstraintNotNull:
-				sql.WriteString(" NOT NULL")
-			case parser.ConstraintUnique:
-				sql.WriteString(" UNIQUE")
-			case parser.ConstraintDefault:
-				sql.WriteString(" DEFAULT ")
-				sql.WriteString(constraint.Default.String())
-			}
-		}
+		writeColumnDef(&sql, col, sep)
 	}
-
 	sql.WriteString(")")
 	return sql.String()
 }

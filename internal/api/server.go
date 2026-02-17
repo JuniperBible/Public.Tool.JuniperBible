@@ -15,41 +15,47 @@ import (
 func Start(cfg Config) error {
 	ServerConfig = cfg
 
-	// Validate authentication configuration
 	if err := ValidateAuthConfig(cfg.Auth); err != nil {
 		return fmt.Errorf("invalid auth config: %w", err)
 	}
-
-	// Validate TLS configuration if enabled
-	if cfg.TLS.Enabled {
-		if cfg.TLS.CertFile == "" || cfg.TLS.KeyFile == "" {
-			return fmt.Errorf("TLS enabled but cert or key file not specified")
-		}
-		// Verify TLS files exist
-		if _, err := os.Stat(cfg.TLS.CertFile); err != nil {
-			return fmt.Errorf("TLS cert file not found: %w", err)
-		}
-		if _, err := os.Stat(cfg.TLS.KeyFile); err != nil {
-			return fmt.Errorf("TLS key file not found: %w", err)
-		}
+	if err := validateTLSConfig(cfg.TLS); err != nil {
+		return err
 	}
-
-	// Ensure capsules directory exists
 	if err := os.MkdirAll(ServerConfig.CapsulesDir, 0700); err != nil {
 		return fmt.Errorf("failed to create capsules directory: %w", err)
 	}
 
-	// Initialize WebSocket hub
 	GlobalHub = NewHub()
 	go GlobalHub.Run()
 
-	// Setup routes
 	mux := setupRoutes()
-
-	// Configure plugins and log startup info
 	server.EnablePlugins(ServerConfig.PluginsExternal, ServerConfig.PluginsDir)
+	configurePluginSecurity()
+	logProtocolInfo(cfg)
 
-	// Configure plugin security - restrict to plugins directory if external plugins enabled
+	handler := buildMiddlewareChain(cfg, mux)
+	return listenAndServe(cfg, handler)
+}
+
+// validateTLSConfig checks that TLS files are specified and present when TLS is enabled.
+func validateTLSConfig(tls TLSConfig) error {
+	if !tls.Enabled {
+		return nil
+	}
+	if tls.CertFile == "" || tls.KeyFile == "" {
+		return fmt.Errorf("TLS enabled but cert or key file not specified")
+	}
+	if _, err := os.Stat(tls.CertFile); err != nil {
+		return fmt.Errorf("TLS cert file not found: %w", err)
+	}
+	if _, err := os.Stat(tls.KeyFile); err != nil {
+		return fmt.Errorf("TLS key file not found: %w", err)
+	}
+	return nil
+}
+
+// configurePluginSecurity sets up plugin security based on the current ServerConfig.
+func configurePluginSecurity() {
 	if ServerConfig.PluginsExternal && ServerConfig.PluginsDir != "" {
 		pluginSecurityCfg := plugins.SecurityConfig{
 			AllowedPluginDirs:    []string{ServerConfig.PluginsDir},
@@ -60,18 +66,18 @@ func Start(cfg Config) error {
 		logging.SecurityEvent("plugin_security_configured", "api",
 			"mode", "restricted",
 			"allowed_dir", server.AbsPath(ServerConfig.PluginsDir))
-	} else {
-		logging.SecurityEvent("plugin_security_configured", "api",
-			"mode", "permissive",
-			"note", "embedded plugins only")
+		return
 	}
+	logging.SecurityEvent("plugin_security_configured", "api",
+		"mode", "permissive",
+		"note", "embedded plugins only")
+}
 
-	// Log server startup with appropriate protocol
-	protocol := "http"
-	wsProtocol := "ws"
+// logProtocolInfo logs startup details for the chosen protocol.
+func logProtocolInfo(cfg Config) {
+	protocol, wsProtocol := "http", "ws"
 	if cfg.TLS.Enabled {
-		protocol = "https"
-		wsProtocol = "wss"
+		protocol, wsProtocol = "https", "wss"
 		logging.Info("TLS enabled", "cert_file", cfg.TLS.CertFile)
 	} else {
 		logging.Warn("TLS disabled - using plain HTTP",
@@ -80,43 +86,17 @@ func Start(cfg Config) error {
 	logging.ServerStartup("rest_api", protocol, ServerConfig.Port,
 		"websocket_protocol", wsProtocol,
 		"capsules_dir", server.AbsPath(ServerConfig.CapsulesDir))
+}
 
-	// Build middleware chain with security headers
+// buildMiddlewareChain assembles the full middleware stack around mux.
+func buildMiddlewareChain(cfg Config, mux *http.ServeMux) http.Handler {
 	cspConfig := server.APICSPConfig()
-	var handler http.Handler = server.SecurityHeadersWithCSP(cspConfig, mux)
+	handler := http.Handler(server.SecurityHeadersWithCSP(cspConfig, mux))
 
-	// Apply authentication middleware if configured
-	if cfg.Auth.Enabled {
-		handler = AuthMiddleware(cfg.Auth, handler)
-		logging.SecurityEvent("authentication_configured", "api",
-			"enabled", true,
-			"note", "API key required")
-	} else {
-		logging.SecurityEvent("authentication_configured", "api",
-			"enabled", false,
-			"note", "all requests allowed")
-	}
+	handler = applyAuthMiddleware(cfg, handler)
+	handler = applyRateLimitMiddleware(cfg, handler)
 
-	// Apply rate limiting if configured
-	if cfg.RateLimitRequests > 0 {
-		rateLimitConfig := RateLimiterConfig{
-			RequestsPerMinute: cfg.RateLimitRequests,
-			BurstSize:         cfg.RateLimitBurst,
-		}
-		if rateLimitConfig.BurstSize == 0 {
-			rateLimitConfig.BurstSize = 10 // Default burst size
-		}
-		rateLimiter := NewRateLimiter(rateLimitConfig)
-		handler = rateLimiter.Middleware(handler)
-		logging.Info("rate limiting enabled",
-			"requests_per_minute", rateLimitConfig.RequestsPerMinute,
-			"burst_size", rateLimitConfig.BurstSize)
-	}
-
-	// Apply CORS middleware (outermost)
-	corsConfig := server.CORSConfig{
-		AllowedOrigins: cfg.AllowedOrigins,
-	}
+	corsConfig := server.CORSConfig{AllowedOrigins: cfg.AllowedOrigins}
 	handler = server.CORSMiddlewareWithConfig(corsConfig, handler)
 	if len(cfg.AllowedOrigins) > 0 {
 		logging.SecurityEvent("cors_configured", "api",
@@ -128,10 +108,44 @@ func Start(cfg Config) error {
 			"note", "allowing all origins (*) - consider restricting for production")
 	}
 
-	// Apply logging middleware
-	handler = logging.CombinedMiddleware(handler)
+	return logging.CombinedMiddleware(handler)
+}
 
-	// Start server with or without TLS
+// applyAuthMiddleware wraps handler with authentication middleware when auth is enabled.
+func applyAuthMiddleware(cfg Config, handler http.Handler) http.Handler {
+	if cfg.Auth.Enabled {
+		logging.SecurityEvent("authentication_configured", "api",
+			"enabled", true,
+			"note", "API key required")
+		return AuthMiddleware(cfg.Auth, handler)
+	}
+	logging.SecurityEvent("authentication_configured", "api",
+		"enabled", false,
+		"note", "all requests allowed")
+	return handler
+}
+
+// applyRateLimitMiddleware wraps handler with rate limiting middleware when configured.
+func applyRateLimitMiddleware(cfg Config, handler http.Handler) http.Handler {
+	if cfg.RateLimitRequests <= 0 {
+		return handler
+	}
+	rateLimitConfig := RateLimiterConfig{
+		RequestsPerMinute: cfg.RateLimitRequests,
+		BurstSize:         cfg.RateLimitBurst,
+	}
+	if rateLimitConfig.BurstSize == 0 {
+		rateLimitConfig.BurstSize = 10
+	}
+	rateLimiter := NewRateLimiter(rateLimitConfig)
+	logging.Info("rate limiting enabled",
+		"requests_per_minute", rateLimitConfig.RequestsPerMinute,
+		"burst_size", rateLimitConfig.BurstSize)
+	return rateLimiter.Middleware(handler)
+}
+
+// listenAndServe starts the HTTP or HTTPS server.
+func listenAndServe(cfg Config, handler http.Handler) error {
 	addr := fmt.Sprintf(":%d", ServerConfig.Port)
 	if cfg.TLS.Enabled {
 		return http.ListenAndServeTLS(addr, cfg.TLS.CertFile, cfg.TLS.KeyFile, handler)

@@ -2,10 +2,95 @@ package expr
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/parser"
 	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/vdbe"
 )
+
+// binaryOpEntry holds the VDBE opcode and comment string for a binary operator.
+type binaryOpEntry struct {
+	op      vdbe.Opcode
+	comment string
+}
+
+// binaryOpTable maps parser binary operators to their VDBE opcodes and
+// comment strings. Operators not present here require special handling.
+var binaryOpTable = map[parser.BinaryOp]binaryOpEntry{
+	// Arithmetic operators
+	parser.OpPlus:  {vdbe.OpAdd, "ADD"},
+	parser.OpMinus: {vdbe.OpSubtract, "SUB"},
+	parser.OpMul:   {vdbe.OpMultiply, "MUL"},
+	parser.OpDiv:   {vdbe.OpDivide, "DIV"},
+	parser.OpRem:   {vdbe.OpRemainder, "MOD"},
+	// Comparison operators
+	parser.OpEq: {vdbe.OpEq, "EQ"},
+	parser.OpNe: {vdbe.OpNe, "NE"},
+	parser.OpLt: {vdbe.OpLt, "LT"},
+	parser.OpLe: {vdbe.OpLe, "LE"},
+	parser.OpGt: {vdbe.OpGt, "GT"},
+	parser.OpGe: {vdbe.OpGe, "GE"},
+	// Bitwise operators
+	parser.OpBitAnd: {vdbe.OpBitAnd, "BITAND"},
+	parser.OpBitOr:  {vdbe.OpBitOr, "BITOR"},
+	parser.OpLShift: {vdbe.OpShiftLeft, "LSHIFT"},
+	parser.OpRShift: {vdbe.OpShiftRight, "RSHIFT"},
+	// String concatenation
+	parser.OpConcat: {vdbe.OpConcat, "CONCAT"},
+}
+
+// binarySpecialHandler is the signature for operators that need custom
+// register-level handling (e.g. LIKE/GLOB) and return early.
+type binarySpecialHandler func(g *CodeGenerator, leftReg, rightReg int) (int, error)
+
+// binarySpecialHandlers maps operators that require special code paths to
+// their handler functions.
+var binarySpecialHandlers = map[parser.BinaryOp]binarySpecialHandler{
+	parser.OpLike: (*CodeGenerator).generateLikeExpr,
+	parser.OpGlob: (*CodeGenerator).generateGlobExpr,
+}
+
+// exprHandler is the signature for expression-type dispatch handlers.
+type exprHandler func(g *CodeGenerator, e parser.Expression) (int, error)
+
+// exprDispatch maps concrete parser.Expression types to their code-generation
+// handlers. Populated by init() to avoid forward-reference issues.
+var exprDispatch map[reflect.Type]exprHandler
+
+func init() {
+	exprDispatch = map[reflect.Type]exprHandler{
+		reflect.TypeOf((*parser.LiteralExpr)(nil)): func(g *CodeGenerator, e parser.Expression) (int, error) {
+			return g.generateLiteral(e.(*parser.LiteralExpr))
+		},
+		reflect.TypeOf((*parser.IdentExpr)(nil)): func(g *CodeGenerator, e parser.Expression) (int, error) {
+			return g.generateColumn(e.(*parser.IdentExpr))
+		},
+		reflect.TypeOf((*parser.BinaryExpr)(nil)): func(g *CodeGenerator, e parser.Expression) (int, error) {
+			return g.generateBinary(e.(*parser.BinaryExpr))
+		},
+		reflect.TypeOf((*parser.UnaryExpr)(nil)): func(g *CodeGenerator, e parser.Expression) (int, error) {
+			return g.generateUnary(e.(*parser.UnaryExpr))
+		},
+		reflect.TypeOf((*parser.FunctionExpr)(nil)): func(g *CodeGenerator, e parser.Expression) (int, error) {
+			return g.generateFunction(e.(*parser.FunctionExpr))
+		},
+		reflect.TypeOf((*parser.CaseExpr)(nil)): func(g *CodeGenerator, e parser.Expression) (int, error) {
+			return g.generateCase(e.(*parser.CaseExpr))
+		},
+		reflect.TypeOf((*parser.InExpr)(nil)): func(g *CodeGenerator, e parser.Expression) (int, error) {
+			return g.generateIn(e.(*parser.InExpr))
+		},
+		reflect.TypeOf((*parser.BetweenExpr)(nil)): func(g *CodeGenerator, e parser.Expression) (int, error) {
+			return g.generateBetween(e.(*parser.BetweenExpr))
+		},
+		reflect.TypeOf((*parser.CastExpr)(nil)): func(g *CodeGenerator, e parser.Expression) (int, error) {
+			return g.generateCast(e.(*parser.CastExpr))
+		},
+		reflect.TypeOf((*parser.SubqueryExpr)(nil)): func(g *CodeGenerator, e parser.Expression) (int, error) {
+			return g.generateSubquery(e.(*parser.SubqueryExpr))
+		},
+	}
+}
 
 // CodeGenerator generates VDBE bytecode for expressions.
 // It converts parser AST nodes into executable VDBE instructions.
@@ -59,37 +144,21 @@ func (g *CodeGenerator) GetCursor(tableName string) (int, bool) {
 // GenerateExpr generates code for any expression and returns the result register.
 func (g *CodeGenerator) GenerateExpr(expr parser.Expression) (int, error) {
 	if expr == nil {
-		// NULL expression
-		reg := g.AllocReg()
-		g.vdbe.AddOp(vdbe.OpNull, 0, reg, 0)
-		g.vdbe.SetComment(g.vdbe.NumOps()-1, "NULL literal")
-		return reg, nil
+		return g.generateNullLiteral()
 	}
-
-	switch e := expr.(type) {
-	case *parser.LiteralExpr:
-		return g.generateLiteral(e)
-	case *parser.IdentExpr:
-		return g.generateColumn(e)
-	case *parser.BinaryExpr:
-		return g.generateBinary(e)
-	case *parser.UnaryExpr:
-		return g.generateUnary(e)
-	case *parser.FunctionExpr:
-		return g.generateFunction(e)
-	case *parser.CaseExpr:
-		return g.generateCase(e)
-	case *parser.InExpr:
-		return g.generateIn(e)
-	case *parser.BetweenExpr:
-		return g.generateBetween(e)
-	case *parser.CastExpr:
-		return g.generateCast(e)
-	case *parser.SubqueryExpr:
-		return g.generateSubquery(e)
-	default:
+	handler, ok := exprDispatch[reflect.TypeOf(expr)]
+	if !ok {
 		return 0, fmt.Errorf("unsupported expression type: %T", expr)
 	}
+	return handler(g, expr)
+}
+
+// generateNullLiteral emits a NULL opcode and returns the allocated register.
+func (g *CodeGenerator) generateNullLiteral() (int, error) {
+	reg := g.AllocReg()
+	g.vdbe.AddOp(vdbe.OpNull, 0, reg, 0)
+	g.vdbe.SetComment(g.vdbe.NumOps()-1, "NULL literal")
+	return reg, nil
 }
 
 // generateLiteral generates code for literal values.
@@ -170,81 +239,29 @@ func (g *CodeGenerator) generateBinary(e *parser.BinaryExpr) (int, error) {
 		return g.generateLogical(e)
 	}
 
-	// Generate left operand
 	leftReg, err := g.GenerateExpr(e.Left)
 	if err != nil {
 		return 0, err
 	}
-
-	// Generate right operand
 	rightReg, err := g.GenerateExpr(e.Right)
 	if err != nil {
 		return 0, err
 	}
 
-	// Allocate result register
-	resultReg := g.AllocReg()
+	// Operators that require custom register-level dispatch (e.g. LIKE, GLOB).
+	if handler, ok := binarySpecialHandlers[e.Op]; ok {
+		return handler(g, leftReg, rightReg)
+	}
 
-	// Map parser operators to VDBE opcodes
-	var op vdbe.Opcode
-	var comment string
-
-	switch e.Op {
-	// Arithmetic operators
-	case parser.OpPlus:
-		op, comment = vdbe.OpAdd, "ADD"
-	case parser.OpMinus:
-		op, comment = vdbe.OpSubtract, "SUB"
-	case parser.OpMul:
-		op, comment = vdbe.OpMultiply, "MUL"
-	case parser.OpDiv:
-		op, comment = vdbe.OpDivide, "DIV"
-	case parser.OpRem:
-		op, comment = vdbe.OpRemainder, "MOD"
-
-	// Comparison operators
-	case parser.OpEq:
-		op, comment = vdbe.OpEq, "EQ"
-	case parser.OpNe:
-		op, comment = vdbe.OpNe, "NE"
-	case parser.OpLt:
-		op, comment = vdbe.OpLt, "LT"
-	case parser.OpLe:
-		op, comment = vdbe.OpLe, "LE"
-	case parser.OpGt:
-		op, comment = vdbe.OpGt, "GT"
-	case parser.OpGe:
-		op, comment = vdbe.OpGe, "GE"
-
-	// Bitwise operators
-	case parser.OpBitAnd:
-		op, comment = vdbe.OpBitAnd, "BITAND"
-	case parser.OpBitOr:
-		op, comment = vdbe.OpBitOr, "BITOR"
-	case parser.OpLShift:
-		op, comment = vdbe.OpShiftLeft, "LSHIFT"
-	case parser.OpRShift:
-		op, comment = vdbe.OpShiftRight, "RSHIFT"
-
-	// String concatenation
-	case parser.OpConcat:
-		op, comment = vdbe.OpConcat, "CONCAT"
-
-	// Pattern matching
-	case parser.OpLike:
-		// LIKE needs special handling - create function call
-		return g.generateLikeExpr(leftReg, rightReg)
-	case parser.OpGlob:
-		return g.generateGlobExpr(leftReg, rightReg)
-
-	default:
+	// Standard operators resolved via lookup table.
+	entry, ok := binaryOpTable[e.Op]
+	if !ok {
 		return 0, fmt.Errorf("unsupported binary operator: %v", e.Op)
 	}
 
-	// Emit the operation
-	g.vdbe.AddOp(op, leftReg, rightReg, resultReg)
-	g.vdbe.SetComment(g.vdbe.NumOps()-1, comment)
-
+	resultReg := g.AllocReg()
+	g.vdbe.AddOp(entry.op, leftReg, rightReg, resultReg)
+	g.vdbe.SetComment(g.vdbe.NumOps()-1, entry.comment)
 	return resultReg, nil
 }
 

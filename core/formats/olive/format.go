@@ -52,33 +52,56 @@ type PDBHeader struct {
 	NumRecords     uint16   // Number of records
 }
 
-func detect(path string) (*ipc.DetectResult, error) {
+var knownExts = map[string]string{
+	".ot4i": "Olive Tree Bible (modern format)",
+	".oti":  "Olive Tree Index",
+	".otm":  "Olive Tree Module",
+	".pdb":  "Palm Database (legacy Olive Tree)",
+}
+
+var modernExts = map[string]bool{
+	".ot4i": true,
+	".oti":  true,
+	".otm":  true,
+}
+
+func validatePath(path string) (string, bool) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot stat: %v", err),
-		}, nil
+		return fmt.Sprintf("cannot stat: %v", err), false
+	}
+	if info.IsDir() {
+		return "path is a directory, not a file", false
+	}
+	return "", true
+}
+
+func detectModernFormat(path, moduleType string) (string, string) {
+	data, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Sprintf("cannot open file: %v", err)
+	}
+	defer data.Close()
+
+	header := make([]byte, 16)
+	n, err := data.Read(header)
+	if err != nil || n < 16 {
+		return "", "file too small or unreadable"
 	}
 
-	if info.IsDir() {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "path is a directory, not a file",
-		}, nil
+	if string(header[:15]) == "SQLite format 3" {
+		return moduleType + " (SQLite-based)", ""
+	}
+	return moduleType + " (proprietary/encrypted)", ""
+}
+
+func detect(path string) (*ipc.DetectResult, error) {
+	if reason, ok := validatePath(path); !ok {
+		return &ipc.DetectResult{Detected: false, Reason: reason}, nil
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
-
-	// Check known Olive Tree extensions
-	validExts := map[string]string{
-		".ot4i": "Olive Tree Bible (modern format)",
-		".oti":  "Olive Tree Index",
-		".otm":  "Olive Tree Module",
-		".pdb":  "Palm Database (legacy Olive Tree)",
-	}
-
-	moduleType, isValid := validExts[ext]
+	moduleType, isValid := knownExts[ext]
 	if !isValid {
 		return &ipc.DetectResult{
 			Detected: false,
@@ -86,48 +109,18 @@ func detect(path string) (*ipc.DetectResult, error) {
 		}, nil
 	}
 
-	// For .pdb files, try to verify it's an Olive Tree PDB
 	if ext == ".pdb" {
 		if detected, reason := detectPDBFormat(path); !detected {
-			return &ipc.DetectResult{
-				Detected: false,
-				Reason:   reason,
-			}, nil
+			return &ipc.DetectResult{Detected: false, Reason: reason}, nil
 		}
 	}
 
-	// For modern formats (.ot4i, .oti, .otm), check if it's a valid file
-	if ext == ".ot4i" || ext == ".oti" || ext == ".otm" {
-		// These are typically encrypted SQLite or proprietary binary formats
-		// We can do basic validation
-		data, err := os.Open(path)
-		if err != nil {
-			return &ipc.DetectResult{
-				Detected: false,
-				Reason:   fmt.Sprintf("cannot open file: %v", err),
-			}, nil
+	if modernExts[ext] {
+		updated, reason := detectModernFormat(path, moduleType)
+		if reason != "" {
+			return &ipc.DetectResult{Detected: false, Reason: reason}, nil
 		}
-		defer data.Close()
-
-		// Read first few bytes to check for SQLite signature or other markers
-		header := make([]byte, 16)
-		n, err := data.Read(header)
-		if err != nil || n < 16 {
-			return &ipc.DetectResult{
-				Detected: false,
-				Reason:   "file too small or unreadable",
-			}, nil
-		}
-
-		// Check for SQLite signature (may be encrypted)
-		// SQLite files start with "SQLite format 3\x00"
-		isSQLite := string(header[:15]) == "SQLite format 3"
-
-		if isSQLite {
-			moduleType = moduleType + " (SQLite-based)"
-		} else {
-			moduleType = moduleType + " (proprietary/encrypted)"
-		}
+		moduleType = updated
 	}
 
 	return &ipc.DetectResult{

@@ -102,3 +102,13 @@ jobs:
         run: |
           go vet $(go list ./... | grep -v '/core/ir$')
           go vet -structtag=false ./core/ir/... || true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+
+      - name: Check cyclomatic complexity
+        run: |
+          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+          ./scripts/check-complexity.sh 6

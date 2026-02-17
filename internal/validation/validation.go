@@ -261,6 +261,34 @@ var magicBytes = []struct {
 	{FileTypeSQLite, []byte("SQLite format 3"), 0},
 }
 
+var extensionFileTypeMap = map[string]FileType{
+	".tar":     FileTypeTar,
+	".xz":      FileTypeXZ,
+	".gz":      FileTypeGzip,
+	".zip":     FileTypeZip,
+	".sqlite":  FileTypeSQLite,
+	".db":      FileTypeSQLite,
+	".sqlite3": FileTypeSQLite,
+	".xml":     FileTypeXML,
+	".osis":    FileTypeXML,
+	".usx":     FileTypeXML,
+	".zefania": FileTypeXML,
+	".json":    FileTypeJSON,
+	".txt":     FileTypeText,
+	".usfm":    FileTypeText,
+	".sfm":     FileTypeText,
+	".md":      FileTypeText,
+}
+
+var multiExtensions = []struct {
+	suffix   string
+	fileType FileType
+}{
+	{".tar.xz", FileTypeTarXZ},
+	{".tar.gz", FileTypeTarGZ},
+	{".tgz", FileTypeTarGZ},
+}
+
 // fileTypeValidationRule defines how to validate a specific file type combination.
 type fileTypeValidationRule struct {
 	expectedType FileType
@@ -382,40 +410,55 @@ func detectFileTypeFromMagic(buf []byte) FileType {
 	return FileTypeUnknown
 }
 
+func detectMultiExtension(lower string) (FileType, bool) {
+	for _, me := range multiExtensions {
+		if strings.HasSuffix(lower, me.suffix) {
+			return me.fileType, true
+		}
+	}
+	return FileTypeUnknown, false
+}
+
 // detectFileTypeFromExtension determines expected file type from filename extension.
 func detectFileTypeFromExtension(filename string) FileType {
 	lower := strings.ToLower(filename)
-
-	// Multi-extension formats (check these first)
-	if strings.HasSuffix(lower, ".tar.xz") {
-		return FileTypeTarXZ
+	if ft, ok := detectMultiExtension(lower); ok {
+		return ft
 	}
-	if strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".tgz") {
-		return FileTypeTarGZ
-	}
-
-	// Single extension formats
 	ext := strings.ToLower(filepath.Ext(filename))
-	switch ext {
-	case ".tar":
-		return FileTypeTar
-	case ".xz":
-		return FileTypeXZ
-	case ".gz":
-		return FileTypeGzip
-	case ".zip":
-		return FileTypeZip
-	case ".sqlite", ".db", ".sqlite3":
-		return FileTypeSQLite
-	case ".xml", ".osis", ".usx", ".zefania":
-		return FileTypeXML
-	case ".json":
-		return FileTypeJSON
-	case ".txt", ".usfm", ".sfm", ".md":
-		return FileTypeText
-	default:
-		return FileTypeUnknown
+	if ft, ok := extensionFileTypeMap[ext]; ok {
+		return ft
 	}
+	return FileTypeUnknown
+}
+
+// isPrintableByte reports whether a byte is a printable ASCII or common whitespace character.
+func isPrintableByte(b byte) bool {
+	return (b >= 0x20 && b <= 0x7e) || b == '\t' || b == '\n' || b == '\r'
+}
+
+// isControlByte reports whether a byte is a non-whitespace control character.
+func isControlByte(b byte) bool {
+	return b < 0x20 && b != '\t' && b != '\n' && b != '\r'
+}
+
+// countPrintableAndControl counts printable and control bytes in buf.
+// UTF-8 continuation bytes (0x80-0xBF) and start bytes (0xC0-0xFD) are neutral.
+func countPrintableAndControl(buf []byte) (printable, control int) {
+	for _, b := range buf {
+		if isPrintableByte(b) {
+			printable++
+		} else if isControlByte(b) {
+			control++
+		}
+	}
+	return printable, control
+}
+
+// isPrintableRatioAboveThreshold reports whether the ratio of printable to
+// total classified bytes exceeds 95%, the threshold used to identify text.
+func isPrintableRatioAboveThreshold(printable, control int) bool {
+	return printable > 0 && float64(printable)/float64(printable+control) > 0.95
 }
 
 // isLikelyText checks if the buffer contains likely text content.
@@ -425,27 +468,11 @@ func isLikelyText(buf []byte) bool {
 		return false
 	}
 
-	// Check for null bytes (strong indicator of binary content)
+	// Null bytes are a strong indicator of binary content.
 	if bytes.IndexByte(buf, 0) != -1 {
 		return false
 	}
 
-	// Count printable characters vs control characters
-	printable := 0
-	control := 0
-	for _, b := range buf {
-		if b >= 0x20 && b <= 0x7e || b == '\t' || b == '\n' || b == '\r' {
-			printable++
-		} else if b < 0x20 && b != '\t' && b != '\n' && b != '\r' {
-			control++
-		}
-		// UTF-8 continuation bytes (0x80-0xBF) and start bytes (0xC0-0xFD) are neutral
-	}
-
-	// If more than 95% is printable, consider it text
-	if printable > 0 && float64(printable)/float64(printable+control) > 0.95 {
-		return true
-	}
-
-	return false
+	printable, control := countPrintableAndControl(buf)
+	return isPrintableRatioAboveThreshold(printable, control)
 }

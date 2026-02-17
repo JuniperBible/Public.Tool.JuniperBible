@@ -149,61 +149,49 @@ func (e *EPUB) Build() ([]byte, error) {
 
 // build is the internal build method that accepts a zipWriter interface for testing.
 func (e *EPUB) build(zw zipWriter) error {
-	// Add mimetype (must be first, uncompressed)
-	mimetypeWriter, err := zw.CreateHeader(&zip.FileHeader{
+	steps := []func(zipWriter) error{
+		e.addMimetype,
+		e.addContainerXML,
+		e.addContentOPF,
+		e.addTocNCX,
+		e.addTocXHTML,
+		e.addCSS,
+		e.addOptionalCover,
+		e.addAllChapters,
+	}
+	for _, step := range steps {
+		if err := step(zw); err != nil {
+			return err
+		}
+	}
+	return zw.Close()
+}
+
+func (e *EPUB) addMimetype(zw zipWriter) error {
+	w, err := zw.CreateHeader(&zip.FileHeader{
 		Name:   "mimetype",
 		Method: zip.Store,
 	})
 	if err != nil {
 		return err
 	}
-	if _, err := mimetypeWriter.Write([]byte("application/epub+zip")); err != nil {
-		return err
-	}
+	_, err = w.Write([]byte("application/epub+zip"))
+	return err
+}
 
-	// Add META-INF/container.xml
-	if err := e.addContainerXML(zw); err != nil {
-		return err
+func (e *EPUB) addOptionalCover(zw zipWriter) error {
+	if len(e.cover) == 0 {
+		return nil
 	}
+	return e.addCover(zw)
+}
 
-	// Add OEBPS/content.opf
-	if err := e.addContentOPF(zw); err != nil {
-		return err
-	}
-
-	// Add OEBPS/toc.ncx
-	if err := e.addTocNCX(zw); err != nil {
-		return err
-	}
-
-	// Add OEBPS/toc.xhtml (EPUB 3 nav)
-	if err := e.addTocXHTML(zw); err != nil {
-		return err
-	}
-
-	// Add CSS
-	if err := e.addCSS(zw); err != nil {
-		return err
-	}
-
-	// Add cover if present
-	if len(e.cover) > 0 {
-		if err := e.addCover(zw); err != nil {
-			return err
-		}
-	}
-
-	// Add chapters
+func (e *EPUB) addAllChapters(zw zipWriter) error {
 	for i, chapter := range e.Chapters {
 		if err := e.addChapter(zw, i, chapter); err != nil {
 			return err
 		}
 	}
-
-	if err := zw.Close(); err != nil {
-		return err
-	}
-
 	return nil
 }
 

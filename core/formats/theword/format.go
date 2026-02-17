@@ -96,6 +96,77 @@ func detect(path string) (*ipc.DetectResult, error) {
 	}, nil
 }
 
+var extBooks = map[string]func() []string{
+	".ont": func() []string { return otBooks },
+	".nt":  func() []string { return ntBooks },
+}
+
+func booksForExt(ext string) []string {
+	if fn, ok := extBooks[ext]; ok {
+		return fn()
+	}
+	return append(otBooks, ntBooks...)
+}
+
+func newContentBlock(sequence, chapter, verse int, book, text string) *ir.ContentBlock {
+	hash := sha256.Sum256([]byte(text))
+	osisID := fmt.Sprintf("%s.%d.%d", book, chapter, verse)
+	return &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", sequence),
+		Sequence: sequence,
+		Text:     text,
+		Hash:     hex.EncodeToString(hash[:]),
+		Anchors: []*ir.Anchor{
+			{
+				ID:       fmt.Sprintf("a-%d-0", sequence),
+				Position: 0,
+				Spans: []*ir.Span{
+					{
+						ID:            fmt.Sprintf("s-%s", osisID),
+						Type:          "VERSE",
+						StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
+						Ref: &ir.Ref{
+							Book:    book,
+							Chapter: chapter,
+							Verse:   verse,
+							OSISID:  osisID,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func parseVerses(lines []string, books []string, corpus *ir.Corpus) {
+	sequence := 0
+	bookDocs := make(map[string]*ir.Document)
+	lineIdx := 0
+
+	for _, book := range books {
+		if lineIdx >= len(lines) {
+			break
+		}
+		doc, ok := bookDocs[book]
+		if !ok {
+			doc = &ir.Document{ID: book, Title: book, Order: len(bookDocs) + 1}
+			bookDocs[book] = doc
+			corpus.Documents = append(corpus.Documents, doc)
+		}
+		for chapter := 1; chapter <= 3 && lineIdx < len(lines); chapter++ {
+			for verse := 1; verse <= 10 && lineIdx < len(lines); verse++ {
+				text := strings.TrimSpace(lines[lineIdx])
+				lineIdx++
+				if text == "" {
+					continue
+				}
+				sequence++
+				doc.ContentBlocks = append(doc.ContentBlocks, newContentBlock(sequence, chapter, verse, book, text))
+			}
+		}
+	}
+}
+
 func parse(path string) (*ir.Corpus, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -103,8 +174,8 @@ func parse(path string) (*ir.Corpus, error) {
 	}
 
 	sourceHash := sha256.Sum256(data)
-	artifactID := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	ext := strings.ToLower(filepath.Ext(path))
+	artifactID := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 
 	corpus := &ir.Corpus{
 		ID:           artifactID,
@@ -115,89 +186,10 @@ func parse(path string) (*ir.Corpus, error) {
 		SourceHash:   hex.EncodeToString(sourceHash[:]),
 		Attributes:   make(map[string]string),
 	}
-
-	// Store raw content for L0 round-trip
 	corpus.Attributes["_theword_raw"] = string(data)
 	corpus.Attributes["_theword_ext"] = ext
 
-	// Parse lines into verses
-	lines := strings.Split(string(data), "\n")
-
-	// Determine book list based on extension
-	var books []string
-	switch ext {
-	case ".ont":
-		books = otBooks
-	case ".nt":
-		books = ntBooks
-	default:
-		books = append(otBooks, ntBooks...)
-	}
-
-	// Simple parsing: each line is a verse
-	sequence := 0
-	bookDocs := make(map[string]*ir.Document)
-	lineIdx := 0
-
-	for _, book := range books {
-		if lineIdx >= len(lines) {
-			break
-		}
-
-		doc, ok := bookDocs[book]
-		if !ok {
-			doc = &ir.Document{
-				ID:    book,
-				Title: book,
-				Order: len(bookDocs) + 1,
-			}
-			bookDocs[book] = doc
-			corpus.Documents = append(corpus.Documents, doc)
-		}
-
-		// Simple: assign lines sequentially (real impl would use verse counts)
-		for chapter := 1; chapter <= 3 && lineIdx < len(lines); chapter++ {
-			for verse := 1; verse <= 10 && lineIdx < len(lines); verse++ {
-				text := strings.TrimSpace(lines[lineIdx])
-				lineIdx++
-
-				if text == "" {
-					continue
-				}
-
-				sequence++
-				hash := sha256.Sum256([]byte(text))
-				osisID := fmt.Sprintf("%s.%d.%d", book, chapter, verse)
-
-				cb := &ir.ContentBlock{
-					ID:       fmt.Sprintf("cb-%d", sequence),
-					Sequence: sequence,
-					Text:     text,
-					Hash:     hex.EncodeToString(hash[:]),
-					Anchors: []*ir.Anchor{
-						{
-							ID:       fmt.Sprintf("a-%d-0", sequence),
-							Position: 0,
-							Spans: []*ir.Span{
-								{
-									ID:            fmt.Sprintf("s-%s", osisID),
-									Type:          "VERSE",
-									StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
-									Ref: &ir.Ref{
-										Book:    book,
-										Chapter: chapter,
-										Verse:   verse,
-										OSISID:  osisID,
-									},
-								},
-							},
-						},
-					},
-				}
-				doc.ContentBlocks = append(doc.ContentBlocks, cb)
-			}
-		}
-	}
+	parseVerses(strings.Split(string(data), "\n"), booksForExt(ext), corpus)
 
 	return corpus, nil
 }

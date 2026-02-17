@@ -239,66 +239,11 @@ func parseJSON(path string) (*ir.Corpus, error) {
 func emitJSON(corpus *ir.Corpus, outputDir string) (string, error) {
 	outputPath := filepath.Join(outputDir, corpus.ID+".json")
 
-	// Check for raw JSON for L0 round-trip
-	if raw, ok := corpus.Attributes["_json_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
-			return "", fmt.Errorf("failed to write JSON: %w", err)
-		}
-		return outputPath, nil
+	if written, err := tryWriteRawJSON(corpus, outputPath); written {
+		return outputPath, err
 	}
 
-	// Generate JSON from IR
-	jsonBible := JSONBible{
-		Meta: JSONMeta{
-			ID:          corpus.ID,
-			Title:       corpus.Title,
-			Language:    corpus.Language,
-			Description: corpus.Description,
-			Version:     corpus.Version,
-		},
-	}
-
-	for _, doc := range corpus.Documents {
-		book := JSONBook{
-			ID:    doc.ID,
-			Name:  doc.Title,
-			Order: doc.Order,
-		}
-
-		chapterMap := make(map[int]*JSONChapter)
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						chapter, ok := chapterMap[span.Ref.Chapter]
-						if !ok {
-							chapter = &JSONChapter{Number: span.Ref.Chapter}
-							chapterMap[span.Ref.Chapter] = chapter
-						}
-
-						verse := JSONVerse{
-							Book:    doc.ID,
-							Chapter: span.Ref.Chapter,
-							Verse:   span.Ref.Verse,
-							Text:    cb.Text,
-							ID:      span.Ref.OSISID,
-						}
-						chapter.Verses = append(chapter.Verses, verse)
-						jsonBible.Verses = append(jsonBible.Verses, verse)
-					}
-				}
-			}
-		}
-
-		// Sort chapters and add to book
-		for i := 1; i <= 200; i++ {
-			if ch, ok := chapterMap[i]; ok {
-				book.Chapters = append(book.Chapters, *ch)
-			}
-		}
-
-		jsonBible.Books = append(jsonBible.Books, book)
-	}
+	jsonBible := buildJSONBible(corpus)
 
 	jsonData, err := json.MarshalIndent(jsonBible, "", "  ")
 	if err != nil {
@@ -310,4 +255,105 @@ func emitJSON(corpus *ir.Corpus, outputDir string) (string, error) {
 	}
 
 	return outputPath, nil
+}
+
+// tryWriteRawJSON writes the stored raw JSON for an L0 round-trip when available.
+// It returns (true, err) if a raw payload was found (whether the write succeeded or not),
+// and (false, nil) when no raw payload exists and normal generation should proceed.
+func tryWriteRawJSON(corpus *ir.Corpus, outputPath string) (bool, error) {
+	raw, ok := corpus.Attributes["_json_raw"]
+	if !ok || raw == "" {
+		return false, nil
+	}
+	if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
+		return true, fmt.Errorf("failed to write JSON: %w", err)
+	}
+	return true, nil
+}
+
+// buildJSONBible constructs a JSONBible value from the IR corpus.
+func buildJSONBible(corpus *ir.Corpus) JSONBible {
+	bible := JSONBible{
+		Meta: JSONMeta{
+			ID:          corpus.ID,
+			Title:       corpus.Title,
+			Language:    corpus.Language,
+			Description: corpus.Description,
+			Version:     corpus.Version,
+		},
+	}
+
+	for _, doc := range corpus.Documents {
+		book, verses := buildJSONBook(doc)
+		bible.Books = append(bible.Books, book)
+		bible.Verses = append(bible.Verses, verses...)
+	}
+
+	return bible
+}
+
+// buildJSONBook converts a single IR document into a JSONBook and its flat verse list.
+func buildJSONBook(doc *ir.Document) (JSONBook, []JSONVerse) {
+	book := JSONBook{
+		ID:    doc.ID,
+		Name:  doc.Title,
+		Order: doc.Order,
+	}
+
+	chapterMap := make(map[int]*JSONChapter)
+	var flatVerses []JSONVerse
+
+	for _, cb := range doc.ContentBlocks {
+		for _, anchor := range cb.Anchors {
+			for _, span := range anchor.Spans {
+				verse, ok := verseFromSpan(span, doc.ID, cb.Text)
+				if !ok {
+					continue
+				}
+				chapter := getOrCreateChapter(chapterMap, span.Ref.Chapter)
+				chapter.Verses = append(chapter.Verses, verse)
+				flatVerses = append(flatVerses, verse)
+			}
+		}
+	}
+
+	book.Chapters = sortedChapters(chapterMap)
+	return book, flatVerses
+}
+
+// verseFromSpan extracts a JSONVerse from a span when it is a VERSE span with a valid Ref.
+// Returns the verse and true on success, or a zero value and false otherwise.
+func verseFromSpan(span *ir.Span, bookID, text string) (JSONVerse, bool) {
+	if span.Ref == nil || span.Type != "VERSE" {
+		return JSONVerse{}, false
+	}
+	return JSONVerse{
+		Book:    bookID,
+		Chapter: span.Ref.Chapter,
+		Verse:   span.Ref.Verse,
+		Text:    text,
+		ID:      span.Ref.OSISID,
+	}, true
+}
+
+// getOrCreateChapter returns the JSONChapter for the given number from the map,
+// creating and storing it if it does not yet exist.
+func getOrCreateChapter(chapterMap map[int]*JSONChapter, number int) *JSONChapter {
+	if ch, ok := chapterMap[number]; ok {
+		return ch
+	}
+	ch := &JSONChapter{Number: number}
+	chapterMap[number] = ch
+	return ch
+}
+
+// sortedChapters returns chapters from the map in ascending numeric order.
+func sortedChapters(chapterMap map[int]*JSONChapter) []JSONChapter {
+	var chapters []JSONChapter
+	for i := 1; i <= 200; i++ {
+		if ch, ok := chapterMap[i]; ok {
+			chapters = append(chapters, *ch)
+		}
+	}
+	return chapters
 }

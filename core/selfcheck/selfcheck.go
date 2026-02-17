@@ -289,60 +289,89 @@ func (e *Executor) executeExportStep(step *ExportStep) error {
 	return nil
 }
 
+// validateToolPlugin ensures the plugin loader is configured and returns a tool plugin.
+func (e *Executor) validateToolPlugin(toolPluginID string) (*plugins.Plugin, error) {
+	if e.pluginLoader == nil {
+		return nil, fmt.Errorf("plugin loader not configured - use NewExecutorWithPlugins")
+	}
+	plugin, err := e.pluginLoader.GetPlugin(toolPluginID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tool plugin %q: %w", toolPluginID, err)
+	}
+	if !plugin.IsTool() {
+		return nil, fmt.Errorf("plugin %q is not a tool plugin (kind: %s)", toolPluginID, plugin.Manifest.Kind)
+	}
+	return plugin, nil
+}
+
+// resolveInputPath returns the filesystem path for a single tool input key.
+// It checks prior step outputs first, then falls back to capsule artifacts.
+func (e *Executor) resolveInputPath(inputKey, inputDir string) (string, error) {
+	if prevPath, ok := e.outputs[inputKey]; ok {
+		return prevPath, nil
+	}
+	artifact, ok := e.capsule.Manifest.Artifacts[inputKey]
+	if !ok {
+		return "", fmt.Errorf("input not found: %s", inputKey)
+	}
+	inputPath := filepath.Join(inputDir, artifact.OriginalName)
+	if inputPath == filepath.Join(inputDir, "") {
+		inputPath = filepath.Join(inputDir, inputKey)
+	}
+	if err := e.capsule.Export(inputKey, capsule.ExportModeIdentity, inputPath); err != nil {
+		return "", fmt.Errorf("failed to export input %q: %w", inputKey, err)
+	}
+	return inputPath, nil
+}
+
+// collectInputPaths resolves all input keys to filesystem paths, exporting
+// artifacts into inputDir as needed.
+func (e *Executor) collectInputPaths(inputs []string, inputDir string) ([]string, error) {
+	paths := make([]string, 0, len(inputs))
+	for _, inputKey := range inputs {
+		p, err := e.resolveInputPath(inputKey, inputDir)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, p)
+	}
+	return paths, nil
+}
+
+// storeToolOutputs records the tool output directory and, when present, the
+// transcript file under the step's output key.
+func (e *Executor) storeToolOutputs(outputKey, outputDir string) {
+	e.outputs[outputKey] = outputDir
+	transcriptPath := filepath.Join(outputDir, "transcript.jsonl")
+	if _, err := os.Stat(transcriptPath); err == nil {
+		e.outputs[outputKey+"_transcript"] = transcriptPath
+	}
+}
+
 // executeRunToolStep executes a run tool step.
 // This runs a tool plugin with the specified profile and inputs,
 // storing the output for use in subsequent steps or checks.
 func (e *Executor) executeRunToolStep(step *RunToolStep) error {
-	if e.pluginLoader == nil {
-		return fmt.Errorf("plugin loader not configured - use NewExecutorWithPlugins")
-	}
-
-	// Get the tool plugin
-	plugin, err := e.pluginLoader.GetPlugin(step.ToolPluginID)
+	plugin, err := e.validateToolPlugin(step.ToolPluginID)
 	if err != nil {
-		return fmt.Errorf("failed to get tool plugin %q: %w", step.ToolPluginID, err)
+		return err
 	}
 
-	if !plugin.IsTool() {
-		return fmt.Errorf("plugin %q is not a tool plugin (kind: %s)", step.ToolPluginID, plugin.Manifest.Kind)
-	}
-
-	// Prepare input directory
 	inputDir := filepath.Join(e.tempDir, step.OutputKey+"_inputs")
 	if err := os.MkdirAll(inputDir, 0700); err != nil {
 		return fmt.Errorf("failed to create input dir: %w", err)
 	}
 
-	// Export inputs to temp files
-	var inputPaths []string
-	for _, inputKey := range step.Inputs {
-		var inputPath string
-
-		// Check if it's a previous step output
-		if prevPath, ok := e.outputs[inputKey]; ok {
-			inputPath = prevPath
-		} else if artifact, ok := e.capsule.Manifest.Artifacts[inputKey]; ok {
-			// It's an artifact - export it
-			inputPath = filepath.Join(inputDir, artifact.OriginalName)
-			if inputPath == filepath.Join(inputDir, "") {
-				inputPath = filepath.Join(inputDir, inputKey)
-			}
-			if err := e.capsule.Export(inputKey, capsule.ExportModeIdentity, inputPath); err != nil {
-				return fmt.Errorf("failed to export input %q: %w", inputKey, err)
-			}
-		} else {
-			return fmt.Errorf("input not found: %s", inputKey)
-		}
-		inputPaths = append(inputPaths, inputPath)
+	inputPaths, err := e.collectInputPaths(step.Inputs, inputDir)
+	if err != nil {
+		return err
 	}
 
-	// Create output directory
 	outputDir := filepath.Join(e.tempDir, step.OutputKey+"_output")
 	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
 
-	// Build the IPC request for the tool
 	req := &plugins.IPCRequest{
 		Command: "run",
 		Args: map[string]interface{}{
@@ -352,89 +381,99 @@ func (e *Executor) executeRunToolStep(step *RunToolStep) error {
 		},
 	}
 
-	// Execute the tool plugin
 	resp, err := plugins.ExecutePlugin(plugin, req)
 	if err != nil {
 		return fmt.Errorf("tool execution failed: %w", err)
 	}
-
 	if resp.Status == "error" {
 		return fmt.Errorf("tool returned error: %s", resp.Error)
 	}
 
-	// Store the output directory path
-	e.outputs[step.OutputKey] = outputDir
-
-	// Look for transcript file and store its path specifically
-	transcriptPath := filepath.Join(outputDir, "transcript.jsonl")
-	if _, err := os.Stat(transcriptPath); err == nil {
-		e.outputs[step.OutputKey+"_transcript"] = transcriptPath
-	}
-
+	e.storeToolOutputs(step.OutputKey, outputDir)
 	return nil
+}
+
+// resolveSourcePath returns the filesystem path for the source artifact used in
+// an IR extraction step. If the artifact exists in the capsule it is exported
+// first; otherwise a prior step output is used.
+func (e *Executor) resolveSourcePath(sourceArtifactID string) (string, error) {
+	if _, ok := e.capsule.Manifest.Artifacts[sourceArtifactID]; ok {
+		dest := filepath.Join(e.tempDir, sourceArtifactID)
+		if err := e.capsule.Export(sourceArtifactID, capsule.ExportModeIdentity, dest); err != nil {
+			return "", fmt.Errorf("failed to export artifact: %w", err)
+		}
+		return dest, nil
+	}
+	if prevPath, ok := e.outputs[sourceArtifactID]; ok {
+		return prevPath, nil
+	}
+	return "", fmt.Errorf("artifact not found: %s", sourceArtifactID)
+}
+
+// runPluginExtractIR attempts to extract IR via the named plugin. It returns
+// (irPath, true, nil) on success, ("", false, nil) when the plugin is
+// unavailable or incapable, and ("", false, err) on a plugin execution error.
+func (e *Executor) runPluginExtractIR(pluginID, sourcePath, irOutputDir string) (string, bool, error) {
+	if e.pluginLoader == nil || pluginID == "" {
+		return "", false, nil
+	}
+	plugin, err := e.pluginLoader.GetPlugin(pluginID)
+	if err != nil || !plugin.CanExtractIR() {
+		return "", false, nil
+	}
+	req := plugins.NewExtractIRRequest(sourcePath, irOutputDir)
+	resp, err := plugins.ExecutePlugin(plugin, req)
+	if err != nil {
+		return "", false, fmt.Errorf("plugin extract-ir failed: %w", err)
+	}
+	result, err := plugins.ParseExtractIRResult(resp)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to parse extract-ir result: %w", err)
+	}
+	return result.IRPath, true, nil
+}
+
+// writePlaceholderIR writes a placeholder IR JSON file and returns its path.
+func (e *Executor) writePlaceholderIR(outputKey, pluginID, sourceArtifactID string) (string, error) {
+	outputPath := filepath.Join(e.tempDir, outputKey+".ir.json")
+	sourceHash := ""
+	if artifact, ok := e.capsule.Manifest.Artifacts[sourceArtifactID]; ok && artifact.PrimaryBlobSHA256 != "" {
+		sourceHash = artifact.PrimaryBlobSHA256
+	}
+	irData := []byte(fmt.Sprintf(`{"_placeholder": true, "source": "%s", "plugin": "%s"}`,
+		sourceHash, pluginID))
+	if err := os.WriteFile(outputPath, irData, 0600); err != nil {
+		return "", fmt.Errorf("failed to write IR output: %w", err)
+	}
+	return outputPath, nil
 }
 
 // executeExtractIRStep executes an IR extraction step.
 func (e *Executor) executeExtractIRStep(step *ExtractIRStep) error {
-	var sourcePath string
-
-	// Get source artifact data or from previous step output
-	artifact, ok := e.capsule.Manifest.Artifacts[step.SourceArtifactID]
-	if !ok {
-		// Check if it's an output from a previous step
-		if prevPath, ok := e.outputs[step.SourceArtifactID]; ok {
-			sourcePath = prevPath
-		} else {
-			return fmt.Errorf("artifact not found: %s", step.SourceArtifactID)
-		}
-	} else {
-		// Export artifact to temp file
-		sourcePath = filepath.Join(e.tempDir, step.SourceArtifactID)
-		if err := e.capsule.Export(step.SourceArtifactID, capsule.ExportModeIdentity, sourcePath); err != nil {
-			return fmt.Errorf("failed to export artifact: %w", err)
-		}
+	sourcePath, err := e.resolveSourcePath(step.SourceArtifactID)
+	if err != nil {
+		return err
 	}
 
-	// Output directory for IR
 	irOutputDir := filepath.Join(e.tempDir, step.OutputKey+"_ir")
 	if err := os.MkdirAll(irOutputDir, 0700); err != nil {
 		return fmt.Errorf("failed to create IR output dir: %w", err)
 	}
 
-	// Try to call the plugin if we have a plugin loader
-	if e.pluginLoader != nil && step.PluginID != "" {
-		plugin, err := e.pluginLoader.GetPlugin(step.PluginID)
-		if err == nil && plugin.CanExtractIR() {
-			// Call the plugin's extract-ir command
-			req := plugins.NewExtractIRRequest(sourcePath, irOutputDir)
-			resp, err := plugins.ExecutePlugin(plugin, req)
-			if err != nil {
-				return fmt.Errorf("plugin extract-ir failed: %w", err)
-			}
-
-			result, err := plugins.ParseExtractIRResult(resp)
-			if err != nil {
-				return fmt.Errorf("failed to parse extract-ir result: %w", err)
-			}
-
-			e.outputs[step.OutputKey] = result.IRPath
-			return nil
-		}
+	irPath, ok, err := e.runPluginExtractIR(step.PluginID, sourcePath, irOutputDir)
+	if err != nil {
+		return err
+	}
+	if ok {
+		e.outputs[step.OutputKey] = irPath
+		return nil
 	}
 
-	// Fallback: create placeholder IR if no plugin available
-	outputPath := filepath.Join(e.tempDir, step.OutputKey+".ir.json")
-	sourceHash := ""
-	if artifact != nil && artifact.PrimaryBlobSHA256 != "" {
-		sourceHash = artifact.PrimaryBlobSHA256
+	placeholderPath, err := e.writePlaceholderIR(step.OutputKey, step.PluginID, step.SourceArtifactID)
+	if err != nil {
+		return err
 	}
-	irData := []byte(fmt.Sprintf(`{"_placeholder": true, "source": "%s", "plugin": "%s"}`,
-		sourceHash, step.PluginID))
-	if err := os.WriteFile(outputPath, irData, 0600); err != nil {
-		return fmt.Errorf("failed to write IR output: %w", err)
-	}
-
-	e.outputs[step.OutputKey] = outputPath
+	e.outputs[step.OutputKey] = placeholderPath
 	return nil
 }
 

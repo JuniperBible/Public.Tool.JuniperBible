@@ -145,86 +145,75 @@ func (p *ZComParser) Load() error {
 	return nil
 }
 
-// GetEntry retrieves a commentary entry for a specific verse reference.
+type testamentData struct {
+	blocks  []BlockEntry
+	verses  []VerseEntry
+	bzzPath string
+	name    string
+}
+
+func (p *ZComParser) resolveTestament(isNT bool) testamentData {
+	if isNT {
+		return testamentData{p.ntBlocks, p.ntVerses, filepath.Join(p.dataPath, "nt.bzz"), "NT"}
+	}
+	return testamentData{p.otBlocks, p.otVerses, filepath.Join(p.dataPath, "ot.bzz"), "OT"}
+}
+
+func (p *ZComParser) resolveVerseIndex(ref Ref, isNT bool, verses []VerseEntry) (int, error) {
+	vers, err := VersificationFromConf(p.module)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get versification: %w", err)
+	}
+	verseIdx, err := vers.CalculateIndex(&ref, isNT)
+	if err != nil {
+		return 0, err
+	}
+	if verseIdx < 0 || verseIdx >= len(verses) {
+		return 0, fmt.Errorf("verse index out of range: %d", verseIdx)
+	}
+	return verseIdx, nil
+}
+
+func extractEntryText(bzzPath string, blocks []BlockEntry, verse VerseEntry) (string, error) {
+	if int(verse.BlockNum) >= len(blocks) {
+		return "", fmt.Errorf("block number out of range: %d", verse.BlockNum)
+	}
+	blockData, err := readBlock(bzzPath, blocks[verse.BlockNum])
+	if err != nil {
+		return "", fmt.Errorf("failed to read block: %w", err)
+	}
+	if int(verse.Offset)+int(verse.Size) > len(blockData) {
+		return "", fmt.Errorf("entry data exceeds block size")
+	}
+	return strings.TrimRight(string(blockData[verse.Offset:verse.Offset+uint32(verse.Size)]), "\x00"), nil
+}
+
 func (p *ZComParser) GetEntry(ref Ref) (*CommentaryEntry, error) {
 	if !p.loaded {
 		return nil, fmt.Errorf("module not loaded")
 	}
 
-	// Determine which testament using book OSIS ID
-	isNT := ntBookSet[ref.Book]
-
-	var blocks []BlockEntry
-	var verses []VerseEntry
-	var bzzPath string
-
-	if isNT {
-		blocks = p.ntBlocks
-		verses = p.ntVerses
-		bzzPath = filepath.Join(p.dataPath, "nt.bzz")
-	} else {
-		blocks = p.otBlocks
-		verses = p.otVerses
-		bzzPath = filepath.Join(p.dataPath, "ot.bzz")
+	td := p.resolveTestament(ntBookSet[ref.Book])
+	if len(td.blocks) == 0 || len(td.verses) == 0 {
+		return nil, fmt.Errorf("no data for %s testament", td.name)
 	}
 
-	if len(blocks) == 0 || len(verses) == 0 {
-		testament := "OT"
-		if isNT {
-			testament = "NT"
-		}
-		return nil, fmt.Errorf("no data for %s testament", testament)
-	}
-
-	// Calculate verse index using versification
-	vers, err := VersificationFromConf(p.module)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get versification: %w", err)
-	}
-
-	verseIdx, err := vers.CalculateIndex(&ref, isNT)
+	verseIdx, err := p.resolveVerseIndex(ref, ntBookSet[ref.Book], td.verses)
 	if err != nil {
 		return nil, err
 	}
 
-	if verseIdx < 0 || verseIdx >= len(verses) {
-		return nil, fmt.Errorf("verse index out of range: %d", verseIdx)
-	}
-
-	verse := verses[verseIdx]
+	verse := td.verses[verseIdx]
 	if verse.Size == 0 {
-		return &CommentaryEntry{
-			Reference: ref,
-			Text:      "",
-			Source:    p.module.ModuleName,
-		}, nil
+		return &CommentaryEntry{Reference: ref, Text: "", Source: p.module.ModuleName}, nil
 	}
 
-	if int(verse.BlockNum) >= len(blocks) {
-		return nil, fmt.Errorf("block number out of range: %d", verse.BlockNum)
-	}
-
-	block := blocks[verse.BlockNum]
-
-	// Read and decompress the block
-	blockData, err := readBlock(bzzPath, block)
+	text, err := extractEntryText(td.bzzPath, td.blocks, verse)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read block: %w", err)
+		return nil, err
 	}
 
-	// Extract entry text
-	if int(verse.Offset)+int(verse.Size) > len(blockData) {
-		return nil, fmt.Errorf("entry data exceeds block size")
-	}
-
-	text := string(blockData[verse.Offset : verse.Offset+uint32(verse.Size)])
-	text = strings.TrimRight(text, "\x00")
-
-	return &CommentaryEntry{
-		Reference: ref,
-		Text:      text,
-		Source:    p.module.ModuleName,
-	}, nil
+	return &CommentaryEntry{Reference: ref, Text: text, Source: p.module.ModuleName}, nil
 }
 
 // GetChapterEntries retrieves all commentary entries for a chapter.

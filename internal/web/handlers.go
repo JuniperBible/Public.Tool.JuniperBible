@@ -2065,136 +2065,119 @@ func extractTarFile(destPath string, tr *tar.Reader) error {
 	return outFile.Close()
 }
 
-// parseExtractIRResultFlexible parses extract-ir results from both single and multi-module formats.
-// Some plugins (like sword-pure) return {"modules": [...]} while others return {"ir_path": "..."}.
+type irModule struct {
+	Module    string `json:"module"`
+	Status    string `json:"status"`
+	IRPath    string `json:"ir_path"`
+	LossClass string `json:"loss_class"`
+	Error     string `json:"error"`
+	Reason    string `json:"reason"`
+}
+
+func firstModuleError(modules []irModule) error {
+	for _, m := range modules {
+		if m.Status == "error" {
+			return fmt.Errorf("module %s: %s", m.Module, m.Error)
+		}
+		if m.Status == "skipped" {
+			return fmt.Errorf("module %s skipped: %s", m.Module, m.Reason)
+		}
+	}
+	return fmt.Errorf("no IR generated from any module")
+}
+
+func parseMultiModuleIRResult(data []byte) (*plugins.ExtractIRResult, error) {
+	var multi struct {
+		Modules []irModule `json:"modules"`
+		Count   int        `json:"count"`
+	}
+	if err := json.Unmarshal(data, &multi); err != nil || len(multi.Modules) == 0 {
+		return nil, fmt.Errorf("unable to parse extract-ir result")
+	}
+	for _, m := range multi.Modules {
+		if m.Status == "ok" && m.IRPath != "" {
+			return &plugins.ExtractIRResult{IRPath: m.IRPath, LossClass: m.LossClass}, nil
+		}
+	}
+	return nil, firstModuleError(multi.Modules)
+}
+
 func parseExtractIRResultFlexible(resp *plugins.IPCResponse) (*plugins.ExtractIRResult, error) {
 	if resp.Status == "error" {
 		return nil, fmt.Errorf("plugin error: %s", resp.Error)
 	}
-
-	// Re-marshal result to JSON
 	data, err := json.Marshal(resp.Result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to re-marshal result: %w", err)
 	}
-
-	// First try standard format: {"ir_path": "...", "loss_class": "..."}
 	var standard plugins.ExtractIRResult
 	if err := json.Unmarshal(data, &standard); err == nil && standard.IRPath != "" {
 		return &standard, nil
 	}
-
-	// Try multi-module format: {"modules": [{"ir_path": "...", ...}], "count": N}
-	var multiModule struct {
-		Modules []struct {
-			Module    string `json:"module"`
-			Status    string `json:"status"`
-			IRPath    string `json:"ir_path"`
-			LossClass string `json:"loss_class"`
-			Error     string `json:"error"`
-			Reason    string `json:"reason"`
-		} `json:"modules"`
-		Count int `json:"count"`
-	}
-	if err := json.Unmarshal(data, &multiModule); err == nil && len(multiModule.Modules) > 0 {
-		// Find first successful module with IR path
-		for _, m := range multiModule.Modules {
-			if m.Status == "ok" && m.IRPath != "" {
-				return &plugins.ExtractIRResult{
-					IRPath:    m.IRPath,
-					LossClass: m.LossClass,
-				}, nil
-			}
-		}
-		// If no successful modules, report the first error
-		for _, m := range multiModule.Modules {
-			if m.Status == "error" {
-				return nil, fmt.Errorf("module %s: %s", m.Module, m.Error)
-			}
-			if m.Status == "skipped" {
-				return nil, fmt.Errorf("module %s skipped: %s", m.Module, m.Reason)
-			}
-		}
-		return nil, fmt.Errorf("no IR generated from any module")
-	}
-
-	return nil, fmt.Errorf("unable to parse extract-ir result")
+	return parseMultiModuleIRResult(data)
 }
 
 // findContentFile finds a convertible content file in the extracted capsule.
-func findContentFile(extractDir string) (string, string) {
-	// Check for SWORD module FIRST (has mods.d/*.conf)
-	// Try both direct and nested capsule/ paths
-	for _, base := range []string{extractDir, filepath.Join(extractDir, "capsule")} {
+// detectSwordModule checks a list of candidate base directories for a
+// mods.d/*.conf file. It returns the base directory path if found, or "".
+func detectSwordModule(bases []string) string {
+	for _, base := range bases {
 		modsDir := filepath.Join(base, "mods.d")
-		if _, err := os.Stat(modsDir); err == nil {
-			entries, _ := os.ReadDir(modsDir)
-			for _, e := range entries {
-				if strings.HasSuffix(e.Name(), ".conf") {
-					// Return the base directory (parent of mods.d), not just the .conf file
-					return base, "sword-pure"
-				}
+		if _, err := os.Stat(modsDir); err != nil {
+			continue
+		}
+		entries, _ := os.ReadDir(modsDir)
+		for _, e := range entries {
+			if strings.HasSuffix(e.Name(), ".conf") {
+				return base
 			}
 		}
 	}
+	return ""
+}
 
-	// Priority order for other formats: OSIS, USX, USFM
-	patterns := []struct {
-		ext    string
-		format string
-	}{
+// matchContentFormat returns the format name for a lowercased filename that
+// matches one of the known Bible-text extensions, or "" when there is no match.
+func matchContentFormat(name string) string {
+	for _, p := range []struct{ ext, format string }{
 		{".osis", "osis"},
 		{".osis.xml", "osis"},
 		{".usx", "usx"},
 		{".usfm", "usfm"},
 		{".sfm", "usfm"},
+	} {
+		if strings.HasSuffix(name, p.ext) {
+			return p.format
+		}
+	}
+	return ""
+}
+
+func findContentFile(extractDir string) (string, string) {
+	// Check for SWORD module FIRST (has mods.d/*.conf).
+	// Try both the direct path and the nested capsule/ path.
+	swordBases := []string{extractDir, filepath.Join(extractDir, "capsule")}
+	if base := detectSwordModule(swordBases); base != "" {
+		return base, "sword-pure"
 	}
 
-	var found string
-	var format string
-
+	// Walk the tree looking for the first file whose extension matches a known
+	// Bible-text format (OSIS, USX, USFM).
+	var found, format string
 	filepath.Walk(extractDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
-
 		name := strings.ToLower(filepath.Base(path))
-
-		// Skip manifest and IR files
 		if name == "manifest.json" || strings.HasSuffix(name, ".ir.json") {
 			return nil
 		}
-
-		for _, p := range patterns {
-			if strings.HasSuffix(name, p.ext) {
-				found = path
-				format = p.format
-				return filepath.SkipAll
-			}
+		if fmt := matchContentFormat(name); fmt != "" {
+			found, format = path, fmt
+			return filepath.SkipAll
 		}
-
 		return nil
 	})
-
-	// Legacy fallback for SWORD detection (shouldn't reach here)
-	if found == "" {
-		for _, base := range []string{extractDir, filepath.Join(extractDir, "capsule")} {
-			modsDir := filepath.Join(base, "mods.d")
-			if _, err := os.Stat(modsDir); err == nil {
-				entries, _ := os.ReadDir(modsDir)
-				for _, e := range entries {
-					if strings.HasSuffix(e.Name(), ".conf") {
-						found = base
-						format = "sword-pure"
-						break
-					}
-				}
-			}
-			if found != "" {
-				break
-			}
-		}
-	}
 
 	return found, format
 }
@@ -2242,7 +2225,45 @@ func combineLossClass(a, b string) string {
 
 // detectSourceFormat is implemented in format_detection.go
 
-// readCapsuleManifest reads the manifest from a capsule archive.
+func openTarReader(f *os.File, capsulePath string) (*tar.Reader, io.Closer, error) {
+	if strings.HasSuffix(capsulePath, ".tar.xz") {
+		xzr, err := xz.NewReader(f)
+		if err != nil {
+			return nil, nil, err
+		}
+		return tar.NewReader(xzr), nil, nil
+	}
+	if strings.HasSuffix(capsulePath, ".tar.gz") {
+		gzr, err := gzip.NewReader(f)
+		if err != nil {
+			return nil, nil, err
+		}
+		return tar.NewReader(gzr), gzr, nil
+	}
+	return nil, nil, fmt.Errorf("unsupported format")
+}
+
+func findManifestEntry(tr *tar.Reader) *CapsuleManifest {
+	for {
+		header, err := tr.Next()
+		if err != nil {
+			return nil
+		}
+		if !strings.HasSuffix(header.Name, "manifest.json") {
+			continue
+		}
+		data, err := io.ReadAll(tr)
+		if err != nil {
+			return nil
+		}
+		var manifest CapsuleManifest
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			return nil
+		}
+		return &manifest
+	}
+}
+
 func readCapsuleManifest(capsulePath string) *CapsuleManifest {
 	f, err := os.Open(capsulePath)
 	if err != nil {
@@ -2250,48 +2271,15 @@ func readCapsuleManifest(capsulePath string) *CapsuleManifest {
 	}
 	defer f.Close()
 
-	var tr *tar.Reader
-
-	if strings.HasSuffix(capsulePath, ".tar.xz") {
-		xzr, err := xz.NewReader(f)
-		if err != nil {
-			return nil
-		}
-		tr = tar.NewReader(xzr)
-	} else if strings.HasSuffix(capsulePath, ".tar.gz") {
-		gzr, err := gzip.NewReader(f)
-		if err != nil {
-			return nil
-		}
-		defer gzr.Close()
-		tr = tar.NewReader(gzr)
-	} else {
+	tr, closer, err := openTarReader(f, capsulePath)
+	if err != nil {
 		return nil
 	}
-
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil
-		}
-
-		if strings.HasSuffix(header.Name, "manifest.json") {
-			data, err := io.ReadAll(tr)
-			if err != nil {
-				return nil
-			}
-			var manifest CapsuleManifest
-			if err := json.Unmarshal(data, &manifest); err != nil {
-				return nil
-			}
-			return &manifest
-		}
+	if closer != nil {
+		defer closer.Close()
 	}
 
-	return nil
+	return findManifestEntry(tr)
 }
 
 func handleStatic(w http.ResponseWriter, r *http.Request) {
@@ -2812,31 +2800,36 @@ func readIRContent(capsulePath string) (map[string]interface{}, error) {
 	return ir, nil
 }
 
-func detectContentType(name string, data []byte) string {
-	ext := strings.ToLower(filepath.Ext(name))
-	switch ext {
-	case ".xml", ".osis", ".usx":
-		return "application/xml"
-	case ".json":
-		return "application/json"
-	case ".html", ".htm":
-		return "text/html"
-	case ".md":
-		return "text/markdown"
-	case ".txt":
-		return "text/plain"
-	case ".usfm", ".sfm":
-		return "text/plain"
-	default:
-		if len(data) > 0 {
-			for _, b := range data[:min(512, len(data))] {
-				if b < 32 && b != '\t' && b != '\n' && b != '\r' {
-					return "application/octet-stream"
-				}
-			}
+var extContentTypes = map[string]string{
+	".xml":  "application/xml",
+	".osis": "application/xml",
+	".usx":  "application/xml",
+	".json": "application/json",
+	".html": "text/html",
+	".htm":  "text/html",
+	".md":   "text/markdown",
+	".txt":  "text/plain",
+	".usfm": "text/plain",
+	".sfm":  "text/plain",
+}
+
+func isBinaryData(data []byte) bool {
+	for _, b := range data[:min(512, len(data))] {
+		if b < 32 && b != '\t' && b != '\n' && b != '\r' {
+			return true
 		}
-		return "text/plain"
 	}
+	return false
+}
+
+func detectContentType(name string, data []byte) string {
+	if ct, ok := extContentTypes[strings.ToLower(filepath.Ext(name))]; ok {
+		return ct
+	}
+	if len(data) > 0 && isBinaryData(data) {
+		return "application/octet-stream"
+	}
+	return "text/plain"
 }
 
 func humanSize(bytes int64) string {
@@ -2978,65 +2971,48 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// performIngest creates a capsule from an uploaded file.
-func performIngest(file io.Reader, filename string, size int64) *IngestResult {
-	// Validate and sanitize filename
-	safeFilename, err := validation.SanitizeFilename(filename)
+func saveUploadToTemp(file io.Reader, safeFilename string) (tempDir string, uploadPath string, written int64, err error) {
+	tempDir, err = secureMkdirTemp("", "capsule-ingest-*")
 	if err != nil {
-		return &IngestResult{
-			Success: false,
-			Error:   fmt.Sprintf("Invalid filename: %v", err),
-		}
+		return "", "", 0, fmt.Errorf("Failed to create temp directory: %w", err)
 	}
-
-	// Create temp directory for processing
-	tempDir, err := secureMkdirTemp("", "capsule-ingest-*")
-	if err != nil {
-		return &IngestResult{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to create temp directory: %v", err),
-		}
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Save uploaded file with sanitized name
-	uploadPath := filepath.Join(tempDir, safeFilename)
+	uploadPath = filepath.Join(tempDir, safeFilename)
 	outFile, err := os.Create(uploadPath)
 	if err != nil {
-		return &IngestResult{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to save file: %v", err),
-		}
+		os.RemoveAll(tempDir)
+		return "", "", 0, fmt.Errorf("Failed to save file: %w", err)
 	}
-
-	written, err := io.Copy(outFile, file)
+	written, err = io.Copy(outFile, file)
 	if err != nil {
 		outFile.Close()
-		return &IngestResult{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to write file: %v", err),
-		}
+		os.RemoveAll(tempDir)
+		return "", "", 0, fmt.Errorf("Failed to write file: %w", err)
 	}
-	// Check Close() error for writes to detect disk full, etc.
-	if err := outFile.Close(); err != nil {
-		return &IngestResult{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to close file: %v", err),
-		}
+	if err = outFile.Close(); err != nil {
+		os.RemoveAll(tempDir)
+		return "", "", 0, fmt.Errorf("Failed to close file: %w", err)
 	}
+	return tempDir, uploadPath, written, nil
+}
 
-	// Detect format
-	detectedFormat := detectFileFormat(uploadPath)
+func buildCapsuleName(filename string) (string, error) {
+	baseName := filepath.Base(strings.TrimSuffix(filename, filepath.Ext(filename)))
+	invalidBaseNames := map[string]bool{".": true, "..": true, "": true}
+	if invalidBaseNames[baseName] {
+		baseName = "uploaded"
+	}
+	capsuleName := baseName + ".capsule.tar.gz"
+	cleanName, err := validation.SanitizePath(ServerConfig.CapsulesDir, capsuleName)
+	if err != nil {
+		return "", fmt.Errorf("Invalid filename")
+	}
+	return cleanName, nil
+}
 
-	// Create capsule directory
-	capsuleDir := filepath.Join(tempDir, "capsule")
+func assembleCapsule(capsuleDir, uploadPath, filename, detectedFormat string) {
 	os.MkdirAll(capsuleDir, 0700)
-
-	// Copy file to capsule
 	data, _ := os.ReadFile(uploadPath)
 	os.WriteFile(filepath.Join(capsuleDir, filename), data, 0600)
-
-	// Create manifest
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 		"source_format":   detectedFormat,
@@ -3045,27 +3021,32 @@ func performIngest(file io.Reader, filename string, size int64) *IngestResult {
 	}
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
 	os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600)
+}
 
-	// Create capsule archive - sanitize filename to prevent path traversal
-	baseName := filepath.Base(strings.TrimSuffix(filename, filepath.Ext(filename)))
-	if baseName == "." || baseName == ".." || baseName == "" {
-		baseName = "uploaded"
-	}
-	capsuleName := baseName + ".capsule.tar.gz"
-	cleanName, err := validation.SanitizePath(ServerConfig.CapsulesDir, capsuleName)
+func performIngest(file io.Reader, filename string, size int64) *IngestResult {
+	safeFilename, err := validation.SanitizeFilename(filename)
 	if err != nil {
-		return &IngestResult{
-			Success: false,
-			Error:   "Invalid filename",
-		}
+		return &IngestResult{Success: false, Error: fmt.Sprintf("Invalid filename: %v", err)}
 	}
-	capsulePath := filepath.Join(ServerConfig.CapsulesDir, cleanName)
+
+	tempDir, uploadPath, written, err := saveUploadToTemp(file, safeFilename)
+	if err != nil {
+		return &IngestResult{Success: false, Error: err.Error()}
+	}
+	defer os.RemoveAll(tempDir)
+
+	detectedFormat := detectFileFormat(uploadPath)
+	capsuleDir := filepath.Join(tempDir, "capsule")
+	assembleCapsule(capsuleDir, uploadPath, filename, detectedFormat)
+
+	capsuleName, err := buildCapsuleName(filename)
+	if err != nil {
+		return &IngestResult{Success: false, Error: err.Error()}
+	}
+	capsulePath := filepath.Join(ServerConfig.CapsulesDir, capsuleName)
 
 	if err := archive.CreateCapsuleTarGzFromPath(capsuleDir, capsulePath); err != nil {
-		return &IngestResult{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to create capsule: %v", err),
-		}
+		return &IngestResult{Success: false, Error: fmt.Sprintf("Failed to create capsule: %v", err)}
 	}
 
 	return &IngestResult{
@@ -3874,6 +3855,47 @@ type DiffEntry struct {
 	Event2 string
 }
 
+func resolveCapsuleInfo(w http.ResponseWriter, capsulePath string) (string, os.FileInfo, bool) {
+	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, capsulePath)
+	if err != nil {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return "", nil, false
+	}
+	fullPath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		http.Error(w, "Capsule not found", http.StatusNotFound)
+		return "", nil, false
+	}
+	return fullPath, info, true
+}
+
+func extractCapsuleToTemp(w http.ResponseWriter, fullPath string) (string, bool) {
+	tempDir, err := secureMkdirTemp("", "capsule-compare-*")
+	if err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+		return "", false
+	}
+	if err := extractCapsule(fullPath, tempDir); err != nil {
+		os.RemoveAll(tempDir)
+		httpError(w, err, http.StatusInternalServerError)
+		return "", false
+	}
+	return tempDir, true
+}
+
+func applyRunsComparePost(r *http.Request, tempDir string, data *RunsCompareData) {
+	if !validateCSRFToken(r) {
+		data.PageData.Error = "Invalid CSRF token. Please try again."
+		return
+	}
+	run1ID := r.FormValue("run1")
+	run2ID := r.FormValue("run2")
+	if run1ID != "" && run2ID != "" {
+		data.Result = performRunsCompare(tempDir, run1ID, run2ID)
+	}
+}
+
 // handleRunsCompare handles the runs compare page.
 func handleRunsCompare(w http.ResponseWriter, r *http.Request) {
 	capsulePath := strings.TrimPrefix(r.URL.Path, "/runs/compare/")
@@ -3882,39 +3904,18 @@ func handleRunsCompare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Sanitize path to prevent path traversal attacks
-	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, capsulePath)
-	if err != nil {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
-		return
-	}
-	fullPath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
-
-	info, err := os.Stat(fullPath)
-	if err != nil {
-		http.Error(w, "Capsule not found", http.StatusNotFound)
+	fullPath, info, ok := resolveCapsuleInfo(w, capsulePath)
+	if !ok {
 		return
 	}
 
-	// Extract capsule to temp dir
-	tempDir, err := secureMkdirTemp("", "capsule-compare-*")
-	if err != nil {
-		httpError(w, err, http.StatusInternalServerError)
+	tempDir, ok := extractCapsuleToTemp(w, fullPath)
+	if !ok {
 		return
 	}
 	defer os.RemoveAll(tempDir)
 
-	if err := extractCapsule(fullPath, tempDir); err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	// Read manifest for runs
-	runs := getRunsFromCapsule(tempDir)
-
-	// Get or create CSRF token
 	csrfToken := getOrCreateCSRFToken(w, r)
-
 	data := RunsCompareData{
 		PageData: PageData{Title: "Compare Runs: " + capsulePath, CSRFToken: csrfToken},
 		Capsule: CapsuleInfo{
@@ -3923,20 +3924,11 @@ func handleRunsCompare(w http.ResponseWriter, r *http.Request) {
 			Size:      info.Size(),
 			SizeHuman: humanSize(info.Size()),
 		},
-		Runs: runs,
+		Runs: getRunsFromCapsule(tempDir),
 	}
 
 	if r.Method == http.MethodPost {
-		if !validateCSRFToken(r) {
-			data.PageData.Error = "Invalid CSRF token. Please try again."
-		} else {
-			run1ID := r.FormValue("run1")
-			run2ID := r.FormValue("run2")
-			if run1ID != "" && run2ID != "" {
-				result := performRunsCompare(tempDir, run1ID, run2ID)
-				data.Result = result
-			}
-		}
+		applyRunsComparePost(r, tempDir, &data)
 	}
 
 	if err := Templates.ExecuteTemplate(w, "runs_compare.html", data); err != nil {
@@ -4165,72 +4157,64 @@ func handleTools(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func readToolPurpose(readmePath string) string {
+	data, err := os.ReadFile(readmePath)
+	if err != nil {
+		return ""
+	}
+	return extractPurposeFromReadme(string(data))
+}
+
+func readToolLicense(toolDir string) string {
+	data, err := os.ReadFile(filepath.Join(toolDir, "LICENSE.txt"))
+	if err != nil {
+		return ""
+	}
+	return extractLicenseType(string(data))
+}
+
+func dirHasFiles(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	files, _ := os.ReadDir(path)
+	return len(files) > 0
+}
+
+func buildToolItem(name, toolDir string) ToolItem {
+	readmePath := filepath.Join(toolDir, "README.md")
+	_, nixErr := os.Stat(filepath.Join(toolDir, "nixos", "default.nix"))
+	return ToolItem{
+		Name:       name,
+		Purpose:    readToolPurpose(readmePath),
+		License:    readToolLicense(toolDir),
+		HasNix:     nixErr == nil,
+		HasCapsule: dirHasFiles(filepath.Join(toolDir, "capsule")),
+		HasBin:     dirHasFiles(filepath.Join(toolDir, "bin")),
+	}
+}
+
 // getToolsList lists available tools in contrib/tool.
 func getToolsList(contribDir string) []ToolItem {
-	var tools []ToolItem
-
 	entries, err := os.ReadDir(contribDir)
 	if err != nil {
-		return tools
+		return nil
 	}
 
+	var tools []ToolItem
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-
 		name := entry.Name()
 		toolDir := filepath.Join(contribDir, name)
-
-		// Check for README to confirm it's a tool
-		readmePath := filepath.Join(toolDir, "README.md")
-		if _, err := os.Stat(readmePath); errors.Is(err, os.ErrNotExist) {
+		if _, err := os.Stat(filepath.Join(toolDir, "README.md")); errors.Is(err, os.ErrNotExist) {
 			continue
 		}
-
-		tool := ToolItem{
-			Name: name,
-		}
-
-		// Parse README for purpose
-		readmeData, err := os.ReadFile(readmePath)
-		if err == nil {
-			tool.Purpose = extractPurposeFromReadme(string(readmeData))
-		}
-
-		// Check for license
-		licensePath := filepath.Join(toolDir, "LICENSE.txt")
-		if _, err := os.Stat(licensePath); err == nil {
-			licenseData, err := os.ReadFile(licensePath)
-			if err == nil {
-				tool.License = extractLicenseType(string(licenseData))
-			}
-		}
-
-		// Check for Nix definition
-		nixPath := filepath.Join(toolDir, "nixos", "default.nix")
-		if _, err := os.Stat(nixPath); err == nil {
-			tool.HasNix = true
-		}
-
-		// Check for capsule
-		capsuleDir := filepath.Join(toolDir, "capsule")
-		if info, err := os.Stat(capsuleDir); err == nil && info.IsDir() {
-			capsuleFiles, _ := os.ReadDir(capsuleDir)
-			tool.HasCapsule = len(capsuleFiles) > 0
-		}
-
-		// Check for binaries
-		binDir := filepath.Join(toolDir, "bin")
-		if info, err := os.Stat(binDir); err == nil && info.IsDir() {
-			binFiles, _ := os.ReadDir(binDir)
-			tool.HasBin = len(binFiles) > 0
-		}
-
-		tools = append(tools, tool)
+		tools = append(tools, buildToolItem(name, toolDir))
 	}
 
-	// Sort by name
 	sort.Slice(tools, func(i, j int) bool {
 		return tools[i].Name < tools[j].Name
 	})
@@ -4395,27 +4379,28 @@ func parseSWORDConf(conf, filename string) SWORDModule {
 }
 
 // parseSWORDConfField processes a single configuration field.
+var swordConfStringFields = map[string]func(*SWORDModule) *string{
+	"description":         func(m *SWORDModule) *string { return &m.Description },
+	"lang":                func(m *SWORDModule) *string { return &m.Language },
+	"version":             func(m *SWORDModule) *string { return &m.Version },
+	"category":            func(m *SWORDModule) *string { return &m.Category },
+	"copyright":           func(m *SWORDModule) *string { return &m.Copyright },
+	"distributionlicense": func(m *SWORDModule) *string { return &m.License },
+	"datapath":            func(m *SWORDModule) *string { return &m.DataPath },
+	"versification":       func(m *SWORDModule) *string { return &m.Versification },
+}
+
 func parseSWORDConfField(module *SWORDModule, key, value string) {
-	switch strings.ToLower(key) {
-	case "description":
-		module.Description = value
-	case "lang":
-		module.Language = value
-	case "version":
-		module.Version = value
-	case "category":
-		module.Category = value
-	case "copyright":
-		module.Copyright = value
-	case "distributionlicense":
-		module.License = value
-	case "datapath":
-		module.DataPath = value
-	case "versification":
-		module.Versification = value
-	case "feature":
+	lkey := strings.ToLower(key)
+	if fieldPtr, ok := swordConfStringFields[lkey]; ok {
+		*fieldPtr(module) = value
+		return
+	}
+	if lkey == "feature" {
 		module.Features = append(module.Features, value)
-	case "globaloptionffilter":
+		return
+	}
+	if lkey == "globaloptionffilter" {
 		parseGlobalOptionFilter(module, value)
 	}
 }
@@ -4753,15 +4738,64 @@ func getToolPlugins() []ToolPluginInfo {
 	return toolPlugins
 }
 
-// runToolPlugin executes a tool plugin with the given profile.
+func loadPluginByID(pluginID string) (*plugins.Plugin, error) {
+	loader := getLoader()
+	if err := loader.LoadFromDir(ServerConfig.PluginsDir); err != nil {
+		return nil, fmt.Errorf("Failed to load plugins: %v", err)
+	}
+	plugin, err := loader.GetPlugin(pluginID)
+	if err != nil {
+		return nil, fmt.Errorf("Plugin not found: %v", err)
+	}
+	return plugin, nil
+}
+
+func buildRequestArgs(capsulePath, artifactID, outputDir string) (map[string]string, error) {
+	if capsulePath == "" || artifactID == "" {
+		return map[string]string{}, nil
+	}
+	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, capsulePath)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid capsule path")
+	}
+	fullCapsulePath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
+	inputPath := filepath.Join(outputDir, "input")
+	if err := os.MkdirAll(inputPath, 0700); err != nil {
+		return map[string]string{}, nil
+	}
+	extractedPath, err := extractArtifact(fullCapsulePath, artifactID, inputPath)
+	if err != nil {
+		return map[string]string{}, nil
+	}
+	return map[string]string{"input": extractedPath}, nil
+}
+
+func execPluginCommand(plugin *plugins.Plugin, reqPath, outputDir string) error {
+	entrypoint, err := plugin.SecureEntrypointPath()
+	if err != nil {
+		return fmt.Errorf("Plugin validation failed: %v", err)
+	}
+	cmd := exec.Command(entrypoint, "run", "--request", reqPath, "--out", outputDir)
+	cmd.Dir = plugin.Path
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Tool execution failed: %v\nOutput: %s", err, string(output))
+	}
+	return nil
+}
+
+func readToolTranscript(outputDir string) string {
+	data, err := os.ReadFile(filepath.Join(outputDir, "transcript.jsonl"))
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
 func runToolPlugin(pluginID, profile, capsulePath, artifactID string) *ToolRunResult {
 	start := time.Now()
-	result := &ToolRunResult{
-		PluginID: pluginID,
-		Profile:  profile,
-	}
+	result := &ToolRunResult{PluginID: pluginID, Profile: profile}
 
-	// Create output directory
 	outputDir, err := secureMkdirTemp("", "tool-run-*")
 	if err != nil {
 		result.Error = fmt.Sprintf("Failed to create output directory: %v", err)
@@ -4769,70 +4803,31 @@ func runToolPlugin(pluginID, profile, capsulePath, artifactID string) *ToolRunRe
 	}
 	result.OutputDir = outputDir
 
-	// Load plugin
-	loader := getLoader()
-	if err := loader.LoadFromDir(ServerConfig.PluginsDir); err != nil {
-		result.Error = fmt.Sprintf("Failed to load plugins: %v", err)
-		return result
-	}
-
-	plugin, err := loader.GetPlugin(pluginID)
+	plugin, err := loadPluginByID(pluginID)
 	if err != nil {
-		result.Error = fmt.Sprintf("Plugin not found: %v", err)
+		result.Error = err.Error()
 		return result
 	}
 
-	// Create request file
+	args, err := buildRequestArgs(capsulePath, artifactID, outputDir)
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
+
 	reqPath := filepath.Join(outputDir, "request.json")
-	reqData := map[string]interface{}{
-		"profile": profile,
-		"args":    map[string]string{},
-	}
-
-	// If a capsule/artifact was selected, add input path
-	if capsulePath != "" && artifactID != "" {
-		// Sanitize path to prevent path traversal attacks
-		cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, capsulePath)
-		if err != nil {
-			result.Error = "Invalid capsule path"
-			return result
-		}
-		fullCapsulePath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
-		inputPath := filepath.Join(outputDir, "input")
-		if err := os.MkdirAll(inputPath, 0700); err == nil {
-			// Extract the artifact
-			if extractedPath, err := extractArtifact(fullCapsulePath, artifactID, inputPath); err == nil {
-				reqData["args"] = map[string]string{"input": extractedPath}
-			}
-		}
-	}
-
-	reqJSON, _ := json.Marshal(reqData)
+	reqJSON, _ := json.Marshal(map[string]interface{}{"profile": profile, "args": args})
 	if err := os.WriteFile(reqPath, reqJSON, 0600); err != nil {
 		result.Error = fmt.Sprintf("Failed to write request: %v", err)
 		return result
 	}
 
-	// Execute plugin with secure path validation
-	entrypoint, err := plugin.SecureEntrypointPath()
-	if err != nil {
-		result.Error = fmt.Sprintf("Plugin validation failed: %v", err)
-		return result
-	}
-	cmd := exec.Command(entrypoint, "run", "--request", reqPath, "--out", outputDir)
-	cmd.Dir = plugin.Path
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		result.Error = fmt.Sprintf("Tool execution failed: %v\nOutput: %s", err, string(output))
+	if err := execPluginCommand(plugin, reqPath, outputDir); err != nil {
+		result.Error = err.Error()
 		return result
 	}
 
-	// Read transcript
-	transcriptPath := filepath.Join(outputDir, "transcript.jsonl")
-	if transcriptData, err := os.ReadFile(transcriptPath); err == nil {
-		result.Transcript = string(transcriptData)
-	}
-
+	result.Transcript = readToolTranscript(outputDir)
 	result.Success = true
 	result.ElapsedTime = time.Since(start).Round(time.Millisecond).String()
 	return result
@@ -4990,44 +4985,58 @@ func handleFileUploadDetect(r *http.Request, w http.ResponseWriter) (detectResul
 	return result, true, ""
 }
 
-// handleNonMultipartPOSTActions handles non-multipart POST actions.
+func postActionLoad(_ *http.Request, _ string, _ *JuniperRepomanData) (string, bool, bool) {
+	return "repository", true, false
+}
+
+func postActionRefresh(_ *http.Request, effectiveSource string, data *JuniperRepomanData) (string, bool, bool) {
+	data.RefreshResult = refreshRepoSource(effectiveSource)
+	return "repository", true, false
+}
+
+func postActionInstall(r *http.Request, effectiveSource string, data *JuniperRepomanData) (string, bool, bool) {
+	if moduleID := r.FormValue("module"); moduleID != "" {
+		data.InstallResult = installModule(effectiveSource, moduleID, ServerConfig.SwordDir)
+	}
+	return "repository", true, false
+}
+
+func postActionDelete(r *http.Request, _ string, data *JuniperRepomanData) (string, bool, bool) {
+	if moduleID := r.FormValue("module"); moduleID != "" {
+		data.InstallResult = deleteModule(moduleID, ServerConfig.SwordDir)
+	}
+	return "installed", false, false
+}
+
+func postActionIngest(r *http.Request, _ string, data *JuniperRepomanData) (string, bool, bool) {
+	selectedModules := r.Form["modules"]
+	if len(selectedModules) == 0 {
+		return "capsules", false, false
+	}
+	result := performJuniperIngest(ServerConfig.SwordDir, selectedModules)
+	data.IngestResult = result
+	return "capsules", false, result.Success
+}
+
+var postActionHandlers = map[string]func(*http.Request, string, *JuniperRepomanData) (string, bool, bool){
+	"load":    postActionLoad,
+	"refresh": postActionRefresh,
+	"install": postActionInstall,
+	"delete":  postActionDelete,
+	"ingest":  postActionIngest,
+}
+
 func handleNonMultipartPOSTActions(r *http.Request, effectiveSource string, data *JuniperRepomanData) (newTab string, shouldLoadModules bool, shouldRedirect bool) {
 	if !validateCSRFToken(r) {
 		data.PageData.Error = "Invalid CSRF token. Please try again."
 		return "", false, false
 	}
 	action := r.FormValue("action")
-	newTab = data.Tab
-	switch action {
-	case "load":
-		shouldLoadModules = true
-		newTab = "repository"
-	case "refresh":
-		data.RefreshResult = refreshRepoSource(effectiveSource)
-		shouldLoadModules = true
-		newTab = "repository"
-	case "install":
-		if moduleID := r.FormValue("module"); moduleID != "" {
-			data.InstallResult = installModule(effectiveSource, moduleID, ServerConfig.SwordDir)
-		}
-		shouldLoadModules = true
-		newTab = "repository"
-	case "delete":
-		if moduleID := r.FormValue("module"); moduleID != "" {
-			data.InstallResult = deleteModule(moduleID, ServerConfig.SwordDir)
-		}
-		newTab = "installed"
-	case "ingest":
-		if selectedModules := r.Form["modules"]; len(selectedModules) > 0 {
-			result := performJuniperIngest(ServerConfig.SwordDir, selectedModules)
-			data.IngestResult = result
-			if result.Success {
-				shouldRedirect = true
-			}
-		}
-		newTab = "capsules"
+	handler, ok := postActionHandlers[action]
+	if !ok {
+		return data.Tab, false, false
 	}
-	return
+	return handler(r, effectiveSource, data)
 }
 
 // loadRepositoryModules loads available modules from the selected repository source.
@@ -5197,7 +5206,48 @@ func buildIngestRedirectURL(selectedSource string, modulesOK int) string {
 		selectedSource, url.QueryEscape(fmt.Sprintf("Successfully created %d capsule(s)", modulesOK)))
 }
 
-// handleJuniper handles the unified Juniper SWORD modules page.
+var juniperTabLoaders = map[string]func(*JuniperRepomanData){
+	"capsules": loadCapsulesData,
+	"plugins":  loadPluginsData,
+	"info":     loadInfoTabData,
+}
+
+func isMultipartRequest(r *http.Request) bool {
+	ct := r.Header.Get("Content-Type")
+	return len(ct) >= 19 && ct[:19] == "multipart/form-data"
+}
+
+func handleJuniperMultipart(w http.ResponseWriter, r *http.Request, tab string, data *JuniperRepomanData) string {
+	detectResult, hasResult, errorMsg := handleFileUploadDetect(r, w)
+	if errorMsg != "" {
+		data.PageData.Error = errorMsg
+		return tab
+	}
+	if hasResult {
+		data.DetectResult = detectResult
+		return "detect"
+	}
+	return tab
+}
+
+func handleJuniperPOST(w http.ResponseWriter, r *http.Request, selectedSource, effectiveSource string, tab string, shouldLoadModules bool, data *JuniperRepomanData) (string, bool, bool) {
+	multipart := isMultipartRequest(r)
+	if multipart {
+		tab = handleJuniperMultipart(w, r, tab, data)
+	} else {
+		r.ParseForm()
+	}
+	if data.PageData.Error != "" || multipart {
+		return tab, shouldLoadModules, false
+	}
+	newTab, loadModules, shouldRedirect := handleNonMultipartPOSTActions(r, effectiveSource, data)
+	if shouldRedirect && data.IngestResult != nil && data.IngestResult.Success {
+		http.Redirect(w, r, buildIngestRedirectURL(selectedSource, data.IngestResult.ModulesOK), http.StatusSeeOther)
+		return newTab, loadModules, true
+	}
+	return newTab, loadModules, false
+}
+
 func handleJuniper(w http.ResponseWriter, r *http.Request) {
 	csrfToken := getOrCreateCSRFToken(w, r)
 	data := initializeJuniperData(csrfToken)
@@ -5219,33 +5269,12 @@ func handleJuniper(w http.ResponseWriter, r *http.Request) {
 	effectiveSource := getEffectiveSource(selectedSource, customURL)
 
 	if r.Method == http.MethodPost {
-		contentType := r.Header.Get("Content-Type")
-		isMultipart := len(contentType) > 0 && contentType[:19] == "multipart/form-data"
-
-		if isMultipart {
-			detectResult, hasResult, errorMsg := handleFileUploadDetect(r, w)
-			if errorMsg != "" {
-				data.PageData.Error = errorMsg
-			} else if hasResult {
-				data.DetectResult = detectResult
-				tab = "detect"
-				data.Tab = tab
-			}
-		} else {
-			r.ParseForm()
+		var redirected bool
+		tab, shouldLoadModules, redirected = handleJuniperPOST(w, r, selectedSource, effectiveSource, tab, shouldLoadModules, &data)
+		data.Tab = tab
+		if redirected {
+			return
 		}
-
-		if data.PageData.Error == "" && !isMultipart {
-			newTab, loadModules, shouldRedirect := handleNonMultipartPOSTActions(r, effectiveSource, &data)
-			if shouldRedirect && data.IngestResult != nil && data.IngestResult.Success {
-				http.Redirect(w, r, buildIngestRedirectURL(selectedSource, data.IngestResult.ModulesOK), http.StatusSeeOther)
-				return
-			}
-			tab = newTab
-			data.Tab = tab
-			shouldLoadModules = loadModules
-		}
-
 		if data.PageData.Error == "" {
 			http.Redirect(w, r, buildRedirectURL(tab, selectedSource, customURL, shouldLoadModules), http.StatusSeeOther)
 			return
@@ -5259,14 +5288,8 @@ func handleJuniper(w http.ResponseWriter, r *http.Request) {
 	loadInstalledModulesWithPagination(installedPage, installedPageSize, &data)
 	loadLocalModulesForIngest(&data)
 
-	if tab == "capsules" {
-		loadCapsulesData(&data)
-	}
-	if tab == "plugins" {
-		loadPluginsData(&data)
-	}
-	if tab == "info" {
-		loadInfoTabData(&data)
+	if loader, ok := juniperTabLoaders[tab]; ok {
+		loader(&data)
 	}
 
 	if err := Templates.ExecuteTemplate(w, "juniper.html", data); err != nil {

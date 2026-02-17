@@ -212,40 +212,47 @@ func StrICmp(a, b string) int {
 	return 0
 }
 
-// StrNICmp performs case-insensitive string comparison up to n bytes.
-func StrNICmp(a, b string, n int) int {
-	if a == "" {
-		if b == "" {
-			return 0
-		}
+func strNICmpLimit(n, aLen, bLen int) int {
+	if aLen < n {
+		n = aLen
+	}
+	if bLen < n {
+		n = bLen
+	}
+	return n
+}
+
+func strNICmpResult(aLen, bLen int) int {
+	if aLen < bLen {
 		return -1
 	}
-	if b == "" {
+	if aLen > bLen {
 		return 1
+	}
+	return 0
+}
+
+// StrNICmp performs case-insensitive string comparison up to n bytes.
+func StrNICmp(a, b string, n int) int {
+	if len(a) == 0 || len(b) == 0 {
+		return len(a) - len(b)
 	}
 
 	aBytes := []byte(a)
 	bBytes := []byte(b)
+	limit := strNICmpLimit(n, len(aBytes), len(bBytes))
 
-	for n > 0 && len(aBytes) > 0 && len(bBytes) > 0 {
-		if UpperToLower[aBytes[0]] != UpperToLower[bBytes[0]] {
-			return int(UpperToLower[aBytes[0]]) - int(UpperToLower[bBytes[0]])
+	for i := 0; i < limit; i++ {
+		diff := int(UpperToLower[aBytes[i]]) - int(UpperToLower[bBytes[i]])
+		if diff != 0 {
+			return diff
 		}
-		aBytes = aBytes[1:]
-		bBytes = bBytes[1:]
-		n--
 	}
 
-	if n <= 0 || len(aBytes) == 0 && len(bBytes) == 0 {
+	if n <= limit {
 		return 0
 	}
-	if len(aBytes) == 0 {
-		return -1
-	}
-	if len(bBytes) == 0 {
-		return 1
-	}
-	return int(UpperToLower[aBytes[0]]) - int(UpperToLower[bBytes[0]])
+	return strNICmpResult(len(aBytes)-limit, len(bBytes)-limit)
 }
 
 // StrIHash computes an 8-bit hash of a string that is insensitive to case differences.
@@ -282,78 +289,99 @@ func likeImpl(pattern, str []byte, escape rune, noCase bool) bool {
 			break
 		}
 
-		// Handle escape sequences
 		if escape != 0 && pc == escape {
-			pi += psize
-			if pi >= len(pattern) {
-				// Escape at end of pattern
+			pc, psize, pi = likeConsumeEscape(pattern, pi, psize)
+			if psize == 0 {
 				return false
 			}
-			pc, psize = DecodeRune(pattern[pi:])
 		} else if pc == '%' {
-			// Match zero or more characters
-			pi += psize
-
-			// % at end matches everything
-			if pi >= len(pattern) {
-				return true
-			}
-
-			// Try matching at each position
-			for si <= len(str) {
-				if likeImpl(pattern[pi:], str[si:], escape, noCase) {
-					return true
-				}
-				if si >= len(str) {
-					break
-				}
-				_, ssize := DecodeRune(str[si:])
-				if ssize == 0 {
-					break
-				}
-				si += ssize
-			}
-			return false
+			return likeMatchPercent(pattern, str, pi+psize, si, escape, noCase)
 		} else if pc == '_' {
-			// Match exactly one character
-			if si >= len(str) {
+			newSI := likeAdvanceOneRune(str, si)
+			if newSI < 0 {
 				return false
 			}
-			_, ssize := DecodeRune(str[si:])
-			if ssize == 0 {
-				return false
-			}
-			si += ssize
+			si = newSI
 			pi += psize
 			continue
 		}
 
-		// Regular character matching
-		if si >= len(str) {
+		newPI, newSI, ok := likeMatchLiteral(pattern, str, pc, psize, pi, si, noCase)
+		if !ok {
 			return false
 		}
-
-		sc, ssize := DecodeRune(str[si:])
-		if ssize == 0 {
-			return false
-		}
-
-		// Compare characters
-		if noCase {
-			pc = ToLower(pc)
-			sc = ToLower(sc)
-		}
-
-		if pc != sc {
-			return false
-		}
-
-		pi += psize
-		si += ssize
+		pi, si = newPI, newSI
 	}
 
-	// Pattern exhausted, string should also be exhausted
 	return si >= len(str)
+}
+
+// likeConsumeEscape advances past an escape character in the pattern and
+// returns the escaped rune, its size, and the new pattern index.
+// If the escape appears at the end of the pattern, size is returned as 0.
+func likeConsumeEscape(pattern []byte, pi, psize int) (pc rune, size, newPI int) {
+	newPI = pi + psize
+	if newPI >= len(pattern) {
+		return 0, 0, newPI
+	}
+	r, sz := DecodeRune(pattern[newPI:])
+	return r, sz, newPI
+}
+
+// likeMatchPercent handles a '%' wildcard by trying to match the remainder of
+// the pattern against every suffix of str starting at si.
+func likeMatchPercent(pattern, str []byte, pi, si int, escape rune, noCase bool) bool {
+	if pi >= len(pattern) {
+		return true
+	}
+	for si <= len(str) {
+		if likeImpl(pattern[pi:], str[si:], escape, noCase) {
+			return true
+		}
+		if si >= len(str) {
+			break
+		}
+		_, ssize := DecodeRune(str[si:])
+		if ssize == 0 {
+			break
+		}
+		si += ssize
+	}
+	return false
+}
+
+// likeAdvanceOneRune returns the string index after consuming exactly one rune
+// from str at position si. Returns -1 if str is exhausted or the rune is invalid.
+func likeAdvanceOneRune(str []byte, si int) int {
+	if si >= len(str) {
+		return -1
+	}
+	_, ssize := DecodeRune(str[si:])
+	if ssize == 0 {
+		return -1
+	}
+	return si + ssize
+}
+
+// likeMatchLiteral compares a single literal pattern rune against the current
+// string rune, applying case-folding when noCase is true.
+// Returns the updated pi and si on success, or ok=false on mismatch.
+func likeMatchLiteral(pattern, str []byte, pc rune, psize, pi, si int, noCase bool) (newPI, newSI int, ok bool) {
+	if si >= len(str) {
+		return pi, si, false
+	}
+	sc, ssize := DecodeRune(str[si:])
+	if ssize == 0 {
+		return pi, si, false
+	}
+	if noCase {
+		pc = ToLower(pc)
+		sc = ToLower(sc)
+	}
+	if pc != sc {
+		return pi, si, false
+	}
+	return pi + psize, si + ssize, true
 }
 
 // Glob implements the SQL GLOB operator.

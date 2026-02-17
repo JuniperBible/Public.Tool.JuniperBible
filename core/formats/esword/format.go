@@ -371,48 +371,54 @@ func extractDictionaryIR(db *sql.DB, corpus *ir.Corpus) {
 	corpus.Documents = []*ir.Document{doc}
 }
 
+// rtfIsAlpha reports whether b is an ASCII letter.
+func rtfIsAlpha(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+}
+
+// rtfIsDigitOrMinus reports whether b is an ASCII digit or a minus sign.
+func rtfIsDigitOrMinus(b byte) bool {
+	return (b >= '0' && b <= '9') || b == '-'
+}
+
+// skipRTFControlWord advances i past a backslash control word, its optional
+// numeric parameter, and one trailing space. It returns the new index.
+func skipRTFControlWord(text string, i int) int {
+	for i+1 < len(text) && rtfIsAlpha(text[i+1]) {
+		i++
+	}
+	for i+1 < len(text) && rtfIsDigitOrMinus(text[i+1]) {
+		i++
+	}
+	if i+1 < len(text) && text[i+1] == ' ' {
+		i++
+	}
+	return i
+}
+
 // stripRTF removes RTF formatting from text
 func stripRTF(text string) string {
 	if !strings.HasPrefix(text, "{\\rtf") {
 		return text
 	}
 
-	// Simple RTF stripping - remove control words and groups
 	var result strings.Builder
-	inControl := false
 	braceDepth := 0
 
 	for i := 0; i < len(text); i++ {
 		c := text[i]
 
-		if c == '{' {
+		switch c {
+		case '{':
 			braceDepth++
-			continue
-		}
-		if c == '}' {
+		case '}':
 			braceDepth--
-			continue
-		}
-		if c == '\\' {
-			inControl = true
-			// Skip control word
-			for i+1 < len(text) && ((text[i+1] >= 'a' && text[i+1] <= 'z') || (text[i+1] >= 'A' && text[i+1] <= 'Z')) {
-				i++
+		case '\\':
+			i = skipRTFControlWord(text, i)
+		default:
+			if braceDepth <= 1 {
+				result.WriteByte(c)
 			}
-			// Skip optional number
-			for i+1 < len(text) && ((text[i+1] >= '0' && text[i+1] <= '9') || text[i+1] == '-') {
-				i++
-			}
-			// Skip optional space
-			if i+1 < len(text) && text[i+1] == ' ' {
-				i++
-			}
-			inControl = false
-			continue
-		}
-
-		if !inControl && braceDepth <= 1 {
-			result.WriteByte(c)
 		}
 	}
 

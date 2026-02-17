@@ -160,26 +160,23 @@ func extractAccordanceContent(db *sql.DB, artifactID string) []*ir.Document {
 	return []*ir.Document{doc}
 }
 
-func emitAccordance(corpus *ir.Corpus, outputDir string) (string, error) {
-	outputPath := filepath.Join(outputDir, corpus.ID+".amod")
-
-	if raw, ok := corpus.Attributes["_accordance_raw"]; ok && raw != "" {
-		rawData, err := hex.DecodeString(raw)
-		if err == nil {
-			if err := os.WriteFile(outputPath, rawData, 0600); err != nil {
-				return "", fmt.Errorf("failed to write Accordance: %w", err)
-			}
-			return outputPath, nil
-		}
+func writeRawAccordance(corpus *ir.Corpus, outputPath string) (bool, error) {
+	raw, ok := corpus.Attributes["_accordance_raw"]
+	if !ok || raw == "" {
+		return false, nil
 	}
-
-	db, err := sql.Open(sqliteDriver, outputPath)
+	rawData, err := hex.DecodeString(raw)
 	if err != nil {
-		return "", fmt.Errorf("failed to create database: %w", err)
+		return false, nil
 	}
-	defer db.Close()
+	if err := os.WriteFile(outputPath, rawData, 0600); err != nil {
+		return false, fmt.Errorf("failed to write Accordance: %w", err)
+	}
+	return true, nil
+}
 
-	_, err = db.Exec(`
+func createAccordanceTables(db *sql.DB) error {
+	_, err := db.Exec(`
 		CREATE TABLE AccMetadata (
 			key TEXT PRIMARY KEY,
 			value TEXT
@@ -193,26 +190,51 @@ func emitAccordance(corpus *ir.Corpus, outputDir string) (string, error) {
 		);
 	`)
 	if err != nil {
-		return "", fmt.Errorf("failed to create tables: %w", err)
+		return fmt.Errorf("failed to create tables: %w", err)
+	}
+	return nil
+}
+
+func resolveChapterVerse(cb *ir.ContentBlock) (int, int) {
+	if len(cb.Anchors) > 0 && len(cb.Anchors[0].Spans) > 0 {
+		if ref := cb.Anchors[0].Spans[0].Ref; ref != nil {
+			return ref.Chapter, ref.Verse
+		}
+	}
+	return 1, cb.Sequence
+}
+
+func insertContentBlocks(db *sql.DB, docs []*ir.Document) {
+	for _, doc := range docs {
+		for _, cb := range doc.ContentBlocks {
+			chapter, verse := resolveChapterVerse(cb)
+			db.Exec("INSERT INTO AccVerses (book, chapter, verse, text) VALUES (?, ?, ?, ?)",
+				doc.ID, chapter, verse, cb.Text)
+		}
+	}
+}
+
+func emitAccordance(corpus *ir.Corpus, outputDir string) (string, error) {
+	outputPath := filepath.Join(outputDir, corpus.ID+".amod")
+
+	if written, err := writeRawAccordance(corpus, outputPath); written || err != nil {
+		return outputPath, err
+	}
+
+	db, err := sql.Open(sqliteDriver, outputPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create database: %w", err)
+	}
+	defer db.Close()
+
+	if err := createAccordanceTables(db); err != nil {
+		return "", err
 	}
 
 	db.Exec("INSERT INTO AccMetadata VALUES ('title', ?)", corpus.Title)
 	db.Exec("INSERT INTO AccMetadata VALUES ('language', ?)", corpus.Language)
 
-	for _, doc := range corpus.Documents {
-		for _, cb := range doc.ContentBlocks {
-			chapter := 1
-			verse := cb.Sequence
-			if len(cb.Anchors) > 0 && len(cb.Anchors[0].Spans) > 0 {
-				if ref := cb.Anchors[0].Spans[0].Ref; ref != nil {
-					chapter = ref.Chapter
-					verse = ref.Verse
-				}
-			}
-			db.Exec("INSERT INTO AccVerses (book, chapter, verse, text) VALUES (?, ?, ?, ?)",
-				doc.ID, chapter, verse, cb.Text)
-		}
-	}
+	insertContentBlocks(db, corpus.Documents)
 
 	return outputPath, nil
 }

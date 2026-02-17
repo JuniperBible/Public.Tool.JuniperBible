@@ -75,9 +75,49 @@ func (w *ZComWriter) WriteModule(corpus *IRCorpus) (int, error) {
 	return otEntries + ntEntries, nil
 }
 
-// writeTestament writes either OT or NT data files.
+type testamentParams struct {
+	prefix    string
+	startBook int
+	endBook   int
+}
+
+func (w *ZComWriter) testamentConfig(isNT bool) testamentParams {
+	if isNT {
+		return testamentParams{"nt", 39, len(w.vers.Books)}
+	}
+	return testamentParams{"ot", 0, 39}
+}
+
+func (w *ZComWriter) addVerseText(text string) int {
+	if text == "" {
+		w.addEntryEntry(w.currentBlockNum, w.currentBlockSize, 0)
+		return 0
+	}
+	textBytes := []byte(text)
+	offset := w.currentBlockSize
+	size := uint16(len(textBytes))
+	w.currentBlock.Write(textBytes)
+	w.currentBlockSize += uint32(size)
+	w.addEntryEntry(w.currentBlockNum, offset, size)
+	return 1
+}
+
+func (w *ZComWriter) processChapter(book BookData, chapter, verseCount int, entryMap map[string]string) (int, error) {
+	w.addEntryEntry(w.currentBlockNum, w.currentBlockSize, 0)
+	written := 0
+	for verse := 1; verse <= verseCount; verse++ {
+		ref := fmt.Sprintf("%s.%d.%d", book.OSIS, chapter, verse)
+		written += w.addVerseText(entryMap[ref])
+		if w.currentBlock.Len() > 4096 {
+			if err := w.flushBlock(); err != nil {
+				return 0, err
+			}
+		}
+	}
+	return written, nil
+}
+
 func (w *ZComWriter) writeTestament(isNT bool, entryMap map[string]string) (int, error) {
-	// Reset state
 	w.currentBlock.Reset()
 	w.blockEntries = nil
 	w.entryEntries = nil
@@ -85,90 +125,28 @@ func (w *ZComWriter) writeTestament(isNT bool, entryMap map[string]string) (int,
 	w.currentBlockNum = 0
 	w.currentBlockSize = 0
 
-	prefix := "ot"
-	startBook := 0
-	endBook := 39
-	if isNT {
-		prefix = "nt"
-		startBook = 39
-		endBook = len(w.vers.Books)
-	}
+	cfg := w.testamentConfig(isNT)
+
+	w.addEntryEntry(0, 0, 0)
+	w.addEntryEntry(0, 0, 0)
 
 	entriesWritten := 0
-	entryIndex := 0
-
-	// SWORD index scheme: [0]=empty, [1]=module header, then per-book/chapter/verse
-	// [0] = empty slot
-	w.addEntryEntry(0, 0, 0)
-	entryIndex++
-
-	// [1] = module header (empty)
-	w.addEntryEntry(0, 0, 0)
-	entryIndex++
-
-	// Process each book
-	for bookIdx := startBook; bookIdx < endBook; bookIdx++ {
+	for bookIdx := cfg.startBook; bookIdx < cfg.endBook; bookIdx++ {
 		book := w.vers.Books[bookIdx]
-
-		// Book intro (empty)
 		w.addEntryEntry(w.currentBlockNum, w.currentBlockSize, 0)
-		entryIndex++
-
-		// Process each chapter
 		for chIdx, verseCount := range book.Chapters {
-			chapter := chIdx + 1
-
-			// Chapter heading (empty)
-			w.addEntryEntry(w.currentBlockNum, w.currentBlockSize, 0)
-			entryIndex++
-
-			// Process each verse
-			for verse := 1; verse <= verseCount; verse++ {
-				ref := fmt.Sprintf("%s.%d.%d", book.OSIS, chapter, verse)
-				text := entryMap[ref]
-
-				if text != "" {
-					// Add entry to current block
-					textBytes := []byte(text)
-					offset := w.currentBlockSize
-					size := uint16(len(textBytes))
-
-					w.currentBlock.Write(textBytes)
-					w.currentBlockSize += uint32(size)
-					w.addEntryEntry(w.currentBlockNum, offset, size)
-					entriesWritten++
-				} else {
-					// Empty entry
-					w.addEntryEntry(w.currentBlockNum, w.currentBlockSize, 0)
-				}
-				entryIndex++
-
-				// Flush block if it gets too large (4KB threshold)
-				if w.currentBlock.Len() > 4096 {
-					if err := w.flushBlock(); err != nil {
-						return 0, err
-					}
-				}
-			}
-		}
-
-		// Flush block at end of each book
-		if w.currentBlock.Len() > 0 {
-			if err := w.flushBlock(); err != nil {
+			n, err := w.processChapter(book, chIdx+1, verseCount, entryMap)
+			if err != nil {
 				return 0, err
 			}
+			entriesWritten += n
 		}
-	}
-
-	// Flush any remaining data
-	if w.currentBlock.Len() > 0 {
 		if err := w.flushBlock(); err != nil {
 			return 0, err
 		}
 	}
 
-	// Write files
-	if err := w.writeFiles(prefix); err != nil {
+	if err := w.writeFiles(cfg.prefix); err != nil {
 		return 0, err
 	}
 

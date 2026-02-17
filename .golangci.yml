@@ -1,0 +1,16 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - gocyclo
+
+linters-settings:
+  gocyclo:
+    min-complexity: 7
+
+issues:
+  exclude-rules:
+    - path: contrib/
+      linters:
+        - gocyclo

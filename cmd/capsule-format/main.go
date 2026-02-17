@@ -116,21 +116,7 @@ func runConvert(args []string) {
 	pluginDir := fs.String("plugin-dir", "", "Path to plugin directory (default: embedded plugins)")
 	fs.Parse(args)
 
-	if len(fs.Args()) < 1 {
-		fmt.Fprintf(os.Stderr, "Error: input file path required\n")
-		fs.Usage()
-		os.Exit(1)
-	}
-	if *to == "" {
-		fmt.Fprintf(os.Stderr, "Error: --to flag required\n")
-		fs.Usage()
-		os.Exit(1)
-	}
-	if *out == "" {
-		fmt.Fprintf(os.Stderr, "Error: --out flag required\n")
-		fs.Usage()
-		os.Exit(1)
-	}
+	validateConvertArgs(fs, *to, *out)
 
 	inputPath, _ := filepath.Abs(fs.Args()[0])
 	outputPath, _ := filepath.Abs(*out)
@@ -148,10 +134,36 @@ func runConvert(args []string) {
 	fmt.Printf("  Output: %s\n", outputPath)
 	fmt.Println()
 
-	// Step 1: Detect source format
-	formatPlugins := loader.GetPluginsByKind("format")
-	var sourcePlugin *plugins.Plugin
-	for _, p := range formatPlugins {
+	sourcePlugin := detectSourcePlugin(loader, inputPath)
+	fmt.Printf("Detected source format: %s\n", sourcePlugin.Manifest.PluginID)
+
+	extractAndEmit(loader, sourcePlugin, inputPath, outputPath, *to)
+}
+
+// validateConvertArgs checks that all required convert arguments are present
+// and exits with an error message if any are missing.
+func validateConvertArgs(fs *flag.FlagSet, to, out string) {
+	if len(fs.Args()) < 1 {
+		fmt.Fprintf(os.Stderr, "Error: input file path required\n")
+		fs.Usage()
+		os.Exit(1)
+	}
+	if to == "" {
+		fmt.Fprintf(os.Stderr, "Error: --to flag required\n")
+		fs.Usage()
+		os.Exit(1)
+	}
+	if out == "" {
+		fmt.Fprintf(os.Stderr, "Error: --out flag required\n")
+		fs.Usage()
+		os.Exit(1)
+	}
+}
+
+// detectSourcePlugin iterates all format plugins and returns the first one
+// that successfully detects the given input file. Exits if none match.
+func detectSourcePlugin(loader *plugins.Loader, inputPath string) *plugins.Plugin {
+	for _, p := range loader.GetPluginsByKind("format") {
 		req := plugins.NewDetectRequest(inputPath)
 		resp, err := plugins.ExecutePlugin(p, req)
 		if err != nil {
@@ -161,18 +173,16 @@ func runConvert(args []string) {
 		if err != nil || !result.Detected {
 			continue
 		}
-		sourcePlugin = p
-		break
+		return p
 	}
+	fmt.Fprintf(os.Stderr, "Error: could not detect source format\n")
+	os.Exit(1)
+	return nil // unreachable; satisfies compiler
+}
 
-	if sourcePlugin == nil {
-		fmt.Fprintf(os.Stderr, "Error: could not detect source format\n")
-		os.Exit(1)
-	}
-
-	fmt.Printf("Detected source format: %s\n", sourcePlugin.Manifest.PluginID)
-
-	// Step 2: Extract IR from source
+// extractAndEmit performs the IR extraction from the source plugin and emits
+// the native format via the target plugin, moving the result to outputPath.
+func extractAndEmit(loader *plugins.Loader, sourcePlugin *plugins.Plugin, inputPath, outputPath, toFormat string) {
 	tempDir, err := os.MkdirTemp("", "capsule-convert-*")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to create temp dir: %v\n", err)
@@ -180,44 +190,35 @@ func runConvert(args []string) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	extractReq := plugins.NewExtractIRRequest(inputPath, tempDir)
-	extractResp, err := plugins.ExecutePlugin(sourcePlugin, extractReq)
+	extractResp, err := plugins.ExecutePlugin(sourcePlugin, plugins.NewExtractIRRequest(inputPath, tempDir))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to extract IR: %v\n", err)
 		os.Exit(1)
 	}
-
 	extractResult, err := plugins.ParseExtractIRResult(extractResp)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to parse extract-ir result: %v\n", err)
 		os.Exit(1)
 	}
-
 	fmt.Printf("Extracted IR to: %s\n", extractResult.IRPath)
 
-	// Step 3: Find target format plugin
-	targetPluginID := "format." + *to
-	targetPlugin, err := loader.GetPlugin(targetPluginID)
+	targetPlugin, err := loader.GetPlugin("format." + toFormat)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: target format plugin not found: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Step 4: Emit native format from IR
-	emitReq := plugins.NewEmitNativeRequest(extractResult.IRPath, filepath.Dir(outputPath))
-	emitResp, err := plugins.ExecutePlugin(targetPlugin, emitReq)
+	emitResp, err := plugins.ExecutePlugin(targetPlugin, plugins.NewEmitNativeRequest(extractResult.IRPath, filepath.Dir(outputPath)))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to emit native format: %v\n", err)
 		os.Exit(1)
 	}
-
 	emitResult, err := plugins.ParseEmitNativeResult(emitResp)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to parse emit-native result: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Move to final output location if needed
 	if emitResult.OutputPath != outputPath {
 		if err := os.Rename(emitResult.OutputPath, outputPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to move output: %v\n", err)
@@ -231,6 +232,47 @@ func runConvert(args []string) {
 	}
 }
 
+func validateIRExtractArgs(fs *flag.FlagSet, format, out string) {
+	if len(fs.Args()) < 1 {
+		fmt.Fprintf(os.Stderr, "Error: input file path required\n")
+		fs.Usage()
+		os.Exit(1)
+	}
+	if format == "" {
+		fmt.Fprintf(os.Stderr, "Error: --format flag required\n")
+		fs.Usage()
+		os.Exit(1)
+	}
+	if out == "" {
+		fmt.Fprintf(os.Stderr, "Error: --out flag required\n")
+		fs.Usage()
+		os.Exit(1)
+	}
+}
+
+func extractIRToPath(plugin *plugins.Plugin, inputPath, outputPath string) {
+	resp, err := plugins.ExecutePlugin(plugin, plugins.NewExtractIRRequest(inputPath, filepath.Dir(outputPath)))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to extract IR: %v\n", err)
+		os.Exit(1)
+	}
+	result, err := plugins.ParseExtractIRResult(resp)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to parse result: %v\n", err)
+		os.Exit(1)
+	}
+	if result.IRPath != outputPath {
+		if err := os.Rename(result.IRPath, outputPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to move output: %v\n", err)
+			os.Exit(1)
+		}
+	}
+	fmt.Printf("IR extracted successfully: %s\n", outputPath)
+	if result.LossClass != "" {
+		fmt.Printf("Loss class: %s\n", result.LossClass)
+	}
+}
+
 func runIRExtract(args []string) {
 	fs := flag.NewFlagSet("ir-extract", flag.ExitOnError)
 	format := fs.String("format", "", "Source format (required)")
@@ -238,67 +280,70 @@ func runIRExtract(args []string) {
 	pluginDir := fs.String("plugin-dir", "", "Path to plugin directory (default: embedded plugins)")
 	fs.Parse(args)
 
-	if len(fs.Args()) < 1 {
-		fmt.Fprintf(os.Stderr, "Error: input file path required\n")
-		fs.Usage()
-		os.Exit(1)
-	}
-	if *format == "" {
-		fmt.Fprintf(os.Stderr, "Error: --format flag required\n")
-		fs.Usage()
-		os.Exit(1)
-	}
-	if *out == "" {
-		fmt.Fprintf(os.Stderr, "Error: --out flag required\n")
-		fs.Usage()
-		os.Exit(1)
-	}
+	validateIRExtractArgs(fs, *format, *out)
 
 	inputPath, _ := filepath.Abs(fs.Args()[0])
 	outputPath, _ := filepath.Abs(*out)
-
-	loader := plugins.NewLoader()
-	if *pluginDir != "" {
-		if err := loader.LoadFromDir(*pluginDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to load plugins: %v\n", err)
-			os.Exit(1)
-		}
-	}
-
-	pluginID := "format." + *format
-	plugin, err := loader.GetPlugin(pluginID)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: plugin not found: %v\n", err)
-		os.Exit(1)
-	}
 
 	fmt.Printf("Extracting IR from: %s\n", inputPath)
 	fmt.Printf("  Format: %s\n", *format)
 	fmt.Printf("  Output: %s\n", outputPath)
 	fmt.Println()
 
-	req := plugins.NewExtractIRRequest(inputPath, filepath.Dir(outputPath))
-	resp, err := plugins.ExecutePlugin(plugin, req)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to extract IR: %v\n", err)
+	extractIRToPath(loadPlugin(plugins.NewLoader(), *pluginDir, *format), inputPath, outputPath)
+}
+
+func validateIREmitArgs(fs *flag.FlagSet, format, out string) {
+	if len(fs.Args()) < 1 {
+		fmt.Fprintf(os.Stderr, "Error: IR JSON file path required\n")
+		fs.Usage()
 		os.Exit(1)
 	}
+	if format == "" {
+		fmt.Fprintf(os.Stderr, "Error: --format flag required\n")
+		fs.Usage()
+		os.Exit(1)
+	}
+	if out == "" {
+		fmt.Fprintf(os.Stderr, "Error: --out flag required\n")
+		fs.Usage()
+		os.Exit(1)
+	}
+}
 
-	result, err := plugins.ParseExtractIRResult(resp)
+func loadPlugin(loader *plugins.Loader, pluginDir, format string) *plugins.Plugin {
+	if pluginDir != "" {
+		if err := loader.LoadFromDir(pluginDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to load plugins: %v\n", err)
+			os.Exit(1)
+		}
+	}
+	plugin, err := loader.GetPlugin("format." + format)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: plugin not found: %v\n", err)
+		os.Exit(1)
+	}
+	return plugin
+}
+
+func emitNativeFromIR(plugin *plugins.Plugin, irPath, outputPath string) {
+	resp, err := plugins.ExecutePlugin(plugin, plugins.NewEmitNativeRequest(irPath, filepath.Dir(outputPath)))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to emit native format: %v\n", err)
+		os.Exit(1)
+	}
+	result, err := plugins.ParseEmitNativeResult(resp)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to parse result: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Move to final output location if needed
-	if result.IRPath != outputPath {
-		if err := os.Rename(result.IRPath, outputPath); err != nil {
+	if result.OutputPath != outputPath {
+		if err := os.Rename(result.OutputPath, outputPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to move output: %v\n", err)
 			os.Exit(1)
 		}
 	}
-
-	fmt.Printf("IR extracted successfully: %s\n", outputPath)
+	fmt.Printf("Native format emitted successfully: %s\n", outputPath)
 	if result.LossClass != "" {
 		fmt.Printf("Loss class: %s\n", result.LossClass)
 	}
@@ -311,70 +356,19 @@ func runIREmit(args []string) {
 	pluginDir := fs.String("plugin-dir", "", "Path to plugin directory (default: embedded plugins)")
 	fs.Parse(args)
 
-	if len(fs.Args()) < 1 {
-		fmt.Fprintf(os.Stderr, "Error: IR JSON file path required\n")
-		fs.Usage()
-		os.Exit(1)
-	}
-	if *format == "" {
-		fmt.Fprintf(os.Stderr, "Error: --format flag required\n")
-		fs.Usage()
-		os.Exit(1)
-	}
-	if *out == "" {
-		fmt.Fprintf(os.Stderr, "Error: --out flag required\n")
-		fs.Usage()
-		os.Exit(1)
-	}
+	validateIREmitArgs(fs, *format, *out)
 
 	irPath, _ := filepath.Abs(fs.Args()[0])
 	outputPath, _ := filepath.Abs(*out)
 
-	loader := plugins.NewLoader()
-	if *pluginDir != "" {
-		if err := loader.LoadFromDir(*pluginDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to load plugins: %v\n", err)
-			os.Exit(1)
-		}
-	}
-
-	pluginID := "format." + *format
-	plugin, err := loader.GetPlugin(pluginID)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: plugin not found: %v\n", err)
-		os.Exit(1)
-	}
+	plugin := loadPlugin(plugins.NewLoader(), *pluginDir, *format)
 
 	fmt.Printf("Emitting native format from IR: %s\n", irPath)
 	fmt.Printf("  Format: %s\n", *format)
 	fmt.Printf("  Output: %s\n", outputPath)
 	fmt.Println()
 
-	req := plugins.NewEmitNativeRequest(irPath, filepath.Dir(outputPath))
-	resp, err := plugins.ExecutePlugin(plugin, req)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to emit native format: %v\n", err)
-		os.Exit(1)
-	}
-
-	result, err := plugins.ParseEmitNativeResult(resp)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to parse result: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Move to final output location if needed
-	if result.OutputPath != outputPath {
-		if err := os.Rename(result.OutputPath, outputPath); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to move output: %v\n", err)
-			os.Exit(1)
-		}
-	}
-
-	fmt.Printf("Native format emitted successfully: %s\n", outputPath)
-	if result.LossClass != "" {
-		fmt.Printf("Loss class: %s\n", result.LossClass)
-	}
+	emitNativeFromIR(plugin, irPath, outputPath)
 }
 
 func runIRGenerate(args []string) {

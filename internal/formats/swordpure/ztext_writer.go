@@ -75,102 +75,94 @@ func (w *ZTextWriter) WriteModule(corpus *IRCorpus) (int, error) {
 	return otVerses + ntVerses, nil
 }
 
-// writeTestament writes either OT or NT data files.
-func (w *ZTextWriter) writeTestament(isNT bool, verseMap map[string]string) (int, error) {
-	// Reset state
+type testamentConfig struct {
+	prefix    string
+	startBook int
+	endBook   int
+}
+
+var testamentConfigs = map[bool]testamentConfig{
+	false: {"ot", 0, 39},
+	true:  {"nt", 39, -1},
+}
+
+func (w *ZTextWriter) resetState() {
 	w.currentBlock.Reset()
 	w.blockEntries = nil
 	w.verseEntries = nil
 	w.compressedBuf.Reset()
 	w.currentBlockNum = 0
 	w.currentBlockSize = 0
+}
 
-	prefix := "ot"
-	startBook := 0
-	endBook := 39
-	if isNT {
-		prefix = "nt"
-		startBook = 39
+func (w *ZTextWriter) flushBlockIfNonEmpty() error {
+	if w.currentBlock.Len() == 0 {
+		return nil
+	}
+	return w.flushBlock()
+}
+
+func (w *ZTextWriter) processVerse(ref string, verseMap map[string]string) int {
+	text := verseMap[ref]
+	if text == "" {
+		w.addVerseEntry(w.currentBlockNum, w.currentBlockSize, 0)
+		return 0
+	}
+	textBytes := []byte(text)
+	offset := w.currentBlockSize
+	size := uint16(len(textBytes))
+	w.currentBlock.Write(textBytes)
+	w.currentBlockSize += uint32(size)
+	w.addVerseEntry(w.currentBlockNum, offset, size)
+	return 1
+}
+
+func (w *ZTextWriter) processBook(book BookData, verseMap map[string]string) (int, error) {
+	w.addVerseEntry(w.currentBlockNum, w.currentBlockSize, 0)
+	versesWritten := 0
+	for chIdx, verseCount := range book.Chapters {
+		chapter := chIdx + 1
+		w.addVerseEntry(w.currentBlockNum, w.currentBlockSize, 0)
+		for verse := 1; verse <= verseCount; verse++ {
+			ref := fmt.Sprintf("%s.%d.%d", book.OSIS, chapter, verse)
+			versesWritten += w.processVerse(ref, verseMap)
+			if w.currentBlock.Len() > 4096 {
+				if err := w.flushBlock(); err != nil {
+					return 0, err
+				}
+			}
+		}
+	}
+	return versesWritten, w.flushBlockIfNonEmpty()
+}
+
+// writeTestament writes either OT or NT data files.
+func (w *ZTextWriter) writeTestament(isNT bool, verseMap map[string]string) (int, error) {
+	w.resetState()
+
+	cfg := testamentConfigs[isNT]
+	endBook := cfg.endBook
+	if endBook < 0 {
 		endBook = len(w.vers.Books)
 	}
 
+	w.addVerseEntry(0, 0, 0)
+	w.addVerseEntry(0, 0, 0)
+
 	versesWritten := 0
-	verseIndex := 0
-
-	// SWORD index scheme: [0]=empty, [1]=module header, then per-book/chapter/verse
-	// We need to maintain the same indexing structure
-
-	// [0] = empty slot
-	w.addVerseEntry(0, 0, 0)
-	verseIndex++
-
-	// [1] = module header (empty)
-	w.addVerseEntry(0, 0, 0)
-	verseIndex++
-
-	// Process each book
-	for bookIdx := startBook; bookIdx < endBook; bookIdx++ {
-		book := w.vers.Books[bookIdx]
-
-		// Book intro (empty)
-		w.addVerseEntry(w.currentBlockNum, w.currentBlockSize, 0)
-		verseIndex++
-
-		// Process each chapter
-		for chIdx, verseCount := range book.Chapters {
-			chapter := chIdx + 1
-
-			// Chapter heading (empty)
-			w.addVerseEntry(w.currentBlockNum, w.currentBlockSize, 0)
-			verseIndex++
-
-			// Process each verse
-			for verse := 1; verse <= verseCount; verse++ {
-				ref := fmt.Sprintf("%s.%d.%d", book.OSIS, chapter, verse)
-				text := verseMap[ref]
-
-				if text != "" {
-					// Add verse to current block
-					textBytes := []byte(text)
-					offset := w.currentBlockSize
-					size := uint16(len(textBytes))
-
-					w.currentBlock.Write(textBytes)
-					w.currentBlockSize += uint32(size)
-					w.addVerseEntry(w.currentBlockNum, offset, size)
-					versesWritten++
-				} else {
-					// Empty verse
-					w.addVerseEntry(w.currentBlockNum, w.currentBlockSize, 0)
-				}
-				verseIndex++
-
-				// Flush block if it gets too large (4KB threshold)
-				if w.currentBlock.Len() > 4096 {
-					if err := w.flushBlock(); err != nil {
-						return 0, err
-					}
-				}
-			}
-		}
-
-		// Flush block at end of each book
-		if w.currentBlock.Len() > 0 {
-			if err := w.flushBlock(); err != nil {
-				return 0, err
-			}
-		}
-	}
-
-	// Flush any remaining data
-	if w.currentBlock.Len() > 0 {
-		if err := w.flushBlock(); err != nil {
+	for bookIdx := cfg.startBook; bookIdx < endBook; bookIdx++ {
+		n, err := w.processBook(w.vers.Books[bookIdx], verseMap)
+		if err != nil {
 			return 0, err
 		}
+		versesWritten += n
 	}
 
-	// Write files
-	if err := w.writeFiles(prefix); err != nil {
+	if err := w.flushBlockIfNonEmpty(); err != nil {
+		return 0, err
+	}
+
+	if err := w.writeFiles(cfg.prefix); err != nil {
 		return 0, err
 	}
 

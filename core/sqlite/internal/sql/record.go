@@ -138,49 +138,47 @@ func GetVarint(buf []byte, offset int) (uint64, int) {
 	return v, 0
 }
 
-// SerialTypeFor determines the serial type for a value
-func SerialTypeFor(val Value) SerialType {
-	switch val.Type {
-	case TypeNull:
-		return SerialTypeNull
+var intRanges = [5]struct {
+	lo  int64
+	hi  int64
+	typ SerialType
+}{
+	{-128, 127, SerialTypeInt8},
+	{-32768, 32767, SerialTypeInt16},
+	{-8388608, 8388607, SerialTypeInt24},
+	{-2147483648, 2147483647, SerialTypeInt32},
+	{-140737488355328, 140737488355327, SerialTypeInt48},
+}
 
-	case TypeInteger:
-		i := val.Int
-		if i == 0 {
-			return SerialTypeZero
-		}
-		if i == 1 {
-			return SerialTypeOne
-		}
-		if i >= -128 && i <= 127 {
-			return SerialTypeInt8
-		}
-		if i >= -32768 && i <= 32767 {
-			return SerialTypeInt16
-		}
-		if i >= -8388608 && i <= 8388607 {
-			return SerialTypeInt24
-		}
-		if i >= -2147483648 && i <= 2147483647 {
-			return SerialTypeInt32
-		}
-		if i >= -140737488355328 && i <= 140737488355327 {
-			return SerialTypeInt48
-		}
-		return SerialTypeInt64
-
-	case TypeFloat:
-		return SerialTypeFloat64
-
-	case TypeText:
-		n := len(val.Text)
-		return SerialType(13 + 2*n)
-
-	case TypeBlob:
-		n := len(val.Blob)
-		return SerialType(12 + 2*n)
+func serialTypeForInteger(i int64) SerialType {
+	if i == 0 {
+		return SerialTypeZero
 	}
+	if i == 1 {
+		return SerialTypeOne
+	}
+	for _, r := range intRanges {
+		if i >= r.lo && i <= r.hi {
+			return r.typ
+		}
+	}
+	return SerialTypeInt64
+}
 
+// serialTypeHandlers maps each ValueType to its SerialType handler.
+var serialTypeHandlers = map[ValueType]func(Value) SerialType{
+	TypeNull:    func(_ Value) SerialType { return SerialTypeNull },
+	TypeInteger: func(v Value) SerialType { return serialTypeForInteger(v.Int) },
+	TypeFloat:   func(_ Value) SerialType { return SerialTypeFloat64 },
+	TypeText:    func(v Value) SerialType { return SerialType(13 + 2*len(v.Text)) },
+	TypeBlob:    func(v Value) SerialType { return SerialType(12 + 2*len(v.Blob)) },
+}
+
+// SerialTypeFor determines the serial type for a value.
+func SerialTypeFor(val Value) SerialType {
+	if handler, ok := serialTypeHandlers[val.Type]; ok {
+		return handler(val)
+	}
 	return SerialTypeNull
 }
 
@@ -382,93 +380,105 @@ func ParseRecord(data []byte) (*Record, error) {
 	return &Record{Values: values}, nil
 }
 
-// parseValue parses a single value from the record body
-func parseValue(data []byte, offset int, st SerialType) (Value, int, error) {
+// parseZeroWidthConst maps zero-width serial types to their pre-built Values.
+var parseZeroWidthConst = map[SerialType]Value{
+	SerialTypeNull: {Type: TypeNull, IsNull: true},
+	SerialTypeZero: {Type: TypeInteger, Int: 0},
+	SerialTypeOne:  {Type: TypeInteger, Int: 1},
+}
+
+// parseIntWidth maps serial types Int8–Int64 to their byte widths.
+// Index corresponds to serial type value (1–6).
+var parseIntWidth = [7]int{0, 1, 2, 3, 4, 6, 8} // index 0 unused
+
+// parseFixedInt decodes a fixed-width big-endian signed integer for serial
+// types SerialTypeInt8 through SerialTypeInt64.
+func parseFixedInt(data []byte, offset int, st SerialType) (Value, int, error) {
+	width := parseIntWidth[st]
+	if offset+width > len(data) {
+		return Value{}, 0, errors.New("truncated int" + intWidthSuffix(st))
+	}
+	var v int64
 	switch st {
-	case SerialTypeNull:
-		return Value{Type: TypeNull, IsNull: true}, 0, nil
-
-	case SerialTypeZero:
-		return Value{Type: TypeInteger, Int: 0}, 0, nil
-
-	case SerialTypeOne:
-		return Value{Type: TypeInteger, Int: 1}, 0, nil
-
 	case SerialTypeInt8:
-		if offset >= len(data) {
-			return Value{}, 0, errors.New("truncated int8")
-		}
-		return Value{Type: TypeInteger, Int: int64(int8(data[offset]))}, 1, nil
-
+		v = int64(int8(data[offset]))
 	case SerialTypeInt16:
-		if offset+2 > len(data) {
-			return Value{}, 0, errors.New("truncated int16")
-		}
-		v := int64(int16(binary.BigEndian.Uint16(data[offset:])))
-		return Value{Type: TypeInteger, Int: v}, 2, nil
-
+		v = int64(int16(binary.BigEndian.Uint16(data[offset:])))
 	case SerialTypeInt24:
-		if offset+3 > len(data) {
-			return Value{}, 0, errors.New("truncated int24")
+		raw := int32(data[offset])<<16 | int32(data[offset+1])<<8 | int32(data[offset+2])
+		if raw&0x800000 != 0 {
+			raw |= ^0xffffff // sign extend
 		}
-		v := int32(data[offset])<<16 | int32(data[offset+1])<<8 | int32(data[offset+2])
-		if v&0x800000 != 0 {
-			v |= ^0xffffff // Sign extend
-		}
-		return Value{Type: TypeInteger, Int: int64(v)}, 3, nil
-
+		v = int64(raw)
 	case SerialTypeInt32:
-		if offset+4 > len(data) {
-			return Value{}, 0, errors.New("truncated int32")
-		}
-		v := int64(int32(binary.BigEndian.Uint32(data[offset:])))
-		return Value{Type: TypeInteger, Int: v}, 4, nil
-
+		v = int64(int32(binary.BigEndian.Uint32(data[offset:])))
 	case SerialTypeInt48:
-		if offset+6 > len(data) {
-			return Value{}, 0, errors.New("truncated int48")
-		}
-		v := int64(data[offset])<<40 | int64(data[offset+1])<<32 |
+		v = int64(data[offset])<<40 | int64(data[offset+1])<<32 |
 			int64(data[offset+2])<<24 | int64(data[offset+3])<<16 |
 			int64(data[offset+4])<<8 | int64(data[offset+5])
 		if v&0x800000000000 != 0 {
-			v |= ^0xffffffffffff // Sign extend
+			v |= ^0xffffffffffff // sign extend
 		}
-		return Value{Type: TypeInteger, Int: v}, 6, nil
-
-	case SerialTypeInt64:
-		if offset+8 > len(data) {
-			return Value{}, 0, errors.New("truncated int64")
-		}
-		v := int64(binary.BigEndian.Uint64(data[offset:]))
-		return Value{Type: TypeInteger, Int: v}, 8, nil
-
-	case SerialTypeFloat64:
-		if offset+8 > len(data) {
-			return Value{}, 0, errors.New("truncated float64")
-		}
-		bits := binary.BigEndian.Uint64(data[offset:])
-		v := math.Float64frombits(bits)
-		return Value{Type: TypeFloat, Float: v}, 8, nil
-
-	default:
-		// Blob or Text
-		length := SerialTypeLen(st)
-		if offset+length > len(data) {
-			return Value{}, 0, errors.New("truncated blob/text")
-		}
-
-		b := make([]byte, length)
-		copy(b, data[offset:offset+length])
-
-		if st%2 == 0 {
-			// Even: BLOB
-			return Value{Type: TypeBlob, Blob: b}, length, nil
-		} else {
-			// Odd: TEXT
-			return Value{Type: TypeText, Text: string(b)}, length, nil
-		}
+	default: // SerialTypeInt64
+		v = int64(binary.BigEndian.Uint64(data[offset:]))
 	}
+	return Value{Type: TypeInteger, Int: v}, width, nil
+}
+
+// intWidthSuffix returns the bit-width suffix string for error messages.
+func intWidthSuffix(st SerialType) string {
+	switch st {
+	case SerialTypeInt8:
+		return "8"
+	case SerialTypeInt16:
+		return "16"
+	case SerialTypeInt24:
+		return "24"
+	case SerialTypeInt32:
+		return "32"
+	case SerialTypeInt48:
+		return "48"
+	default:
+		return "64"
+	}
+}
+
+// parseFloat64 decodes an IEEE 754 float64 from data at offset.
+func parseFloat64(data []byte, offset int) (Value, int, error) {
+	if offset+8 > len(data) {
+		return Value{}, 0, errors.New("truncated float64")
+	}
+	bits := binary.BigEndian.Uint64(data[offset:])
+	return Value{Type: TypeFloat, Float: math.Float64frombits(bits)}, 8, nil
+}
+
+// parseBlobOrText decodes a blob (even serial type) or text (odd serial type)
+// from data at offset.
+func parseBlobOrText(data []byte, offset int, st SerialType) (Value, int, error) {
+	length := SerialTypeLen(st)
+	if offset+length > len(data) {
+		return Value{}, 0, errors.New("truncated blob/text")
+	}
+	b := make([]byte, length)
+	copy(b, data[offset:offset+length])
+	if st%2 == 0 {
+		return Value{Type: TypeBlob, Blob: b}, length, nil // BLOB
+	}
+	return Value{Type: TypeText, Text: string(b)}, length, nil // TEXT
+}
+
+// parseValue parses a single value from the record body.
+func parseValue(data []byte, offset int, st SerialType) (Value, int, error) {
+	if v, ok := parseZeroWidthConst[st]; ok {
+		return v, 0, nil
+	}
+	if st >= SerialTypeInt8 && st <= SerialTypeInt64 {
+		return parseFixedInt(data, offset, st)
+	}
+	if st == SerialTypeFloat64 {
+		return parseFloat64(data, offset)
+	}
+	return parseBlobOrText(data, offset, st)
 }
 
 // IntValue creates an integer value

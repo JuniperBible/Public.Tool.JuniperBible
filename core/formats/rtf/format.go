@@ -264,60 +264,60 @@ func parseRTFContent(rtf, artifactID string) []*ir.Document {
 	return []*ir.Document{doc}
 }
 
-func emitRTF(corpus *ir.Corpus, outputDir string) (string, error) {
-	outputPath := filepath.Join(outputDir, corpus.ID+".rtf")
-
-	// Check for raw RTF for round-trip
-	if raw, ok := corpus.Attributes["_rtf_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
-			return "", fmt.Errorf("failed to write RTF: %w", err)
-		}
-		return outputPath, nil
+func writeRTFFile(path, content string) error {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		return fmt.Errorf("failed to write RTF: %w", err)
 	}
+	return nil
+}
 
-	// Generate RTF from IR
+func buildDocRTF(doc *ir.Document) string {
 	var buf strings.Builder
+	buf.WriteString(fmt.Sprintf("\\b %s\\b0\\par\n", escapeRTF(doc.Title)))
+	currentChapter := 0
+	for _, cb := range doc.ContentBlocks {
+		for _, anchor := range cb.Anchors {
+			for _, span := range anchor.Spans {
+				if span.Ref == nil || span.Type != "VERSE" {
+					continue
+				}
+				if span.Ref.Chapter != currentChapter {
+					if currentChapter > 0 {
+						buf.WriteString("\\par\n")
+					}
+					currentChapter = span.Ref.Chapter
+					buf.WriteString(fmt.Sprintf("\\b Chapter %d\\b0\\par\n", currentChapter))
+				}
+				buf.WriteString(fmt.Sprintf("\\b %d\\b0  %s\\par\n", span.Ref.Verse, escapeRTF(cb.Text)))
+			}
+		}
+	}
+	buf.WriteString("\\par\n")
+	return buf.String()
+}
 
+func buildRTF(corpus *ir.Corpus) string {
+	var buf strings.Builder
 	buf.WriteString("{\\rtf1\\ansi\\deff0\n")
 	buf.WriteString("{\\fonttbl{\\f0 Times New Roman;}}\n")
 	buf.WriteString("{\\colortbl;\\red0\\green0\\blue0;}\n")
 	buf.WriteString("\\viewkind4\\uc1\\pard\\f0\\fs24\n")
-
 	if corpus.Title != "" {
 		buf.WriteString(fmt.Sprintf("\\qc\\b\\fs32 %s\\b0\\fs24\\par\\par\n", escapeRTF(corpus.Title)))
 	}
-
 	for _, doc := range corpus.Documents {
-		buf.WriteString(fmt.Sprintf("\\b %s\\b0\\par\n", escapeRTF(doc.Title)))
-
-		currentChapter := 0
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						if span.Ref.Chapter != currentChapter {
-							if currentChapter > 0 {
-								buf.WriteString("\\par\n")
-							}
-							currentChapter = span.Ref.Chapter
-							buf.WriteString(fmt.Sprintf("\\b Chapter %d\\b0\\par\n", currentChapter))
-						}
-						buf.WriteString(fmt.Sprintf("\\b %d\\b0  %s\\par\n",
-							span.Ref.Verse, escapeRTF(cb.Text)))
-					}
-				}
-			}
-		}
-		buf.WriteString("\\par\n")
+		buf.WriteString(buildDocRTF(doc))
 	}
-
 	buf.WriteString("}")
+	return buf.String()
+}
 
-	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
-		return "", fmt.Errorf("failed to write RTF: %w", err)
+func emitRTF(corpus *ir.Corpus, outputDir string) (string, error) {
+	outputPath := filepath.Join(outputDir, corpus.ID+".rtf")
+	if raw, ok := corpus.Attributes["_rtf_raw"]; ok && raw != "" {
+		return outputPath, writeRTFFile(outputPath, raw)
 	}
-
-	return outputPath, nil
+	return outputPath, writeRTFFile(outputPath, buildRTF(corpus))
 }
 
 func escapeRTF(s string) string {

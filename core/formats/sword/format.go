@@ -186,6 +186,31 @@ func parseSwordModules(path string) ([]*SwordModule, error) {
 	return modules, nil
 }
 
+// confSectionName parses a section-header line like "[KJV]" and returns the
+// module name. The second return value is false when the line is not a header.
+func confSectionName(line string) (string, bool) {
+	if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+		return line[1 : len(line)-1], true
+	}
+	return "", false
+}
+
+// applyConfKeyValue maps a parsed key/value pair onto the module using a
+// lookup table, keeping cyclomatic complexity to 1 (no branches).
+func applyConfKeyValue(module *SwordModule, key, value string) {
+	fieldMap := map[string]*string{
+		"Description": &module.Description,
+		"Version":     &module.Version,
+		"DataPath":    &module.DataPath,
+		"ModDrv":      &module.ModDrv,
+		"Lang":        &module.Lang,
+		"Encoding":    &module.Encoding,
+	}
+	if ptr, ok := fieldMap[key]; ok {
+		*ptr = value
+	}
+}
+
 func parseConfFile(path string) (*SwordModule, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -203,8 +228,8 @@ func parseConfFile(path string) (*SwordModule, error) {
 			continue
 		}
 
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			module.Name = line[1 : len(line)-1]
+		if name, ok := confSectionName(line); ok {
+			module.Name = name
 			continue
 		}
 
@@ -213,23 +238,7 @@ func parseConfFile(path string) (*SwordModule, error) {
 			continue
 		}
 
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		switch key {
-		case "Description":
-			module.Description = value
-		case "Version":
-			module.Version = value
-		case "DataPath":
-			module.DataPath = value
-		case "ModDrv":
-			module.ModDrv = value
-		case "Lang":
-			module.Lang = value
-		case "Encoding":
-			module.Encoding = value
-		}
+		applyConfKeyValue(module, strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]))
 	}
 
 	if module.Name == "" {
@@ -239,56 +248,63 @@ func parseConfFile(path string) (*SwordModule, error) {
 	return module, nil
 }
 
+func createModuleDirs(moduleDir string) error {
+	if err := os.MkdirAll(filepath.Join(moduleDir, "mods.d"), 0700); err != nil {
+		return fmt.Errorf("failed to create mods.d: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join(moduleDir, "modules"), 0700); err != nil {
+		return fmt.Errorf("failed to create modules: %w", err)
+	}
+	return nil
+}
+
+func buildGeneratedConf(corpus *ir.Corpus) string {
+	attrs := corpus.Attributes
+	dataPath, ok := attrs["_sword_data_path"]
+	if !ok {
+		dataPath = fmt.Sprintf("./modules/texts/ztext/%s/", strings.ToLower(corpus.ID))
+	}
+	modDrv, ok := attrs["_sword_mod_drv"]
+	if !ok {
+		modDrv = "zText"
+	}
+
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("[%s]\n", corpus.ID))
+	b.WriteString(fmt.Sprintf("DataPath=%s\n", dataPath))
+	b.WriteString(fmt.Sprintf("ModDrv=%s\n", modDrv))
+
+	for _, kv := range []struct{ key, field string }{
+		{"Description", corpus.Title},
+		{"Lang", corpus.Language},
+		{"Version", attrs["_sword_version"]},
+		{"Encoding", attrs["_sword_encoding"]},
+	} {
+		if kv.field != "" {
+			b.WriteString(fmt.Sprintf("%s=%s\n", kv.key, kv.field))
+		}
+	}
+	return b.String()
+}
+
+func writeConf(modsD, id, content string) error {
+	confPath := filepath.Join(modsD, strings.ToLower(id)+".conf")
+	if err := os.WriteFile(confPath, []byte(content), 0600); err != nil {
+		return fmt.Errorf("failed to write conf: %w", err)
+	}
+	return nil
+}
+
 func emitSword(corpus *ir.Corpus, outputDir string) (string, error) {
 	moduleDir := filepath.Join(outputDir, corpus.ID)
+	if err := createModuleDirs(moduleDir); err != nil {
+		return "", err
+	}
+
 	modsD := filepath.Join(moduleDir, "mods.d")
-	modulesDir := filepath.Join(moduleDir, "modules")
-
-	if err := os.MkdirAll(modsD, 0700); err != nil {
-		return "", fmt.Errorf("failed to create mods.d: %w", err)
-	}
-	if err := os.MkdirAll(modulesDir, 0700); err != nil {
-		return "", fmt.Errorf("failed to create modules: %w", err)
-	}
-
-	// Check for original conf file
 	if confContent, ok := corpus.Attributes["_sword_conf"]; ok && confContent != "" {
-		confPath := filepath.Join(modsD, strings.ToLower(corpus.ID)+".conf")
-		if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
-			return "", fmt.Errorf("failed to write conf: %w", err)
-		}
-	} else {
-		// Generate minimal conf file
-		var confBuf strings.Builder
-		confBuf.WriteString(fmt.Sprintf("[%s]\n", corpus.ID))
-		if dataPath, ok := corpus.Attributes["_sword_data_path"]; ok {
-			confBuf.WriteString(fmt.Sprintf("DataPath=%s\n", dataPath))
-		} else {
-			confBuf.WriteString(fmt.Sprintf("DataPath=./modules/texts/ztext/%s/\n", strings.ToLower(corpus.ID)))
-		}
-		if modDrv, ok := corpus.Attributes["_sword_mod_drv"]; ok {
-			confBuf.WriteString(fmt.Sprintf("ModDrv=%s\n", modDrv))
-		} else {
-			confBuf.WriteString("ModDrv=zText\n")
-		}
-		if corpus.Title != "" {
-			confBuf.WriteString(fmt.Sprintf("Description=%s\n", corpus.Title))
-		}
-		if corpus.Language != "" {
-			confBuf.WriteString(fmt.Sprintf("Lang=%s\n", corpus.Language))
-		}
-		if version, ok := corpus.Attributes["_sword_version"]; ok {
-			confBuf.WriteString(fmt.Sprintf("Version=%s\n", version))
-		}
-		if encoding, ok := corpus.Attributes["_sword_encoding"]; ok {
-			confBuf.WriteString(fmt.Sprintf("Encoding=%s\n", encoding))
-		}
-
-		confPath := filepath.Join(modsD, strings.ToLower(corpus.ID)+".conf")
-		if err := os.WriteFile(confPath, []byte(confBuf.String()), 0600); err != nil {
-			return "", fmt.Errorf("failed to write conf: %w", err)
-		}
+		return moduleDir, writeConf(modsD, corpus.ID, confContent)
 	}
 
-	return moduleDir, nil
+	return moduleDir, writeConf(modsD, corpus.ID, buildGeneratedConf(corpus))
 }

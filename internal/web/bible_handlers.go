@@ -449,75 +449,81 @@ func (mb ManageableBible) HasTag(tag string) bool {
 // Installed = capsules with IR
 // Installable = capsules without IR + SWORD modules from ~/.sword/
 // Uses parallel processing for metadata lookups.
+type capsuleResult struct {
+	mb          ManageableBible
+	isInstalled bool
+}
+
+func buildCapsuleResult(c CapsuleInfo, installedBibleInfo map[string]BibleInfo) capsuleResult {
+	capsuleID := archive.ExtractCapsuleID(c.Name)
+	fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
+	hasIR := getCapsuleMetadata(fullPath).HasIR
+
+	tags := []string{"capsule"}
+	if c.Format != "" {
+		tags = append(tags, c.Format)
+	}
+	if hasIR {
+		tags = append(tags, "identified")
+	}
+
+	name := capsuleID
+	var language string
+	if bibleInfo, ok := installedBibleInfo[capsuleID]; ok {
+		language = bibleInfo.Language
+		if bibleInfo.Title != "" {
+			name = bibleInfo.Title
+		}
+	}
+
+	mb := ManageableBible{
+		ID:          capsuleID,
+		Name:        name,
+		Source:      "capsule",
+		SourcePath:  c.Path,
+		IsInstalled: hasIR,
+		Format:      c.Format,
+		Tags:        tags,
+		Language:    language,
+	}
+	return capsuleResult{mb: mb, isInstalled: hasIR}
+}
+
+func appendNewSWORDModules(installable []ManageableBible, installedBibleInfo map[string]BibleInfo) []ManageableBible {
+	for _, sm := range listSWORDModules() {
+		if _, exists := installedBibleInfo[sm.ID]; !exists {
+			installable = append(installable, sm)
+		}
+	}
+	return installable
+}
+
+func sortManageableBibles(installed, installable []ManageableBible) {
+	sort.Slice(installed, func(i, j int) bool { return installed[i].Name < installed[j].Name })
+	sort.Slice(installable, func(i, j int) bool { return installable[i].Name < installable[j].Name })
+}
+
 func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 	capsules := listCapsules()
 	if len(capsules) == 0 {
-		// Still check SWORD modules even if no capsules
-		swordModules := listSWORDModules()
-		return nil, swordModules
+		return nil, listSWORDModules()
 	}
 
-	// Build a map of installed Bible info for quick lookup (includes Language)
 	installedBibleInfo := make(map[string]BibleInfo)
 	for _, bible := range getCachedBibles() {
 		installedBibleInfo[bible.ID] = bible
 	}
 
-	type result struct {
-		mb          ManageableBible
-		isInstalled bool
-	}
-
-	// Process capsules in parallel using worker pool
-	pool := NewWorkerPool[CapsuleInfo, result](maxWorkers, len(capsules))
-	pool.Start(func(c CapsuleInfo) result {
-		capsuleID := archive.ExtractCapsuleID(c.Name)
-
-		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
-		// Use getCapsuleMetadata for cached HasIR check
-		meta := getCapsuleMetadata(fullPath)
-		hasIR := meta.HasIR
-
-		// Build tags for this capsule
-		tags := []string{"capsule"}
-		if c.Format != "" {
-			tags = append(tags, c.Format)
-		}
-		if hasIR {
-			tags = append(tags, "identified")
-		}
-
-		// Get language from cached Bible info if available
-		var language string
-		var name string = capsuleID
-		if bibleInfo, ok := installedBibleInfo[capsuleID]; ok {
-			language = bibleInfo.Language
-			if bibleInfo.Title != "" {
-				name = bibleInfo.Title
-			}
-		}
-
-		mb := ManageableBible{
-			ID:          capsuleID,
-			Name:        name,
-			Source:      "capsule",
-			SourcePath:  c.Path,
-			IsInstalled: hasIR,
-			Format:      c.Format,
-			Tags:        tags,
-			Language:    language,
-		}
-
-		return result{mb: mb, isInstalled: hasIR}
+	pool := NewWorkerPool[CapsuleInfo, capsuleResult](maxWorkers, len(capsules))
+	pool.Start(func(c CapsuleInfo) capsuleResult {
+		return buildCapsuleResult(c, installedBibleInfo)
 	})
 
-	// Submit jobs
 	for _, c := range capsules {
 		pool.Submit(c)
 	}
 	pool.Close()
 
-	// Collect results
 	for r := range pool.Results() {
 		if r.isInstalled {
 			installed = append(installed, r.mb)
@@ -526,23 +532,8 @@ func listManageableBiblesUncached() (installed, installable []ManageableBible) {
 		}
 	}
 
-	// List SWORD modules from ~/.sword/ (already parallelized internally)
-	swordModules := listSWORDModules()
-	for _, sm := range swordModules {
-		// Check if already in installed list (by ID)
-		if _, exists := installedBibleInfo[sm.ID]; exists {
-			continue
-		}
-		installable = append(installable, sm)
-	}
-
-	// Sort both lists by name
-	sort.Slice(installed, func(i, j int) bool {
-		return installed[i].Name < installed[j].Name
-	})
-	sort.Slice(installable, func(i, j int) bool {
-		return installable[i].Name < installable[j].Name
-	})
+	installable = appendNewSWORDModules(installable, installedBibleInfo)
+	sortManageableBibles(installed, installable)
 
 	return installed, installable
 }
@@ -600,28 +591,77 @@ type swordConfFile struct {
 	name string
 }
 
-// listSWORDModulesUncached finds SWORD Bible modules in ~/.sword/ using parallel processing.
-func listSWORDModulesUncached() []ManageableBible {
-	homeDir, err := os.UserHomeDir()
+var swordVersificationTags = map[string]string{
+	"catholic":    "catholic",
+	"catholic2":   "catholic",
+	"vulg":        "catholic",
+	"lxx":         "catholic",
+	"kjv":         "protestant",
+	"nrsv":        "protestant",
+	"luther":      "protestant",
+	"german":      "protestant",
+	"leningrad":   "protestant",
+	"orthodox":    "orthodox",
+	"synodal":     "orthodox",
+	"synodalprot": "orthodox",
+}
+
+var swordFeatureTags = map[string]string{
+	"strongsnumbers": "strongs",
+	"images":         "images",
+	"greekdef":       "definitions",
+	"hebrewdef":      "definitions",
+	"greekparse":     "parsing",
+	"morphology":     "morphology",
+	"footnotes":      "footnotes",
+	"headings":       "headings",
+}
+
+func swordModuleTags(module SWORDModule) []string {
+	tags := []string{"sword", "identified"}
+	versTag := swordVersificationTags[strings.ToLower(module.Versification)]
+	if versTag == "" {
+		versTag = "protestant"
+	}
+	tags = append(tags, versTag)
+	for _, feature := range module.Features {
+		if tag, ok := swordFeatureTags[strings.ToLower(feature)]; ok {
+			tags = append(tags, tag)
+		}
+	}
+	return tags
+}
+
+func parseSWORDConfFile(cf swordConfFile) *ManageableBible {
+	confContent, err := os.ReadFile(cf.path)
 	if err != nil {
 		return nil
 	}
-
-	swordDir := filepath.Join(homeDir, ".sword")
-	modsDir := filepath.Join(swordDir, "mods.d")
-
-	// Check if mods.d directory exists
-	if _, err := os.Stat(modsDir); os.IsNotExist(err) {
+	module := parseSWORDConf(string(confContent), cf.name)
+	if module.ID == "" || module.Category != "Biblical Texts" {
 		return nil
 	}
+	name := module.Description
+	if name == "" {
+		name = module.ID
+	}
+	return &ManageableBible{
+		ID:          module.ID,
+		Name:        name,
+		Source:      "sword",
+		SourcePath:  cf.path,
+		IsInstalled: false,
+		Format:      "sword",
+		Tags:        swordModuleTags(module),
+		Language:    module.Language,
+	}
+}
 
-	// Read .conf files from mods.d
+func collectSWORDConfFiles(modsDir string) []swordConfFile {
 	files, err := os.ReadDir(modsDir)
 	if err != nil {
 		return nil
 	}
-
-	// Collect conf files to process
 	var confFiles []swordConfFile
 	for _, f := range files {
 		if f.IsDir() || !strings.HasSuffix(f.Name(), ".conf") {
@@ -632,93 +672,33 @@ func listSWORDModulesUncached() []ManageableBible {
 			name: f.Name(),
 		})
 	}
+	return confFiles
+}
 
+func listSWORDModulesUncached() []ManageableBible {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+
+	modsDir := filepath.Join(homeDir, ".sword", "mods.d")
+	if _, err := os.Stat(modsDir); os.IsNotExist(err) {
+		return nil
+	}
+
+	confFiles := collectSWORDConfFiles(modsDir)
 	if len(confFiles) == 0 {
 		return nil
 	}
 
-	// Process conf files in parallel using worker pool
-	type result struct {
-		module *ManageableBible
-	}
-
+	type result struct{ module *ManageableBible }
 	pool := NewWorkerPool[swordConfFile, result](32, len(confFiles))
-	pool.Start(func(cf swordConfFile) result {
-		confContent, err := os.ReadFile(cf.path)
-		if err != nil {
-			return result{module: nil}
-		}
-
-		// Use existing parseSWORDConf from handlers.go
-		module := parseSWORDConf(string(confContent), cf.name)
-
-		// Check if it's a Bible module by looking at the Category field
-		// SWORD modules with Category=Biblical Texts are Bibles
-		if module.ID == "" || module.Category != "Biblical Texts" {
-			return result{module: nil}
-		}
-
-		name := module.Description
-		if name == "" {
-			name = module.ID
-		}
-		// SWORD modules are always "identified" (properly parsed conf file)
-		tags := []string{"sword", "identified"}
-
-		// Add versification-based tags
-		switch strings.ToLower(module.Versification) {
-		case "catholic", "catholic2", "vulg", "lxx":
-			tags = append(tags, "catholic")
-		case "kjv", "nrsv", "luther", "german", "leningrad":
-			tags = append(tags, "protestant")
-		case "orthodox", "synodal", "synodalprot":
-			tags = append(tags, "orthodox")
-		default:
-			// If no versification specified, default to protestant (most common)
-			if module.Versification == "" {
-				tags = append(tags, "protestant")
-			}
-		}
-
-		// Add feature-based tags
-		for _, feature := range module.Features {
-			switch strings.ToLower(feature) {
-			case "strongsnumbers":
-				tags = append(tags, "strongs")
-			case "images":
-				tags = append(tags, "images")
-			case "greekdef", "hebrewdef":
-				tags = append(tags, "definitions")
-			case "greekparse":
-				tags = append(tags, "parsing")
-			case "morphology":
-				tags = append(tags, "morphology")
-			case "footnotes":
-				tags = append(tags, "footnotes")
-			case "headings":
-				tags = append(tags, "headings")
-			}
-		}
-
-		return result{module: &ManageableBible{
-			ID:          module.ID,
-			Name:        name,
-			Source:      "sword",
-			SourcePath:  cf.path,
-			IsInstalled: false,
-			Format:      "sword",
-			Tags:        tags,
-			Language:    module.Language,
-		}}
-	})
-
-	// Submit jobs
+	pool.Start(func(cf swordConfFile) result { return result{module: parseSWORDConfFile(cf)} })
 	for _, cf := range confFiles {
 		pool.Submit(cf)
 	}
 	pool.Close()
 
-	// Collect results
 	var modules []ManageableBible
 	for r := range pool.Results() {
 		if r.module != nil {
@@ -726,11 +706,9 @@ func listSWORDModulesUncached() []ManageableBible {
 		}
 	}
 
-	// Sort by name
 	sort.Slice(modules, func(i, j int) bool {
 		return modules[i].Name < modules[j].Name
 	})
-
 	return modules
 }
 
@@ -992,56 +970,64 @@ func processManageTab(r *http.Request) manageTabData {
 	return data
 }
 
-// calculateBrowsePagination handles pagination for browse tab.
+func parsePerPage(r *http.Request, options []int) int {
+	perPageStr := r.URL.Query().Get("perPage")
+	if perPageStr == "" {
+		return options[0]
+	}
+	var v int
+	fmt.Sscanf(perPageStr, "%d", &v)
+	for _, opt := range options {
+		if v == opt {
+			return v
+		}
+	}
+	return options[0]
+}
+
+func parsePage(r *http.Request) int {
+	pageStr := r.URL.Query().Get("page")
+	if pageStr == "" {
+		return 1
+	}
+	var v int
+	fmt.Sscanf(pageStr, "%d", &v)
+	if v < 1 {
+		return 1
+	}
+	return v
+}
+
+func sliceBibles(allBibles []BibleInfo, page, perPage int) ([]BibleInfo, int, int) {
+	totalItems := len(allBibles)
+	totalPages := (totalItems + perPage - 1) / perPage
+	if page > totalPages {
+		page = totalPages
+	}
+	if page < 1 {
+		page = 1
+	}
+	start := (page - 1) * perPage
+	end := start + perPage
+	if end > totalItems {
+		end = totalItems
+	}
+	if start >= totalItems {
+		return nil, page, totalPages
+	}
+	return allBibles[start:end], page, totalPages
+}
+
 func calculateBrowsePagination(r *http.Request, allBibles []BibleInfo, query, tab string) (paginatedBibles []BibleInfo, params paginationParams) {
 	params.PerPageOptions = []int{11, 22, 33, 44, 55, 66}
-	params.PerPage = 11
-	params.Page = 1
+	params.PerPage = parsePerPage(r, params.PerPageOptions)
+	params.Page = parsePage(r)
 
-	if perPageStr := r.URL.Query().Get("perPage"); perPageStr != "" {
-		fmt.Sscanf(perPageStr, "%d", &params.PerPage)
-		valid := false
-		for _, opt := range params.PerPageOptions {
-			if params.PerPage == opt {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			params.PerPage = 11
-		}
+	if query != "" || tab == "compare" {
+		return allBibles, paginationParams{PerPageOptions: params.PerPageOptions, PerPage: params.PerPage, Page: 1, TotalPages: 1}
 	}
 
-	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
-		fmt.Sscanf(pageStr, "%d", &params.Page)
-		if params.Page < 1 {
-			params.Page = 1
-		}
-	}
-
-	if query == "" && tab != "compare" {
-		totalItems := len(allBibles)
-		params.TotalPages = (totalItems + params.PerPage - 1) / params.PerPage
-		if params.Page > params.TotalPages {
-			params.Page = params.TotalPages
-		}
-		if params.Page < 1 {
-			params.Page = 1
-		}
-
-		start := (params.Page - 1) * params.PerPage
-		end := start + params.PerPage
-		if end > totalItems {
-			end = totalItems
-		}
-		if start < totalItems {
-			paginatedBibles = allBibles[start:end]
-		}
-	} else {
-		paginatedBibles = allBibles
-		params.TotalPages = 1
-	}
-
+	paginatedBibles, params.Page, params.TotalPages = sliceBibles(allBibles, params.Page, params.PerPage)
 	return paginatedBibles, params
 }
 
@@ -1372,13 +1358,58 @@ func handleBookView(w http.ResponseWriter, r *http.Request, capsuleID, bookID st
 	}
 }
 
-// handleChapterView shows a chapter's verses.
-func handleChapterView(w http.ResponseWriter, r *http.Request, capsuleID, bookID, chapterStr string) {
-	var requestedChapter int
-	fmt.Sscanf(chapterStr, "%d", &requestedChapter)
-	if requestedChapter < 1 {
-		requestedChapter = 1
+func parseChapterNum(s string) int {
+	var n int
+	fmt.Sscanf(s, "%d", &n)
+	if n < 1 {
+		return 1
 	}
+	return n
+}
+
+func findBookByID(books []BookInfo, id string) *BookInfo {
+	for i := range books {
+		if strings.EqualFold(books[i].ID, id) {
+			return &books[i]
+		}
+	}
+	return nil
+}
+
+func resolveChapterBook(books []BookInfo, bookID string, requestedChapter int, bibleTitle string) (*BookInfo, int, string) {
+	book := findBookByID(books, bookID)
+	if book == nil {
+		msg := fmt.Sprintf("The book \"%s\" does not exist in %s. Showing %s instead.", bookID, bibleTitle, books[0].Name)
+		return &books[0], 1, msg
+	}
+	if requestedChapter > book.ChapterCount {
+		msg := fmt.Sprintf("Chapter %d does not exist in %s (max: %d). Showing chapter %d instead.", requestedChapter, book.Name, book.ChapterCount, book.ChapterCount)
+		return book, book.ChapterCount, msg
+	}
+	return book, requestedChapter, ""
+}
+
+func buildChapterNavURLs(capsuleID, bookID string, chapter, chapterCount int) (string, string) {
+	var prevURL, nextURL string
+	if chapter > 1 {
+		prevURL = fmt.Sprintf("/bible/%s/%s/%d", capsuleID, bookID, chapter-1)
+	}
+	if chapter < chapterCount {
+		nextURL = fmt.Sprintf("/bible/%s/%s/%d", capsuleID, bookID, chapter+1)
+	}
+	return prevURL, nextURL
+}
+
+func buildChapterList(count int) []int {
+	chapters := make([]int, count)
+	for i := range chapters {
+		chapters[i] = i + 1
+	}
+	return chapters
+}
+
+func handleChapterView(w http.ResponseWriter, r *http.Request, capsuleID, bookID, chapterStr string) {
+	requestedChapter := parseChapterNum(chapterStr)
 
 	bible, books, err := loadBibleWithBooks(capsuleID)
 	if err != nil {
@@ -1386,31 +1417,7 @@ func handleChapterView(w http.ResponseWriter, r *http.Request, capsuleID, bookID
 		return
 	}
 
-	// Get all bibles for dropdown
-	allBibles := getCachedBibles()
-
-	// Find the requested book
-	var book *BookInfo
-	for _, b := range books {
-		if strings.EqualFold(b.ID, bookID) {
-			book = &b
-			break
-		}
-	}
-
-	var notFoundMessage string
-	chapter := requestedChapter
-
-	// Handle book not found - show first book with message
-	if book == nil {
-		notFoundMessage = fmt.Sprintf("The book \"%s\" does not exist in %s. Showing %s instead.", bookID, bible.Title, books[0].Name)
-		book = &books[0]
-		chapter = 1
-	} else if chapter > book.ChapterCount {
-		// Handle chapter out of range
-		notFoundMessage = fmt.Sprintf("Chapter %d does not exist in %s (max: %d). Showing chapter %d instead.", requestedChapter, book.Name, book.ChapterCount, book.ChapterCount)
-		chapter = book.ChapterCount
-	}
+	book, chapter, notFoundMessage := resolveChapterBook(books, bookID, requestedChapter, bible.Title)
 
 	verses, err := loadChapterVerses(capsuleID, book.ID, chapter)
 	if err != nil {
@@ -1418,20 +1425,7 @@ func handleChapterView(w http.ResponseWriter, r *http.Request, capsuleID, bookID
 		return
 	}
 
-	// Build prev/next URLs
-	var prevURL, nextURL string
-	if chapter > 1 {
-		prevURL = fmt.Sprintf("/bible/%s/%s/%d", capsuleID, book.ID, chapter-1)
-	}
-	if chapter < book.ChapterCount {
-		nextURL = fmt.Sprintf("/bible/%s/%s/%d", capsuleID, book.ID, chapter+1)
-	}
-
-	// Build chapter list
-	chapters := make([]int, book.ChapterCount)
-	for i := 0; i < book.ChapterCount; i++ {
-		chapters[i] = i + 1
-	}
+	prevURL, nextURL := buildChapterNavURLs(capsuleID, book.ID, chapter, book.ChapterCount)
 
 	data := ChapterViewData{
 		PageData:         PageData{Title: fmt.Sprintf("%s %d - %s", book.Name, chapter, bible.Title)},
@@ -1441,9 +1435,9 @@ func handleChapterView(w http.ResponseWriter, r *http.Request, capsuleID, bookID
 		Verses:           verses,
 		PrevURL:          prevURL,
 		NextURL:          nextURL,
-		AllBibles:        allBibles,
+		AllBibles:        getCachedBibles(),
 		AllBooks:         books,
-		Chapters:         chapters,
+		Chapters:         buildChapterList(book.ChapterCount),
 		RequestedBook:    bookID,
 		RequestedChapter: requestedChapter,
 		NotFoundMessage:  notFoundMessage,
@@ -1592,6 +1586,97 @@ func handleAPIBibleSearch(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// filterCapsulesWithIR returns only those capsules that have an IR file present.
+// This avoids attempting to read IR from capsules that have none.
+func filterCapsulesWithIR(capsules []CapsuleInfo) []CapsuleInfo {
+	var withIR []CapsuleInfo
+	for _, c := range capsules {
+		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
+		if getCapsuleMetadata(fullPath).HasIR {
+			withIR = append(withIR, c)
+		}
+	}
+	return withIR
+}
+
+// loadCorpusForCapsule returns a *ir.Corpus for the given capsule, reading from
+// the corpus cache when possible and falling back to the archive on a miss.
+// Returns nil when the corpus cannot be loaded or is not a Bible module.
+func loadCorpusForCapsule(c CapsuleInfo, capsuleID string) *ir.Corpus {
+	corpusCache.RLock()
+	entry, cached := corpusCache.corpora[capsuleID]
+	corpusCache.RUnlock()
+
+	if cached {
+		return entry.corpus
+	}
+
+	irContent, err := readIRContent(filepath.Join(ServerConfig.CapsulesDir, c.Path))
+	if err != nil {
+		return nil
+	}
+	corpus := parseIRToCorpus(irContent)
+	if corpus == nil || corpus.ModuleType != ir.ModuleBible {
+		return nil
+	}
+	return corpus
+}
+
+// sampleDocIndices builds the set of document indices to probe for Strong's numbers.
+// It samples up to 3 OT books (indices 0-2) and up to 3 NT books (indices 39-41).
+func sampleDocIndices(numDocs int) []int {
+	var indices []int
+	for i := 0; i < 3 && i < numDocs; i++ {
+		indices = append(indices, i)
+	}
+	for i := 39; i < 42 && i < numDocs; i++ {
+		indices = append(indices, i)
+	}
+	return indices
+}
+
+// detectStrongsNumbers returns true when any sampled document in corpus contains
+// at least one token with a Strong's number annotation.
+func detectStrongsNumbers(corpus *ir.Corpus) bool {
+	for _, idx := range sampleDocIndices(len(corpus.Documents)) {
+		for _, cb := range corpus.Documents[idx].ContentBlocks {
+			for _, tok := range cb.Tokens {
+				if len(tok.Strongs) > 0 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// processCapsuleForBibleInfo converts a single CapsuleInfo into a BibleInfo result.
+// It is the worker function executed inside the listBiblesUncached pool.
+func processCapsuleForBibleInfo(c CapsuleInfo) (BibleInfo, bool) {
+	capsuleID := archive.ExtractCapsuleID(c.Name)
+
+	corpus := loadCorpusForCapsule(c, capsuleID)
+	if corpus == nil {
+		return BibleInfo{}, false
+	}
+
+	bible := BibleInfo{
+		ID:            capsuleID,
+		Title:         corpus.Title,
+		Abbrev:        corpus.ID,
+		Language:      corpus.Language,
+		Versification: corpus.Versification,
+		BookCount:     len(corpus.Documents),
+		CapsulePath:   c.Path,
+	}
+
+	if detectStrongsNumbers(corpus) {
+		bible.Features = append(bible.Features, "Strong's Numbers")
+	}
+
+	return bible, true
+}
+
 // listBiblesUncached returns all Bible capsules without caching.
 // Uses goroutines for parallel processing and leverages corpus cache when available.
 func listBiblesUncached() []BibleInfo {
@@ -1600,17 +1685,7 @@ func listBiblesUncached() []BibleInfo {
 		return nil
 	}
 
-	// Filter to only capsules that have IR files - this is the key optimization
-	// Without this, we'd try to read IR from 2000+ capsules when only ~14 have IR
-	var capsulesWithIR []CapsuleInfo
-	for _, c := range capsules {
-		fullPath := filepath.Join(ServerConfig.CapsulesDir, c.Path)
-		meta := getCapsuleMetadata(fullPath)
-		if meta.HasIR {
-			capsulesWithIR = append(capsulesWithIR, c)
-		}
-	}
-
+	capsulesWithIR := filterCapsulesWithIR(capsules)
 	if len(capsulesWithIR) == 0 {
 		return nil
 	}
@@ -1620,86 +1695,17 @@ func listBiblesUncached() []BibleInfo {
 		ok    bool
 	}
 
-	// Create and start worker pool - only processing capsules with IR
 	pool := NewWorkerPool[CapsuleInfo, result](maxWorkers, len(capsulesWithIR))
 	pool.Start(func(c CapsuleInfo) result {
-		capsuleID := archive.ExtractCapsuleID(c.Name)
-
-		// Try to get corpus from cache first (avoids re-reading archive)
-		var corpus *ir.Corpus
-		corpusCache.RLock()
-		if entry, ok := corpusCache.corpora[capsuleID]; ok {
-			corpus = entry.corpus
-		}
-		corpusCache.RUnlock()
-
-		// If not in cache, read from archive
-		if corpus == nil {
-			irContent, err := readIRContent(filepath.Join(ServerConfig.CapsulesDir, c.Path))
-			if err != nil {
-				return result{ok: false}
-			}
-			corpus = parseIRToCorpus(irContent)
-		}
-
-		if corpus == nil || corpus.ModuleType != ir.ModuleBible {
-			return result{ok: false}
-		}
-
-		bible := BibleInfo{
-			ID:            capsuleID,
-			Title:         corpus.Title,
-			Abbrev:        corpus.ID,
-			Language:      corpus.Language,
-			Versification: corpus.Versification,
-			BookCount:     len(corpus.Documents),
-			CapsulePath:   c.Path,
-		}
-
-		// Check for Strong's numbers - sample 3 books from OT and 3 from NT
-		// OT typically has 39 books, NT starts at index 39
-		numDocs := len(corpus.Documents)
-		indicesToCheck := []int{}
-
-		// First 3 OT books (Genesis, Exodus, Leviticus)
-		for i := 0; i < 3 && i < numDocs; i++ {
-			indicesToCheck = append(indicesToCheck, i)
-		}
-		// First 3 NT books (Matthew, Mark, Luke) - NT starts at index 39
-		for i := 39; i < 42 && i < numDocs; i++ {
-			indicesToCheck = append(indicesToCheck, i)
-		}
-
-		for _, idx := range indicesToCheck {
-			doc := corpus.Documents[idx]
-			found := false
-			for _, cb := range doc.ContentBlocks {
-				for _, tok := range cb.Tokens {
-					if len(tok.Strongs) > 0 {
-						bible.Features = append(bible.Features, "Strong's Numbers")
-						found = true
-						break
-					}
-				}
-				if found {
-					break
-				}
-			}
-			if found {
-				break
-			}
-		}
-
-		return result{bible: bible, ok: true}
+		bible, ok := processCapsuleForBibleInfo(c)
+		return result{bible: bible, ok: ok}
 	})
 
-	// Submit jobs - only capsules with IR
 	for _, c := range capsulesWithIR {
 		pool.Submit(c)
 	}
 	pool.Close()
 
-	// Collect results
 	var bibles []BibleInfo
 	for r := range pool.Results() {
 		if r.ok {
@@ -1813,6 +1819,33 @@ func loadChapterVerses(capsuleID, bookID string, chapter int) ([]VerseData, erro
 	return verses, nil
 }
 
+func normalizeQuery(query string) (string, string, bool) {
+	isPhrase := strings.HasPrefix(query, "\"") && strings.HasSuffix(query, "\"")
+	if isPhrase {
+		query = strings.Trim(query, "\"")
+	}
+	isStrongs := strongsSearchRegex.MatchString(strings.ToUpper(query))
+	return query, strings.ToLower(query), isStrongs
+}
+
+func matchesStrongsQuery(cb *ir.ContentBlock, query string) bool {
+	for _, tok := range cb.Tokens {
+		for _, s := range tok.Strongs {
+			if strings.EqualFold(s, query) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func contentBlockMatches(cb *ir.ContentBlock, query, queryLower string, isStrongs bool) bool {
+	if isStrongs {
+		return matchesStrongsQuery(cb, query)
+	}
+	return strings.Contains(strings.ToLower(cb.Text), queryLower)
+}
+
 // searchBible searches for text in a Bible.
 // Uses corpus cache for better performance.
 func searchBible(bibleID, query string, limit int) ([]SearchResult, int) {
@@ -1821,59 +1854,26 @@ func searchBible(bibleID, query string, limit int) ([]SearchResult, int) {
 		return nil, 0
 	}
 
+	query, queryLower, isStrongs := normalizeQuery(query)
 	var results []SearchResult
 	total := 0
-	queryLower := strings.ToLower(query)
-
-	// Check if it's a phrase search (quoted)
-	isPhrase := strings.HasPrefix(query, "\"") && strings.HasSuffix(query, "\"")
-	if isPhrase {
-		query = strings.Trim(query, "\"")
-		queryLower = strings.ToLower(query)
-	}
-
-	// Check if it's a Strong's number search (use pre-compiled regex)
-	isStrongs := strongsSearchRegex.MatchString(strings.ToUpper(query))
 
 	for _, doc := range corpus.Documents {
 		for _, cb := range doc.ContentBlocks {
-			var matched bool
-
-			if isStrongs {
-				// Search for Strong's number in tokens
-				for _, tok := range cb.Tokens {
-					for _, s := range tok.Strongs {
-						if strings.EqualFold(s, query) {
-							matched = true
-							break
-						}
-					}
-					if matched {
-						break
-					}
-				}
-			} else if isPhrase {
-				// Exact phrase search
-				matched = strings.Contains(strings.ToLower(cb.Text), queryLower)
-			} else {
-				// Word search
-				matched = strings.Contains(strings.ToLower(cb.Text), queryLower)
+			if !contentBlockMatches(cb, query, queryLower, isStrongs) {
+				continue
 			}
-
-			if matched {
-				total++
-				if len(results) < limit {
-					// Parse reference from content block ID
-					chapter, verse := parseContentBlockRef(cb.ID, doc.ID)
-					results = append(results, SearchResult{
-						BibleID:   bibleID,
-						Reference: fmt.Sprintf("%s %d:%d", doc.Title, chapter, verse),
-						Book:      doc.ID,
-						Chapter:   chapter,
-						Verse:     verse,
-						Text:      cb.Text,
-					})
-				}
+			total++
+			if len(results) < limit {
+				chapter, verse := parseContentBlockRef(cb.ID, doc.ID)
+				results = append(results, SearchResult{
+					BibleID:   bibleID,
+					Reference: fmt.Sprintf("%s %d:%d", doc.Title, chapter, verse),
+					Book:      doc.ID,
+					Chapter:   chapter,
+					Verse:     verse,
+					Text:      cb.Text,
+				})
 			}
 		}
 	}

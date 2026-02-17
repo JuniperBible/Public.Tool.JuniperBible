@@ -64,83 +64,104 @@ var osisToBookNum = func() map[string]int {
 	return m
 }()
 
-func detect(path string) (*ipc.DetectResult, error) {
+// detectRejectReason returns a non-empty rejection reason if the path is not
+// a regular file with the .sqlite3 extension, or an empty string if the path
+// passes the file-system checks.
+func detectRejectReason(path string) string {
 	info, err := os.Stat(path)
 	if err != nil {
-		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot stat: %v", err)}, nil
+		return fmt.Sprintf("cannot stat: %v", err)
 	}
-
 	if info.IsDir() {
-		return &ipc.DetectResult{Detected: false, Reason: "path is a directory, not a file"}, nil
+		return "path is a directory, not a file"
 	}
-
-	// Check file extension - MyBible.zone uses .SQLite3 or .sqlite3
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext != ".sqlite3" {
-		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("extension %s is not .SQLite3", ext)}, nil
+		return fmt.Sprintf("extension %s is not .SQLite3", ext)
 	}
+	return ""
+}
 
-	// Verify it's a valid SQLite database
+// detectOpenDB opens the SQLite database at path and verifies connectivity,
+// returning the open db handle on success or a rejection reason string on
+// failure.  The caller is responsible for closing the returned db.
+func detectOpenDB(path string) (*sql.DB, string, error) {
 	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
-		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot open as SQLite: %v", err)}, nil
+		return nil, fmt.Sprintf("cannot open as SQLite: %v", err), nil
+	}
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Sprintf("not a valid SQLite database: %v", err), nil
+	}
+	return db, "", nil
+}
+
+// detectHasVersesTable returns true when a table named "verses" exists in db.
+func detectHasVersesTable(db *sql.DB) bool {
+	rows, err := db.Query("SELECT name FROM sqlite_master WHERE type='table'")
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if rows.Scan(&name) == nil && name == "verses" {
+			return true
+		}
+	}
+	return false
+}
+
+// detectRequiredVersesColumns is the set of column names that must be present
+// in the verses table.
+var detectRequiredVersesColumns = map[string]bool{
+	"book_number": false,
+	"chapter":     false,
+	"verse":       false,
+	"text":        false,
+}
+
+// detectVersesColumnsPresent returns true when every required column is found.
+func detectVersesColumnsPresent(db *sql.DB) bool {
+	found := make(map[string]bool, len(detectRequiredVersesColumns))
+	colRows, err := db.Query("PRAGMA table_info(verses)")
+	if err != nil {
+		return false
+	}
+	defer colRows.Close()
+	for colRows.Next() {
+		var cid, notnull, pk int
+		var name, ctype string
+		var dfltValue interface{}
+		if colRows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk) == nil {
+			if _, required := detectRequiredVersesColumns[name]; required {
+				found[name] = true
+			}
+		}
+	}
+	return len(found) == len(detectRequiredVersesColumns)
+}
+
+func detect(path string) (*ipc.DetectResult, error) {
+	if reason := detectRejectReason(path); reason != "" {
+		return &ipc.DetectResult{Detected: false, Reason: reason}, nil
+	}
+
+	db, reason, err := detectOpenDB(path)
+	if err != nil {
+		return nil, err
+	}
+	if reason != "" {
+		return &ipc.DetectResult{Detected: false, Reason: reason}, nil
 	}
 	defer db.Close()
 
-	// Try a simple query to verify it's a valid database
-	if err := db.Ping(); err != nil {
-		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("not a valid SQLite database: %v", err)}, nil
-	}
-
-	// Check for MyBible-specific tables (lowercase)
-	hasVersesTable := false
-
-	rows, err := db.Query("SELECT name FROM sqlite_master WHERE type='table'")
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var name string
-			if err := rows.Scan(&name); err == nil {
-				if name == "verses" {
-					hasVersesTable = true
-				}
-			}
-		}
-	}
-
-	// MyBible.zone requires verses table
-	if !hasVersesTable {
+	if !detectHasVersesTable(db) {
 		return &ipc.DetectResult{Detected: false, Reason: "no verses table found (MyBible.zone format requires verses table)"}, nil
 	}
 
-	// Verify verses table has expected columns
-	var hasBookNumber, hasChapter, hasVerse, hasText bool
-	colRows, err := db.Query("PRAGMA table_info(verses)")
-	if err == nil {
-		defer colRows.Close()
-		for colRows.Next() {
-			var cid int
-			var name string
-			var ctype string
-			var notnull int
-			var dfltValue interface{}
-			var pk int
-			if err := colRows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err == nil {
-				switch name {
-				case "book_number":
-					hasBookNumber = true
-				case "chapter":
-					hasChapter = true
-				case "verse":
-					hasVerse = true
-				case "text":
-					hasText = true
-				}
-			}
-		}
-	}
-
-	if !hasBookNumber || !hasChapter || !hasVerse || !hasText {
+	if !detectVersesColumnsPresent(db) {
 		return &ipc.DetectResult{Detected: false, Reason: "verses table missing required columns (book_number, chapter, verse, text)"}, nil
 	}
 
@@ -184,10 +205,60 @@ func enumerate(path string) (*ipc.EnumerateResult, error) {
 	return &ipc.EnumerateResult{Entries: entries}, nil
 }
 
+// parseReadInfoTable queries the info table and returns all name→value pairs.
+// An empty map is returned when the table is missing or unreadable.
+func parseReadInfoTable(db *sql.DB) map[string]string {
+	infoMap := make(map[string]string)
+	rows, err := db.Query("SELECT name, value FROM info")
+	if err != nil {
+		return infoMap
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name, value string
+		if rows.Scan(&name, &value) == nil {
+			infoMap[name] = value
+		}
+	}
+	return infoMap
+}
+
+// infoCorpusField describes how a single info-table key maps to a corpus field.
+type infoCorpusField struct {
+	key    string
+	setter func(c *ir.Corpus, v string)
+}
+
+// infoFieldMapping is the ordered list of well-known info keys that map
+// directly to first-class Corpus fields.  Keys listed here are excluded from
+// the generic attributes pass-through below.
+var infoFieldMapping = []infoCorpusField{
+	{"description", func(c *ir.Corpus, v string) { c.Title = v }},
+	{"detailed_info", func(c *ir.Corpus, v string) { c.Description = v }},
+	{"language", func(c *ir.Corpus, v string) { c.Language = v }},
+	{"version", func(c *ir.Corpus, v string) { c.Attributes["version"] = v }},
+}
+
+// parseApplyInfoMap applies infoMap entries to corpus using the lookup table
+// for known fields and storing everything else as generic attributes.
+func parseApplyInfoMap(corpus *ir.Corpus, infoMap map[string]string) {
+	handled := make(map[string]bool, len(infoFieldMapping))
+	for _, f := range infoFieldMapping {
+		handled[f.key] = true
+		if v := infoMap[f.key]; v != "" {
+			f.setter(corpus, v)
+		}
+	}
+	for k, v := range infoMap {
+		if !handled[k] {
+			corpus.Attributes[k] = v
+		}
+	}
+}
+
 func parse(path string) (*ir.Corpus, error) {
 	artifactID := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 
-	// Read source for hashing
 	sourceData, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read source: %w", err)
@@ -205,42 +276,8 @@ func parse(path string) (*ir.Corpus, error) {
 	corpus.LossClass = "L1"
 	corpus.SourceHash = hex.EncodeToString(sourceHash[:])
 
-	// Extract Bible content from verses table
 	extractBibleIR(db, corpus)
-
-	// Try to get metadata from info table (MyBible.zone style: name-value pairs)
-	infoMap := make(map[string]string)
-	rows, err := db.Query("SELECT name, value FROM info")
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var name, value string
-			if err := rows.Scan(&name, &value); err == nil {
-				infoMap[name] = value
-			}
-		}
-	}
-
-	// Map common metadata fields
-	if desc, ok := infoMap["description"]; ok && desc != "" {
-		corpus.Title = desc
-	}
-	if detailedInfo, ok := infoMap["detailed_info"]; ok && detailedInfo != "" {
-		corpus.Description = detailedInfo
-	}
-	if lang, ok := infoMap["language"]; ok && lang != "" {
-		corpus.Language = lang
-	}
-	if version, ok := infoMap["version"]; ok && version != "" {
-		corpus.Attributes["version"] = version
-	}
-
-	// Store all info fields as attributes
-	for k, v := range infoMap {
-		if k != "description" && k != "detailed_info" && k != "language" && k != "version" {
-			corpus.Attributes[k] = v
-		}
-	}
+	parseApplyInfoMap(corpus, parseReadInfoTable(db))
 
 	return corpus, nil
 }

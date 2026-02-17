@@ -7,53 +7,49 @@ import (
 	"strings"
 )
 
-// EvaluateArithmetic evaluates an arithmetic expression.
-// Returns the result or nil if the operation produces NULL.
-func EvaluateArithmetic(op OpCode, left, right interface{}) interface{} {
-	// Handle NULL propagation
+type numericOperands struct {
+	li, ri   int64
+	lf, rf   float64
+	lis, ris bool
+}
+
+func parseNumericOperands(left, right interface{}) (numericOperands, bool) {
 	if left == nil || right == nil {
+		return numericOperands{}, false
+	}
+	ln := CoerceToNumeric(left)
+	rn := CoerceToNumeric(right)
+	li, lis := ln.(int64)
+	ri, ris := rn.(int64)
+	lf, lisF := ln.(float64)
+	rf, risF := rn.(float64)
+	if !lis && !lisF {
+		return numericOperands{}, false
+	}
+	if !ris && !risF {
+		return numericOperands{}, false
+	}
+	return numericOperands{li, ri, lf, rf, lis, ris}, true
+}
+
+var arithmeticDispatch = map[OpCode]func(numericOperands) interface{}{
+	OpPlus:      func(o numericOperands) interface{} { return add(o.li, o.lis, o.ri, o.ris, o.lf, o.rf) },
+	OpMinus:     func(o numericOperands) interface{} { return subtract(o.li, o.lis, o.ri, o.ris, o.lf, o.rf) },
+	OpMultiply:  func(o numericOperands) interface{} { return multiply(o.li, o.lis, o.ri, o.ris, o.lf, o.rf) },
+	OpDivide:    func(o numericOperands) interface{} { return divide(o.li, o.lis, o.ri, o.ris, o.lf, o.rf) },
+	OpRemainder: func(o numericOperands) interface{} { return remainder(o.li, o.lis, o.ri, o.ris, o.lf, o.rf) },
+}
+
+func EvaluateArithmetic(op OpCode, left, right interface{}) interface{} {
+	ops, ok := parseNumericOperands(left, right)
+	if !ok {
 		return nil
 	}
-
-	// Convert operands to numeric values
-	leftNum := CoerceToNumeric(left)
-	rightNum := CoerceToNumeric(right)
-
-	// Extract numeric values
-	leftInt, leftIsInt := leftNum.(int64)
-	rightInt, rightIsInt := rightNum.(int64)
-
-	leftFloat, leftIsFloat := leftNum.(float64)
-	rightFloat, rightIsFloat := rightNum.(float64)
-
-	// If neither operand is numeric, return NULL
-	if !leftIsInt && !leftIsFloat {
+	fn, ok := arithmeticDispatch[op]
+	if !ok {
 		return nil
 	}
-	if !rightIsInt && !rightIsFloat {
-		return nil
-	}
-
-	// Perform the operation
-	switch op {
-	case OpPlus:
-		return add(leftInt, leftIsInt, rightInt, rightIsInt, leftFloat, rightFloat)
-
-	case OpMinus:
-		return subtract(leftInt, leftIsInt, rightInt, rightIsInt, leftFloat, rightFloat)
-
-	case OpMultiply:
-		return multiply(leftInt, leftIsInt, rightInt, rightIsInt, leftFloat, rightFloat)
-
-	case OpDivide:
-		return divide(leftInt, leftIsInt, rightInt, rightIsInt, leftFloat, rightFloat)
-
-	case OpRemainder:
-		return remainder(leftInt, leftIsInt, rightInt, rightIsInt, leftFloat, rightFloat)
-
-	default:
-		return nil
-	}
+	return fn(ops)
 }
 
 // add performs addition.
@@ -143,43 +139,43 @@ func multiply(li int64, lis bool, ri int64, ris bool, lf, rf float64) interface{
 	return leftVal * rightVal
 }
 
-// divide performs division.
-func divide(li int64, lis bool, ri int64, ris bool, lf, rf float64) interface{} {
-	// Check for division by zero
-	if (ris && ri == 0) || (!ris && rf == 0.0) {
-		return nil
-	}
-
-	// If both are integers, try integer division
-	if lis && ris {
-		// SQLite uses integer division for integers
-		if ri == -1 && li == math.MinInt64 {
-			// Special case: prevent overflow
-			return float64(li) / float64(ri)
-		}
-		return li / ri
-	}
-
-	// Float division
-	var leftVal, rightVal float64
-	if lis {
-		leftVal = float64(li)
-	} else {
-		leftVal = lf
-	}
+func isDivideByZero(ris bool, ri int64, rf float64) bool {
 	if ris {
-		rightVal = float64(ri)
-	} else {
-		rightVal = rf
+		return ri == 0
 	}
-	result := leftVal / rightVal
+	return rf == 0.0
+}
 
-	// Check for overflow to infinity
+func resolveFloatVal(isInt bool, i int64, f float64) float64 {
+	if isInt {
+		return float64(i)
+	}
+	return f
+}
+
+func divideIntegers(li, ri int64) interface{} {
+	if ri == -1 && li == math.MinInt64 {
+		return float64(li) / float64(ri)
+	}
+	return li / ri
+}
+
+func divideFloats(lf, rf float64) interface{} {
+	result := lf / rf
 	if math.IsInf(result, 0) {
 		return nil
 	}
-
 	return result
+}
+
+func divide(li int64, lis bool, ri int64, ris bool, lf, rf float64) interface{} {
+	if isDivideByZero(ris, ri, rf) {
+		return nil
+	}
+	if lis && ris {
+		return divideIntegers(li, ri)
+	}
+	return divideFloats(resolveFloatVal(lis, li, lf), resolveFloatVal(ris, ri, rf))
 }
 
 // remainder performs modulo operation.
@@ -266,13 +262,41 @@ func bitNot(v interface{}) interface{} {
 	return ^i
 }
 
+// bitwiseLShift performs a left-shift, clamping out-of-range shifts to zero.
+func bitwiseLShift(left, right int64) int64 {
+	if right < 0 || right >= 64 {
+		return 0
+	}
+	return left << uint(right)
+}
+
+// bitwiseRShift performs a right-shift, propagating the sign bit for
+// out-of-range shifts (matches SQLite semantics).
+func bitwiseRShift(left, right int64) int64 {
+	if right < 0 || right >= 64 {
+		if left < 0 {
+			return -1
+		}
+		return 0
+	}
+	return left >> uint(right)
+}
+
+// bitwiseDispatch maps each bitwise OpCode to its two-operand int64 function.
+var bitwiseDispatch = map[OpCode]func(int64, int64) int64{
+	OpBitAnd: func(l, r int64) int64 { return l & r },
+	OpBitOr:  func(l, r int64) int64 { return l | r },
+	OpBitXor: func(l, r int64) int64 { return l ^ r },
+	OpLShift: bitwiseLShift,
+	OpRShift: bitwiseRShift,
+}
+
 // EvaluateBitwise evaluates a bitwise operation.
 func EvaluateBitwise(op OpCode, left, right interface{}) interface{} {
 	if left == nil || right == nil {
 		return nil
 	}
 
-	// Convert to integers
 	leftInt, leftOk := CoerceToInteger(left)
 	rightInt, rightOk := CoerceToInteger(right)
 
@@ -280,36 +304,12 @@ func EvaluateBitwise(op OpCode, left, right interface{}) interface{} {
 		return nil
 	}
 
-	switch op {
-	case OpBitAnd:
-		return leftInt & rightInt
-
-	case OpBitOr:
-		return leftInt | rightInt
-
-	case OpBitXor:
-		return leftInt ^ rightInt
-
-	case OpLShift:
-		// Limit shift amount to prevent undefined behavior
-		if rightInt < 0 || rightInt >= 64 {
-			return int64(0)
-		}
-		return leftInt << uint(rightInt)
-
-	case OpRShift:
-		// Limit shift amount to prevent undefined behavior
-		if rightInt < 0 || rightInt >= 64 {
-			if leftInt < 0 {
-				return int64(-1)
-			}
-			return int64(0)
-		}
-		return leftInt >> uint(rightInt)
-
-	default:
+	fn, ok := bitwiseDispatch[op]
+	if !ok {
 		return nil
 	}
+
+	return fn(leftInt, rightInt)
 }
 
 // EvaluateConcat evaluates string concatenation.
@@ -467,6 +467,69 @@ func evaluateNot(operand interface{}) interface{} {
 	return !CoerceToBoolean(operand)
 }
 
+// castToInteger casts a value to int64 for AFF_INTEGER.
+func castToInteger(value interface{}) interface{} {
+	i, ok := CoerceToInteger(value)
+	if ok {
+		return i
+	}
+	return int64(0)
+}
+
+// castToReal casts a value to float64 for AFF_REAL.
+func castToReal(value interface{}) interface{} {
+	switch v := value.(type) {
+	case float64:
+		return v
+	case int64:
+		return float64(v)
+	case string:
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return 0.0
+		}
+		return f
+	default:
+		return 0.0
+	}
+}
+
+// castToNumeric casts a value to the best numeric type for AFF_NUMERIC.
+func castToNumeric(value interface{}) interface{} {
+	if i, ok := CoerceToInteger(value); ok {
+		return i
+	}
+	s, ok := value.(string)
+	if ok {
+		if f, err := strconv.ParseFloat(s, 64); err == nil {
+			return f
+		}
+	}
+	return value
+}
+
+// castToBlob casts a value to []byte for AFF_BLOB.
+func castToBlob(value interface{}) interface{} {
+	switch v := value.(type) {
+	case []byte:
+		return v
+	case string:
+		return []byte(v)
+	default:
+		return []byte(valueToString(value))
+	}
+}
+
+// castDispatch maps each Affinity constant to its CAST conversion function.
+// AFF_TEXT is handled inline via valueToString; AFF_NONE and unknowns pass
+// the value through unchanged.
+var castDispatch = map[Affinity]func(interface{}) interface{}{
+	AFF_INTEGER: castToInteger,
+	AFF_REAL:    castToReal,
+	AFF_NUMERIC: castToNumeric,
+	AFF_BLOB:    castToBlob,
+}
+
 // EvaluateCast performs type casting.
 func EvaluateCast(value interface{}, targetType string) interface{} {
 	if value == nil {
@@ -475,58 +538,13 @@ func EvaluateCast(value interface{}, targetType string) interface{} {
 
 	aff := AffinityFromType(targetType)
 
-	switch aff {
-	case AFF_INTEGER:
-		i, ok := CoerceToInteger(value)
-		if ok {
-			return i
-		}
-		return int64(0)
-
-	case AFF_REAL:
-		switch v := value.(type) {
-		case float64:
-			return v
-		case int64:
-			return float64(v)
-		case string:
-			f, err := strconv.ParseFloat(v, 64)
-			if err != nil {
-				return 0.0
-			}
-			return f
-		default:
-			return 0.0
-		}
-
-	case AFF_TEXT:
+	if aff == AFF_TEXT {
 		return valueToString(value)
-
-	case AFF_NUMERIC:
-		// Try integer first, then float
-		if i, ok := CoerceToInteger(value); ok {
-			return i
-		}
-		if s, ok := value.(string); ok {
-			if f, err := strconv.ParseFloat(s, 64); err == nil {
-				return f
-			}
-		}
-		return value
-
-	case AFF_BLOB:
-		// Convert to blob (byte array)
-		switch v := value.(type) {
-		case []byte:
-			return v
-		case string:
-			return []byte(v)
-		default:
-			s := valueToString(value)
-			return []byte(s)
-		}
-
-	default:
-		return value
 	}
+
+	if cast, ok := castDispatch[aff]; ok {
+		return cast(value)
+	}
+
+	return value
 }

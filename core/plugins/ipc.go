@@ -126,36 +126,41 @@ func ExecutePlugin(plugin *Plugin, req *IPCRequest) (*IPCResponse, error) {
 // Priority: external plugin (when enabled and available) > embedded plugin > external fallback.
 // This ensures external plugins override embedded ones when the user has them enabled.
 func ExecutePluginWithTimeout(plugin *Plugin, req *IPCRequest, timeout time.Duration) (*IPCResponse, error) {
-	// Check if we have an external plugin binary available
-	entrypoint := ""
-	hasExternalBinary := false
-	if plugin.Path != "(embedded)" {
-		entrypoint = plugin.EntrypointPath()
-		if _, err := os.Stat(entrypoint); err == nil {
-			hasExternalBinary = true
-		}
-	}
+	entrypoint, hasExternalBinary := resolveEntrypoint(plugin)
 
-	// When external plugins are enabled and binary exists, prefer external
 	if externalPluginsEnabled && hasExternalBinary {
 		return executeExternalPlugin(plugin, req, entrypoint, timeout)
 	}
 
-	// Try embedded plugin
-	if resp, err := ExecuteEmbeddedPlugin(plugin.Manifest.PluginID, req); resp != nil || err != nil {
-		// If embedded returns an error indicating "not implemented", try external fallback
-		if resp != nil && resp.Status == "error" && isNotImplementedError(resp.Error) && hasExternalBinary {
-			return executeExternalPlugin(plugin, req, entrypoint, timeout)
-		}
+	resp, err := tryEmbeddedWithFallback(plugin, req, entrypoint, hasExternalBinary, timeout)
+	if resp != nil || err != nil {
 		return resp, err
 	}
 
-	// Embedded plugin returned nil, nil - check if we have any fallback
-	if hasExternalBinary {
+	return nil, fmt.Errorf("plugin %s is not available as an embedded plugin and no external binary found", plugin.Manifest.PluginID)
+}
+
+func resolveEntrypoint(plugin *Plugin) (string, bool) {
+	if plugin.Path == "(embedded)" {
+		return "", false
+	}
+	entrypoint := plugin.EntrypointPath()
+	_, err := os.Stat(entrypoint)
+	return entrypoint, err == nil
+}
+
+func tryEmbeddedWithFallback(plugin *Plugin, req *IPCRequest, entrypoint string, hasExternalBinary bool, timeout time.Duration) (*IPCResponse, error) {
+	resp, err := ExecuteEmbeddedPlugin(plugin.Manifest.PluginID, req)
+	if resp == nil && err == nil {
+		if hasExternalBinary {
+			return executeExternalPlugin(plugin, req, entrypoint, timeout)
+		}
+		return nil, nil
+	}
+	if resp != nil && resp.Status == "error" && isNotImplementedError(resp.Error) && hasExternalBinary {
 		return executeExternalPlugin(plugin, req, entrypoint, timeout)
 	}
-
-	return nil, fmt.Errorf("plugin %s is not available as an embedded plugin and no external binary found", plugin.Manifest.PluginID)
+	return resp, err
 }
 
 // isNotImplementedError checks if an error message indicates an unimplemented feature.

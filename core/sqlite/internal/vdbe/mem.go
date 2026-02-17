@@ -465,36 +465,34 @@ func (m *Mem) Move(src *Mem) {
 	src.xDel = nil
 }
 
-// Compare compares two memory cells.
-// Returns -1 if m < other, 0 if m == other, 1 if m > other.
-func (m *Mem) Compare(other *Mem) int {
-	// NULL handling
-	if m.IsNull() && other.IsNull() {
-		return 0
+func compareNulls(m, other *Mem) (int, bool) {
+	mNull := m.IsNull()
+	oNull := other.IsNull()
+	if !mNull && !oNull {
+		return 0, false
 	}
-	if m.IsNull() {
+	if mNull && oNull {
+		return 0, true
+	}
+	if mNull {
+		return -1, true
+	}
+	return 1, true
+}
+
+func compareNumeric(m, other *Mem) int {
+	v1, v2 := m.RealValue(), other.RealValue()
+	if v1 < v2 {
 		return -1
 	}
-	if other.IsNull() {
+	if v1 > v2 {
 		return 1
 	}
+	return 0
+}
 
-	// Numeric comparison
-	if m.IsNumeric() && other.IsNumeric() {
-		v1 := m.RealValue()
-		v2 := other.RealValue()
-		if v1 < v2 {
-			return -1
-		}
-		if v1 > v2 {
-			return 1
-		}
-		return 0
-	}
-
-	// String comparison
-	s1 := m.StrValue()
-	s2 := other.StrValue()
+func compareStrings(m, other *Mem) int {
+	s1, s2 := m.StrValue(), other.StrValue()
 	if s1 < s2 {
 		return -1
 	}
@@ -502,6 +500,16 @@ func (m *Mem) Compare(other *Mem) int {
 		return 1
 	}
 	return 0
+}
+
+func (m *Mem) Compare(other *Mem) int {
+	if result, handled := compareNulls(m, other); handled {
+		return result
+	}
+	if m.IsNumeric() && other.IsNumeric() {
+		return compareNumeric(m, other)
+	}
+	return compareStrings(m, other)
 }
 
 // release releases any dynamic memory associated with this cell.

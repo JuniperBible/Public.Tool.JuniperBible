@@ -506,12 +506,57 @@ func (e *Expr) IsConstant() bool {
 	}
 }
 
-// String returns a string representation of the expression.
-func (e *Expr) String() string {
-	if e == nil {
-		return "NULL"
-	}
+// exprUnaryPrefix maps unary OpCodes to their prefix symbols.
+// Ops in this map produce "(symbol operand)".
+var exprUnaryPrefix = map[OpCode]string{
+	OpNegate:    "-",
+	OpBitNot:    "~",
+	OpUnaryPlus: "+",
+}
 
+// exprUnaryKeyword maps unary OpCodes to keyword-style prefix strings.
+// Ops in this map produce "(KEYWORD operand)".
+var exprUnaryKeyword = map[OpCode]string{
+	OpNot: "NOT",
+}
+
+// exprUnaryPostfix maps unary OpCodes to their postfix SQL phrases.
+// Ops in this map produce "(operand PHRASE)".
+var exprUnaryPostfix = map[OpCode]string{
+	OpIsNull:  "IS NULL",
+	OpNotNull: "IS NOT NULL",
+}
+
+// exprBinaryInfix maps binary OpCodes to their infix operator strings.
+var exprBinaryInfix = map[OpCode]string{
+	OpPlus:      "+",
+	OpMinus:     "-",
+	OpMultiply:  "*",
+	OpDivide:    "/",
+	OpRemainder: "%",
+	OpConcat:    "||",
+	OpBitAnd:    "&",
+	OpBitOr:     "|",
+	OpBitXor:    "^",
+	OpLShift:    "<<",
+	OpRShift:    ">>",
+	OpEq:        "=",
+	OpNe:        "!=",
+	OpLt:        "<",
+	OpLe:        "<=",
+	OpGt:        ">",
+	OpGe:        ">=",
+	OpIs:        "IS",
+	OpIsNot:     "IS NOT",
+	OpAnd:       "AND",
+	OpOr:        "OR",
+	OpLike:      "LIKE",
+	OpGlob:      "GLOB",
+	OpRegexp:    "REGEXP",
+}
+
+// stringLiteral handles literal OpCodes: NULL, INTEGER, FLOAT, STRING, BLOB, VARIABLE.
+func (e *Expr) stringLiteral() string {
 	switch e.Op {
 	case OpNull:
 		return "NULL"
@@ -526,85 +571,129 @@ func (e *Expr) String() string {
 		return fmt.Sprintf("'%s'", strings.ReplaceAll(e.Token, "'", "''"))
 	case OpBlob:
 		return fmt.Sprintf("x'%s'", e.Token)
-	case OpVariable:
+	default: // OpVariable
 		return e.Token
-	case OpColumn:
-		if e.TableName != "" {
-			return fmt.Sprintf("%s.%s", e.TableName, e.ColumnName)
-		}
-		return e.ColumnName
-
-	case OpNegate:
-		return fmt.Sprintf("(-%s)", e.Left.String())
-	case OpNot:
-		return fmt.Sprintf("(NOT %s)", e.Left.String())
-	case OpBitNot:
-		return fmt.Sprintf("(~%s)", e.Left.String())
-	case OpUnaryPlus:
-		return fmt.Sprintf("(+%s)", e.Left.String())
-
-	case OpPlus:
-		return fmt.Sprintf("(%s + %s)", e.Left.String(), e.Right.String())
-	case OpMinus:
-		return fmt.Sprintf("(%s - %s)", e.Left.String(), e.Right.String())
-	case OpMultiply:
-		return fmt.Sprintf("(%s * %s)", e.Left.String(), e.Right.String())
-	case OpDivide:
-		return fmt.Sprintf("(%s / %s)", e.Left.String(), e.Right.String())
-	case OpRemainder:
-		return fmt.Sprintf("(%s %% %s)", e.Left.String(), e.Right.String())
-	case OpConcat:
-		return fmt.Sprintf("(%s || %s)", e.Left.String(), e.Right.String())
-
-	case OpEq:
-		return fmt.Sprintf("(%s = %s)", e.Left.String(), e.Right.String())
-	case OpNe:
-		return fmt.Sprintf("(%s != %s)", e.Left.String(), e.Right.String())
-	case OpLt:
-		return fmt.Sprintf("(%s < %s)", e.Left.String(), e.Right.String())
-	case OpLe:
-		return fmt.Sprintf("(%s <= %s)", e.Left.String(), e.Right.String())
-	case OpGt:
-		return fmt.Sprintf("(%s > %s)", e.Left.String(), e.Right.String())
-	case OpGe:
-		return fmt.Sprintf("(%s >= %s)", e.Left.String(), e.Right.String())
-	case OpIs:
-		return fmt.Sprintf("(%s IS %s)", e.Left.String(), e.Right.String())
-	case OpIsNot:
-		return fmt.Sprintf("(%s IS NOT %s)", e.Left.String(), e.Right.String())
-	case OpIsNull:
-		return fmt.Sprintf("(%s IS NULL)", e.Left.String())
-	case OpNotNull:
-		return fmt.Sprintf("(%s IS NOT NULL)", e.Left.String())
-
-	case OpAnd:
-		return fmt.Sprintf("(%s AND %s)", e.Left.String(), e.Right.String())
-	case OpOr:
-		return fmt.Sprintf("(%s OR %s)", e.Left.String(), e.Right.String())
-
-	case OpLike:
-		return fmt.Sprintf("(%s LIKE %s)", e.Left.String(), e.Right.String())
-	case OpGlob:
-		return fmt.Sprintf("(%s GLOB %s)", e.Left.String(), e.Right.String())
-
-	case OpFunction:
-		var args []string
-		if e.List != nil {
-			for _, item := range e.List.Items {
-				args = append(args, item.Expr.String())
-			}
-		}
-		return fmt.Sprintf("%s(%s)", e.FuncName, strings.Join(args, ", "))
-
-	case OpCast:
-		return fmt.Sprintf("CAST(%s AS %s)", e.Left.String(), e.Token)
-
-	case OpCollate:
-		return fmt.Sprintf("(%s COLLATE %s)", e.Left.String(), e.CollSeq)
-
-	default:
-		return fmt.Sprintf("Expr<%s>", e.Op.String())
 	}
+}
+
+// stringColumn handles OpColumn: returns "table.column" or just "column".
+func (e *Expr) stringColumn() string {
+	if e.TableName != "" {
+		return fmt.Sprintf("%s.%s", e.TableName, e.ColumnName)
+	}
+	return e.ColumnName
+}
+
+// stringUnary handles all unary operator expressions using the lookup tables.
+func (e *Expr) stringUnary() string {
+	if sym, ok := exprUnaryPrefix[e.Op]; ok {
+		return fmt.Sprintf("(%s%s)", sym, e.Left.String())
+	}
+	if kw, ok := exprUnaryKeyword[e.Op]; ok {
+		return fmt.Sprintf("(%s %s)", kw, e.Left.String())
+	}
+	// postfix unary (IS NULL, IS NOT NULL)
+	phrase := exprUnaryPostfix[e.Op]
+	return fmt.Sprintf("(%s %s)", e.Left.String(), phrase)
+}
+
+// stringBinary handles all binary infix operator expressions using the lookup table.
+func (e *Expr) stringBinary() string {
+	sym := exprBinaryInfix[e.Op]
+	return fmt.Sprintf("(%s %s %s)", e.Left.String(), sym, e.Right.String())
+}
+
+// stringFunction handles OpFunction: "name(arg1, arg2, ...)".
+func (e *Expr) stringFunction() string {
+	var args []string
+	if e.List != nil {
+		for _, item := range e.List.Items {
+			args = append(args, item.Expr.String())
+		}
+	}
+	return fmt.Sprintf("%s(%s)", e.FuncName, strings.Join(args, ", "))
+}
+
+// exprStringHandlers is a dispatch table mapping each OpCode to the method
+// that produces its string representation.
+var exprStringHandlers map[OpCode]func(*Expr) string
+
+func init() {
+	// Build the dispatch table once at program start.
+	literalHandler := (*Expr).stringLiteral
+	unaryHandler := (*Expr).stringUnary
+	binaryHandler := (*Expr).stringBinary
+
+	exprStringHandlers = map[OpCode]func(*Expr) string{
+		// Literals
+		OpNull:     literalHandler,
+		OpInteger:  literalHandler,
+		OpFloat:    literalHandler,
+		OpString:   literalHandler,
+		OpBlob:     literalHandler,
+		OpVariable: literalHandler,
+
+		// Column reference
+		OpColumn: (*Expr).stringColumn,
+
+		// Unary prefix symbol ops
+		OpNegate:    unaryHandler,
+		OpBitNot:    unaryHandler,
+		OpUnaryPlus: unaryHandler,
+
+		// Unary keyword ops
+		OpNot: unaryHandler,
+
+		// Unary postfix ops
+		OpIsNull:  unaryHandler,
+		OpNotNull: unaryHandler,
+
+		// Binary infix ops
+		OpPlus:      binaryHandler,
+		OpMinus:     binaryHandler,
+		OpMultiply:  binaryHandler,
+		OpDivide:    binaryHandler,
+		OpRemainder: binaryHandler,
+		OpConcat:    binaryHandler,
+		OpBitAnd:    binaryHandler,
+		OpBitOr:     binaryHandler,
+		OpBitXor:    binaryHandler,
+		OpLShift:    binaryHandler,
+		OpRShift:    binaryHandler,
+		OpEq:        binaryHandler,
+		OpNe:        binaryHandler,
+		OpLt:        binaryHandler,
+		OpLe:        binaryHandler,
+		OpGt:        binaryHandler,
+		OpGe:        binaryHandler,
+		OpIs:        binaryHandler,
+		OpIsNot:     binaryHandler,
+		OpAnd:       binaryHandler,
+		OpOr:        binaryHandler,
+		OpLike:      binaryHandler,
+		OpGlob:      binaryHandler,
+		OpRegexp:    binaryHandler,
+
+		// Special forms
+		OpFunction: (*Expr).stringFunction,
+		OpCast: func(e *Expr) string {
+			return fmt.Sprintf("CAST(%s AS %s)", e.Left.String(), e.Token)
+		},
+		OpCollate: func(e *Expr) string {
+			return fmt.Sprintf("(%s COLLATE %s)", e.Left.String(), e.CollSeq)
+		},
+	}
+}
+
+// String returns a string representation of the expression.
+func (e *Expr) String() string {
+	if e == nil {
+		return "NULL"
+	}
+	if handler, ok := exprStringHandlers[e.Op]; ok {
+		return handler(e)
+	}
+	return fmt.Sprintf("Expr<%s>", e.Op.String())
 }
 
 // VectorSize returns the number of columns in a vector expression.

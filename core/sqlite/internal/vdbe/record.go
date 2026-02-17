@@ -45,91 +45,83 @@ func decodeRecord(data []byte) ([]interface{}, error) {
 	return values, nil
 }
 
-// decodeValue decodes a single value from the record body
-func decodeValue(data []byte, offset int, serialType uint64) (interface{}, int, error) {
-	switch serialType {
-	case 0: // NULL
-		return nil, 0, nil
+// decodeZeroWidthConst maps serial types with no stored data to their Go values.
+var decodeZeroWidthConst = map[uint64]interface{}{
+	0: nil,       // NULL
+	8: int64(0),  // integer constant 0
+	9: int64(1),  // integer constant 1
+}
 
-	case 8: // integer 0
-		return int64(0), 0, nil
+// decodeIntWidth maps serial type 1–6 to their byte widths.
+var decodeIntWidth = [7]int{0, 1, 2, 3, 4, 6, 8} // index 0 unused
 
-	case 9: // integer 1
-		return int64(1), 0, nil
-
-	case 1: // int8
-		if offset >= len(data) {
-			return nil, 0, fmt.Errorf("truncated int8")
-		}
+// decodeFixedInt reads a big-endian signed integer of the width dictated by
+// serial type st (1–6) from data at offset.
+func decodeFixedInt(data []byte, offset int, st uint64) (interface{}, int, error) {
+	width := decodeIntWidth[st]
+	if offset+width > len(data) {
+		return nil, 0, fmt.Errorf("truncated int%d", width*8)
+	}
+	switch st {
+	case 1:
 		return int64(int8(data[offset])), 1, nil
-
-	case 2: // int16
-		if offset+2 > len(data) {
-			return nil, 0, fmt.Errorf("truncated int16")
-		}
-		v := int64(int16(binary.BigEndian.Uint16(data[offset:])))
-		return v, 2, nil
-
-	case 3: // int24
-		if offset+3 > len(data) {
-			return nil, 0, fmt.Errorf("truncated int24")
-		}
+	case 2:
+		return int64(int16(binary.BigEndian.Uint16(data[offset:]))), 2, nil
+	case 3:
 		v := int32(data[offset])<<16 | int32(data[offset+1])<<8 | int32(data[offset+2])
 		if v&0x800000 != 0 {
-			v |= ^0xffffff // Sign extend
+			v |= ^0xffffff // sign extend
 		}
 		return int64(v), 3, nil
-
-	case 4: // int32
-		if offset+4 > len(data) {
-			return nil, 0, fmt.Errorf("truncated int32")
-		}
-		v := int64(int32(binary.BigEndian.Uint32(data[offset:])))
-		return v, 4, nil
-
-	case 5: // int48
-		if offset+6 > len(data) {
-			return nil, 0, fmt.Errorf("truncated int48")
-		}
+	case 4:
+		return int64(int32(binary.BigEndian.Uint32(data[offset:]))), 4, nil
+	case 5:
 		v := int64(data[offset])<<40 | int64(data[offset+1])<<32 |
 			int64(data[offset+2])<<24 | int64(data[offset+3])<<16 |
 			int64(data[offset+4])<<8 | int64(data[offset+5])
 		if v&0x800000000000 != 0 {
-			v |= ^0xffffffffffff // Sign extend
+			v |= ^0xffffffffffff // sign extend
 		}
 		return v, 6, nil
-
-	case 6: // int64
-		if offset+8 > len(data) {
-			return nil, 0, fmt.Errorf("truncated int64")
-		}
-		v := int64(binary.BigEndian.Uint64(data[offset:]))
-		return v, 8, nil
-
-	case 7: // float64
-		if offset+8 > len(data) {
-			return nil, 0, fmt.Errorf("truncated float64")
-		}
-		bits := binary.BigEndian.Uint64(data[offset:])
-		v := math.Float64frombits(bits)
-		return v, 8, nil
-
-	default:
-		// Blob or text
-		length := serialTypeLen(serialType)
-		if offset+length > len(data) {
-			return nil, 0, fmt.Errorf("truncated blob/text")
-		}
-
-		b := make([]byte, length)
-		copy(b, data[offset:offset+length])
-
-		if serialType%2 == 0 {
-			// Even: BLOB
-			return b, length, nil
-		} else {
-			// Odd: TEXT
-			return string(b), length, nil
-		}
+	default: // case 6
+		return int64(binary.BigEndian.Uint64(data[offset:])), 8, nil
 	}
+}
+
+// decodeFloat64 reads an IEEE 754 float64 from data at offset.
+func decodeFloat64(data []byte, offset int) (interface{}, int, error) {
+	if offset+8 > len(data) {
+		return nil, 0, fmt.Errorf("truncated float64")
+	}
+	bits := binary.BigEndian.Uint64(data[offset:])
+	return math.Float64frombits(bits), 8, nil
+}
+
+// decodeBlobOrText reads a blob (even serial type) or text (odd serial type)
+// from data at offset.
+func decodeBlobOrText(data []byte, offset int, serialType uint64) (interface{}, int, error) {
+	length := serialTypeLen(serialType)
+	if offset+length > len(data) {
+		return nil, 0, fmt.Errorf("truncated blob/text")
+	}
+	b := make([]byte, length)
+	copy(b, data[offset:offset+length])
+	if serialType%2 == 0 {
+		return b, length, nil // BLOB
+	}
+	return string(b), length, nil // TEXT
+}
+
+// decodeValue decodes a single value from the record body.
+func decodeValue(data []byte, offset int, serialType uint64) (interface{}, int, error) {
+	if v, ok := decodeZeroWidthConst[serialType]; ok {
+		return v, 0, nil
+	}
+	if serialType >= 1 && serialType <= 6 {
+		return decodeFixedInt(data, offset, serialType)
+	}
+	if serialType == 7 {
+		return decodeFloat64(data, offset)
+	}
+	return decodeBlobOrText(data, offset, serialType)
 }

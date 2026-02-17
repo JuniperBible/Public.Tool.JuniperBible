@@ -263,37 +263,66 @@ func (s *Schema) checkTableExists(name string, ifNotExists bool) (*Table, error)
 	return nil, nil
 }
 
+// columnConstraintHandler is the function signature used for every entry in
+// the constraint dispatch table below.
+type columnConstraintHandler func(col *Column, c parser.ColumnConstraint, pkCols *[]string)
+
+// applyPrimaryKeyConstraint marks the column as part of the primary key and
+// sets Autoincrement when the parsed sub-node requests it.
+func applyPrimaryKeyConstraint(col *Column, c parser.ColumnConstraint, pkCols *[]string) {
+	col.PrimaryKey = true
+	*pkCols = append(*pkCols, col.Name)
+	if c.PrimaryKey != nil && c.PrimaryKey.Autoincrement {
+		col.Autoincrement = true
+	}
+}
+
+// applyDefaultConstraint records the string representation of the DEFAULT
+// expression on the column.
+func applyDefaultConstraint(col *Column, c parser.ColumnConstraint, _ *[]string) {
+	if c.Default != nil {
+		col.Default = c.Default.String()
+	}
+}
+
+// applyCheckConstraint records the string representation of the CHECK
+// expression on the column.
+func applyCheckConstraint(col *Column, c parser.ColumnConstraint, _ *[]string) {
+	if c.Check != nil {
+		col.Check = c.Check.String()
+	}
+}
+
+// applyGeneratedConstraint marks the column as generated and captures its
+// expression and storage mode.
+func applyGeneratedConstraint(col *Column, c parser.ColumnConstraint, _ *[]string) {
+	if c.Generated == nil {
+		return
+	}
+	col.Generated = true
+	col.GeneratedStored = c.Generated.Stored
+	if c.Generated.Expr != nil {
+		col.GeneratedExpr = c.Generated.Expr.String()
+	}
+}
+
+// columnConstraintHandlers maps each constraint type to its handler.
+// Simple single-assignment constraints are expressed as inline closures;
+// more complex ones delegate to a named helper above.
+var columnConstraintHandlers = map[parser.ConstraintType]columnConstraintHandler{
+	parser.ConstraintPrimaryKey: applyPrimaryKeyConstraint,
+	parser.ConstraintNotNull:    func(col *Column, _ parser.ColumnConstraint, _ *[]string) { col.NotNull = true },
+	parser.ConstraintUnique:     func(col *Column, _ parser.ColumnConstraint, _ *[]string) { col.Unique = true },
+	parser.ConstraintCollate:    func(col *Column, c parser.ColumnConstraint, _ *[]string) { col.Collation = c.Collate },
+	parser.ConstraintDefault:    applyDefaultConstraint,
+	parser.ConstraintCheck:      applyCheckConstraint,
+	parser.ConstraintGenerated:  applyGeneratedConstraint,
+}
+
 // processColumnConstraint processes a single column constraint.
 func processColumnConstraint(col *Column, constraint parser.ColumnConstraint, pkCols *[]string) {
-	switch constraint.Type {
-	case parser.ConstraintPrimaryKey:
-		col.PrimaryKey = true
-		*pkCols = append(*pkCols, col.Name)
-		if constraint.PrimaryKey != nil && constraint.PrimaryKey.Autoincrement {
-			col.Autoincrement = true
-		}
-	case parser.ConstraintNotNull:
-		col.NotNull = true
-	case parser.ConstraintUnique:
-		col.Unique = true
-	case parser.ConstraintCollate:
-		col.Collation = constraint.Collate
-	case parser.ConstraintDefault:
-		if constraint.Default != nil {
-			col.Default = constraint.Default.String()
-		}
-	case parser.ConstraintCheck:
-		if constraint.Check != nil {
-			col.Check = constraint.Check.String()
-		}
-	case parser.ConstraintGenerated:
-		if constraint.Generated != nil {
-			col.Generated = true
-			if constraint.Generated.Expr != nil {
-				col.GeneratedExpr = constraint.Generated.Expr.String()
-			}
-			col.GeneratedStored = constraint.Generated.Stored
-		}
+	if handler, ok := columnConstraintHandlers[constraint.Type]; ok {
+		handler(col, constraint, pkCols)
 	}
 }
 

@@ -121,46 +121,66 @@ func (p *rtfParser) parseControlWord() (ControlWord, error) {
 
 	ch := p.data[p.pos]
 
-	// Special characters: \{, \}, \\
 	if ch == '{' || ch == '}' || ch == '\\' {
-		p.pos++
-		return ControlWord{word: string(ch)}, nil
+		return p.parseSpecialChar(), nil
 	}
 
-	// Control word
 	if isLetter(ch) {
-		start := p.pos
-		for p.pos < len(p.data) && isLetter(p.data[p.pos]) {
-			p.pos++
-		}
-		word := string(p.data[start:p.pos])
-
-		// Check for numeric parameter
-		var param int
-		var hasParam bool
-		if p.pos < len(p.data) && (p.data[p.pos] == '-' || isDigit(p.data[p.pos])) {
-			numStart := p.pos
-			if p.data[p.pos] == '-' {
-				p.pos++
-			}
-			for p.pos < len(p.data) && isDigit(p.data[p.pos]) {
-				p.pos++
-			}
-			param, _ = strconv.Atoi(string(p.data[numStart:p.pos]))
-			hasParam = true
-		}
-
-		// Skip delimiter space
-		if p.pos < len(p.data) && p.data[p.pos] == ' ' {
-			p.pos++
-		}
-
-		return ControlWord{word: word, param: param, has: hasParam}, nil
+		return p.parseLetterControlWord(), nil
 	}
 
 	// Control symbol (single non-letter character after \)
 	p.pos++
 	return ControlWord{word: string(ch)}, nil
+}
+
+// parseSpecialChar handles the escaped special characters \{, \}, and \\.
+// The caller must have already verified that p.data[p.pos] is one of those.
+func (p *rtfParser) parseSpecialChar() ControlWord {
+	ch := p.data[p.pos]
+	p.pos++
+	return ControlWord{word: string(ch)}
+}
+
+// parseLetterControlWord reads a letter-based RTF control word together with
+// its optional numeric parameter and the optional trailing delimiter space.
+// The caller must have already verified that p.data[p.pos] is a letter.
+func (p *rtfParser) parseLetterControlWord() ControlWord {
+	start := p.pos
+	for p.pos < len(p.data) && isLetter(p.data[p.pos]) {
+		p.pos++
+	}
+	word := string(p.data[start:p.pos])
+
+	param, hasParam := p.parseNumericParam()
+
+	if p.pos < len(p.data) && p.data[p.pos] == ' ' {
+		p.pos++ // skip delimiter space
+	}
+
+	return ControlWord{word: word, param: param, has: hasParam}
+}
+
+// parseNumericParam reads an optional signed integer that follows a control
+// word and returns its value together with a flag indicating whether a
+// parameter was present. The parser position is advanced past the digits.
+func (p *rtfParser) parseNumericParam() (param int, hasParam bool) {
+	if p.pos >= len(p.data) {
+		return 0, false
+	}
+	if p.data[p.pos] != '-' && !isDigit(p.data[p.pos]) {
+		return 0, false
+	}
+
+	numStart := p.pos
+	if p.data[p.pos] == '-' {
+		p.pos++
+	}
+	for p.pos < len(p.data) && isDigit(p.data[p.pos]) {
+		p.pos++
+	}
+	param, _ = strconv.Atoi(string(p.data[numStart:p.pos]))
+	return param, true
 }
 
 func (p *rtfParser) parseText() string {
@@ -220,38 +240,100 @@ func (doc *Document) findInfoGroup(group *Group) {
 	}
 }
 
+var infoFieldNames = map[string]bool{
+	"title":   true,
+	"author":  true,
+	"subject": true,
+}
+
+func extractInfoField(nested *Group) (fieldName, fieldValue string) {
+	var value strings.Builder
+	for _, c := range nested.children {
+		if cw, ok := c.(ControlWord); ok && infoFieldNames[cw.word] {
+			fieldName = cw.word
+		}
+		if text, ok := c.(string); ok {
+			value.WriteString(text)
+		}
+	}
+	return fieldName, strings.TrimSpace(value.String())
+}
+
 func (doc *Document) parseInfoGroup(group *Group) {
 	for _, child := range group.children {
-		if nested, ok := child.(*Group); ok {
-			var fieldName string
-			var fieldValue strings.Builder
+		nested, ok := child.(*Group)
+		if !ok {
+			continue
+		}
+		name, value := extractInfoField(nested)
+		switch name {
+		case "title":
+			doc.metadata.Title = value
+		case "author":
+			doc.metadata.Author = value
+		case "subject":
+			doc.metadata.Subject = value
+		}
+	}
+}
 
-			for _, c := range nested.children {
-				if cw, ok := c.(ControlWord); ok {
-					switch cw.word {
-					case "title":
-						fieldName = "title"
-					case "author":
-						fieldName = "author"
-					case "subject":
-						fieldName = "subject"
-					}
-				}
-				if text, ok := c.(string); ok {
-					fieldValue.WriteString(text)
-				}
+// specialGroupWords is the set of RTF control words that introduce groups whose
+// content must be silently skipped during extraction.
+var specialGroupWords = map[string]bool{
+	"fonttbl":    true,
+	"colortbl":   true,
+	"stylesheet": true,
+	"info":       true,
+	"pict":       true,
+	"object":     true,
+}
+
+// isSpecialGroup returns true when the group begins with a control word that
+// marks it as metadata / non-content (font tables, colour tables, etc.).
+func isSpecialGroup(group *Group) bool {
+	for _, c := range group.children {
+		if cw, ok := c.(ControlWord); ok && specialGroupWords[cw.word] {
+			return true
+		}
+	}
+	return false
+}
+
+// groupFormatting scans the immediate children of a group and returns whether
+// it carries explicit bold or italic formatting control words.
+func groupFormatting(group *Group) (bold, italic bool) {
+	for _, c := range group.children {
+		cw, ok := c.(ControlWord)
+		if !ok {
+			continue
+		}
+		switch cw.word {
+		case "b":
+			if cw.param != 0 || !cw.has {
+				bold = true
 			}
-
-			switch fieldName {
-			case "title":
-				doc.metadata.Title = strings.TrimSpace(fieldValue.String())
-			case "author":
-				doc.metadata.Author = strings.TrimSpace(fieldValue.String())
-			case "subject":
-				doc.metadata.Subject = strings.TrimSpace(fieldValue.String())
+		case "i":
+			if cw.param != 0 || !cw.has {
+				italic = true
 			}
 		}
 	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+// Plain-text extraction
+// ---------------------------------------------------------------------------
+
+// textControlStrings maps simple RTF control words to their plain-text
+// equivalents. Words not in this map (e.g. "u") are handled separately.
+var textControlStrings = map[string]string{
+	"par":  "\n",
+	"line": "\n",
+	"tab":  "\t",
+	"{":    "{",
+	"}":    "}",
+	"\\":   "\\",
 }
 
 // ToText converts the document to plain text.
@@ -275,39 +357,90 @@ func (doc *Document) extractText(group *Group, buf *strings.Builder) {
 		case string:
 			buf.WriteString(v)
 		case ControlWord:
-			switch v.word {
-			case "par", "line":
-				buf.WriteString("\n")
-			case "tab":
-				buf.WriteString("\t")
-			case "{":
-				buf.WriteString("{")
-			case "}":
-				buf.WriteString("}")
-			case "\\":
-				buf.WriteString("\\")
-			case "u":
-				// Unicode escape
-				if v.has && v.param > 0 {
-					buf.WriteRune(rune(v.param))
-				}
-			}
+			doc.handleTextControlWord(v, buf)
 		case *Group:
-			// Skip special groups
-			isSpecialGroup := false
-			for _, c := range v.children {
-				if cw, ok := c.(ControlWord); ok {
-					switch cw.word {
-					case "fonttbl", "colortbl", "stylesheet", "info", "pict", "object":
-						isSpecialGroup = true
-					}
-				}
-			}
-			if !isSpecialGroup {
+			if !isSpecialGroup(v) {
 				doc.extractText(v, buf)
 			}
 		}
 	}
+}
+
+// handleTextControlWord writes the plain-text representation of a single
+// RTF control word into buf.
+func (doc *Document) handleTextControlWord(cw ControlWord, buf *strings.Builder) {
+	if s, ok := textControlStrings[cw.word]; ok {
+		buf.WriteString(s)
+		return
+	}
+	if cw.word == "u" && cw.has && cw.param > 0 {
+		buf.WriteRune(rune(cw.param))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// HTML extraction
+// ---------------------------------------------------------------------------
+
+// htmlControlHandlers maps RTF control words to functions that emit HTML.
+// The handler receives the full state so it can mutate inParagraph, localBold,
+// and localItalic via pointer.
+type htmlState struct {
+	buf         *strings.Builder
+	inParagraph bool
+	localBold   bool
+	localItalic bool
+}
+
+// htmlControlHandler is the function signature for per-word HTML handlers.
+type htmlControlHandler func(cw ControlWord, s *htmlState)
+
+func htmlHandleBold(cw ControlWord, s *htmlState) {
+	if !s.localBold && (cw.param != 0 || !cw.has) {
+		s.buf.WriteString("<b>")
+		s.localBold = true
+	} else if s.localBold && cw.param == 0 {
+		s.buf.WriteString("</b>")
+		s.localBold = false
+	}
+}
+
+func htmlHandleItalic(cw ControlWord, s *htmlState) {
+	if !s.localItalic && (cw.param != 0 || !cw.has) {
+		s.buf.WriteString("<i>")
+		s.localItalic = true
+	} else if s.localItalic && cw.param == 0 {
+		s.buf.WriteString("</i>")
+		s.localItalic = false
+	}
+}
+
+func htmlHandlePar(cw ControlWord, s *htmlState) {
+	if s.inParagraph {
+		s.buf.WriteString("</p>\n<p>")
+	} else {
+		s.buf.WriteString("<p>")
+		s.inParagraph = true
+	}
+}
+
+func htmlHandleLine(_ ControlWord, s *htmlState) { s.buf.WriteString("<br/>") }
+func htmlHandleTab(_ ControlWord, s *htmlState)  { s.buf.WriteString("&nbsp;&nbsp;&nbsp;&nbsp;") }
+
+func htmlHandleUnicode(cw ControlWord, s *htmlState) {
+	if cw.has && cw.param > 0 {
+		s.buf.WriteRune(rune(cw.param))
+	}
+}
+
+// htmlControlDispatch is the lookup table replacing the switch in extractHTML.
+var htmlControlDispatch = map[string]htmlControlHandler{
+	"b":    htmlHandleBold,
+	"i":    htmlHandleItalic,
+	"par":  htmlHandlePar,
+	"line": htmlHandleLine,
+	"tab":  htmlHandleTab,
+	"u":    htmlHandleUnicode,
 }
 
 // ToHTML converts the document to HTML.
@@ -336,100 +469,81 @@ func (doc *Document) ToHTMLBytes() []byte {
 }
 
 func (doc *Document) extractHTML(group *Group, buf *strings.Builder, inBold, inItalic bool) {
-	localBold := inBold
-	localItalic := inItalic
-	inParagraph := false
+	s := &htmlState{buf: buf, inParagraph: false, localBold: inBold, localItalic: inItalic}
 
 	for _, child := range group.children {
 		switch v := child.(type) {
 		case string:
-			if !inParagraph && strings.TrimSpace(v) != "" {
-				buf.WriteString("<p>")
-				inParagraph = true
-			}
-			buf.WriteString(encoding.EscapeHTML(v))
-
+			doc.handleHTMLText(v, s)
 		case ControlWord:
-			switch v.word {
-			case "b":
-				if !localBold && (v.param != 0 || !v.has) {
-					buf.WriteString("<b>")
-					localBold = true
-				} else if localBold && v.param == 0 {
-					buf.WriteString("</b>")
-					localBold = false
-				}
-			case "i":
-				if !localItalic && (v.param != 0 || !v.has) {
-					buf.WriteString("<i>")
-					localItalic = true
-				} else if localItalic && v.param == 0 {
-					buf.WriteString("</i>")
-					localItalic = false
-				}
-			case "par":
-				if inParagraph {
-					buf.WriteString("</p>\n<p>")
-				} else {
-					buf.WriteString("<p>")
-					inParagraph = true
-				}
-			case "line":
-				buf.WriteString("<br/>")
-			case "tab":
-				buf.WriteString("&nbsp;&nbsp;&nbsp;&nbsp;")
-			case "u":
-				if v.has && v.param > 0 {
-					buf.WriteRune(rune(v.param))
-				}
+			if handler, ok := htmlControlDispatch[v.word]; ok {
+				handler(v, s)
 			}
-
 		case *Group:
-			// Check for special formatting groups
-			groupBold := localBold
-			groupItalic := localItalic
-
-			for _, c := range v.children {
-				if cw, ok := c.(ControlWord); ok {
-					switch cw.word {
-					case "b":
-						if cw.param != 0 || !cw.has {
-							groupBold = true
-						}
-					case "i":
-						if cw.param != 0 || !cw.has {
-							groupItalic = true
-						}
-					case "fonttbl", "colortbl", "stylesheet", "info", "pict", "object":
-						goto skipGroup
-					}
-				}
-			}
-
-			if groupBold && !localBold {
-				buf.WriteString("<b>")
-			}
-			if groupItalic && !localItalic {
-				buf.WriteString("<i>")
-			}
-
-			doc.extractHTML(v, buf, groupBold, groupItalic)
-
-			if groupItalic && !localItalic {
-				buf.WriteString("</i>")
-			}
-			if groupBold && !localBold {
-				buf.WriteString("</b>")
-			}
-			continue
-
-		skipGroup:
+			doc.handleHTMLGroup(v, s)
 		}
 	}
 
-	if inParagraph {
+	if s.inParagraph {
 		buf.WriteString("</p>")
 	}
+}
+
+// handleHTMLText opens a paragraph when needed, then writes escaped text.
+func (doc *Document) handleHTMLText(v string, s *htmlState) {
+	if !s.inParagraph && strings.TrimSpace(v) != "" {
+		s.buf.WriteString("<p>")
+		s.inParagraph = true
+	}
+	s.buf.WriteString(encoding.EscapeHTML(v))
+}
+
+func resolveGroupFormatting(fmtBold, fmtItalic, localBold, localItalic bool) (needsBold, needsItalic, effectiveBold, effectiveItalic bool) {
+	effectiveBold = fmtBold || localBold
+	effectiveItalic = fmtItalic || localItalic
+	needsBold = effectiveBold && !localBold
+	needsItalic = effectiveItalic && !localItalic
+	return
+}
+
+func writeOpenGroupTags(needsBold, needsItalic bool, buf *strings.Builder) {
+	if needsBold {
+		buf.WriteString("<b>")
+	}
+	if needsItalic {
+		buf.WriteString("<i>")
+	}
+}
+
+func writeCloseGroupTags(needsBold, needsItalic bool, buf *strings.Builder) {
+	if needsItalic {
+		buf.WriteString("</i>")
+	}
+	if needsBold {
+		buf.WriteString("</b>")
+	}
+}
+
+func (doc *Document) handleHTMLGroup(v *Group, s *htmlState) {
+	if isSpecialGroup(v) {
+		return
+	}
+	fmtBold, fmtItalic := groupFormatting(v)
+	needsBold, needsItalic, effectiveBold, effectiveItalic := resolveGroupFormatting(fmtBold, fmtItalic, s.localBold, s.localItalic)
+	writeOpenGroupTags(needsBold, needsItalic, s.buf)
+	doc.extractHTML(v, s.buf, effectiveBold, effectiveItalic)
+	writeCloseGroupTags(needsBold, needsItalic, s.buf)
+}
+
+// ---------------------------------------------------------------------------
+// LaTeX extraction
+// ---------------------------------------------------------------------------
+
+// latexControlStrings maps simple RTF control words to their LaTeX equivalents.
+var latexControlStrings = map[string]string{
+	"par":  "\n\n",
+	"line": "\\\\\n",
+	"tab":  "\\quad ",
 }
 
 // ToLaTeX converts the document to LaTeX.
@@ -471,67 +585,60 @@ func (doc *Document) extractLaTeX(group *Group, buf *strings.Builder, inBold, in
 		switch v := child.(type) {
 		case string:
 			buf.WriteString(encoding.EscapeLaTeX(v))
-
 		case ControlWord:
-			switch v.word {
-			case "par":
-				buf.WriteString("\n\n")
-			case "line":
-				buf.WriteString("\\\\\n")
-			case "tab":
-				buf.WriteString("\\quad ")
-			case "u":
-				if v.has && v.param > 0 {
-					r := rune(v.param)
-					if r < 128 && unicode.IsPrint(r) {
-						buf.WriteRune(r)
-					} else {
-						buf.WriteString(fmt.Sprintf("\\symbol{%d}", v.param))
-					}
-				}
-			}
-
+			doc.handleLaTeXControlWord(v, buf)
 		case *Group:
-			// Check for formatting
-			groupBold := false
-			groupItalic := false
-
-			for _, c := range v.children {
-				if cw, ok := c.(ControlWord); ok {
-					switch cw.word {
-					case "b":
-						if cw.param != 0 || !cw.has {
-							groupBold = true
-						}
-					case "i":
-						if cw.param != 0 || !cw.has {
-							groupItalic = true
-						}
-					case "fonttbl", "colortbl", "stylesheet", "info", "pict", "object":
-						goto skipGroup
-					}
-				}
-			}
-
-			if groupBold {
-				buf.WriteString("\\textbf{")
-			}
-			if groupItalic {
-				buf.WriteString("\\textit{")
-			}
-
-			doc.extractLaTeX(v, buf, groupBold, groupItalic)
-
-			if groupItalic {
-				buf.WriteString("}")
-			}
-			if groupBold {
-				buf.WriteString("}")
-			}
-			continue
-
-		skipGroup:
+			doc.handleLaTeXGroup(v, buf, inBold, inItalic)
 		}
+	}
+}
+
+// handleLaTeXControlWord writes the LaTeX representation of a single RTF
+// control word into buf.
+func (doc *Document) handleLaTeXControlWord(cw ControlWord, buf *strings.Builder) {
+	if s, ok := latexControlStrings[cw.word]; ok {
+		buf.WriteString(s)
+		return
+	}
+	if cw.word == "u" && cw.has && cw.param > 0 {
+		doc.writeLaTeXUnicode(cw.param, buf)
+	}
+}
+
+// writeLaTeXUnicode emits a Unicode code-point as printable ASCII or a
+// \symbol{N} fallback.
+func (doc *Document) writeLaTeXUnicode(param int, buf *strings.Builder) {
+	r := rune(param)
+	if r < 128 && unicode.IsPrint(r) {
+		buf.WriteRune(r)
+	} else {
+		buf.WriteString(fmt.Sprintf("\\symbol{%d}", param))
+	}
+}
+
+// handleLaTeXGroup processes a nested RTF group, wrapping with \textbf{} /
+// \textit{} as needed.
+func (doc *Document) handleLaTeXGroup(v *Group, buf *strings.Builder, inBold, inItalic bool) {
+	if isSpecialGroup(v) {
+		return
+	}
+
+	groupBold, groupItalic := groupFormatting(v)
+
+	if groupBold {
+		buf.WriteString("\\textbf{")
+	}
+	if groupItalic {
+		buf.WriteString("\\textit{")
+	}
+
+	doc.extractLaTeX(v, buf, groupBold, groupItalic)
+
+	if groupItalic {
+		buf.WriteString("}")
+	}
+	if groupBold {
+		buf.WriteString("}")
 	}
 }
 

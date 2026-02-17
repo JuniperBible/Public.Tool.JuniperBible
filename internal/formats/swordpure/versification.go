@@ -86,57 +86,43 @@ func NewVersification(id VersificationID) (*Versification, error) {
 	}
 }
 
-// loadFromVersdata attempts to load versification from embedded SWORD data.
+var versIDMap = map[string]VersificationID{
+	"kjv":       VersKJV,
+	"nrsv":      VersNRSV,
+	"nrsva":     VersNRSVA,
+	"vulg":      VersVulgate,
+	"catholic":  VersCatholic,
+	"lxx":       VersLXX,
+	"leningrad": VersMT,
+	"mt":        VersMT,
+	"synodal":   VersSynodal,
+	"german":    VersGerman,
+	"luther":    VersLuther,
+}
+
+func resolveVersID(raw string) VersificationID {
+	if v, ok := versIDMap[strings.ToLower(raw)]; ok {
+		return v
+	}
+	return VersificationID(raw)
+}
+
+func convertBooks(src []versdata.BookData) []BookData {
+	out := make([]BookData, len(src))
+	for i, b := range src {
+		out[i] = BookData{Name: b.Name, OSIS: b.OSIS, Chapters: b.Chapters}
+	}
+	return out
+}
+
 func loadFromVersdata(id string) *Versification {
 	data, err := versdata.Load(id)
 	if err != nil {
 		return nil
 	}
-
-	// Convert versdata format to Versification
-	books := make([]BookData, 0, len(data.OTBooks)+len(data.NTBooks))
-	for _, b := range data.OTBooks {
-		books = append(books, BookData{
-			Name:     b.Name,
-			OSIS:     b.OSIS,
-			Chapters: b.Chapters,
-		})
-	}
-	for _, b := range data.NTBooks {
-		books = append(books, BookData{
-			Name:     b.Name,
-			OSIS:     b.OSIS,
-			Chapters: b.Chapters,
-		})
-	}
-
-	// Use the original ID (uppercase) if it matches a known constant
-	versID := VersificationID(data.ID)
-	switch strings.ToLower(data.ID) {
-	case "kjv":
-		versID = VersKJV
-	case "nrsv":
-		versID = VersNRSV
-	case "nrsva":
-		versID = VersNRSVA
-	case "vulg":
-		versID = VersVulgate
-	case "catholic":
-		versID = VersCatholic
-	case "lxx":
-		versID = VersLXX
-	case "leningrad", "mt":
-		versID = VersMT
-	case "synodal":
-		versID = VersSynodal
-	case "german":
-		versID = VersGerman
-	case "luther":
-		versID = VersLuther
-	}
-
+	books := append(convertBooks(data.OTBooks), convertBooks(data.NTBooks)...)
 	return &Versification{
-		ID:    versID,
+		ID:    resolveVersID(data.ID),
 		Books: books,
 	}
 }

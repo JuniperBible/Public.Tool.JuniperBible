@@ -35,6 +35,66 @@ type ConfFile struct {
 	FilePath      string            `json:"file_path,omitempty"`
 }
 
+// confScanState holds mutable state threaded through the conf file scan loop.
+type confScanState struct {
+	currentSection string
+	multilineKey   string
+	multilineValue strings.Builder
+}
+
+// flushMultiline commits any pending multiline key/value to the conf and resets state.
+func (s *confScanState) flushMultiline(conf *ConfFile) {
+	if s.multilineKey == "" {
+		return
+	}
+	conf.setProperty(s.multilineKey, strings.TrimSpace(s.multilineValue.String()))
+	s.multilineKey = ""
+	s.multilineValue.Reset()
+}
+
+// handleSectionHeader processes a "[SectionName]" line, flushing any pending
+// multiline value and recording the module name on first encounter.
+func (s *confScanState) handleSectionHeader(line string, conf *ConfFile) {
+	s.flushMultiline(conf)
+	s.currentSection = strings.TrimPrefix(strings.TrimSuffix(line, "]"), "[")
+	if conf.ModuleName == "" {
+		conf.ModuleName = s.currentSection
+	}
+}
+
+// handleLineContinuation appends a continuation line to the active multiline value.
+// Returns true if the line was consumed as a continuation.
+func (s *confScanState) handleLineContinuation(line string) bool {
+	if s.multilineKey == "" || len(line) == 0 {
+		return false
+	}
+	if line[0] != ' ' && line[0] != '\t' {
+		return false
+	}
+	s.multilineValue.WriteString(" ")
+	s.multilineValue.WriteString(strings.TrimSpace(line))
+	return true
+}
+
+// handleKeyValue parses a "key=value" line. If the value ends with "\", it
+// begins a multiline sequence; otherwise it sets the property immediately.
+// Returns false if the line contains no "=" and should be skipped.
+func (s *confScanState) handleKeyValue(line string, conf *ConfFile) bool {
+	idx := strings.Index(line, "=")
+	if idx == -1 {
+		return false
+	}
+	key := strings.TrimSpace(line[:idx])
+	value := strings.TrimSpace(line[idx+1:])
+	if strings.HasSuffix(value, "\\") {
+		s.multilineKey = key
+		s.multilineValue.WriteString(strings.TrimSuffix(value, "\\"))
+		return true
+	}
+	conf.setProperty(key, value)
+	return true
+}
+
 // ParseConfFile parses a SWORD .conf file.
 func ParseConfFile(path string) (*ConfFile, error) {
 	f, err := safefile.Open(path)
@@ -49,71 +109,30 @@ func ParseConfFile(path string) (*ConfFile, error) {
 	}
 
 	scanner := bufio.NewScanner(f)
-	var currentSection string
-	var multilineKey string
-	var multilineValue strings.Builder
+	var state confScanState
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Handle section headers [ModuleName]
 		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			// Flush any pending multiline value
-			if multilineKey != "" {
-				conf.setProperty(multilineKey, strings.TrimSpace(multilineValue.String()))
-				multilineKey = ""
-				multilineValue.Reset()
-			}
-			currentSection = strings.TrimPrefix(strings.TrimSuffix(line, "]"), "[")
-			if conf.ModuleName == "" {
-				conf.ModuleName = currentSection
-			}
+			state.handleSectionHeader(line, conf)
 			continue
 		}
 
-		// Skip empty lines and comments
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 
-		// Handle line continuation (lines starting with whitespace)
-		if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') && multilineKey != "" {
-			multilineValue.WriteString(" ")
-			multilineValue.WriteString(strings.TrimSpace(line))
+		if state.handleLineContinuation(line) {
 			continue
 		}
 
-		// Flush any pending multiline value
-		if multilineKey != "" {
-			conf.setProperty(multilineKey, strings.TrimSpace(multilineValue.String()))
-			multilineKey = ""
-			multilineValue.Reset()
-		}
-
-		// Parse key=value
-		idx := strings.Index(line, "=")
-		if idx == -1 {
-			continue
-		}
-
-		key := strings.TrimSpace(line[:idx])
-		value := strings.TrimSpace(line[idx+1:])
-
-		// Check if this might be a multiline value
-		if strings.HasSuffix(value, "\\") {
-			multilineKey = key
-			multilineValue.WriteString(strings.TrimSuffix(value, "\\"))
-			continue
-		}
-
-		conf.setProperty(key, value)
+		state.flushMultiline(conf)
+		state.handleKeyValue(line, conf)
 	}
 
-	// Flush any remaining multiline value
-	if multilineKey != "" {
-		conf.setProperty(multilineKey, strings.TrimSpace(multilineValue.String()))
-	}
+	state.flushMultiline(conf)
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading conf file: %w", err)
@@ -122,45 +141,35 @@ func ParseConfFile(path string) (*ConfFile, error) {
 	return conf, nil
 }
 
+// confFieldMap returns a map from lowercase conf-file key to the corresponding
+// *string field on c. Only the keys that have dedicated struct fields are listed;
+// everything else is stored exclusively in Properties.
+func (c *ConfFile) confFieldMap() map[string]*string {
+	return map[string]*string{
+		"description":         &c.Description,
+		"datapath":            &c.DataPath,
+		"moddrv":              &c.ModDrv,
+		"encoding":            &c.Encoding,
+		"lang":                &c.Lang,
+		"version":             &c.Version,
+		"about":               &c.About,
+		"copyright":           &c.Copyright,
+		"distributionlicense": &c.License,
+		"category":            &c.Category,
+		"lcsh":                &c.LCSH,
+		"sourcetype":          &c.SourceType,
+		"blocktype":           &c.BlockType,
+		"compresstype":        &c.CompressType,
+		"cipherkey":           &c.CipherKey,
+		"versification":       &c.Versification,
+	}
+}
+
 // setProperty sets a property on the ConfFile, mapping known keys to struct fields.
 func (c *ConfFile) setProperty(key, value string) {
-	// Store in Properties map for all keys
 	c.Properties[key] = value
-
-	// Map known keys to struct fields
-	switch strings.ToLower(key) {
-	case "description":
-		c.Description = value
-	case "datapath":
-		c.DataPath = value
-	case "moddrv":
-		c.ModDrv = value
-	case "encoding":
-		c.Encoding = value
-	case "lang":
-		c.Lang = value
-	case "version":
-		c.Version = value
-	case "about":
-		c.About = value
-	case "copyright":
-		c.Copyright = value
-	case "distributionlicense":
-		c.License = value
-	case "category":
-		c.Category = value
-	case "lcsh":
-		c.LCSH = value
-	case "sourcetype":
-		c.SourceType = value
-	case "blocktype":
-		c.BlockType = value
-	case "compresstype":
-		c.CompressType = value
-	case "cipherkey":
-		c.CipherKey = value
-	case "versification":
-		c.Versification = value
+	if field, ok := c.confFieldMap()[strings.ToLower(key)]; ok {
+		*field = value
 	}
 }
 

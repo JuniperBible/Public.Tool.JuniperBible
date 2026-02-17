@@ -18,6 +18,44 @@ import (
 // Example:
 //
 //	HandleDetect(args, []string{".json"}, []string{"\"meta\""}, "JSON")
+func matchesExtension(path string, extensions []string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	for _, allowed := range extensions {
+		if ext == strings.ToLower(allowed) {
+			return true
+		}
+	}
+	return false
+}
+
+func checkMarkers(path string, markers []string) (bool, error) {
+	if len(markers) == 0 {
+		return true, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	content := string(data)
+	for _, marker := range markers {
+		if strings.Contains(content, marker) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func validateDetectPath(path string) (bool, string) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, fmt.Sprintf("cannot stat: %v", err)
+	}
+	if info.IsDir() {
+		return false, "path is a directory"
+	}
+	return true, ""
+}
+
 func HandleDetect(args map[string]interface{}, extensions []string, markers []string, formatName string) {
 	path, err := StringArg(args, "path")
 	if err != nil {
@@ -25,68 +63,24 @@ func HandleDetect(args map[string]interface{}, extensions []string, markers []st
 		return
 	}
 
-	info, err := os.Stat(path)
+	if ok, reason := validateDetectPath(path); !ok {
+		MustRespond(&DetectResult{Detected: false, Reason: reason})
+		return
+	}
+
+	if !matchesExtension(path, extensions) {
+		MustRespond(&DetectResult{Detected: false, Reason: fmt.Sprintf("not a %s file", formatName)})
+		return
+	}
+
+	found, err := checkMarkers(path, markers)
 	if err != nil {
-		MustRespond(&DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot stat: %v", err),
-		})
+		MustRespond(&DetectResult{Detected: false, Reason: fmt.Sprintf("cannot read file: %v", err)})
 		return
 	}
-
-	if info.IsDir() {
-		MustRespond(&DetectResult{
-			Detected: false,
-			Reason:   "path is a directory",
-		})
+	if !found {
+		MustRespond(&DetectResult{Detected: false, Reason: fmt.Sprintf("no %s markers found", formatName)})
 		return
-	}
-
-	// Check extension
-	ext := strings.ToLower(filepath.Ext(path))
-	extMatch := false
-	for _, allowed := range extensions {
-		if ext == strings.ToLower(allowed) {
-			extMatch = true
-			break
-		}
-	}
-
-	if !extMatch {
-		MustRespond(&DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("not a %s file", formatName),
-		})
-		return
-	}
-
-	// Check content markers if provided
-	if len(markers) > 0 {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			MustRespond(&DetectResult{
-				Detected: false,
-				Reason:   fmt.Sprintf("cannot read file: %v", err),
-			})
-			return
-		}
-
-		content := string(data)
-		markerFound := false
-		for _, marker := range markers {
-			if strings.Contains(content, marker) {
-				markerFound = true
-				break
-			}
-		}
-
-		if !markerFound {
-			MustRespond(&DetectResult{
-				Detected: false,
-				Reason:   fmt.Sprintf("no %s markers found", formatName),
-			})
-			return
-		}
 	}
 
 	MustRespond(&DetectResult{

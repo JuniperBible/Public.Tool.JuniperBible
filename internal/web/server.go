@@ -49,26 +49,11 @@ var ServerConfig Config
 func Start(cfg Config) error {
 	ServerConfig = cfg
 
-	// Validate TLS configuration if enabled
-	if cfg.TLS.Enabled {
-		if cfg.TLS.CertFile == "" || cfg.TLS.KeyFile == "" {
-			return fmt.Errorf("TLS enabled but cert or key file not specified")
-		}
-		// Verify TLS files exist
-		if _, err := os.Stat(cfg.TLS.CertFile); err != nil {
-			return fmt.Errorf("TLS cert file not found: %w", err)
-		}
-		if _, err := os.Stat(cfg.TLS.KeyFile); err != nil {
-			return fmt.Errorf("TLS key file not found: %w", err)
-		}
+	if err := validateTLSConfig(cfg.TLS); err != nil {
+		return err
 	}
 
-	// Default SWORD directory to ~/.sword if not specified
-	if ServerConfig.SwordDir == "" {
-		if home, _ := os.UserHomeDir(); home != "" {
-			ServerConfig.SwordDir = filepath.Join(home, ".sword")
-		}
-	}
+	configureSwordDir()
 
 	// Warn if capsules directory doesn't exist
 	if _, err := os.Stat(ServerConfig.CapsulesDir); errors.Is(err, os.ErrNotExist) {
@@ -87,36 +72,7 @@ func Start(cfg Config) error {
 
 	// Configure plugins and log startup info
 	server.EnablePlugins(ServerConfig.PluginsExternal, ServerConfig.PluginsDir)
-
-	// Configure plugin security - restrict to plugins directory if external plugins enabled
-	if ServerConfig.PluginsExternal && ServerConfig.PluginsDir != "" {
-		pluginSecurityCfg := plugins.SecurityConfig{
-			AllowedPluginDirs:    []string{ServerConfig.PluginsDir},
-			RequireManifest:      true,
-			RestrictToKnownKinds: true,
-		}
-		plugins.SetSecurityConfig(pluginSecurityCfg)
-		logging.SecurityEvent("plugin_security_configured", "web",
-			"mode", "restricted",
-			"allowed_dir", server.AbsPath(ServerConfig.PluginsDir))
-	} else {
-		logging.SecurityEvent("plugin_security_configured", "web",
-			"mode", "permissive",
-			"note", "embedded plugins only")
-	}
-
-	// Log server startup with appropriate protocol
-	protocol := "http"
-	if cfg.TLS.Enabled {
-		protocol = "https"
-		logging.Info("TLS enabled", "cert_file", cfg.TLS.CertFile)
-	} else {
-		logging.Warn("TLS disabled - using plain HTTP",
-			"recommendation", "consider using TLS or reverse proxy for production")
-	}
-	logging.ServerStartup("web_ui", protocol, ServerConfig.Port,
-		"capsules_dir", server.AbsPath(ServerConfig.CapsulesDir),
-		"sword_dir", server.AbsPath(ServerConfig.SwordDir))
+	configurePluginSecurity()
 
 	// Initialize static file cache (must be done before serving requests)
 	initStaticFileCache()
@@ -130,7 +86,74 @@ func Start(cfg Config) error {
 	cspConfig := server.WebUICSPConfig()
 	handler := SplashMiddleware(logging.CombinedMiddleware(server.TimingMiddleware(server.SecurityHeadersWithCSP(cspConfig, mux))))
 
-	// Start server with or without TLS
+	return listenAndServe(cfg, handler)
+}
+
+// validateTLSConfig checks that TLS configuration is complete and that the
+// referenced cert and key files exist on disk. It is a no-op when TLS is
+// disabled.
+func validateTLSConfig(tls TLSConfig) error {
+	if !tls.Enabled {
+		return nil
+	}
+	if tls.CertFile == "" || tls.KeyFile == "" {
+		return fmt.Errorf("TLS enabled but cert or key file not specified")
+	}
+	if _, err := os.Stat(tls.CertFile); err != nil {
+		return fmt.Errorf("TLS cert file not found: %w", err)
+	}
+	if _, err := os.Stat(tls.KeyFile); err != nil {
+		return fmt.Errorf("TLS key file not found: %w", err)
+	}
+	return nil
+}
+
+// configureSwordDir defaults ServerConfig.SwordDir to ~/.sword when the caller
+// left it empty.
+func configureSwordDir() {
+	if ServerConfig.SwordDir != "" {
+		return
+	}
+	if home, _ := os.UserHomeDir(); home != "" {
+		ServerConfig.SwordDir = filepath.Join(home, ".sword")
+	}
+}
+
+// configurePluginSecurity applies the appropriate plugin security policy and
+// emits a security-event log line.
+func configurePluginSecurity() {
+	if ServerConfig.PluginsExternal && ServerConfig.PluginsDir != "" {
+		pluginSecurityCfg := plugins.SecurityConfig{
+			AllowedPluginDirs:    []string{ServerConfig.PluginsDir},
+			RequireManifest:      true,
+			RestrictToKnownKinds: true,
+		}
+		plugins.SetSecurityConfig(pluginSecurityCfg)
+		logging.SecurityEvent("plugin_security_configured", "web",
+			"mode", "restricted",
+			"allowed_dir", server.AbsPath(ServerConfig.PluginsDir))
+		return
+	}
+	logging.SecurityEvent("plugin_security_configured", "web",
+		"mode", "permissive",
+		"note", "embedded plugins only")
+}
+
+// listenAndServe logs startup details and starts either an HTTPS or plain HTTP
+// listener depending on the TLS configuration.
+func listenAndServe(cfg Config, handler http.Handler) error {
+	protocol := "http"
+	if cfg.TLS.Enabled {
+		protocol = "https"
+		logging.Info("TLS enabled", "cert_file", cfg.TLS.CertFile)
+	} else {
+		logging.Warn("TLS disabled - using plain HTTP",
+			"recommendation", "consider using TLS or reverse proxy for production")
+	}
+	logging.ServerStartup("web_ui", protocol, ServerConfig.Port,
+		"capsules_dir", server.AbsPath(ServerConfig.CapsulesDir),
+		"sword_dir", server.AbsPath(ServerConfig.SwordDir))
+
 	addr := fmt.Sprintf(":%d", ServerConfig.Port)
 	if cfg.TLS.Enabled {
 		return http.ListenAndServeTLS(addr, cfg.TLS.CertFile, cfg.TLS.KeyFile, handler)

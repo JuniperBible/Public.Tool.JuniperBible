@@ -132,29 +132,77 @@ func (dt *DateTime) parseString(s string) error {
 	return fmt.Errorf("invalid date/time format: %s", s)
 }
 
-// parseYMD parses YYYY-MM-DD [HH:MM:SS] format.
-func (dt *DateTime) parseYMD(s string) bool {
-	// Basic YYYY-MM-DD parsing
-	parts := strings.FieldsFunc(s, func(r rune) bool {
+// splitDateTimeParts splits a date/time string on '-', ' ', and 'T' delimiters.
+func splitDateTimeParts(s string) []string {
+	return strings.FieldsFunc(s, func(r rune) bool {
 		return r == '-' || r == ' ' || r == 'T'
 	})
+}
 
+// parseYearField converts a string to a valid year integer.
+// Returns the year and true on success, or 0 and false if invalid.
+func parseYearField(s string) (int, bool) {
+	year, err := strconv.Atoi(s)
+	if err != nil || year < 0 || year > 9999 {
+		return 0, false
+	}
+	return year, true
+}
+
+// parseMonthField converts a string to a valid month integer.
+// Returns the month and true on success, or 0 and false if invalid.
+func parseMonthField(s string) (int, bool) {
+	month, err := strconv.Atoi(s)
+	if err != nil || month < 1 || month > 12 {
+		return 0, false
+	}
+	return month, true
+}
+
+// parseDayField converts a string to a valid day integer.
+// Returns the day and true on success, or 0 and false if invalid.
+func parseDayField(s string) (int, bool) {
+	day, err := strconv.Atoi(s)
+	if err != nil || day < 1 || day > 31 {
+		return 0, false
+	}
+	return day, true
+}
+
+// parseTimeComponent attempts to parse a time component from a date/time string.
+// It first tries joining the trailing parts[], and falls back to scanning s for a
+// ' ' or 'T' separator and parsing the substring that follows.
+func (dt *DateTime) parseTimeComponent(s string, parts []string) {
+	timePart := strings.Join(parts, " ")
+	if dt.parseHMS(timePart) {
+		return
+	}
+	// Fallback: locate the separator in the original string
+	idx := strings.IndexAny(s, " T")
+	if idx > 0 && idx < len(s)-1 {
+		dt.parseHMS(s[idx+1:])
+	}
+}
+
+// parseYMD parses YYYY-MM-DD [HH:MM:SS] format.
+func (dt *DateTime) parseYMD(s string) bool {
+	parts := splitDateTimeParts(s)
 	if len(parts) < 3 {
 		return false
 	}
 
-	year, err := strconv.Atoi(parts[0])
-	if err != nil || year < 0 || year > 9999 {
+	year, ok := parseYearField(parts[0])
+	if !ok {
 		return false
 	}
 
-	month, err := strconv.Atoi(parts[1])
-	if err != nil || month < 1 || month > 12 {
+	month, ok := parseMonthField(parts[1])
+	if !ok {
 		return false
 	}
 
-	day, err := strconv.Atoi(parts[2])
-	if err != nil || day < 1 || day > 31 {
+	day, ok := parseDayField(parts[2])
+	if !ok {
 		return false
 	}
 
@@ -163,42 +211,57 @@ func (dt *DateTime) parseYMD(s string) bool {
 	dt.day = day
 	dt.validYMD = true
 
-	// Check for time component
 	if len(parts) > 3 {
-		timePart := strings.Join(parts[3:], " ")
-		if !dt.parseHMS(timePart) {
-			// Try to find time after the date
-			idx := strings.IndexAny(s, " T")
-			if idx > 0 && idx < len(s)-1 {
-				dt.parseHMS(s[idx+1:])
-			}
-		}
+		dt.parseTimeComponent(s, parts[3:])
 	}
 
 	return true
 }
 
-// parseHMS parses HH:MM:SS format.
+func parseHourField(s string) (int, bool) {
+	h, err := strconv.Atoi(s)
+	if err != nil || h < 0 || h > 23 {
+		return 0, false
+	}
+	return h, true
+}
+
+func parseMinuteField(s string) (int, bool) {
+	m, err := strconv.Atoi(s)
+	if err != nil || m < 0 || m > 59 {
+		return 0, false
+	}
+	return m, true
+}
+
+func parseSecondField(s string) (float64, bool) {
+	sec, err := strconv.ParseFloat(s, 64)
+	if err != nil || sec < 0 || sec >= 60 {
+		return 0, false
+	}
+	return sec, true
+}
+
 func (dt *DateTime) parseHMS(s string) bool {
 	parts := strings.Split(s, ":")
 	if len(parts) < 2 {
 		return false
 	}
 
-	hour, err := strconv.Atoi(parts[0])
-	if err != nil || hour < 0 || hour > 23 {
+	hour, ok := parseHourField(parts[0])
+	if !ok {
 		return false
 	}
 
-	minute, err := strconv.Atoi(parts[1])
-	if err != nil || minute < 0 || minute > 59 {
+	minute, ok := parseMinuteField(parts[1])
+	if !ok {
 		return false
 	}
 
 	second := 0.0
 	if len(parts) > 2 {
-		sec, err := strconv.ParseFloat(parts[2], 64)
-		if err != nil || sec < 0 || sec >= 60 {
+		sec, ok := parseSecondField(parts[2])
+		if !ok {
 			return false
 		}
 		second = sec
@@ -637,6 +700,39 @@ func strftimeFunc(args []Value) (Value, error) {
 	return NewTextValue(result), nil
 }
 
+// strftimeHandlers maps each format specifier byte to a function that
+// renders the corresponding field of a DateTime as a string.
+// Specifiers that need access to computed sub-fields (e.g. 's', 'J') call
+// the appropriate getter; all others read already-computed struct fields.
+var strftimeHandlers = map[byte]func(*DateTime) string{
+	'd': func(dt *DateTime) string { return fmt.Sprintf("%02d", dt.day) },
+	'm': func(dt *DateTime) string { return fmt.Sprintf("%02d", dt.month) },
+	'Y': func(dt *DateTime) string { return fmt.Sprintf("%04d", dt.year) },
+	'H': func(dt *DateTime) string { return fmt.Sprintf("%02d", dt.hour) },
+	'M': func(dt *DateTime) string { return fmt.Sprintf("%02d", dt.minute) },
+	'S': func(dt *DateTime) string { return fmt.Sprintf("%02d", int(dt.second)) },
+	'f': func(dt *DateTime) string { return fmt.Sprintf("%06.3f", dt.second) },
+	's': func(dt *DateTime) string { return fmt.Sprintf("%d", int64(dt.getUnixEpoch())) },
+	'J': func(dt *DateTime) string { return fmt.Sprintf("%.16g", dt.getJulianDay()) },
+}
+
+// strftimeSpecifier resolves a single format specifier byte and appends its
+// rendered value to result.  It handles the literal '%%' escape and falls back
+// to writing the raw "%<c>" pair for any unrecognised specifier.
+func (dt *DateTime) strftimeSpecifier(result *strings.Builder, spec byte) {
+	if spec == '%' {
+		result.WriteByte('%')
+		return
+	}
+	if handler, ok := strftimeHandlers[spec]; ok {
+		result.WriteString(handler(dt))
+		return
+	}
+	// Unknown specifier: pass through verbatim.
+	result.WriteByte('%')
+	result.WriteByte(spec)
+}
+
 // strftime formats the DateTime according to the format string.
 func (dt *DateTime) strftime(format string) string {
 	var result strings.Builder
@@ -644,31 +740,7 @@ func (dt *DateTime) strftime(format string) string {
 	for i := 0; i < len(format); i++ {
 		if format[i] == '%' && i+1 < len(format) {
 			i++
-			switch format[i] {
-			case 'd':
-				result.WriteString(fmt.Sprintf("%02d", dt.day))
-			case 'm':
-				result.WriteString(fmt.Sprintf("%02d", dt.month))
-			case 'Y':
-				result.WriteString(fmt.Sprintf("%04d", dt.year))
-			case 'H':
-				result.WriteString(fmt.Sprintf("%02d", dt.hour))
-			case 'M':
-				result.WriteString(fmt.Sprintf("%02d", dt.minute))
-			case 'S':
-				result.WriteString(fmt.Sprintf("%02d", int(dt.second)))
-			case 'f':
-				result.WriteString(fmt.Sprintf("%06.3f", dt.second))
-			case 's':
-				result.WriteString(fmt.Sprintf("%d", int64(dt.getUnixEpoch())))
-			case 'J':
-				result.WriteString(fmt.Sprintf("%.16g", dt.getJulianDay()))
-			case '%':
-				result.WriteByte('%')
-			default:
-				result.WriteByte('%')
-				result.WriteByte(format[i])
-			}
+			dt.strftimeSpecifier(&result, format[i])
 		} else {
 			result.WriteByte(format[i])
 		}

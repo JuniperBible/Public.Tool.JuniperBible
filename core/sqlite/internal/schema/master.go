@@ -28,6 +28,60 @@ type MasterRow struct {
 	SQL      string // CREATE statement
 }
 
+// isInternalTable reports whether name is an SQLite-internal table that should
+// not be loaded into the user-visible schema.
+func isInternalTable(name string) bool {
+	return name == "sqlite_master" || name == "sqlite_sequence"
+}
+
+// isAutoIndex reports whether name is an automatically generated index
+// (sqlite_autoindex_*) that carries no user-visible SQL definition.
+func isAutoIndex(name string) bool {
+	const prefix = "sqlite_autoindex"
+	return len(name) > len(prefix) && name[:len(prefix)] == prefix
+}
+
+// processMasterTableRow parses and registers a single "table" master row.
+// Internal tables are silently skipped.
+func (s *Schema) processMasterTableRow(row MasterRow) error {
+	if isInternalTable(row.Name) {
+		return nil
+	}
+	table, err := s.parseTableSQL(row)
+	if err != nil {
+		return fmt.Errorf("failed to parse table %s: %w", row.Name, err)
+	}
+	s.Tables[table.Name] = table
+	return nil
+}
+
+// processMasterIndexRow parses and registers a single "index" master row.
+// Auto-generated indexes are silently skipped.
+func (s *Schema) processMasterIndexRow(row MasterRow) error {
+	if isAutoIndex(row.Name) {
+		return nil
+	}
+	index, err := s.parseIndexSQL(row)
+	if err != nil {
+		return fmt.Errorf("failed to parse index %s: %w", row.Name, err)
+	}
+	s.Indexes[index.Name] = index
+	return nil
+}
+
+// processMasterRow dispatches a single sqlite_master row to the appropriate
+// handler based on its type.  Unknown types (view, trigger, …) are ignored.
+func (s *Schema) processMasterRow(row MasterRow) error {
+	switch row.Type {
+	case "table":
+		return s.processMasterTableRow(row)
+	case "index":
+		return s.processMasterIndexRow(row)
+	default:
+		return nil
+	}
+}
+
 // LoadFromMaster loads the schema from the sqlite_master table.
 // This reads all table and index definitions from page 1 of the database.
 func (s *Schema) LoadFromMaster(bt *btree.Btree) error {
@@ -41,48 +95,14 @@ func (s *Schema) LoadFromMaster(bt *btree.Btree) error {
 	// sqlite_master is on page 1
 	const masterPageNum = 1
 
-	// Parse the master page to get all rows
 	rows, err := s.parseMasterPage(bt, masterPageNum)
 	if err != nil {
 		return fmt.Errorf("failed to parse sqlite_master: %w", err)
 	}
 
-	// Process each row
 	for _, row := range rows {
-		switch row.Type {
-		case "table":
-			// Skip internal tables
-			if row.Name == "sqlite_master" || row.Name == "sqlite_sequence" {
-				continue
-			}
-
-			// Parse the CREATE TABLE statement
-			table, err := s.parseTableSQL(row)
-			if err != nil {
-				return fmt.Errorf("failed to parse table %s: %w", row.Name, err)
-			}
-			s.Tables[table.Name] = table
-
-		case "index":
-			// Skip auto-indexes (sqlite_autoindex_*)
-			if len(row.Name) > 16 && row.Name[:16] == "sqlite_autoindex" {
-				continue
-			}
-
-			// Parse the CREATE INDEX statement
-			index, err := s.parseIndexSQL(row)
-			if err != nil {
-				return fmt.Errorf("failed to parse index %s: %w", row.Name, err)
-			}
-			s.Indexes[index.Name] = index
-
-		case "view":
-			// Views are not fully implemented yet, skip for now
-			continue
-
-		case "trigger":
-			// Triggers are not implemented yet, skip for now
-			continue
+		if err := s.processMasterRow(row); err != nil {
+			return err
 		}
 	}
 
@@ -167,95 +187,65 @@ func (s *Schema) writeMasterPage(bt *btree.Btree, pageNum uint32, rows []MasterR
 // parseTableSQL parses a CREATE TABLE statement from a master row.
 func (s *Schema) parseTableSQL(row MasterRow) (*Table, error) {
 	if row.SQL == "" {
-		// Some system tables don't have SQL
-		return &Table{
-			Name:     row.Name,
-			RootPage: row.RootPage,
-			SQL:      row.SQL,
-			Columns:  []*Column{},
-		}, nil
+		return tableWithNoSQL(row), nil
 	}
 
-	// Parse the SQL statement
-	p := parser.NewParser(row.SQL)
-	stmts, err := p.Parse()
+	createTable, err := parseSingleCreateTable(row.SQL)
+	if err != nil {
+		return nil, err
+	}
+
+	return buildTableFromStmt(createTable, row), nil
+}
+
+// tableWithNoSQL returns a bare Table for system rows that carry no SQL text.
+func tableWithNoSQL(row MasterRow) *Table {
+	return &Table{
+		Name:     row.Name,
+		RootPage: row.RootPage,
+		SQL:      row.SQL,
+		Columns:  []*Column{},
+	}
+}
+
+// parseSingleCreateTable parses sql, validates it contains exactly one
+// CREATE TABLE statement, and returns that statement.
+func parseSingleCreateTable(sql string) (*parser.CreateTableStmt, error) {
+	stmts, err := parser.NewParser(sql).Parse()
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse SQL: %w", err)
 	}
 
-	// Should have exactly one statement
 	if len(stmts) != 1 {
 		return nil, fmt.Errorf("expected 1 statement, got %d", len(stmts))
 	}
 
-	// Ensure it's a CREATE TABLE statement
 	createTable, ok := stmts[0].(*parser.CreateTableStmt)
 	if !ok {
 		return nil, fmt.Errorf("expected CREATE TABLE, got %T", stmts[0])
 	}
 
-	// Convert parser columns to schema columns directly
-	// We can't call CreateTable here because it would require mutex manipulation
-	columns := make([]*Column, len(createTable.Columns))
-	var primaryKeyColumns []string
+	return createTable, nil
+}
 
-	for i, colDef := range createTable.Columns {
-		col := &Column{
-			Name:     colDef.Name,
-			Type:     colDef.Type,
-			Affinity: DetermineAffinity(colDef.Type),
-		}
+// buildTableFromStmt assembles a *Table from a parsed CREATE TABLE statement
+// and the originating master row (used for the authoritative RootPage and SQL).
+func buildTableFromStmt(stmt *parser.CreateTableStmt, row MasterRow) *Table {
+	// Re-use the existing helpers from schema.go — convertColumns handles the
+	// per-column constraint switch and processColumnConstraint handles each
+	// individual constraint, so no duplicate decision logic lives here.
+	columns, primaryKeyColumns := convertColumns(stmt.Columns)
 
-		// Process column constraints
-		for _, constraint := range colDef.Constraints {
-			switch constraint.Type {
-			case parser.ConstraintPrimaryKey:
-				col.PrimaryKey = true
-				primaryKeyColumns = append(primaryKeyColumns, col.Name)
-				if constraint.PrimaryKey != nil && constraint.PrimaryKey.Autoincrement {
-					col.Autoincrement = true
-				}
-			case parser.ConstraintNotNull:
-				col.NotNull = true
-			case parser.ConstraintUnique:
-				col.Unique = true
-			case parser.ConstraintCollate:
-				col.Collation = constraint.Collate
-			case parser.ConstraintDefault:
-				if constraint.Default != nil {
-					col.Default = constraint.Default.String()
-				}
-			case parser.ConstraintCheck:
-				if constraint.Check != nil {
-					col.Check = constraint.Check.String()
-				}
-			case parser.ConstraintGenerated:
-				if constraint.Generated != nil {
-					col.Generated = true
-					if constraint.Generated.Expr != nil {
-						col.GeneratedExpr = constraint.Generated.Expr.String()
-					}
-					col.GeneratedStored = constraint.Generated.Stored
-				}
-			}
-		}
-
-		columns[i] = col
-	}
-
-	// Create the table
-	table := &Table{
-		Name:         createTable.Name,
+	return &Table{
+		Name:         stmt.Name,
 		RootPage:     row.RootPage, // Use the one from sqlite_master
 		SQL:          row.SQL,
 		Columns:      columns,
 		PrimaryKey:   uniqueStrings(primaryKeyColumns),
-		WithoutRowID: createTable.WithoutRowID,
-		Strict:       createTable.Strict,
-		Temp:         createTable.Temp,
+		WithoutRowID: stmt.WithoutRowID,
+		Strict:       stmt.Strict,
+		Temp:         stmt.Temp,
 	}
-
-	return table, nil
 }
 
 // parseIndexSQL parses a CREATE INDEX statement from a master row.

@@ -437,6 +437,47 @@ func ParseModsArchive(data []byte) ([]ModuleInfo, error) {
 	return modules, nil
 }
 
+// confFieldSetters maps known .conf keys to the corresponding ModuleInfo field setter.
+var confFieldSetters = map[string]func(*ModuleInfo, string){
+	"Description": func(m *ModuleInfo, v string) { m.Description = v },
+	"Lang":        func(m *ModuleInfo, v string) { m.Language = v },
+	"Version":     func(m *ModuleInfo, v string) { m.Version = v },
+	"ModDrv":      func(m *ModuleInfo, v string) { m.Type = moduleTypeFromDriver(v) },
+	"DataPath":    func(m *ModuleInfo, v string) { m.DataPath = v },
+}
+
+// parseSectionHeader scans lines for the first "[ModuleID]" header and returns
+// the module ID, or an error when none is found.
+func parseSectionHeader(lines []string) (string, error) {
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			return strings.Trim(line, "[]"), nil
+		}
+	}
+	return "", fmt.Errorf("no section header found")
+}
+
+// isConfMetaLine reports whether a trimmed line should be skipped during
+// key-value parsing (blank lines, section headers, and comments).
+func isConfMetaLine(line string) bool {
+	return line == "" || line[0] == '[' || line[0] == '#'
+}
+
+// applyConfLine parses a single trimmed conf line and, when it contains a
+// recognised key, calls the corresponding field setter on module.
+func applyConfLine(line string, module *ModuleInfo) {
+	parts := strings.SplitN(line, "=", 2)
+	if len(parts) != 2 {
+		return
+	}
+	key := strings.TrimSpace(parts[0])
+	value := strings.TrimSpace(parts[1])
+	if setter, known := confFieldSetters[key]; known {
+		setter(module, value)
+	}
+}
+
 // ParseModuleConf parses a SWORD module .conf file.
 func ParseModuleConf(data []byte) (ModuleInfo, error) {
 	if len(data) == 0 {
@@ -444,55 +485,20 @@ func ParseModuleConf(data []byte) (ModuleInfo, error) {
 	}
 
 	lines := strings.Split(string(data), "\n")
-	if len(lines) == 0 {
-		return ModuleInfo{}, fmt.Errorf("empty conf file")
+
+	moduleID, err := parseSectionHeader(lines)
+	if err != nil {
+		return ModuleInfo{}, err
 	}
 
-	// Find section header
-	var moduleID string
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			moduleID = strings.Trim(line, "[]")
-			break
-		}
-	}
+	module := ModuleInfo{Name: moduleID}
 
-	if moduleID == "" {
-		return ModuleInfo{}, fmt.Errorf("no section header found")
-	}
-
-	module := ModuleInfo{
-		Name: moduleID,
-	}
-
-	// Parse key-value pairs
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "[") || strings.HasPrefix(line, "#") {
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		if isConfMetaLine(line) {
 			continue
 		}
-
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		switch key {
-		case "Description":
-			module.Description = value
-		case "Lang":
-			module.Language = value
-		case "Version":
-			module.Version = value
-		case "ModDrv":
-			module.Type = moduleTypeFromDriver(value)
-		case "DataPath":
-			module.DataPath = value
-		}
+		applyConfLine(line, &module)
 	}
 
 	return module, nil

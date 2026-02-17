@@ -299,6 +299,30 @@ func ValidateLossReport(lr *LossReport) []error {
 	return errs
 }
 
+func validateMappingRef(ref *Ref, path string) []error {
+	var errs []error
+	for _, err := range validateRefFn(ref) {
+		var ve *ValidationError
+		if errors.As(err, &ve) {
+			errs = append(errs, newValidationError(path, ve.Message))
+		} else {
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
+func validateMapping(m *RefMapping, mPath string) []error {
+	var errs []error
+	if m.From != nil {
+		errs = append(errs, validateMappingRef(m.From, fmt.Sprintf("%s.from", mPath))...)
+	}
+	if m.To != nil {
+		errs = append(errs, validateMappingRef(m.To, fmt.Sprintf("%s.to", mPath))...)
+	}
+	return errs
+}
+
 // ValidateMappingTable validates a MappingTable and returns all validation errors.
 func ValidateMappingTable(mt *MappingTable) []error {
 	var errs []error
@@ -317,33 +341,8 @@ func ValidateMappingTable(mt *MappingTable) []error {
 			fmt.Sprintf("invalid VersificationID: %q", mt.ToSystem)))
 	}
 
-	// Validate mappings
 	for i, m := range mt.Mappings {
-		mPath := fmt.Sprintf("mappings[%d]", i)
-		if m.From != nil {
-			refErrs := validateRefFn(m.From)
-			for _, err := range refErrs {
-				var ve *ValidationError
-				if errors.As(err, &ve) {
-					errs = append(errs, newValidationError(
-						fmt.Sprintf("%s.from", mPath), ve.Message))
-				} else {
-					errs = append(errs, err)
-				}
-			}
-		}
-		if m.To != nil {
-			refErrs := validateRefFn(m.To)
-			for _, err := range refErrs {
-				var ve *ValidationError
-				if errors.As(err, &ve) {
-					errs = append(errs, newValidationError(
-						fmt.Sprintf("%s.to", mPath), ve.Message))
-				} else {
-					errs = append(errs, err)
-				}
-			}
-		}
+		errs = append(errs, validateMapping(m, fmt.Sprintf("mappings[%d]", i))...)
 	}
 
 	return errs
@@ -403,40 +402,37 @@ func ValidateEmptyTextFields(c *Corpus) []EmptyTextResult {
 	return results
 }
 
-// analyzeEmptyText determines why a text field is empty and whether it's purposeful.
-// Returns a reason description and true if the empty text is expected/valid.
+type markerCheck struct {
+	hasMarker bool
+	reason    string
+}
+
+func buildMarkerChecks(rawMarkup string) []markerCheck {
+	hasDiv := containsOSISMarker(rawMarkup, "div")
+	return []markerCheck{
+		{containsOSISMarker(rawMarkup, "chapter"), "chapter boundary marker (versification difference)"},
+		{hasDiv && containsAttr(rawMarkup, "type=\"book\""), "book boundary marker"},
+		{hasDiv && containsAttr(rawMarkup, "type=\"section\""), "section boundary marker"},
+		{containsOSISMarker(rawMarkup, "milestone"), "milestone marker only"},
+	}
+}
+
 func analyzeEmptyText(rawMarkup string) (reason string, isPurposeful bool) {
 	if rawMarkup == "" {
 		return "no raw markup present - possible data loss", false
 	}
 
-	// Check for common structural OSIS/ThML markers
-	hasChapterMarker := containsOSISMarker(rawMarkup, "chapter")
-	hasBookMarker := containsOSISMarker(rawMarkup, "div") && containsAttr(rawMarkup, "type=\"book\"")
-	hasSectionMarker := containsOSISMarker(rawMarkup, "div") && containsAttr(rawMarkup, "type=\"section\"")
-	hasMilestone := containsOSISMarker(rawMarkup, "milestone")
-
-	// If it's only structural markup, it's purposeful
-	if hasChapterMarker && !containsActualText(rawMarkup) {
-		return "chapter boundary marker (versification difference)", true
-	}
-	if hasBookMarker && !containsActualText(rawMarkup) {
-		return "book boundary marker", true
-	}
-	if hasSectionMarker && !containsActualText(rawMarkup) {
-		return "section boundary marker", true
-	}
-	if hasMilestone && !containsActualText(rawMarkup) {
-		return "milestone marker only", true
+	if containsActualText(rawMarkup) {
+		return "raw markup contains text but stripped result is empty - possible parsing error", false
 	}
 
-	// If raw markup exists but produces empty text, check if it's just whitespace/markup
-	if !containsActualText(rawMarkup) {
-		return "markup-only content (no actual text)", true
+	for _, mc := range buildMarkerChecks(rawMarkup) {
+		if mc.hasMarker {
+			return mc.reason, true
+		}
 	}
 
-	// Raw markup has content but text is empty - possible stripping error
-	return "raw markup contains text but stripped result is empty - possible parsing error", false
+	return "markup-only content (no actual text)", true
 }
 
 // containsOSISMarker checks if markup contains an OSIS element.

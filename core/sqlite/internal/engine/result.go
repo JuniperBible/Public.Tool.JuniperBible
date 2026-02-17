@@ -116,54 +116,38 @@ func (r *Rows) Err() error {
 	return r.err
 }
 
-// scanInto scans a VDBE memory cell into a destination value.
+func scanTyped(mem *vdbe.Mem, dest interface{}) (bool, error) {
+	switch d := dest.(type) {
+	case *int:
+		*d = int(mem.IntValue())
+	case *int64:
+		*d = mem.IntValue()
+	case *float64:
+		*d = mem.RealValue()
+	case *string:
+		*d = mem.StrValue()
+	case *[]byte:
+		*d = mem.BlobValue()
+	case *bool:
+		*d = mem.IntValue() != 0
+	default:
+		return false, nil
+	}
+	return true, nil
+}
+
 func scanInto(mem *vdbe.Mem, dest interface{}) error {
 	if mem == nil {
 		return fmt.Errorf("nil memory cell")
 	}
-
-	switch d := dest.(type) {
-	case *interface{}:
-		// Scan into interface{} - convert based on type
-		flags := mem.GetFlags()
-		switch flags & vdbe.MemTypeMask {
-		case vdbe.MemNull:
-			*d = nil
-		case vdbe.MemInt:
-			*d = mem.IntValue()
-		case vdbe.MemReal:
-			*d = mem.RealValue()
-		case vdbe.MemStr:
-			*d = mem.StrValue()
-		case vdbe.MemBlob:
-			*d = mem.BlobValue()
-		default:
-			*d = nil
-		}
-
-	case *int:
-		*d = int(mem.IntValue())
-
-	case *int64:
-		*d = mem.IntValue()
-
-	case *float64:
-		*d = mem.RealValue()
-
-	case *string:
-		*d = mem.StrValue()
-
-	case *[]byte:
-		*d = mem.BlobValue()
-
-	case *bool:
-		*d = mem.IntValue() != 0
-
-	default:
-		return fmt.Errorf("unsupported scan destination type: %T", dest)
+	if d, ok := dest.(*interface{}); ok {
+		*d = memToInterface(mem)
+		return nil
 	}
-
-	return nil
+	if handled, err := scanTyped(mem, dest); err != nil || handled {
+		return err
+	}
+	return fmt.Errorf("unsupported scan destination type: %T", dest)
 }
 
 // Tx represents a database transaction.

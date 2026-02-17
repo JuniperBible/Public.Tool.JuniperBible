@@ -167,6 +167,45 @@ func (v *VDBE) opFunction(p1, p2, p3, p4, p5 int) error {
 	return dst.Copy(result)
 }
 
+func (v *VDBE) validateAggStepP4() (string, error) {
+	instr := v.Program[v.PC-1]
+	if instr.P4Type != P4Static && instr.P4Type != P4Dynamic {
+		return "", fmt.Errorf("OP_AggStep requires function name in P4")
+	}
+	return instr.P4.Z, nil
+}
+
+func (v *VDBE) ensureAggFuncSlot(aggState *AggregateState, funcIndex int, funcName string) error {
+	for len(aggState.funcs) <= funcIndex {
+		aggState.funcs = append(aggState.funcs, nil)
+	}
+	if aggState.funcs[funcIndex] != nil {
+		return nil
+	}
+	fn, ok := v.funcCtx.registry.Lookup(funcName)
+	if !ok {
+		return fmt.Errorf("unknown aggregate function: %s", funcName)
+	}
+	aggFn, ok := fn.(functions.AggregateFunction)
+	if !ok {
+		return fmt.Errorf("%s is not an aggregate function", funcName)
+	}
+	aggState.funcs[funcIndex] = createAggregateInstance(aggFn)
+	return nil
+}
+
+func (v *VDBE) collectArgValues(p2, numArgs int) ([]functions.Value, error) {
+	values := make([]functions.Value, numArgs)
+	for i := 0; i < numArgs; i++ {
+		mem, err := v.GetMem(p2 + i)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get argument register %d: %w", p2+i, err)
+		}
+		values[i] = memToValue(mem)
+	}
+	return values, nil
+}
+
 // opAggStep implements OP_AggStep opcode
 // P1 = cursor (for grouping context)
 // P2 = first argument register
@@ -174,65 +213,26 @@ func (v *VDBE) opFunction(p1, p2, p3, p4, p5 int) error {
 // P4 = function name (string)
 // P5 = number of arguments
 func (v *VDBE) opAggStep(p1, p2, p3, p4, p5 int) error {
-	instr := v.Program[v.PC-1]
-	if instr.P4Type != P4Static && instr.P4Type != P4Dynamic {
-		return fmt.Errorf("OP_AggStep requires function name in P4")
+	funcName, err := v.validateAggStepP4()
+	if err != nil {
+		return err
 	}
 
-	funcName := instr.P4.Z
-	numArgs := p5
-	cursor := p1
-	funcIndex := p3
-
-	// Initialize function context if needed
 	if v.funcCtx == nil {
 		v.funcCtx = NewFunctionContext()
 	}
 
-	// Get or create aggregate state
-	aggState := v.funcCtx.GetOrCreateAggregateState(cursor)
-
-	// Ensure we have enough function slots
-	for len(aggState.funcs) <= funcIndex {
-		aggState.funcs = append(aggState.funcs, nil)
+	aggState := v.funcCtx.GetOrCreateAggregateState(p1)
+	if err := v.ensureAggFuncSlot(aggState, p3, funcName); err != nil {
+		return err
 	}
 
-	// Create aggregate function instance if needed
-	if aggState.funcs[funcIndex] == nil {
-		fn, ok := v.funcCtx.registry.Lookup(funcName)
-		if !ok {
-			return fmt.Errorf("unknown aggregate function: %s", funcName)
-		}
-
-		aggFn, ok := fn.(functions.AggregateFunction)
-		if !ok {
-			return fmt.Errorf("%s is not an aggregate function", funcName)
-		}
-
-		// Create a new instance using reflection
-		aggFn = createAggregateInstance(aggFn)
-		aggState.funcs[funcIndex] = aggFn
+	values, err := v.collectArgValues(p2, p5)
+	if err != nil {
+		return err
 	}
 
-	// Collect arguments from registers
-	args := make([]*Mem, numArgs)
-	for i := 0; i < numArgs; i++ {
-		mem, err := v.GetMem(p2 + i)
-		if err != nil {
-			return fmt.Errorf("failed to get argument register %d: %w", p2+i, err)
-		}
-		args[i] = mem
-	}
-
-	// Convert to function values
-	values := make([]functions.Value, numArgs)
-	for i, arg := range args {
-		values[i] = memToValue(arg)
-	}
-
-	// Execute step function
-	aggFn := aggState.funcs[funcIndex]
-	if err := aggFn.Step(values); err != nil {
+	if err := aggState.funcs[p3].Step(values); err != nil {
 		return fmt.Errorf("aggregate step failed for %s: %w", funcName, err)
 	}
 

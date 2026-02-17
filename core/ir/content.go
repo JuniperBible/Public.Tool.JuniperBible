@@ -24,6 +24,47 @@ func (cb *ContentBlock) VerifyHash() bool {
 	return cb.Hash == hex.EncodeToString(h[:])
 }
 
+// isWhitespaceByte reports whether c is an ASCII whitespace character.
+func isWhitespaceByte(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
+// isWordByte reports whether c belongs to a word token.
+// Words consist of ASCII letters, digits, apostrophes, and non-ASCII bytes
+// (the latter to preserve multi-byte UTF-8 sequences as word characters).
+func isWordByte(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		(c >= '0' && c <= '9') || c == '\'' || c >= 0x80
+}
+
+// classifyByte returns the TokenType for a single byte.
+func classifyByte(c byte) TokenType {
+	if isWhitespaceByte(c) {
+		return TokenWhitespace
+	}
+	if isWordByte(c) {
+		return TokenWord
+	}
+	return TokenPunctuation
+}
+
+// appendToken appends a completed token to tokens and returns the updated slice
+// and a reset byte buffer. It is a no-op when buf is empty.
+func appendToken(tokens []*Token, buf []byte, index, start, end int, typ TokenType) ([]*Token, int) {
+	if len(buf) == 0 {
+		return tokens, index
+	}
+	tokens = append(tokens, &Token{
+		ID:        "",
+		Index:     index,
+		CharStart: start,
+		CharEnd:   end,
+		Text:      string(buf),
+		Type:      typ,
+	})
+	return tokens, index + 1
+}
+
 // Tokenize breaks text into tokens. This is a simple implementation
 // that handles common English/Western text patterns.
 func Tokenize(text string) []*Token {
@@ -33,41 +74,16 @@ func Tokenize(text string) []*Token {
 	var currentType TokenType
 	index := 0
 
-	finishToken := func(end int) {
-		if len(tokenText) > 0 {
-			tokens = append(tokens, &Token{
-				ID:        "",
-				Index:     index,
-				CharStart: tokenStart,
-				CharEnd:   end,
-				Text:      string(tokenText),
-				Type:      currentType,
-			})
-			index++
-			tokenText = nil
-		}
-	}
-
 	for i := 0; i < len(text); i++ {
 		c := text[i]
-		var newType TokenType
-
-		switch {
-		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
-			newType = TokenWhitespace
-		case (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') || c == '\'' || c >= 0x80:
-			// Letters, numbers, apostrophe, and non-ASCII (for Unicode words)
-			newType = TokenWord
-		default:
-			newType = TokenPunctuation
-		}
+		newType := classifyByte(c)
 
 		if len(tokenText) == 0 {
 			tokenStart = i
 			currentType = newType
 		} else if newType != currentType {
-			finishToken(i)
+			tokens, index = appendToken(tokens, tokenText, index, tokenStart, i, currentType)
+			tokenText = nil
 			tokenStart = i
 			currentType = newType
 		}
@@ -75,6 +91,6 @@ func Tokenize(text string) []*Token {
 		tokenText = append(tokenText, c)
 	}
 
-	finishToken(len(text))
+	tokens, _ = appendToken(tokens, tokenText, index, tokenStart, len(text), currentType)
 	return tokens
 }

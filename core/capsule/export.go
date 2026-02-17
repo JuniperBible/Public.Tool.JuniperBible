@@ -126,111 +126,170 @@ type DerivedExportResult struct {
 // ExportDerived exports an artifact to a different format via the IR.
 // The conversion flow is: Source Format -> extract-ir -> IR -> emit-native -> Target Format.
 func (c *Capsule) ExportDerived(artifactID string, opts DerivedExportOptions, destPath string) (*DerivedExportResult, error) {
-	// Validate options
-	if opts.PluginLoader == nil && (opts.SourcePlugin == nil || opts.TargetPlugin == nil) {
-		return nil, errors.NewValidation("DerivedExportOptions", "requires PluginLoader or both SourcePlugin and TargetPlugin")
-	}
-	if opts.TargetFormat == "" {
-		return nil, errors.NewValidation("TargetFormat", "is required")
+	if err := validateDerivedExportOpts(opts); err != nil {
+		return nil, err
 	}
 
-	// Find the artifact
 	artifact, ok := c.Manifest.Artifacts[artifactID]
 	if !ok {
 		return nil, errors.NewNotFound("artifact", artifactID)
 	}
 
-	// Create temp directory for intermediate files
+	return c.runDerivedConversion(artifact, opts, destPath)
+}
+
+// runDerivedConversion orchestrates temp-dir setup, plugin execution, and output
+// copy for a single derived-export operation.
+func (c *Capsule) runDerivedConversion(artifact *Artifact, opts DerivedExportOptions, destPath string) (*DerivedExportResult, error) {
 	tempDir, err := osMkdirTemp("", "capsule-derived-*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer osRemoveAll(tempDir)
 
-	// Export source artifact to temp file
-	sourceFormat := ""
-	if artifact.Detected != nil {
-		sourceFormat = artifact.Detected.FormatID
-	}
-
-	sourcePath := filepath.Join(tempDir, "source")
-	sourceData, err := c.store.Retrieve(artifact.PrimaryBlobSHA256)
+	sourcePath, sourceFormat, err := c.writeSourceToTemp(artifact, tempDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve source blob: %w", err)
-	}
-	if err := osWriteFileExport(sourcePath, sourceData, 0600); err != nil {
-		return nil, fmt.Errorf("failed to write source file: %w", err)
+		return nil, err
 	}
 
-	// Find source plugin
-	sourcePlugin := opts.SourcePlugin
-	if sourcePlugin == nil {
-		sourcePlugin, err = findPluginForFormat(opts.PluginLoader, sourceFormat)
-		if err != nil {
-			return nil, fmt.Errorf("failed to find source plugin for format %q: %w", sourceFormat, err)
-		}
-	}
-
-	// Find target plugin
-	targetPlugin := opts.TargetPlugin
-	if targetPlugin == nil {
-		targetPlugin, err = findPluginForFormat(opts.PluginLoader, opts.TargetFormat)
-		if err != nil {
-			return nil, fmt.Errorf("failed to find target plugin for format %q: %w", opts.TargetFormat, err)
-		}
-	}
-
-	// Step 1: Extract IR from source
-	irDir := filepath.Join(tempDir, "ir")
-	if err := osMkdirAllExport(irDir, 0700); err != nil {
-		return nil, fmt.Errorf("failed to create IR dir: %w", err)
-	}
-
-	extractResult, extractLoss, err := extractIRFromPlugin(sourcePlugin, sourcePath, irDir)
+	sourcePlugin, targetPlugin, err := resolveDerivedPlugins(opts, sourceFormat)
 	if err != nil {
-		return nil, fmt.Errorf("extract-ir failed: %w", err)
+		return nil, err
 	}
 
-	// Step 2: Emit native format from IR
-	outputDir := filepath.Join(tempDir, "output")
-	if err := osMkdirAllExport(outputDir, 0700); err != nil {
-		return nil, fmt.Errorf("failed to create output dir: %w", err)
-	}
-
-	emitResult, emitLoss, err := emitNativeFromPlugin(targetPlugin, extractResult.IRPath, outputDir)
+	lossReports, err := runConversionPipeline(sourcePlugin, targetPlugin, sourcePath, tempDir, destPath)
 	if err != nil {
-		return nil, fmt.Errorf("emit-native failed: %w", err)
+		return nil, err
 	}
-
-	// Move output to destination
-	if err := osMkdirAllExport(filepath.Dir(destPath), 0700); err != nil {
-		return nil, fmt.Errorf("failed to create destination dir: %w", err)
-	}
-
-	outputData, err := osReadFileExport(emitResult.OutputPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read output: %w", err)
-	}
-	if err := osWriteFileExport(destPath, outputData, 0600); err != nil {
-		return nil, fmt.Errorf("failed to write destination: %w", err)
-	}
-
-	// Combine loss reports
-	lossReports := []*ir.LossReport{}
-	if extractLoss != nil {
-		lossReports = append(lossReports, extractLoss)
-	}
-	if emitLoss != nil {
-		lossReports = append(lossReports, emitLoss)
-	}
-
-	combinedClass := combineLossClasses(lossReports)
 
 	return &DerivedExportResult{
 		OutputPath:        destPath,
 		LossReports:       lossReports,
-		CombinedLossClass: combinedClass,
+		CombinedLossClass: combineLossClasses(lossReports),
 	}, nil
+}
+
+// runConversionPipeline runs extract-ir -> emit-native -> copy-to-dest and
+// returns the combined loss reports.
+func runConversionPipeline(srcPlugin, tgtPlugin *plugins.Plugin, sourcePath, tempDir, destPath string) ([]*ir.LossReport, error) {
+	extractResult, extractLoss, err := runExtractIR(srcPlugin, sourcePath, tempDir)
+	if err != nil {
+		return nil, err
+	}
+
+	emitResult, emitLoss, err := runEmitNative(tgtPlugin, extractResult.IRPath, tempDir)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := copyOutputToDestination(emitResult.OutputPath, destPath); err != nil {
+		return nil, err
+	}
+
+	return collectLossReports(extractLoss, emitLoss), nil
+}
+
+// validateDerivedExportOpts checks that the required options are set.
+func validateDerivedExportOpts(opts DerivedExportOptions) error {
+	if opts.PluginLoader == nil && (opts.SourcePlugin == nil || opts.TargetPlugin == nil) {
+		return errors.NewValidation("DerivedExportOptions", "requires PluginLoader or both SourcePlugin and TargetPlugin")
+	}
+	if opts.TargetFormat == "" {
+		return errors.NewValidation("TargetFormat", "is required")
+	}
+	return nil
+}
+
+// writeSourceToTemp retrieves the artifact blob and writes it to a temp file.
+// Returns the temp file path and the detected source format.
+func (c *Capsule) writeSourceToTemp(artifact *Artifact, tempDir string) (sourcePath, sourceFormat string, err error) {
+	sourceFormat = ""
+	if artifact.Detected != nil {
+		sourceFormat = artifact.Detected.FormatID
+	}
+
+	sourcePath = filepath.Join(tempDir, "source")
+	data, err := c.store.Retrieve(artifact.PrimaryBlobSHA256)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to retrieve source blob: %w", err)
+	}
+	if err := osWriteFileExport(sourcePath, data, 0600); err != nil {
+		return "", "", fmt.Errorf("failed to write source file: %w", err)
+	}
+	return sourcePath, sourceFormat, nil
+}
+
+// resolveDerivedPlugins returns the source and target plugins, looking them up
+// via the loader when they are not explicitly provided in opts.
+func resolveDerivedPlugins(opts DerivedExportOptions, sourceFormat string) (sourcePlugin, targetPlugin *plugins.Plugin, err error) {
+	sourcePlugin = opts.SourcePlugin
+	if sourcePlugin == nil {
+		sourcePlugin, err = findPluginForFormat(opts.PluginLoader, sourceFormat)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to find source plugin for format %q: %w", sourceFormat, err)
+		}
+	}
+
+	targetPlugin = opts.TargetPlugin
+	if targetPlugin == nil {
+		targetPlugin, err = findPluginForFormat(opts.PluginLoader, opts.TargetFormat)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to find target plugin for format %q: %w", opts.TargetFormat, err)
+		}
+	}
+	return sourcePlugin, targetPlugin, nil
+}
+
+// runExtractIR creates the IR staging directory and calls the source plugin.
+func runExtractIR(plugin *plugins.Plugin, sourcePath, tempDir string) (*plugins.ExtractIRResult, *ir.LossReport, error) {
+	irDir := filepath.Join(tempDir, "ir")
+	if err := osMkdirAllExport(irDir, 0700); err != nil {
+		return nil, nil, fmt.Errorf("failed to create IR dir: %w", err)
+	}
+	result, loss, err := extractIRFromPlugin(plugin, sourcePath, irDir)
+	if err != nil {
+		return nil, nil, fmt.Errorf("extract-ir failed: %w", err)
+	}
+	return result, loss, nil
+}
+
+// runEmitNative creates the output staging directory and calls the target plugin.
+func runEmitNative(plugin *plugins.Plugin, irPath, tempDir string) (*plugins.EmitNativeResult, *ir.LossReport, error) {
+	outputDir := filepath.Join(tempDir, "output")
+	if err := osMkdirAllExport(outputDir, 0700); err != nil {
+		return nil, nil, fmt.Errorf("failed to create output dir: %w", err)
+	}
+	result, loss, err := emitNativeFromPlugin(plugin, irPath, outputDir)
+	if err != nil {
+		return nil, nil, fmt.Errorf("emit-native failed: %w", err)
+	}
+	return result, loss, nil
+}
+
+// copyOutputToDestination reads the plugin output file and writes it to destPath.
+func copyOutputToDestination(outputPath, destPath string) error {
+	if err := osMkdirAllExport(filepath.Dir(destPath), 0700); err != nil {
+		return fmt.Errorf("failed to create destination dir: %w", err)
+	}
+	data, err := osReadFileExport(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to read output: %w", err)
+	}
+	if err := osWriteFileExport(destPath, data, 0600); err != nil {
+		return fmt.Errorf("failed to write destination: %w", err)
+	}
+	return nil
+}
+
+// collectLossReports builds the loss report slice, omitting nil entries.
+func collectLossReports(reports ...*ir.LossReport) []*ir.LossReport {
+	out := make([]*ir.LossReport, 0, len(reports))
+	for _, r := range reports {
+		if r != nil {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // findPluginForFormat finds a plugin that supports the given format.

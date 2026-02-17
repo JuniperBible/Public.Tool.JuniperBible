@@ -249,37 +249,32 @@ func UTF16CharCount(data []byte, enc Encoding, nChar int) int {
 	i := 0
 
 	for i < len(data)-1 && count < nChar {
-		var c uint16
-		if enc == UTF16LE {
-			c = binary.LittleEndian.Uint16(data[i:])
-		} else {
-			c = binary.BigEndian.Uint16(data[i:])
-		}
-
+		c := readUint16(data[i:], enc)
 		i += 2
 
-		// Check for surrogate pair
-		if c >= HighSurrogateMin && c < LowSurrogateMin {
-			// High surrogate, check for low surrogate
-			if i < len(data)-1 {
-				var c2 uint16
-				if enc == UTF16LE {
-					c2 = binary.LittleEndian.Uint16(data[i:])
-				} else {
-					c2 = binary.BigEndian.Uint16(data[i:])
-				}
-
-				if c2 >= LowSurrogateMin && c2 < SurrogateMax+1 {
-					// Valid surrogate pair
-					i += 2
-				}
-			}
+		if isHighSurrogate(c) && i < len(data)-1 && isLowSurrogate(readUint16(data[i:], enc)) {
+			i += 2
 		}
 
 		count++
 	}
 
 	return count
+}
+
+func readUint16(data []byte, enc Encoding) uint16 {
+	if enc == UTF16LE {
+		return binary.LittleEndian.Uint16(data)
+	}
+	return binary.BigEndian.Uint16(data)
+}
+
+func isHighSurrogate(c uint16) bool {
+	return c >= HighSurrogateMin && c < LowSurrogateMin
+}
+
+func isLowSurrogate(c uint16) bool {
+	return c >= LowSurrogateMin && c < SurrogateMax+1
 }
 
 // UTF16ByteLen returns the number of bytes needed to encode nChar UTF-16 characters
@@ -293,31 +288,11 @@ func UTF16ByteLen(data []byte, enc Encoding, nChar int) int {
 	i := 0
 
 	for i < len(data)-1 && count < nChar {
-		var c uint16
-		if enc == UTF16LE {
-			c = binary.LittleEndian.Uint16(data[i:])
-		} else {
-			c = binary.BigEndian.Uint16(data[i:])
-		}
-
+		c := readUint16(data[i:], enc)
 		i += 2
 
-		// Check for surrogate pair
-		if c >= HighSurrogateMin && c < LowSurrogateMin {
-			// High surrogate, check for low surrogate
-			if i < len(data)-1 {
-				var c2 uint16
-				if enc == UTF16LE {
-					c2 = binary.LittleEndian.Uint16(data[i:])
-				} else {
-					c2 = binary.BigEndian.Uint16(data[i:])
-				}
-
-				if c2 >= LowSurrogateMin && c2 < SurrogateMax+1 {
-					// Valid surrogate pair
-					i += 2
-				}
-			}
+		if isHighSurrogate(c) && i < len(data)-1 && isLowSurrogate(readUint16(data[i:], enc)) {
+			i += 2
 		}
 
 		count++

@@ -56,82 +56,63 @@ func putVarint64(p []byte, v uint64) int {
 	return n
 }
 
+func decodeShortVarint(p []byte) (uint64, int) {
+	const SLOT_2_0 = 0x001fc07f
+
+	a := uint32(p[0])<<14 | uint32(p[2])
+	b := uint32(p[1])
+
+	if a&0x80 == 0 {
+		return uint64((b&0x7f)<<7 | a&SLOT_2_0), 3
+	}
+
+	if len(p) < 4 {
+		return 0, 0
+	}
+
+	b = (b&0x7f)<<14 | uint32(p[3])
+	if b&0x80 == 0 {
+		return uint64((a&SLOT_2_0)<<7 | b&SLOT_2_0), 4
+	}
+
+	return 0, 0
+}
+
+func decodeMultiByteVarint(p []byte) (uint64, int) {
+	var v uint64
+	for i := 0; i < 8; i++ {
+		v = (v << 7) | uint64(p[i]&0x7f)
+		if p[i]&0x80 == 0 {
+			return v, i + 1
+		}
+	}
+	return (v << 8) | uint64(p[8]), 9
+}
+
 // GetVarint reads a 64-bit variable-length integer from p and returns
 // the value and the number of bytes read.
 func GetVarint(p []byte) (uint64, int) {
-	// Fast path for 1-byte case
 	if p[0] < 0x80 {
 		return uint64(p[0]), 1
 	}
 
-	// Fast path for 2-byte case
 	if len(p) > 1 && p[1] < 0x80 {
 		return (uint64(p[0]&0x7f) << 7) | uint64(p[1]), 2
 	}
 
-	// General case
-	if len(p) < 2 {
+	if len(p) < 3 {
 		return 0, 0
 	}
 
-	// Save original slice for 9-byte case
-	orig := p
-
-	const SLOT_2_0 = 0x001fc07f   // (0x7f<<14) | 0x7f
-	const SLOT_4_2_0 = 0xf01fc07f // (0xf<<28) | (0x7f<<14) | 0x7f
-
-	a := uint32(p[0]) << 14
-	b := uint32(p[1])
-	p = p[2:]
-	a |= uint32(p[0])
-	// a: p0<<14 | p2 (unmasked)
-
-	if a&0x80 == 0 {
-		// 3-byte case
-		a &= SLOT_2_0
-		b &= 0x7f
-		b = b << 7
-		a |= b
-		return uint64(a), 3
+	if v, n := decodeShortVarint(p); n > 0 {
+		return v, n
 	}
 
-	// 4-byte or larger
-	if len(p) < 2 {
+	if len(p) < 9 {
 		return 0, 0
 	}
-	b = (b & 0x7f) << 14
-	b |= uint32(p[1])
-	// b: p1<<14 | p3 (unmasked)
 
-	if b&0x80 == 0 {
-		// 4-byte case
-		b &= SLOT_2_0
-		a &= SLOT_2_0
-		a = a << 7
-		a |= b
-		return uint64(a), 4
-	}
-
-	// 5-byte or larger - use simple loop-based decoder
-	// For simplicity and correctness, decode byte-by-byte for remaining cases
-	var v uint64
-	n := 0
-	for i := 0; i < 9 && i < len(orig); i++ {
-		if i < 8 {
-			// First 8 bytes: 7 bits each with continuation bit
-			v = (v << 7) | uint64(orig[i]&0x7f)
-			n++
-			if orig[i]&0x80 == 0 {
-				// No continuation bit, this is the last byte
-				return v, n
-			}
-		} else {
-			// 9th byte: all 8 bits, no continuation bit
-			v = (v << 8) | uint64(orig[i])
-			return v, 9
-		}
-	}
-	return 0, 0 // Invalid varint
+	return decodeMultiByteVarint(p)
 }
 
 // GetVarint32 reads a 32-bit variable-length integer from p and returns

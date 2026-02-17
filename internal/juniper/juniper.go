@@ -142,6 +142,51 @@ func ListModules(swordPath string) ([]*Module, error) {
 	return modules, nil
 }
 
+// selectModules resolves which modules to process given an all-flag, an
+// explicit name list, and the full set of available modules.  It prints a
+// warning for any requested name that is not found.
+func selectModules(all bool, names []string, available []*Module, noneMsg string) ([]*Module, error) {
+	if all {
+		return available, nil
+	}
+	if len(names) == 0 {
+		return nil, fmt.Errorf("specify module names or use --all")
+	}
+	index := make(map[string]*Module, len(available))
+	for _, m := range available {
+		index[m.Name] = m
+	}
+	var selected []*Module
+	for _, name := range names {
+		if m, ok := index[name]; ok {
+			selected = append(selected, m)
+		} else {
+			fmt.Printf("Warning: module '%s' not found\n", name)
+		}
+	}
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("%s", noneMsg)
+	}
+	return selected, nil
+}
+
+// ingestSingleModule ingests one non-encrypted module and reports the result.
+func ingestSingleModule(swordPath, outputDir string, m *Module) {
+	if m.Encrypted {
+		fmt.Printf("Skipping %s (encrypted)\n", m.Name)
+		return
+	}
+	capsulePath := filepath.Join(outputDir, m.Name+".capsule.tar.gz")
+	fmt.Printf("Creating %s...\n", capsulePath)
+	if err := IngestModule(swordPath, m, capsulePath); err != nil {
+		fmt.Printf("  Error: %v\n", err)
+		return
+	}
+	if info, _ := os.Stat(capsulePath); info != nil {
+		fmt.Printf("  Created: %s (%d bytes)\n", capsulePath, info.Size())
+	}
+}
+
 // Ingest ingests SWORD modules into capsules.
 func Ingest(cfg IngestConfig) error {
 	swordPath, err := ResolveSwordPath(cfg.Path)
@@ -158,55 +203,18 @@ func Ingest(cfg IngestConfig) error {
 		return fmt.Errorf("no Bible modules found in %s", swordPath)
 	}
 
-	// Determine which modules to ingest
-	var toIngest []*Module
-	if cfg.All {
-		toIngest = modules
-	} else if len(cfg.Modules) > 0 {
-		moduleMap := make(map[string]*Module)
-		for _, m := range modules {
-			moduleMap[m.Name] = m
-		}
-		for _, name := range cfg.Modules {
-			if m, ok := moduleMap[name]; ok {
-				toIngest = append(toIngest, m)
-			} else {
-				fmt.Printf("Warning: module '%s' not found\n", name)
-			}
-		}
-	} else {
-		return fmt.Errorf("specify module names or use --all")
+	toIngest, err := selectModules(cfg.All, cfg.Modules, modules, "no modules to ingest")
+	if err != nil {
+		return err
 	}
 
-	if len(toIngest) == 0 {
-		return fmt.Errorf("no modules to ingest")
-	}
-
-	// Create output directory
 	if err := os.MkdirAll(cfg.Output, 0700); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	fmt.Printf("Ingesting %d module(s) to %s/\n\n", len(toIngest), cfg.Output)
-
 	for _, m := range toIngest {
-		if m.Encrypted {
-			fmt.Printf("Skipping %s (encrypted)\n", m.Name)
-			continue
-		}
-
-		capsulePath := filepath.Join(cfg.Output, m.Name+".capsule.tar.gz")
-		fmt.Printf("Creating %s...\n", capsulePath)
-
-		if err := IngestModule(swordPath, m, capsulePath); err != nil {
-			fmt.Printf("  Error: %v\n", err)
-			continue
-		}
-
-		info, _ := os.Stat(capsulePath)
-		if info != nil {
-			fmt.Printf("  Created: %s (%d bytes)\n", capsulePath, info.Size())
-		}
+		ingestSingleModule(swordPath, cfg.Output, m)
 	}
 
 	fmt.Println("\nDone!")
@@ -294,6 +302,35 @@ type InstallConfig struct {
 	PluginsDir string   // Directory containing format plugins
 }
 
+// installSingleModule ingests one module and generates its IR.
+// It returns true when both steps succeed.
+func installSingleModule(swordPath, outputDir, pluginsDir string, m *Module) bool {
+	if m.Encrypted {
+		fmt.Printf("Skipping %s (encrypted)\n", m.Name)
+		return false
+	}
+	capsulePath := filepath.Join(outputDir, m.Name+".capsule.tar.gz")
+	fmt.Printf("Installing %s...\n", m.Name)
+
+	fmt.Printf("  Ingesting SWORD module...\n")
+	if err := IngestModule(swordPath, m, capsulePath); err != nil {
+		fmt.Printf("  Error during ingest: %v\n", err)
+		return false
+	}
+
+	fmt.Printf("  Generating IR...\n")
+	if err := GenerateIRForCapsule(capsulePath, pluginsDir); err != nil {
+		fmt.Printf("  Error during IR generation: %v\n", err)
+		fmt.Printf("  (Capsule created but without IR)\n")
+		return false
+	}
+
+	if info, _ := os.Stat(capsulePath); info != nil {
+		fmt.Printf("  Done: %s (%d bytes)\n", capsulePath, info.Size())
+	}
+	return true
+}
+
 // Install installs SWORD modules as capsules with IR generated.
 // This combines ingest + IR generation in one step.
 func Install(cfg InstallConfig) error {
@@ -311,31 +348,11 @@ func Install(cfg InstallConfig) error {
 		return fmt.Errorf("no Bible modules found in %s", swordPath)
 	}
 
-	// Determine which modules to install
-	var toInstall []*Module
-	if cfg.All {
-		toInstall = modules
-	} else if len(cfg.Modules) > 0 {
-		moduleMap := make(map[string]*Module)
-		for _, m := range modules {
-			moduleMap[m.Name] = m
-		}
-		for _, name := range cfg.Modules {
-			if m, ok := moduleMap[name]; ok {
-				toInstall = append(toInstall, m)
-			} else {
-				fmt.Printf("Warning: module '%s' not found\n", name)
-			}
-		}
-	} else {
-		return fmt.Errorf("specify module names or use --all")
+	toInstall, err := selectModules(cfg.All, cfg.Modules, modules, "no modules to install")
+	if err != nil {
+		return err
 	}
 
-	if len(toInstall) == 0 {
-		return fmt.Errorf("no modules to install")
-	}
-
-	// Create output directory
 	if err := os.MkdirAll(cfg.Output, 0700); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
@@ -344,34 +361,9 @@ func Install(cfg InstallConfig) error {
 
 	successful := 0
 	for _, m := range toInstall {
-		if m.Encrypted {
-			fmt.Printf("Skipping %s (encrypted)\n", m.Name)
-			continue
+		if installSingleModule(swordPath, cfg.Output, cfg.PluginsDir, m) {
+			successful++
 		}
-
-		capsulePath := filepath.Join(cfg.Output, m.Name+".capsule.tar.gz")
-		fmt.Printf("Installing %s...\n", m.Name)
-
-		// Step 1: Ingest
-		fmt.Printf("  Ingesting SWORD module...\n")
-		if err := IngestModule(swordPath, m, capsulePath); err != nil {
-			fmt.Printf("  Error during ingest: %v\n", err)
-			continue
-		}
-
-		// Step 2: Generate IR
-		fmt.Printf("  Generating IR...\n")
-		if err := GenerateIRForCapsule(capsulePath, cfg.PluginsDir); err != nil {
-			fmt.Printf("  Error during IR generation: %v\n", err)
-			fmt.Printf("  (Capsule created but without IR)\n")
-			continue
-		}
-
-		info, _ := os.Stat(capsulePath)
-		if info != nil {
-			fmt.Printf("  Done: %s (%d bytes)\n", capsulePath, info.Size())
-		}
-		successful++
 	}
 
 	fmt.Printf("\nInstalled %d/%d modules successfully\n", successful, len(toInstall))
@@ -380,75 +372,76 @@ func Install(cfg InstallConfig) error {
 
 // GenerateIRForCapsule generates IR for an existing capsule.
 func GenerateIRForCapsule(capsulePath string, pluginsDir string) error {
-	// Check if already has IR
 	if archive.HasIR(capsulePath) {
-		return nil // Already has IR
+		return nil
 	}
 
-	// Create temp directory
 	tempDir, err := os.MkdirTemp("", "capsule-ir-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Extract capsule
 	extractDir := filepath.Join(tempDir, "extract")
 	if _, err := capsule.Unpack(capsulePath, extractDir); err != nil {
 		return fmt.Errorf("failed to extract capsule: %w", err)
 	}
 
-	// Find content and detect format
+	extractResult, sourceFormat, err := extractIRFromCapsuleContent(extractDir, filepath.Join(tempDir, "ir"), pluginsDir)
+	if err != nil {
+		return err
+	}
+
+	return buildAndReplaceCapsule(capsulePath, extractDir, filepath.Join(tempDir, "new-capsule"), extractResult, sourceFormat)
+}
+
+func extractIRFromCapsuleContent(extractDir, irDir, pluginsDir string) (*extractIRResult, string, error) {
 	contentPath, sourceFormat := findConvertibleContent(extractDir)
 	if contentPath == "" {
-		return fmt.Errorf("no convertible content found (supported: OSIS, USFM, USX, SWORD)")
+		return nil, "", fmt.Errorf("no convertible content found (supported: OSIS, USFM, USX, SWORD)")
 	}
 
-	// Load plugins using embedded registry
-	loader := getPluginLoader(pluginsDir)
-
-	// Extract IR
-	irDir := filepath.Join(tempDir, "ir")
 	os.MkdirAll(irDir, 0700)
 
-	sourcePlugin, err := loader.GetPlugin("format." + sourceFormat)
+	sourcePlugin, err := getPluginLoader(pluginsDir).GetPlugin("format." + sourceFormat)
 	if err != nil {
-		return fmt.Errorf("no plugin for format '%s': %w", sourceFormat, err)
+		return nil, "", fmt.Errorf("no plugin for format '%s': %w", sourceFormat, err)
 	}
 
-	extractReq := newExtractIRRequest(contentPath, irDir)
-	extractResp, err := executePlugin(sourcePlugin, extractReq)
+	extractResp, err := executePlugin(sourcePlugin, newExtractIRRequest(contentPath, irDir))
 	if err != nil {
-		return fmt.Errorf("IR extraction failed: %w", err)
+		return nil, "", fmt.Errorf("IR extraction failed: %w", err)
 	}
 
 	extractResult, err := parseExtractIRResult(extractResp)
 	if err != nil {
-		return fmt.Errorf("failed to parse result: %w", err)
+		return nil, "", fmt.Errorf("failed to parse result: %w", err)
 	}
 
-	// Create new capsule with IR
-	newCapsuleDir := filepath.Join(tempDir, "new-capsule")
+	return extractResult, sourceFormat, nil
+}
 
-	// Copy all original files
+func buildAndReplaceCapsule(capsulePath, extractDir, newCapsuleDir string, result *extractIRResult, sourceFormat string) error {
 	if err := fileutil.CopyDir(extractDir, newCapsuleDir); err != nil {
 		return fmt.Errorf("failed to copy contents: %w", err)
 	}
 
-	// Add IR file
-	irData, err := safefile.ReadFile(extractResult.IRPath)
+	if err := writeIRToCapsuleDir(newCapsuleDir, capsulePath, result, sourceFormat); err != nil {
+		return err
+	}
+
+	return replaceCapsuleArchive(capsulePath, newCapsuleDir)
+}
+
+func writeIRToCapsuleDir(newCapsuleDir, capsulePath string, result *extractIRResult, sourceFormat string) error {
+	irData, err := safefile.ReadFile(result.IRPath)
 	if err != nil {
 		return fmt.Errorf("failed to read IR: %w", err)
 	}
 
-	baseName := filepath.Base(capsulePath)
-	baseName = strings.TrimSuffix(baseName, ".capsule.tar.gz")
-	baseName = strings.TrimSuffix(baseName, ".capsule.tar.xz")
-	baseName = strings.TrimSuffix(baseName, ".tar.gz")
-	baseName = strings.TrimSuffix(baseName, ".tar.xz")
+	baseName := deriveCapsuleBaseName(capsulePath)
 	os.WriteFile(filepath.Join(newCapsuleDir, baseName+".ir.json"), irData, 0600)
 
-	// Update manifest
 	manifestPath := filepath.Join(newCapsuleDir, "manifest.json")
 	manifest := make(map[string]interface{})
 	if data, err := safefile.ReadFile(manifestPath); err == nil {
@@ -456,11 +449,13 @@ func GenerateIRForCapsule(capsulePath string, pluginsDir string) error {
 	}
 	manifest["has_ir"] = true
 	manifest["source_format"] = sourceFormat
-	manifest["ir_loss_class"] = extractResult.LossClass
+	manifest["ir_loss_class"] = result.LossClass
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
 	os.WriteFile(manifestPath, manifestData, 0600)
+	return nil
+}
 
-	// Rename original and create new
+func replaceCapsuleArchive(capsulePath, newCapsuleDir string) error {
 	oldPath := capsulePath + ".old"
 	if err := os.Rename(capsulePath, oldPath); err != nil {
 		return fmt.Errorf("failed to rename original: %w", err)
@@ -471,10 +466,18 @@ func GenerateIRForCapsule(capsulePath string, pluginsDir string) error {
 		return fmt.Errorf("failed to create capsule: %w", err)
 	}
 
-	// Remove old file
 	os.Remove(oldPath)
-
 	return nil
+}
+
+func deriveCapsuleBaseName(capsulePath string) string {
+	baseName := filepath.Base(capsulePath)
+	for _, suffix := range []string{".capsule.tar.gz", ".capsule.tar.xz", ".tar.gz", ".tar.xz"} {
+		if strings.HasSuffix(baseName, suffix) {
+			return strings.TrimSuffix(baseName, suffix)
+		}
+	}
+	return baseName
 }
 
 // CASToSword converts a CAS capsule to a SWORD module.
@@ -649,6 +652,43 @@ func printConversionComplete(confPath, dataPath string) {
 	fmt.Println("      This command creates the structure; use tool plugins for data conversion.")
 }
 
+// modTypeFromDriver maps a SWORD ModDrv value to a human-readable module type.
+var modTypeFromDriver = map[string]string{
+	"zText":      "Bible",
+	"RawText":    "Bible",
+	"zText4":     "Bible",
+	"RawText4":   "Bible",
+	"zCom":       "Commentary",
+	"RawCom":     "Commentary",
+	"zCom4":      "Commentary",
+	"RawCom4":    "Commentary",
+	"zLD":        "Dictionary",
+	"RawLD":      "Dictionary",
+	"RawLD4":     "Dictionary",
+	"RawGenBook": "GenBook",
+}
+
+// applyConfKeyValue applies a single key=value pair from a SWORD conf file to
+// the module being built.
+func applyConfKeyValue(m *Module, key, value string) {
+	switch key {
+	case "Description":
+		m.Description = value
+	case "Lang":
+		m.Lang = value
+	case "ModDrv":
+		if t, ok := modTypeFromDriver[value]; ok {
+			m.ModType = t
+		} else {
+			m.ModType = "Unknown"
+		}
+	case "DataPath":
+		m.DataPath = value
+	case "CipherKey":
+		m.Encrypted = value != ""
+	}
+}
+
 // ParseConf parses a SWORD conf file.
 func ParseConf(path string) *Module {
 	data, err := safefile.ReadFile(path)
@@ -657,51 +697,20 @@ func ParseConf(path string) *Module {
 	}
 
 	module := &Module{}
-	lines := strings.Split(string(data), "\n")
-
-	for _, line := range lines {
+	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || line[0] == '#' {
 			continue
 		}
-
-		// Parse section header
 		if line[0] == '[' && line[len(line)-1] == ']' {
 			module.Name = line[1 : len(line)-1]
 			continue
 		}
-
-		// Parse key=value
 		idx := strings.Index(line, "=")
 		if idx < 0 {
 			continue
 		}
-		key := strings.TrimSpace(line[:idx])
-		value := strings.TrimSpace(line[idx+1:])
-
-		switch key {
-		case "Description":
-			module.Description = value
-		case "Lang":
-			module.Lang = value
-		case "ModDrv":
-			switch value {
-			case "zText", "RawText", "zText4", "RawText4":
-				module.ModType = "Bible"
-			case "zCom", "RawCom", "zCom4", "RawCom4":
-				module.ModType = "Commentary"
-			case "zLD", "RawLD", "RawLD4":
-				module.ModType = "Dictionary"
-			case "RawGenBook":
-				module.ModType = "GenBook"
-			default:
-				module.ModType = "Unknown"
-			}
-		case "DataPath":
-			module.DataPath = value
-		case "CipherKey":
-			module.Encrypted = value != ""
-		}
+		applyConfKeyValue(module, strings.TrimSpace(line[:idx]), strings.TrimSpace(line[idx+1:]))
 	}
 
 	return module

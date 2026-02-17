@@ -209,6 +209,20 @@ func CompileUpdate(stmt *UpdateStmt, tableRoot int, numColumns int) (*Program, e
 	return prog, nil
 }
 
+// binaryOpTable maps SQL operator strings to their corresponding opcodes.
+var binaryOpTable = map[string]OpCode{
+	"=":  OpEq,
+	"!=": OpNe,
+	"<":  OpLt,
+	"<=": OpLe,
+	">":  OpGt,
+	">=": OpGe,
+	"+":  OpAdd,
+	"-":  OpSubtract,
+	"*":  OpMultiply,
+	"/":  OpDivide,
+}
+
 // compileExpression compiles an expression to VDBE bytecode
 func (p *Program) compileExpression(expr *Expression, cursorNum int, regBase int, regDest int) error {
 	if expr == nil {
@@ -217,59 +231,48 @@ func (p *Program) compileExpression(expr *Expression, cursorNum int, regBase int
 
 	switch expr.Type {
 	case ExprLiteral:
-		// Load literal value
-		return p.addValueLoad(expr.Value, regDest)
-
+		return p.compileExprLiteral(expr, regDest)
 	case ExprColumn:
-		// Load column value
-		// In real implementation, would look up column index from table metadata
-		colIdx := 0 // Placeholder
-		p.add(OpColumn, cursorNum, colIdx, regDest, nil, 0,
-			fmt.Sprintf("Load column %s", expr.Column))
-		return nil
-
+		return p.compileExprColumn(expr, cursorNum, regDest)
 	case ExprBinary:
-		// Evaluate left and right operands
-		regLeft := p.allocReg()
-		regRight := p.allocReg()
-
-		if err := p.compileExpression(expr.Left, cursorNum, regBase, regLeft); err != nil {
-			return err
-		}
-		if err := p.compileExpression(expr.Right, cursorNum, regBase, regRight); err != nil {
-			return err
-		}
-
-		// Apply operator
-		switch expr.Operator {
-		case "=":
-			p.add(OpEq, regLeft, regRight, regDest, nil, 0, "Equal comparison")
-		case "!=":
-			p.add(OpNe, regLeft, regRight, regDest, nil, 0, "Not equal comparison")
-		case "<":
-			p.add(OpLt, regLeft, regRight, regDest, nil, 0, "Less than comparison")
-		case "<=":
-			p.add(OpLe, regLeft, regRight, regDest, nil, 0, "Less than or equal")
-		case ">":
-			p.add(OpGt, regLeft, regRight, regDest, nil, 0, "Greater than")
-		case ">=":
-			p.add(OpGe, regLeft, regRight, regDest, nil, 0, "Greater than or equal")
-		case "+":
-			p.add(OpAdd, regLeft, regRight, regDest, nil, 0, "Addition")
-		case "-":
-			p.add(OpSubtract, regLeft, regRight, regDest, nil, 0, "Subtraction")
-		case "*":
-			p.add(OpMultiply, regLeft, regRight, regDest, nil, 0, "Multiplication")
-		case "/":
-			p.add(OpDivide, regLeft, regRight, regDest, nil, 0, "Division")
-		default:
-			return fmt.Errorf("unsupported operator: %s", expr.Operator)
-		}
-		return nil
-
+		return p.compileExprBinary(expr, cursorNum, regBase, regDest)
 	default:
 		return fmt.Errorf("unsupported expression type: %v", expr.Type)
 	}
+}
+
+// compileExprLiteral emits bytecode to load a literal value into regDest.
+func (p *Program) compileExprLiteral(expr *Expression, regDest int) error {
+	return p.addValueLoad(expr.Value, regDest)
+}
+
+// compileExprColumn emits bytecode to load a column value into regDest.
+func (p *Program) compileExprColumn(expr *Expression, cursorNum int, regDest int) error {
+	// In real implementation, would look up column index from table metadata
+	colIdx := 0 // Placeholder
+	p.add(OpColumn, cursorNum, colIdx, regDest, nil, 0,
+		fmt.Sprintf("Load column %s", expr.Column))
+	return nil
+}
+
+// compileExprBinary emits bytecode for a binary expression into regDest.
+func (p *Program) compileExprBinary(expr *Expression, cursorNum int, regBase int, regDest int) error {
+	regLeft := p.allocReg()
+	regRight := p.allocReg()
+
+	if err := p.compileExpression(expr.Left, cursorNum, regBase, regLeft); err != nil {
+		return err
+	}
+	if err := p.compileExpression(expr.Right, cursorNum, regBase, regRight); err != nil {
+		return err
+	}
+
+	opCode, ok := binaryOpTable[expr.Operator]
+	if !ok {
+		return fmt.Errorf("unsupported operator: %s", expr.Operator)
+	}
+	p.add(opCode, regLeft, regRight, regDest, nil, 0, expr.Operator)
+	return nil
 }
 
 // CompileUpdateWithIndex compiles an UPDATE that affects indexes

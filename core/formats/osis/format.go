@@ -200,14 +200,51 @@ func emitFunc(corpus *ir.Corpus, outputDir string) (string, error) {
 	return outputPath, nil
 }
 
+// applyCorpusLanguage sets corpus.Language from the osisText attributes,
+// preferring xml:lang over lang.
+func applyCorpusLanguage(corpus *ir.Corpus, text OSISText) {
+	if text.Lang != "" {
+		corpus.Language = text.Lang
+	}
+	if text.XMLLang != "" {
+		corpus.Language = text.XMLLang
+	}
+}
+
+// applyHeaderWork copies metadata from a single OSISWork into corpus when the
+// work matches the corpus ID or carries a title.
+func applyHeaderWork(corpus *ir.Corpus, work OSISWork, corpusID string) {
+	if work.OsisWork != corpusID && work.Title == "" {
+		return
+	}
+	corpus.Title = work.Title
+	corpus.Description = work.Description
+	corpus.Publisher = work.Publisher
+	corpus.Rights = work.Rights
+	if work.RefSystem != "" {
+		corpus.Versification = work.RefSystem
+	}
+	if work.Language != "" {
+		corpus.Language = work.Language
+	}
+}
+
+// applyOSISHeader applies all work entries from the OSIS header to corpus.
+func applyOSISHeader(corpus *ir.Corpus, header *OSISHeader, corpusID string) {
+	if header == nil {
+		return
+	}
+	for _, work := range header.Work {
+		applyHeaderWork(corpus, work, corpusID)
+	}
+}
+
 // parseOSISToIR converts OSIS XML to IR Corpus.
 func parseOSISToIR(data []byte) (*ir.Corpus, error) {
 	var doc OSISDoc
 	if err := xml.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("xml unmarshal failed: %w", err)
 	}
-
-	// Store raw XML for L0 lossless round-trip
 	doc.RawXML = string(data)
 
 	corpus := &ir.Corpus{
@@ -219,42 +256,17 @@ func parseOSISToIR(data []byte) (*ir.Corpus, error) {
 		Attributes:   make(map[string]string),
 	}
 
-	// Extract language
-	if doc.OsisText.Lang != "" {
-		corpus.Language = doc.OsisText.Lang
-	} else if doc.OsisText.XMLLang != "" {
-		corpus.Language = doc.OsisText.XMLLang
-	}
+	applyCorpusLanguage(corpus, doc.OsisText)
+	applyOSISHeader(corpus, doc.OsisText.Header, corpus.ID)
 
-	// Extract header information
-	if doc.OsisText.Header != nil {
-		for _, work := range doc.OsisText.Header.Work {
-			if work.OsisWork == doc.OsisText.OsisIDWork || work.Title != "" {
-				corpus.Title = work.Title
-				corpus.Description = work.Description
-				corpus.Publisher = work.Publisher
-				corpus.Rights = work.Rights
-				if work.RefSystem != "" {
-					corpus.Versification = work.RefSystem
-				}
-				if work.Language != "" {
-					corpus.Language = work.Language
-				}
-			}
-		}
-	}
-
-	// Store original XML in attributes for L0 lossless round-trip
+	// Store original XML for L0 lossless round-trip.
 	corpus.Attributes["_format_raw"] = doc.RawXML
 
-	// Parse books (divs)
 	docOrder := 0
 	for _, div := range doc.OsisText.Divs {
-		docs := parseOSISDiv(&div, &docOrder)
-		corpus.Documents = append(corpus.Documents, docs...)
+		corpus.Documents = append(corpus.Documents, parseOSISDiv(&div, &docOrder)...)
 	}
 
-	// Compute source hash
 	h := sha256.Sum256(data)
 	corpus.SourceHash = hex.EncodeToString(h[:])
 
@@ -295,102 +307,99 @@ func parseOSISDiv(div *OSISDiv, order *int) []*ir.Document {
 	return docs
 }
 
-// extractContentBlocks extracts content blocks from an OSIS div.
-func extractContentBlocks(div *OSISDiv, seq *int) []*ir.ContentBlock {
-	var blocks []*ir.ContentBlock
+// hashText returns the SHA-256 hex digest of text.
+func hashText(text string) string {
+	h := sha256.Sum256([]byte(text))
+	return hex.EncodeToString(h[:])
+}
 
-	// Process paragraphs
-	for _, p := range div.Ps {
+// newContentBlock allocates a ContentBlock with the next sequence number.
+func newContentBlock(seq *int, text string) *ir.ContentBlock {
+	*seq++
+	return &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", *seq),
+		Sequence: *seq,
+		Text:     text,
+		Hash:     hashText(text),
+	}
+}
+
+// buildVerseAnchor constructs an Anchor+Span for a single OSIS verse marker.
+func buildVerseAnchor(v OSISVerse, seq int) *ir.Anchor {
+	osisID := v.OsisID
+	if osisID == "" {
+		osisID = v.SID
+	}
+	ref := parseOSISRef(osisID)
+	return &ir.Anchor{
+		ID:       fmt.Sprintf("a-%d-0", seq),
+		Position: 0,
+		Spans: []*ir.Span{
+			{
+				ID:            fmt.Sprintf("s-%s", osisID),
+				Type:          "VERSE",
+				StartAnchorID: fmt.Sprintf("a-%d-0", seq),
+				Ref:           ref,
+			},
+		},
+	}
+}
+
+// extractParagraphBlocks converts OSIS <p> elements into content blocks.
+func extractParagraphBlocks(ps []OSISP, seq *int) []*ir.ContentBlock {
+	var blocks []*ir.ContentBlock
+	for _, p := range ps {
 		text := strings.TrimSpace(p.Content)
 		if text == "" {
 			continue
 		}
-
-		*seq++
-		block := &ir.ContentBlock{
-			ID:       fmt.Sprintf("cb-%d", *seq),
-			Sequence: *seq,
-			Text:     text,
-			Anchors:  []*ir.Anchor{},
-		}
-
-		// Add verse spans if present
+		block := newContentBlock(seq, text)
+		block.Anchors = []*ir.Anchor{}
 		for _, v := range p.Verses {
-			if v.OsisID != "" || v.SID != "" {
-				osisID := v.OsisID
-				if osisID == "" {
-					osisID = v.SID
-				}
-				ref := parseOSISRef(osisID)
-				anchor := &ir.Anchor{
-					ID:       fmt.Sprintf("a-%d-0", *seq),
-					Position: 0,
-					Spans: []*ir.Span{
-						{
-							ID:            fmt.Sprintf("s-%s", osisID),
-							Type:          "VERSE",
-							StartAnchorID: fmt.Sprintf("a-%d-0", *seq),
-							Ref:           ref,
-						},
-					},
-				}
-				block.Anchors = append(block.Anchors, anchor)
+			if v.OsisID == "" && v.SID == "" {
+				continue
 			}
+			block.Anchors = append(block.Anchors, buildVerseAnchor(v, *seq))
 		}
-
-		// Compute hash
-		h := sha256.Sum256([]byte(text))
-		block.Hash = hex.EncodeToString(h[:])
-
 		blocks = append(blocks, block)
 	}
+	return blocks
+}
 
-	// Process poetry lines
-	for _, lg := range div.Lgs {
+// extractPoetryBlocks converts OSIS <lg>/<l> elements into poetry content blocks.
+func extractPoetryBlocks(lgs []OSISLg, seq *int) []*ir.ContentBlock {
+	var blocks []*ir.ContentBlock
+	for _, lg := range lgs {
 		for _, l := range lg.Ls {
 			text := strings.TrimSpace(l.Content)
 			if text == "" {
 				continue
 			}
-
-			*seq++
-			block := &ir.ContentBlock{
-				ID:       fmt.Sprintf("cb-%d", *seq),
-				Sequence: *seq,
-				Text:     text,
-				Attributes: map[string]interface{}{
-					"type": "poetry",
-				},
-			}
-
-			// Compute hash
-			h := sha256.Sum256([]byte(text))
-			block.Hash = hex.EncodeToString(h[:])
-
+			block := newContentBlock(seq, text)
+			block.Attributes = map[string]interface{}{"type": "poetry"}
 			blocks = append(blocks, block)
 		}
 	}
+	return blocks
+}
 
-	// Process direct content
-	text := strings.TrimSpace(div.Content)
-	if text != "" {
-		*seq++
-		block := &ir.ContentBlock{
-			ID:       fmt.Sprintf("cb-%d", *seq),
-			Sequence: *seq,
-			Text:     text,
-		}
-		h := sha256.Sum256([]byte(text))
-		block.Hash = hex.EncodeToString(h[:])
-		blocks = append(blocks, block)
+// extractDirectContent converts inline chardata of a div into a content block (if non-empty).
+func extractDirectContent(content string, seq *int) []*ir.ContentBlock {
+	text := strings.TrimSpace(content)
+	if text == "" {
+		return nil
 	}
+	return []*ir.ContentBlock{newContentBlock(seq, text)}
+}
 
-	// Process nested divs (chapters)
+// extractContentBlocks extracts content blocks from an OSIS div.
+func extractContentBlocks(div *OSISDiv, seq *int) []*ir.ContentBlock {
+	blocks := extractParagraphBlocks(div.Ps, seq)
+	blocks = append(blocks, extractPoetryBlocks(div.Lgs, seq)...)
+	blocks = append(blocks, extractDirectContent(div.Content, seq)...)
 	for _, childDiv := range div.Divs {
-		childBlocks := extractContentBlocks(&childDiv, seq)
-		blocks = append(blocks, childBlocks...)
+		blocks = append(blocks, extractContentBlocks(&childDiv, seq)...)
 	}
-
 	return blocks
 }
 
@@ -430,29 +439,10 @@ func isBookID(osisID string) bool {
 	return books.MatchString(osisID)
 }
 
-// emitOSISFromIR converts IR Corpus back to OSIS XML.
-func emitOSISFromIR(corpus *ir.Corpus) ([]byte, error) {
-	// Check if we have the original raw XML for L0 lossless round-trip
-	if rawXML, ok := corpus.Attributes["_format_raw"]; ok && rawXML != "" {
-		return []byte(rawXML), nil
-	}
-
-	// Otherwise, reconstruct OSIS from IR structure
-	var buf bytes.Buffer
-	buf.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
-	buf.WriteString("\n")
-	buf.WriteString(`<osis xmlns="http://www.bibletechnologies.net/2003/OSIS/namespace">`)
-	buf.WriteString("\n")
-	buf.WriteString(fmt.Sprintf(`  <osisText osisIDWork="%s"`, escapeXML(corpus.ID)))
-	if corpus.Language != "" {
-		buf.WriteString(fmt.Sprintf(` xml:lang="%s"`, escapeXML(corpus.Language)))
-	}
-	buf.WriteString(">\n")
-
-	// Write header
+// emitOSISHeader writes the <header> block for the corpus into buf.
+func emitOSISHeader(buf *bytes.Buffer, corpus *ir.Corpus) {
 	buf.WriteString("    <header>\n")
-	buf.WriteString(fmt.Sprintf(`      <work osisWork="%s">`, escapeXML(corpus.ID)))
-	buf.WriteString("\n")
+	buf.WriteString(fmt.Sprintf("      <work osisWork=\"%s\">\n", escapeXML(corpus.ID)))
 	if corpus.Title != "" {
 		buf.WriteString(fmt.Sprintf("        <title>%s</title>\n", escapeXML(corpus.Title)))
 	}
@@ -473,45 +463,79 @@ func emitOSISFromIR(corpus *ir.Corpus) ([]byte, error) {
 	}
 	buf.WriteString("      </work>\n")
 	buf.WriteString("    </header>\n")
+}
 
-	// Write documents (books)
+// emitOSISVerseMarkers writes inline <verse> tags for all VERSE spans in a block.
+func emitOSISVerseMarkers(buf *bytes.Buffer, block *ir.ContentBlock) {
+	for _, anchor := range block.Anchors {
+		for _, span := range anchor.Spans {
+			if span.Type != "VERSE" || span.Ref == nil {
+				continue
+			}
+			osisID := span.Ref.OSISID
+			if osisID == "" {
+				osisID = fmt.Sprintf("%s.%d.%d", span.Ref.Book, span.Ref.Chapter, span.Ref.Verse)
+			}
+			buf.WriteString(fmt.Sprintf(`<verse osisID="%s"/>`, escapeXML(osisID)))
+		}
+	}
+}
+
+// isPoetryBlock reports whether a content block carries the "poetry" type attribute.
+func isPoetryBlock(block *ir.ContentBlock) bool {
+	if block.Attributes == nil {
+		return false
+	}
+	blockType, ok := block.Attributes["type"].(string)
+	return ok && blockType == "poetry"
+}
+
+// emitOSISContentBlock writes a single content block (poetry or paragraph) into buf.
+func emitOSISContentBlock(buf *bytes.Buffer, block *ir.ContentBlock) {
+	if isPoetryBlock(block) {
+		buf.WriteString("      <lg>\n")
+		buf.WriteString(fmt.Sprintf("        <l>%s</l>\n", escapeXML(block.Text)))
+		buf.WriteString("      </lg>\n")
+		return
+	}
+	buf.WriteString("      <p>")
+	emitOSISVerseMarkers(buf, block)
+	buf.WriteString(escapeXML(block.Text))
+	buf.WriteString("</p>\n")
+}
+
+// emitOSISDocument writes a single <div type="book"> element into buf.
+func emitOSISDocument(buf *bytes.Buffer, doc *ir.Document) {
+	buf.WriteString(fmt.Sprintf("    <div type=\"book\" osisID=\"%s\">\n", escapeXML(doc.ID)))
+	if doc.Title != "" {
+		buf.WriteString(fmt.Sprintf("      <title>%s</title>\n", escapeXML(doc.Title)))
+	}
+	for _, block := range doc.ContentBlocks {
+		emitOSISContentBlock(buf, block)
+	}
+	buf.WriteString("    </div>\n")
+}
+
+// emitOSISFromIR converts IR Corpus back to OSIS XML.
+func emitOSISFromIR(corpus *ir.Corpus) ([]byte, error) {
+	// L0 lossless round-trip: return original XML verbatim when available.
+	if rawXML, ok := corpus.Attributes["_format_raw"]; ok && rawXML != "" {
+		return []byte(rawXML), nil
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+	buf.WriteString("<osis xmlns=\"http://www.bibletechnologies.net/2003/OSIS/namespace\">\n")
+	buf.WriteString(fmt.Sprintf("  <osisText osisIDWork=\"%s\"", escapeXML(corpus.ID)))
+	if corpus.Language != "" {
+		buf.WriteString(fmt.Sprintf(` xml:lang="%s"`, escapeXML(corpus.Language)))
+	}
+	buf.WriteString(">\n")
+
+	emitOSISHeader(&buf, corpus)
+
 	for _, doc := range corpus.Documents {
-		buf.WriteString(fmt.Sprintf(`    <div type="book" osisID="%s">`, escapeXML(doc.ID)))
-		buf.WriteString("\n")
-		if doc.Title != "" {
-			buf.WriteString(fmt.Sprintf("      <title>%s</title>\n", escapeXML(doc.Title)))
-		}
-
-		// Write content blocks
-		for _, block := range doc.ContentBlocks {
-			// Check if this is a poetry block
-			if block.Attributes != nil {
-				if blockType, ok := block.Attributes["type"].(string); ok && blockType == "poetry" {
-					buf.WriteString("      <lg>\n")
-					buf.WriteString(fmt.Sprintf("        <l>%s</l>\n", escapeXML(block.Text)))
-					buf.WriteString("      </lg>\n")
-					continue
-				}
-			}
-
-			// Write as paragraph with verse markers if present
-			buf.WriteString("      <p>")
-			for _, anchor := range block.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Type == "VERSE" && span.Ref != nil {
-						osisID := span.Ref.OSISID
-						if osisID == "" {
-							osisID = fmt.Sprintf("%s.%d.%d", span.Ref.Book, span.Ref.Chapter, span.Ref.Verse)
-						}
-						buf.WriteString(fmt.Sprintf(`<verse osisID="%s"/>`, escapeXML(osisID)))
-					}
-				}
-			}
-			buf.WriteString(escapeXML(block.Text))
-			buf.WriteString("</p>\n")
-		}
-
-		buf.WriteString("    </div>\n")
+		emitOSISDocument(&buf, doc)
 	}
 
 	buf.WriteString("  </osisText>\n")

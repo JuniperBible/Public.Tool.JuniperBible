@@ -352,47 +352,66 @@ func (h *DatabaseHeader) GetPageSize() int {
 	return int(h.PageSize)
 }
 
-// Validate performs validation checks on the database header.
-func (h *DatabaseHeader) Validate() error {
-	// Check magic header
+var validFileFormatVersions = map[uint8]bool{1: true, 2: true}
+
+func (h *DatabaseHeader) validateMagicAndPageSize() error {
 	if string(h.Magic[:]) != MagicHeaderString {
 		return fmt.Errorf("invalid magic header")
 	}
-
-	// Check page size
 	pageSize := h.GetPageSize()
 	if !isValidPageSize(pageSize) {
 		return fmt.Errorf("invalid page size: %d", pageSize)
 	}
+	return nil
+}
 
-	// Check file format versions
-	if h.FileFormatWrite != 1 && h.FileFormatWrite != 2 {
+func (h *DatabaseHeader) validateFileFormats() error {
+	if !validFileFormatVersions[h.FileFormatWrite] {
 		return fmt.Errorf("invalid file format write version: %d", h.FileFormatWrite)
 	}
-	if h.FileFormatRead != 1 && h.FileFormatRead != 2 {
+	if !validFileFormatVersions[h.FileFormatRead] {
 		return fmt.Errorf("invalid file format read version: %d", h.FileFormatRead)
 	}
+	return nil
+}
 
-	// Check payload fractions
-	if h.MaxPayloadFrac != 64 {
-		return fmt.Errorf("invalid max payload fraction: %d", h.MaxPayloadFrac)
+func (h *DatabaseHeader) validatePayloadFractions() error {
+	fractions := []struct {
+		val      uint8
+		expected uint8
+		name     string
+	}{
+		{h.MaxPayloadFrac, 64, "max payload fraction"},
+		{h.MinPayloadFrac, 32, "min payload fraction"},
+		{h.LeafPayloadFrac, 32, "leaf payload fraction"},
 	}
-	if h.MinPayloadFrac != 32 {
-		return fmt.Errorf("invalid min payload fraction: %d", h.MinPayloadFrac)
+	for _, f := range fractions {
+		if f.val != f.expected {
+			return fmt.Errorf("invalid %s: %d", f.name, f.val)
+		}
 	}
-	if h.LeafPayloadFrac != 32 {
-		return fmt.Errorf("invalid leaf payload fraction: %d", h.LeafPayloadFrac)
-	}
+	return nil
+}
 
-	// Check schema format
+func (h *DatabaseHeader) validateSchemaAndEncoding() error {
 	if h.SchemaFormat < 1 || h.SchemaFormat > 4 {
 		return fmt.Errorf("invalid schema format: %d", h.SchemaFormat)
 	}
-
-	// Check text encoding
 	if h.TextEncoding < EncodingUTF8 || h.TextEncoding > EncodingUTF16BE {
 		return fmt.Errorf("invalid text encoding: %d", h.TextEncoding)
 	}
-
 	return nil
+}
+
+func (h *DatabaseHeader) Validate() error {
+	if err := h.validateMagicAndPageSize(); err != nil {
+		return err
+	}
+	if err := h.validateFileFormats(); err != nil {
+		return err
+	}
+	if err := h.validatePayloadFractions(); err != nil {
+		return err
+	}
+	return h.validateSchemaAndEncoding()
 }

@@ -11,16 +11,68 @@ import (
 	"time"
 )
 
-// CreateTarGz creates a tar.gz archive from a source directory.
-// The baseDir parameter specifies the directory name inside the archive.
-// If createParentDir is true, parent directories of dstPath are created.
+func ensureParentDir(dstPath string) error {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0700); err != nil {
+		return fmt.Errorf("failed to create parent directory: %w", err)
+	}
+	return nil
+}
+
+func buildTarHeader(info os.FileInfo, name string, now time.Time) (*tar.Header, error) {
+	header, err := tar.FileInfoHeader(info, "")
+	if err != nil {
+		return nil, err
+	}
+	header.Name = name
+	if info.IsDir() {
+		header.Name += "/"
+	}
+	header.ModTime = now
+	return header, nil
+}
+
+func writeFileContent(tw *tar.Writer, path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = io.Copy(tw, file)
+	return err
+}
+
+func addToArchive(tw *tar.Writer, srcDir, baseDir string, now time.Time) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		if relPath == "." {
+			return nil
+		}
+		header, err := buildTarHeader(info, baseDir+"/"+relPath, now)
+		if err != nil {
+			return err
+		}
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		return writeFileContent(tw, path)
+	}
+}
+
 func CreateTarGz(srcDir, dstPath, baseDir string, createParentDir bool) error {
 	if createParentDir {
-		if err := os.MkdirAll(filepath.Dir(dstPath), 0700); err != nil {
-			return fmt.Errorf("failed to create parent directory: %w", err)
+		if err := ensureParentDir(dstPath); err != nil {
+			return err
 		}
 	}
-
 	outFile, err := os.Create(dstPath)
 	if err != nil {
 		return fmt.Errorf("failed to create archive file: %w", err)
@@ -33,60 +85,9 @@ func CreateTarGz(srcDir, dstPath, baseDir string, createParentDir bool) error {
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
 
-	now := time.Now()
-
-	err = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(srcDir, path)
-		if err != nil {
-			return err
-		}
-
-		// Skip root directory
-		if relPath == "." {
-			return nil
-		}
-
-		header, err := tar.FileInfoHeader(info, "")
-		if err != nil {
-			return err
-		}
-
-		// Set the name with the base directory prefix
-		header.Name = baseDir + "/" + relPath
-		if info.IsDir() {
-			header.Name += "/"
-		}
-
-		// Normalize timestamps for reproducibility
-		header.ModTime = now
-
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
-
-		if !info.IsDir() {
-			file, err := os.Open(path)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-
-			if _, err := io.Copy(tw, file); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
+	if err := filepath.Walk(srcDir, addToArchive(tw, srcDir, baseDir, time.Now())); err != nil {
 		return fmt.Errorf("failed to create archive: %w", err)
 	}
-
 	return nil
 }
 

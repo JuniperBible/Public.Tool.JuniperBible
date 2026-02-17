@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/FocuswithJustin/JuniperBible/core/cas"
 	"github.com/FocuswithJustin/JuniperBible/core/errors"
@@ -199,104 +200,134 @@ func (c *Capsule) PackWithOptions(archivePath string, opts *PackOptions) error {
 		opts = DefaultPackOptions()
 	}
 
-	// Create the archive file
 	file, err := os.Create(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to create archive: %w", err)
 	}
 	defer file.Close()
 
-	// Create compression writer based on options
-	var compressWriter io.WriteCloser
-	switch opts.Compression {
-	case CompressionGzip:
-		compressWriter, err = gzipNewWriterLevel(file, gzip.BestCompression)
-		if err != nil {
-			return fmt.Errorf("failed to create gzip writer: %w", err)
-		}
-	case CompressionXZ:
-		fallthrough
-	default:
-		compressWriter, err = xzNewWriter(file)
-		if err != nil {
-			return fmt.Errorf("failed to create xz writer: %w", err)
-		}
+	compressWriter, err := newCompressWriter(file, opts.Compression)
+	if err != nil {
+		return err
 	}
 	defer compressWriter.Close()
 
-	// Create tar writer
 	tarWriter := tar.NewWriter(compressWriter)
 	defer tarWriter.Close()
 
-	// Write manifest.json first
-	manifestData, err := manifestToJSONPack(c.Manifest)
-	if err != nil {
-		return fmt.Errorf("failed to serialize manifest: %w", err)
+	if err := writeManifestToTar(tarWriter, c.Manifest); err != nil {
+		return err
 	}
 
-	if err := writeToTarFunc(tarWriter, "manifest.json", manifestData); err != nil {
-		return fmt.Errorf("failed to write manifest: %w", err)
-	}
-
-	// Write all blobs
-	blobsDir := filepath.Join(c.root, "blobs")
-	if _, err := os.Stat(blobsDir); err == nil {
-		if err := filepathWalk(blobsDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
-			}
-
-			// Get relative path from root
-			relPath, err := filepathRel(c.root, path)
-			if err != nil {
-				return err
-			}
-
-			// Read file
-			data, err := osReadFileWalk(path)
-			if err != nil {
-				return err
-			}
-
-			return writeToTarFunc(tarWriter, relPath, data)
-		}); err != nil {
-			return fmt.Errorf("failed to write blobs: %w", err)
-		}
+	if err := writeBlobsToTar(tarWriter, c.root); err != nil {
+		return fmt.Errorf("failed to write blobs: %w", err)
 	}
 
 	return nil
 }
 
-// DetectCompression detects the compression type of a capsule archive.
-func DetectCompression(archivePath string) (CompressionType, error) {
+// writeManifestToTar serializes the manifest and writes it as manifest.json
+// into the tar archive.
+func writeManifestToTar(tw *tar.Writer, m *Manifest) error {
+	data, err := manifestToJSONPack(m)
+	if err != nil {
+		return fmt.Errorf("failed to serialize manifest: %w", err)
+	}
+	if err := writeToTarFunc(tw, "manifest.json", data); err != nil {
+		return fmt.Errorf("failed to write manifest: %w", err)
+	}
+	return nil
+}
+
+// newCompressWriter creates a compression writer for the given type, defaulting to XZ.
+func newCompressWriter(w io.Writer, compression CompressionType) (io.WriteCloser, error) {
+	if compression == CompressionGzip {
+		cw, err := gzipNewWriterLevel(w, gzip.BestCompression)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gzip writer: %w", err)
+		}
+		return cw, nil
+	}
+	cw, err := xzNewWriter(w)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create xz writer: %w", err)
+	}
+	return cw, nil
+}
+
+// writeBlobsToTar walks the blobs directory and writes every file into tw.
+// It is a no-op when the blobs directory does not exist.
+func writeBlobsToTar(tw *tar.Writer, root string) error {
+	blobsDir := filepath.Join(root, "blobs")
+	if _, err := os.Stat(blobsDir); err != nil {
+		return nil // blobs directory absent – nothing to write
+	}
+	return filepathWalk(blobsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		relPath, err := filepathRel(root, path)
+		if err != nil {
+			return err
+		}
+		data, err := osReadFileWalk(path)
+		if err != nil {
+			return err
+		}
+		return writeToTarFunc(tw, relPath, data)
+	})
+}
+
+type magicEntry struct {
+	magic       []byte
+	compression CompressionType
+}
+
+var compressionMagicTable = []magicEntry{
+	{[]byte{0x1f, 0x8b}, CompressionGzip},
+	{[]byte{0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00}, CompressionXZ},
+}
+
+func readMagicBytes(archivePath string) ([]byte, error) {
 	file, err := os.Open(archivePath)
 	if err != nil {
-		return "", errors.NewIO("open", archivePath, err)
+		return nil, errors.NewIO("open", archivePath, err)
 	}
 	defer file.Close()
 
-	// Read magic bytes
-	magic := make([]byte, 6)
-	n, err := fileReadDetect(file, magic)
+	buf := make([]byte, 6)
+	n, err := fileReadDetect(file, buf)
 	if err != nil {
-		return "", errors.NewIO("read magic bytes", archivePath, err)
+		return nil, errors.NewIO("read magic bytes", archivePath, err)
 	}
 	if n < 2 {
-		return "", errors.NewValidation("archive", "file too small to detect compression")
+		return nil, errors.NewValidation("archive", "file too small to detect compression")
+	}
+	return buf[:n], nil
+}
+
+func matchesMagic(buf, magic []byte) bool {
+	if len(buf) < len(magic) {
+		return false
+	}
+	for i, b := range magic {
+		if buf[i] != b {
+			return false
+		}
+	}
+	return true
+}
+
+func DetectCompression(archivePath string) (CompressionType, error) {
+	buf, err := readMagicBytes(archivePath)
+	if err != nil {
+		return "", err
 	}
 
-	// Check for gzip magic (1f 8b)
-	if magic[0] == 0x1f && magic[1] == 0x8b {
-		return CompressionGzip, nil
-	}
-
-	// Check for XZ magic (fd 37 7a 58 5a 00)
-	if n >= 6 && magic[0] == 0xfd && magic[1] == 0x37 && magic[2] == 0x7a &&
-		magic[3] == 0x58 && magic[4] == 0x5a && magic[5] == 0x00 {
-		return CompressionXZ, nil
+	for _, entry := range compressionMagicTable {
+		if matchesMagic(buf, entry.magic) {
+			return entry.compression, nil
+		}
 	}
 
 	return "", errors.NewUnsupported("compression format", "unknown magic bytes")
@@ -305,114 +336,133 @@ func DetectCompression(archivePath string) (CompressionType, error) {
 // Unpack unpacks a capsule archive to the given directory.
 // Auto-detects compression format (XZ or gzip).
 func Unpack(archivePath, destDir string) (*Capsule, error) {
-	// Create destination directory
 	if err := osMkdirAllUnpack(destDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	// Detect compression type
 	compression, err := DetectCompression(archivePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect compression: %w", err)
 	}
 
-	// Open the archive
 	file, err := osOpenUnpack(archivePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open archive: %w", err)
 	}
 	defer file.Close()
 
-	// Create decompression reader based on detected format
-	var decompressReader io.Reader
-	switch compression {
-	case CompressionGzip:
-		gzReader, err := gzipNewReader(file)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create gzip reader: %w", err)
-		}
-		defer gzReader.Close()
-		decompressReader = gzReader
-	case CompressionXZ:
-		xzReader, err := xzNewReader(file)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create xz reader: %w", err)
-		}
-		decompressReader = xzReader
-	default:
-		return nil, fmt.Errorf("unsupported compression: %s", compression)
+	decompressReader, err := newDecompressReader(compression, file)
+	if err != nil {
+		return nil, err
 	}
 
-	// Create tar reader
-	tarReader := tar.NewReader(decompressReader)
-
-	var manifest *Manifest
-
-	// Extract all files
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to read tar header: %w", err)
-		}
-
-		// Sanitize path
-		cleanPath := filepath.Clean(header.Name)
-		if strings.HasPrefix(cleanPath, "..") {
-			continue // Skip potentially malicious paths
-		}
-
-		destPath := filepath.Join(destDir, cleanPath)
-
-		switch header.Typeflag {
-		case tar.TypeDir:
-			if err := osMkdirAllUnpack(destPath, 0700); err != nil {
-				return nil, fmt.Errorf("failed to create directory: %w", err)
-			}
-		case tar.TypeReg:
-			// Ensure parent directory exists
-			if err := osMkdirAllUnpack(filepath.Dir(destPath), 0700); err != nil {
-				return nil, fmt.Errorf("failed to create parent directory: %w", err)
-			}
-
-			// Read file data
-			data, err := ioReadAllUnpack(tarReader)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read file data: %w", err)
-			}
-
-			// Write file
-			if err := osWriteFileUnpack(destPath, data, 0600); err != nil {
-				return nil, fmt.Errorf("failed to write file: %w", err)
-			}
-
-			// Parse manifest if this is it
-			if header.Name == "manifest.json" {
-				manifest, err = ParseManifest(data)
-				if err != nil {
-					return nil, fmt.Errorf("failed to parse manifest: %w", err)
-				}
-			}
-		}
+	manifest, err := extractTarEntries(tar.NewReader(decompressReader), destDir)
+	if err != nil {
+		return nil, err
 	}
 
 	if manifest == nil {
 		return nil, fmt.Errorf("archive does not contain manifest.json")
 	}
 
-	// Create store pointing to unpacked directory
 	store, err := casNewStoreUnpack(destDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create store: %w", err)
 	}
 
-	return &Capsule{
-		root:     destDir,
-		Manifest: manifest,
-		store:    store,
-	}, nil
+	return &Capsule{root: destDir, Manifest: manifest, store: store}, nil
+}
+
+// newDecompressReader creates a decompression reader for the given compression type.
+func newDecompressReader(compression CompressionType, file *os.File) (io.Reader, error) {
+	switch compression {
+	case CompressionGzip:
+		gzReader, err := gzipNewReader(file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gzip reader: %w", err)
+		}
+		return gzReader, nil
+	case CompressionXZ:
+		xzReader, err := xzNewReader(file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create xz reader: %w", err)
+		}
+		return xzReader, nil
+	default:
+		return nil, fmt.Errorf("unsupported compression: %s", compression)
+	}
+}
+
+// extractTarEntries reads all entries from tarReader into destDir and returns
+// the parsed Manifest once the manifest.json entry is encountered.
+func extractTarEntries(tarReader *tar.Reader, destDir string) (*Manifest, error) {
+	var manifest *Manifest
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			return manifest, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to read tar header: %w", err)
+		}
+
+		cleanPath := filepath.Clean(header.Name)
+		if strings.HasPrefix(cleanPath, "..") {
+			continue // skip potentially malicious paths
+		}
+
+		destPath := filepath.Join(destDir, cleanPath)
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := handleTarDir(destPath); err != nil {
+				return nil, err
+			}
+		case tar.TypeReg:
+			parsed, err := handleTarRegFile(tarReader, destPath, header.Name)
+			if err != nil {
+				return nil, err
+			}
+			if parsed != nil {
+				manifest = parsed
+			}
+		}
+	}
+}
+
+// handleTarDir creates the directory at destPath.
+func handleTarDir(destPath string) error {
+	if err := osMkdirAllUnpack(destPath, 0700); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	return nil
+}
+
+// handleTarRegFile writes a regular tar entry to destPath.
+// When headerName is "manifest.json" the parsed Manifest is also returned.
+func handleTarRegFile(tarReader *tar.Reader, destPath, headerName string) (*Manifest, error) {
+	if err := osMkdirAllUnpack(filepath.Dir(destPath), 0700); err != nil {
+		return nil, fmt.Errorf("failed to create parent directory: %w", err)
+	}
+
+	data, err := ioReadAllUnpack(tarReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file data: %w", err)
+	}
+
+	if err := osWriteFileUnpack(destPath, data, 0600); err != nil {
+		return nil, fmt.Errorf("failed to write file: %w", err)
+	}
+
+	if headerName != "manifest.json" {
+		return nil, nil
+	}
+
+	manifest, err := ParseManifest(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse manifest: %w", err)
+	}
+	return manifest, nil
 }
 
 // writeToTarImpl writes a file to the tar archive.
@@ -431,24 +481,36 @@ func writeToTarImpl(tw *tar.Writer, name string, data []byte) error {
 	return err
 }
 
-// generateArtifactID generates an artifact ID from a filename.
-func generateArtifactID(name string) string {
-	// Remove extension and sanitize
-	id := strings.TrimSuffix(name, filepath.Ext(name))
-	// Replace invalid characters
-	var result strings.Builder
-	for _, c := range id {
-		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-			(c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-' || c == ':' {
-			result.WriteRune(c)
-		} else {
-			result.WriteRune('_')
-		}
+var artifactCharRanges = &unicode.RangeTable{
+	R16: []unicode.Range16{
+		{Lo: '-', Hi: '-', Stride: 1},
+		{Lo: '.', Hi: '.', Stride: 1},
+		{Lo: '0', Hi: '9', Stride: 1},
+		{Lo: ':', Hi: ':', Stride: 1},
+		{Lo: 'A', Hi: 'Z', Stride: 1},
+		{Lo: '_', Hi: '_', Stride: 1},
+		{Lo: 'a', Hi: 'z', Stride: 1},
+	},
+}
+
+func isValidArtifactChar(c rune) bool {
+	return unicode.Is(artifactCharRanges, c)
+}
+
+func sanitizeArtifactChar(c rune) rune {
+	if isValidArtifactChar(c) {
+		return c
 	}
-	if result.Len() == 0 {
+	return '_'
+}
+
+func generateArtifactID(name string) string {
+	id := strings.TrimSuffix(name, filepath.Ext(name))
+	result := strings.Map(sanitizeArtifactChar, id)
+	if result == "" {
 		return "artifact"
 	}
-	return result.String()
+	return result
 }
 
 // GetStore returns the underlying CAS store.

@@ -48,64 +48,63 @@ var Config = &format.Config{
 	},
 }
 
-// detectZIP performs ZIP-specific detection using magic bytes and validation.
-func detectZIP(path string) (*ipc.DetectResult, error) {
+func notDetected(reason string) *ipc.DetectResult {
+	return &ipc.DetectResult{Detected: false, Reason: reason}
+}
+
+func checkRegularFile(path string) *ipc.DetectResult {
 	info, err := os.Stat(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot stat: %v", err),
-		}, nil
+		return notDetected(fmt.Sprintf("cannot stat: %v", err))
 	}
-
 	if info.IsDir() {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "path is a directory",
-		}, nil
+		return notDetected("path is a directory")
 	}
+	return nil
+}
 
-	// Check magic bytes
+func readMagicBytes(path string) ([]byte, *ipc.DetectResult) {
 	f, err := os.Open(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot open file: %v", err),
-		}, nil
+		return nil, notDetected(fmt.Sprintf("cannot open file: %v", err))
 	}
 	defer f.Close()
 
 	magic := make([]byte, 4)
 	n, err := f.Read(magic)
 	if err != nil || n < 4 {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "cannot read magic bytes",
-		}, nil
+		return nil, notDetected("cannot read magic bytes")
+	}
+	return magic, nil
+}
+
+func matchesZIPMagic(magic []byte) bool {
+	return len(magic) == 4 &&
+		magic[0] == zipMagic[0] &&
+		magic[1] == zipMagic[1] &&
+		magic[2] == zipMagic[2] &&
+		magic[3] == zipMagic[3]
+}
+
+func detectZIP(path string) (*ipc.DetectResult, error) {
+	if r := checkRegularFile(path); r != nil {
+		return r, nil
 	}
 
-	// ZIP magic: PK\x03\x04
-	if magic[0] != 0x50 || magic[1] != 0x4b || magic[2] != 0x03 || magic[3] != 0x04 {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "not a ZIP file (wrong magic bytes)",
-		}, nil
+	magic, r := readMagicBytes(path)
+	if r != nil {
+		return r, nil
 	}
 
-	// Verify it's actually readable as ZIP
-	_, err = zip.OpenReader(path)
-	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("not a valid ZIP archive: %v", err),
-		}, nil
+	if !matchesZIPMagic(magic) {
+		return notDetected("not a ZIP file (wrong magic bytes)"), nil
 	}
 
-	return &ipc.DetectResult{
-		Detected: true,
-		Format:   "zip",
-		Reason:   "valid ZIP archive",
-	}, nil
+	if _, err := zip.OpenReader(path); err != nil {
+		return notDetected(fmt.Sprintf("not a valid ZIP archive: %v", err)), nil
+	}
+
+	return &ipc.DetectResult{Detected: true, Format: "zip", Reason: "valid ZIP archive"}, nil
 }
 
 // enumerateZIP lists all entries in a ZIP archive.

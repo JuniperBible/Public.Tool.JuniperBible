@@ -83,57 +83,54 @@ func absFunc(args []Value) (Value, error) {
 	}
 }
 
-// roundFunc implements round(X [, Y])
-// Rounds X to Y decimal places (default 0)
-func roundFunc(args []Value) (Value, error) {
+func roundParsePrecision(args []Value) (int64, bool, error) {
 	if len(args) < 1 || len(args) > 2 {
-		return nil, fmt.Errorf("round() requires 1 or 2 arguments")
+		return 0, false, fmt.Errorf("round() requires 1 or 2 arguments")
 	}
+	if len(args) == 1 {
+		return 0, true, nil
+	}
+	if args[1].IsNull() {
+		return 0, false, nil
+	}
+	p := args[1].AsInt64()
+	if p > 30 {
+		p = 30
+	}
+	if p < 0 {
+		p = 0
+	}
+	return p, true, nil
+}
 
-	if args[0].IsNull() {
+func roundIsPassthrough(value float64) bool {
+	return math.IsNaN(value) || math.IsInf(value, 0) || math.Abs(value) >= 4503599627370496.0
+}
+
+func roundToIntValue(rounded float64) Value {
+	if rounded >= float64(math.MinInt64) && rounded <= float64(math.MaxInt64) {
+		return NewIntValue(int64(rounded))
+	}
+	return NewFloatValue(rounded)
+}
+
+func roundFunc(args []Value) (Value, error) {
+	precision, ok, err := roundParsePrecision(args)
+	if err != nil {
+		return nil, err
+	}
+	if !ok || args[0].IsNull() {
 		return NewNullValue(), nil
 	}
-
-	precision := int64(0)
-	if len(args) == 2 {
-		if args[1].IsNull() {
-			return NewNullValue(), nil
-		}
-		precision = args[1].AsInt64()
-		if precision > 30 {
-			precision = 30
-		}
-		if precision < 0 {
-			precision = 0
-		}
-	}
-
 	value := args[0].AsFloat64()
-
-	// Handle special cases
-	if math.IsNaN(value) || math.IsInf(value, 0) {
+	if roundIsPassthrough(value) {
 		return NewFloatValue(value), nil
 	}
-
-	// Check if value is too large to have fractional part
-	if math.Abs(value) >= 4503599627370496.0 { // 2^52
-		return NewFloatValue(value), nil
-	}
-
 	if precision == 0 {
-		// Round to nearest integer
-		rounded := math.Round(value)
-		// Try to return as integer if it fits
-		if value >= float64(math.MinInt64) && value <= float64(math.MaxInt64) {
-			return NewIntValue(int64(rounded)), nil
-		}
-		return NewFloatValue(rounded), nil
+		return roundToIntValue(math.Round(value)), nil
 	}
-
-	// Round to specified decimal places
 	multiplier := math.Pow(10, float64(precision))
-	rounded := math.Round(value*multiplier) / multiplier
-	return NewFloatValue(rounded), nil
+	return NewFloatValue(math.Round(value*multiplier) / multiplier), nil
 }
 
 // randomFunc implements random()

@@ -180,18 +180,28 @@ func parseMarkdownContent(body, bookID string) []*ir.Document {
 func emitMarkdown(corpus *ir.Corpus, outputDir string) (string, error) {
 	outputPath := filepath.Join(outputDir, corpus.ID+".md")
 
-	// Check for raw markdown for round-trip
 	if raw, ok := corpus.Attributes["_markdown_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
-			return "", fmt.Errorf("failed to write Markdown: %w", err)
-		}
-		return outputPath, nil
+		return outputPath, writeMarkdownFile(outputPath, raw)
 	}
 
-	// Generate Markdown from IR
 	var buf strings.Builder
+	buf.WriteString(buildFrontmatter(corpus))
+	for _, doc := range corpus.Documents {
+		buf.WriteString(buildDocumentContent(doc))
+	}
 
-	// Hugo frontmatter
+	return outputPath, writeMarkdownFile(outputPath, buf.String())
+}
+
+func writeMarkdownFile(path, content string) error {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		return fmt.Errorf("failed to write Markdown: %w", err)
+	}
+	return nil
+}
+
+func buildFrontmatter(corpus *ir.Corpus) string {
+	var buf strings.Builder
 	buf.WriteString("---\n")
 	buf.WriteString(fmt.Sprintf("title: \"%s\"\n", corpus.Title))
 	if corpus.Language != "" {
@@ -200,30 +210,29 @@ func emitMarkdown(corpus *ir.Corpus, outputDir string) (string, error) {
 	buf.WriteString("date: \"2024-01-01\"\n")
 	buf.WriteString("type: \"bible\"\n")
 	buf.WriteString("---\n\n")
+	return buf.String()
+}
 
-	for _, doc := range corpus.Documents {
-		buf.WriteString(fmt.Sprintf("# %s\n\n", doc.Title))
+func buildDocumentContent(doc *ir.Document) string {
+	var buf strings.Builder
+	buf.WriteString(fmt.Sprintf("# %s\n\n", doc.Title))
 
-		currentChapter := 0
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						if span.Ref.Chapter != currentChapter {
-							currentChapter = span.Ref.Chapter
-							buf.WriteString(fmt.Sprintf("\n## Chapter %d\n\n", currentChapter))
-						}
-						buf.WriteString(fmt.Sprintf("**%d** %s\n", span.Ref.Verse, cb.Text))
-					}
+	currentChapter := 0
+	for _, cb := range doc.ContentBlocks {
+		for _, anchor := range cb.Anchors {
+			for _, span := range anchor.Spans {
+				if span.Ref == nil || span.Type != "VERSE" {
+					continue
 				}
+				if span.Ref.Chapter != currentChapter {
+					currentChapter = span.Ref.Chapter
+					buf.WriteString(fmt.Sprintf("\n## Chapter %d\n\n", currentChapter))
+				}
+				buf.WriteString(fmt.Sprintf("**%d** %s\n", span.Ref.Verse, cb.Text))
 			}
 		}
-		buf.WriteString("\n")
 	}
 
-	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
-		return "", fmt.Errorf("failed to write Markdown: %w", err)
-	}
-
-	return outputPath, nil
+	buf.WriteString("\n")
+	return buf.String()
 }

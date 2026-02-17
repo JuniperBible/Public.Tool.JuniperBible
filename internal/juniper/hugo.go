@@ -313,145 +313,138 @@ type bookResult struct {
 	excluded *HugoExcluded
 }
 
-// exportModuleToHugo exports a single SWORD module to Hugo format.
-func exportModuleToHugo(swordPath string, module *Module, weight int) (*HugoBibleContent, *HugoBibleEntry, error) {
-	// Load conf file using swordpure
+// moduleResources bundles the parsed artifacts needed to export one module.
+type moduleResources struct {
+	conf *swordpure.ConfFile
+	zt   *swordpure.ZTextModule
+	vers *swordpure.Versification
+}
+
+// openModuleResources parses the conf, opens the ZText reader, and resolves
+// the versification scheme for a module in one call.
+func openModuleResources(swordPath string, module *Module) (moduleResources, error) {
 	conf, err := swordpure.ParseConfFile(module.ConfPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse conf: %w", err)
+		return moduleResources{}, fmt.Errorf("failed to parse conf: %w", err)
 	}
 
-	// Open the module
 	zt, err := swordpure.OpenZTextModule(conf, swordPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open module: %w", err)
+		return moduleResources{}, fmt.Errorf("failed to open module: %w", err)
 	}
 
-	// Get versification
 	vers, err := swordpure.VersificationFromConf(conf)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get versification: %w", err)
+		return moduleResources{}, fmt.Errorf("failed to get versification: %w", err)
 	}
 
-	// Create metadata entry
-	entry := &HugoBibleEntry{
+	return moduleResources{conf: conf, zt: zt, vers: vers}, nil
+}
+
+// buildModuleEntry constructs the HugoBibleEntry metadata for a module.
+func buildModuleEntry(module *Module, res moduleResources, swordPath string, weight int) *HugoBibleEntry {
+	return &HugoBibleEntry{
 		ID:            strings.ToLower(module.Name),
 		Title:         module.Description,
 		Description:   module.Description,
 		Abbrev:        strings.ToUpper(module.Name),
 		Language:      module.Lang,
-		License:       getLicense(conf),
-		LicenseText:   getLicenseText(conf, swordPath, module),
-		Versification: conf.Versification,
+		License:       getLicense(res.conf),
+		LicenseText:   getLicenseText(res.conf, swordPath, module),
+		Versification: res.conf.Versification,
 		Features:      []string{},
-		Tags:          generateBibleTags(module, conf),
+		Tags:          generateBibleTags(module, res.conf),
 		Weight:        weight,
 	}
+}
 
-	// Determine testament availability
-	hasOT := zt.HasOT()
-	hasNT := zt.HasNT()
+// processChapter reads all verses for one chapter and returns a populated
+// HugoChapter, or nil when no usable verse text is found.
+func processChapter(zt *swordpure.ZTextModule, book swordpure.BookData, ch int) *HugoChapter {
+	hugoChapter := HugoChapter{Number: ch, Verses: make([]HugoVerse, 0)}
 
-	// Build content
-	content := &HugoBibleContent{
-		Content:       fmt.Sprintf("The %s translation.", module.Description),
-		Books:         make([]HugoBook, 0),
-		ExcludedBooks: make([]HugoExcluded, 0),
+	for v := 1; v <= book.Chapters[ch-1]; v++ {
+		ref := &swordpure.Ref{Book: book.OSIS, Chapter: ch, Verse: v}
+		rawText, err := zt.GetVerseText(ref)
+		if err != nil || rawText == "" {
+			continue
+		}
+		plainText := stripMarkup(rawText)
+		if plainText == "" || isPlaceholder(plainText) {
+			continue
+		}
+		hugoChapter.Verses = append(hugoChapter.Verses, HugoVerse{Number: v, Text: plainText})
 	}
 
-	// Process books in parallel
+	if len(hugoChapter.Verses) == 0 {
+		return nil
+	}
+	return &hugoChapter
+}
+
+// processBook builds a bookResult for one canonical book, reading its verses
+// via processChapter. Books with no usable content become an excluded entry.
+func processBook(zt *swordpure.ZTextModule, idx int, book swordpure.BookData) bookResult {
+	testament := "OT"
+	if isNTBook(book.OSIS) {
+		testament = "NT"
+	}
+
+	hugoBook := HugoBook{
+		ID: book.OSIS, Name: book.Name,
+		Testament: testament,
+		Chapters:  make([]HugoChapter, 0),
+	}
+
+	for ch := 1; ch <= len(book.Chapters); ch++ {
+		if chapter := processChapter(zt, book, ch); chapter != nil {
+			hugoBook.Chapters = append(hugoBook.Chapters, *chapter)
+		}
+	}
+
+	if len(hugoBook.Chapters) > 0 {
+		return bookResult{idx: idx, book: &hugoBook}
+	}
+	return bookResult{idx: idx, excluded: &HugoExcluded{
+		ID: book.OSIS, Name: book.Name,
+		Testament: testament, Reason: "no content in source",
+	}}
+}
+
+// dispatchBooks fans out book-processing goroutines and closes results when done.
+func dispatchBooks(res moduleResources, results chan<- bookResult) {
 	var wg sync.WaitGroup
-	results := make(chan bookResult, len(vers.Books))
 	sem := make(chan struct{}, runtime.NumCPU())
+	hasOT, hasNT := res.zt.HasOT(), res.zt.HasNT()
 
-	for bookIdx, book := range vers.Books {
+	for bookIdx, book := range res.vers.Books {
 		isNT := isNTBook(book.OSIS)
-		if isNT && !hasNT {
+		if (isNT && !hasNT) || (!isNT && !hasOT) {
 			continue
 		}
-		if !isNT && !hasOT {
-			continue
-		}
-
 		wg.Add(1)
-		go func(idx int, book swordpure.BookData, isNT bool) {
+		go func(idx int, b swordpure.BookData) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-
-			testament := "OT"
-			if isNT {
-				testament = "NT"
-			}
-
-			hugoBook := HugoBook{
-				ID:        book.OSIS,
-				Name:      book.Name,
-				Testament: testament,
-				Chapters:  make([]HugoChapter, 0),
-			}
-
-			totalVerses := 0
-			for ch := 1; ch <= len(book.Chapters); ch++ {
-				hugoChapter := HugoChapter{
-					Number: ch,
-					Verses: make([]HugoVerse, 0),
-				}
-
-				for v := 1; v <= book.Chapters[ch-1]; v++ {
-					ref := &swordpure.Ref{Book: book.OSIS, Chapter: ch, Verse: v}
-					rawText, err := zt.GetVerseText(ref)
-					if err != nil || rawText == "" {
-						continue
-					}
-
-					plainText := stripMarkup(rawText)
-					if plainText == "" || isPlaceholder(plainText) {
-						continue
-					}
-
-					hugoChapter.Verses = append(hugoChapter.Verses, HugoVerse{
-						Number: v,
-						Text:   plainText,
-					})
-					totalVerses++
-				}
-
-				if len(hugoChapter.Verses) > 0 {
-					hugoBook.Chapters = append(hugoBook.Chapters, hugoChapter)
-				}
-			}
-
-			if totalVerses > 0 {
-				results <- bookResult{idx: idx, book: &hugoBook}
-			} else {
-				results <- bookResult{idx: idx, excluded: &HugoExcluded{
-					ID:        book.OSIS,
-					Name:      book.Name,
-					Testament: testament,
-					Reason:    "no content in source",
-				}}
-			}
-		}(bookIdx, book, isNT)
+			results <- processBook(res.zt, idx, b)
+		}(bookIdx, book)
 	}
 
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
+	wg.Wait()
+	close(results)
+}
 
-	// Collect results
+// assembleContent collects bookResults, sorts them into canonical order, and
+// populates the Books / ExcludedBooks slices on content.
+func assembleContent(rawResults <-chan bookResult, content *HugoBibleContent) {
 	var bookResults []bookResult
-	for res := range results {
+	for res := range rawResults {
 		bookResults = append(bookResults, res)
 	}
-
-	// Sort by original book order
 	sort.Slice(bookResults, func(i, j int) bool {
 		return bookResults[i].idx < bookResults[j].idx
 	})
-
-	// Build final content
 	for _, res := range bookResults {
 		if res.book != nil {
 			content.Books = append(content.Books, *res.book)
@@ -459,6 +452,26 @@ func exportModuleToHugo(swordPath string, module *Module, weight int) (*HugoBibl
 			content.ExcludedBooks = append(content.ExcludedBooks, *res.excluded)
 		}
 	}
+}
+
+// exportModuleToHugo exports a single SWORD module to Hugo format.
+func exportModuleToHugo(swordPath string, module *Module, weight int) (*HugoBibleContent, *HugoBibleEntry, error) {
+	res, err := openModuleResources(swordPath, module)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	entry := buildModuleEntry(module, res, swordPath, weight)
+
+	content := &HugoBibleContent{
+		Content:       fmt.Sprintf("The %s translation.", module.Description),
+		Books:         make([]HugoBook, 0),
+		ExcludedBooks: make([]HugoExcluded, 0),
+	}
+
+	results := make(chan bookResult, len(res.vers.Books))
+	go dispatchBooks(res, results)
+	assembleContent(results, content)
 
 	return content, entry, nil
 }
@@ -530,51 +543,59 @@ func readLicenseFromPath(path string) (string, error) {
 }
 
 // getLicenseText extracts the full license text from conf properties or LICENSE file.
-func getLicenseText(conf *swordpure.ConfFile, swordPath string, module *Module) string {
-	// Try DistributionLicenseNotes first (common in SWORD modules)
-	if notes, ok := conf.Properties["DistributionLicenseNotes"]; ok && notes != "" {
-		return notes
-	}
+func confPropertyText(conf *swordpure.ConfFile, key string) string {
+	v := conf.Properties[key]
+	return v
+}
 
-	// Try ShortCopyright
-	if shortCopy, ok := conf.Properties["ShortCopyright"]; ok && shortCopy != "" {
-		return shortCopy
-	}
-
-	// Try TextSource + Copyright combination
+func buildConfLicenseParts(conf *swordpure.ConfFile) string {
 	var parts []string
 	if conf.Copyright != "" {
 		parts = append(parts, conf.Copyright)
 	}
-	if textSource, ok := conf.Properties["TextSource"]; ok && textSource != "" {
-		parts = append(parts, "Source: "+textSource)
+	if ts := confPropertyText(conf, "TextSource"); ts != "" {
+		parts = append(parts, "Source: "+ts)
 	}
-
-	// Try About field which often contains license details
 	if conf.About != "" {
-		if len(parts) > 0 {
-			parts = append(parts, conf.About)
-		} else {
+		if len(parts) == 0 {
 			return conf.About
 		}
+		parts = append(parts, conf.About)
 	}
-
 	if len(parts) > 0 {
 		return strings.Join(parts, "\n\n")
 	}
-
-	// Try to read LICENSE file from module data path
-	if module.DataPath != "" {
-		dataPath := strings.TrimPrefix(module.DataPath, "./")
-		dir := filepath.Join(swordPath, dataPath)
-		if licensePath, err := findLicenseFile(dir); err == nil {
-			if content, err := readLicenseFromPath(licensePath); err == nil {
-				return content
-			}
-		}
-	}
-
 	return ""
+}
+
+func licenseFromFile(swordPath string, module *Module) string {
+	if module.DataPath == "" {
+		return ""
+	}
+	dataPath := strings.TrimPrefix(module.DataPath, "./")
+	dir := filepath.Join(swordPath, dataPath)
+	licensePath, err := findLicenseFile(dir)
+	if err != nil {
+		return ""
+	}
+	content, err := readLicenseFromPath(licensePath)
+	if err != nil {
+		return ""
+	}
+	return content
+}
+
+func getLicenseText(conf *swordpure.ConfFile, swordPath string, module *Module) string {
+	if v := confPropertyText(conf, "DistributionLicenseNotes"); v != "" {
+		return v
+	}
+	if v := confPropertyText(conf, "ShortCopyright"); v != "" {
+		return v
+	}
+	if v := buildConfLicenseParts(conf); v != "" {
+		return v
+	}
+	return licenseFromFile(swordPath, module)
 }
 
 // generateBibleTags creates comprehensive tags for a Bible module.

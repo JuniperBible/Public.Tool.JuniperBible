@@ -376,49 +376,60 @@ func NewHeader(pageSize int) *Header {
 	return h
 }
 
-// Validate performs validation checks on the database header.
-func (h *Header) Validate() error {
-	// Check magic header
-	if string(h.Magic[:]) != MagicString {
-		return fmt.Errorf("invalid magic header")
-	}
-
-	// Check page size
-	pageSize := h.GetPageSize()
-	if !IsValidPageSize(pageSize) {
-		return fmt.Errorf("invalid page size: %d", pageSize)
-	}
-
-	// Check file format versions
-	if h.WriteVersion != 1 && h.WriteVersion != 2 {
+func (h *Header) validateVersions() error {
+	validVersions := map[uint8]bool{1: true, 2: true}
+	if !validVersions[h.WriteVersion] {
 		return fmt.Errorf("invalid write version: %d", h.WriteVersion)
 	}
-	if h.ReadVersion != 1 && h.ReadVersion != 2 {
+	if !validVersions[h.ReadVersion] {
 		return fmt.Errorf("invalid read version: %d", h.ReadVersion)
 	}
+	return nil
+}
 
-	// Check payload fractions
-	if h.MaxPayloadFrac != 64 {
-		return fmt.Errorf("invalid max payload fraction: %d", h.MaxPayloadFrac)
+func (h *Header) validatePayloadFractions() error {
+	type fracCheck struct {
+		val      uint8
+		expected uint8
+		name     string
 	}
-	if h.MinPayloadFrac != 32 {
-		return fmt.Errorf("invalid min payload fraction: %d", h.MinPayloadFrac)
+	checks := []fracCheck{
+		{h.MaxPayloadFrac, 64, "max payload fraction"},
+		{h.MinPayloadFrac, 32, "min payload fraction"},
+		{h.LeafPayloadFrac, 32, "leaf payload fraction"},
 	}
-	if h.LeafPayloadFrac != 32 {
-		return fmt.Errorf("invalid leaf payload fraction: %d", h.LeafPayloadFrac)
+	for _, c := range checks {
+		if c.val != c.expected {
+			return fmt.Errorf("invalid %s: %d", c.name, c.val)
+		}
 	}
+	return nil
+}
 
-	// Check schema format
+func (h *Header) validateSchemaAndEncoding() error {
 	if h.SchemaFormat < 1 || h.SchemaFormat > 4 {
 		return fmt.Errorf("invalid schema format: %d", h.SchemaFormat)
 	}
-
-	// Check text encoding
 	if h.TextEncoding < EncodingUTF8 || h.TextEncoding > EncodingUTF16BE {
 		return fmt.Errorf("invalid text encoding: %d", h.TextEncoding)
 	}
-
 	return nil
+}
+
+func (h *Header) Validate() error {
+	if string(h.Magic[:]) != MagicString {
+		return fmt.Errorf("invalid magic header")
+	}
+	if pageSize := h.GetPageSize(); !IsValidPageSize(pageSize) {
+		return fmt.Errorf("invalid page size: %d", pageSize)
+	}
+	if err := h.validateVersions(); err != nil {
+		return err
+	}
+	if err := h.validatePayloadFractions(); err != nil {
+		return err
+	}
+	return h.validateSchemaAndEncoding()
 }
 
 // GetPageSize returns the actual page size, handling the special case where

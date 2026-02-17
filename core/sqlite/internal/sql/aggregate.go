@@ -276,83 +276,119 @@ func (ac *AggregateCompiler) checkNewGroup(sel *Select, aggInfo *AggInfo, contin
 	vdbe.ResolveLabel(addrSame)
 }
 
+// accumulatorUpdater is a function that emits VDBE ops to update one aggregate accumulator.
+// argReg is the evaluated argument register (0 means COUNT(*) / no argument).
+type accumulatorUpdater func(ac *AggregateCompiler, aggFunc *AggFunc, argReg int)
+
+// accumulatorUpdaters maps aggregate function names to their update handlers.
+var accumulatorUpdaters = map[string]accumulatorUpdater{
+	"count":        updateCount,
+	"sum":          updateSum,
+	"total":        updateSum,
+	"avg":          updateAvg,
+	"min":          updateMin,
+	"max":          updateMax,
+	"group_concat": updateGroupConcat,
+}
+
+// updateCount emits VDBE ops for COUNT / COUNT(*).
+func updateCount(ac *AggregateCompiler, aggFunc *AggFunc, argReg int) {
+	vdbe := ac.parse.GetVdbe()
+	if argReg == 0 {
+		// COUNT(*) - always increment
+		vdbe.AddOp2(OP_AddImm, aggFunc.RegAcc, 1)
+		return
+	}
+	// COUNT(expr) - increment only when arg is not NULL
+	addrSkip := vdbe.MakeLabel()
+	vdbe.AddOp2(OP_IsNull, argReg, addrSkip)
+	vdbe.AddOp2(OP_AddImm, aggFunc.RegAcc, 1)
+	vdbe.ResolveLabel(addrSkip)
+}
+
+// updateSum emits VDBE ops for SUM / TOTAL.
+func updateSum(ac *AggregateCompiler, aggFunc *AggFunc, argReg int) {
+	if argReg == 0 {
+		return
+	}
+	vdbe := ac.parse.GetVdbe()
+	addrSkip := vdbe.MakeLabel()
+	vdbe.AddOp2(OP_IsNull, argReg, addrSkip)
+	vdbe.AddOp3(OP_Add, argReg, aggFunc.RegAcc, aggFunc.RegAcc)
+	vdbe.ResolveLabel(addrSkip)
+}
+
+// updateAvg emits VDBE ops for AVG (accumulates sum; count tracked in a separate register).
+func updateAvg(ac *AggregateCompiler, aggFunc *AggFunc, argReg int) {
+	if argReg == 0 {
+		return
+	}
+	vdbe := ac.parse.GetVdbe()
+	addrSkip := vdbe.MakeLabel()
+	vdbe.AddOp2(OP_IsNull, argReg, addrSkip)
+	// Add to sum (stored in RegAcc)
+	vdbe.AddOp3(OP_Add, argReg, aggFunc.RegAcc, aggFunc.RegAcc)
+	// Increment count (need separate register)
+	countReg := ac.parse.AllocReg()
+	vdbe.AddOp2(OP_AddImm, countReg, 1)
+	vdbe.ResolveLabel(addrSkip)
+}
+
+// updateMin emits VDBE ops for MIN.
+func updateMin(ac *AggregateCompiler, aggFunc *AggFunc, argReg int) {
+	if argReg == 0 {
+		return
+	}
+	vdbe := ac.parse.GetVdbe()
+	addrNotMin := vdbe.MakeLabel()
+	vdbe.AddOp3(OP_Lt, aggFunc.RegAcc, addrNotMin, argReg)
+	vdbe.AddOp2(OP_Copy, argReg, aggFunc.RegAcc)
+	vdbe.ResolveLabel(addrNotMin)
+}
+
+// updateMax emits VDBE ops for MAX.
+func updateMax(ac *AggregateCompiler, aggFunc *AggFunc, argReg int) {
+	if argReg == 0 {
+		return
+	}
+	vdbe := ac.parse.GetVdbe()
+	addrNotMax := vdbe.MakeLabel()
+	vdbe.AddOp3(OP_Gt, aggFunc.RegAcc, addrNotMax, argReg)
+	vdbe.AddOp2(OP_Copy, argReg, aggFunc.RegAcc)
+	vdbe.ResolveLabel(addrNotMax)
+}
+
+// updateGroupConcat emits VDBE ops for GROUP_CONCAT.
+func updateGroupConcat(ac *AggregateCompiler, aggFunc *AggFunc, argReg int) {
+	if argReg == 0 {
+		return
+	}
+	vdbe := ac.parse.GetVdbe()
+	addrSkip := vdbe.MakeLabel()
+	vdbe.AddOp2(OP_IsNull, argReg, addrSkip)
+	vdbe.AddOp3(OP_Concat, aggFunc.RegAcc, argReg, aggFunc.RegAcc)
+	vdbe.ResolveLabel(addrSkip)
+}
+
+// evalArgReg evaluates the first argument of an aggregate function into a new register.
+// Returns 0 (and allocates nothing) when the function has no argument list (e.g. COUNT(*)).
+func (ac *AggregateCompiler) evalArgReg(aggFunc *AggFunc) int {
+	if aggFunc.Expr.List == nil || aggFunc.Expr.List.Len() == 0 {
+		return 0
+	}
+	argReg := ac.parse.AllocReg()
+	ac.compileExpr(aggFunc.Expr.List.Get(0).Expr, argReg)
+	return argReg
+}
+
 // updateAccumulators generates code to update aggregate accumulators.
 func (ac *AggregateCompiler) updateAccumulators(sel *Select, aggInfo *AggInfo) {
-	vdbe := ac.parse.GetVdbe()
-
 	for i := range aggInfo.AggFuncs {
 		aggFunc := &aggInfo.AggFuncs[i]
-		funcName := aggFunc.Func.Name
+		argReg := ac.evalArgReg(aggFunc)
 
-		// Get function argument
-		var argReg int
-		if aggFunc.Expr.List != nil && aggFunc.Expr.List.Len() > 0 {
-			argReg = ac.parse.AllocReg()
-			arg := aggFunc.Expr.List.Get(0).Expr
-			ac.compileExpr(arg, argReg)
-		}
-
-		switch funcName {
-		case "count":
-			if argReg == 0 {
-				// COUNT(*) - always increment
-				vdbe.AddOp2(OP_AddImm, aggFunc.RegAcc, 1)
-			} else {
-				// COUNT(expr) - increment if not NULL
-				addrSkip := vdbe.MakeLabel()
-				vdbe.AddOp2(OP_IsNull, argReg, addrSkip)
-				vdbe.AddOp2(OP_AddImm, aggFunc.RegAcc, 1)
-				vdbe.ResolveLabel(addrSkip)
-			}
-
-		case "sum", "total":
-			// SUM: add value to accumulator
-			if argReg != 0 {
-				addrSkip := vdbe.MakeLabel()
-				vdbe.AddOp2(OP_IsNull, argReg, addrSkip)
-				vdbe.AddOp3(OP_Add, argReg, aggFunc.RegAcc, aggFunc.RegAcc)
-				vdbe.ResolveLabel(addrSkip)
-			}
-
-		case "avg":
-			// AVG: sum and count
-			if argReg != 0 {
-				addrSkip := vdbe.MakeLabel()
-				vdbe.AddOp2(OP_IsNull, argReg, addrSkip)
-				// Add to sum (stored in RegAcc)
-				vdbe.AddOp3(OP_Add, argReg, aggFunc.RegAcc, aggFunc.RegAcc)
-				// Increment count (need separate register)
-				countReg := ac.parse.AllocReg()
-				vdbe.AddOp2(OP_AddImm, countReg, 1)
-				vdbe.ResolveLabel(addrSkip)
-			}
-
-		case "min":
-			// MIN: keep minimum value
-			if argReg != 0 {
-				addrNotMin := vdbe.MakeLabel()
-				vdbe.AddOp3(OP_Lt, aggFunc.RegAcc, addrNotMin, argReg)
-				vdbe.AddOp2(OP_Copy, argReg, aggFunc.RegAcc)
-				vdbe.ResolveLabel(addrNotMin)
-			}
-
-		case "max":
-			// MAX: keep maximum value
-			if argReg != 0 {
-				addrNotMax := vdbe.MakeLabel()
-				vdbe.AddOp3(OP_Gt, aggFunc.RegAcc, addrNotMax, argReg)
-				vdbe.AddOp2(OP_Copy, argReg, aggFunc.RegAcc)
-				vdbe.ResolveLabel(addrNotMax)
-			}
-
-		case "group_concat":
-			// GROUP_CONCAT: concatenate strings
-			if argReg != 0 {
-				addrSkip := vdbe.MakeLabel()
-				vdbe.AddOp2(OP_IsNull, argReg, addrSkip)
-				vdbe.AddOp3(OP_Concat, aggFunc.RegAcc, argReg, aggFunc.RegAcc)
-				vdbe.ResolveLabel(addrSkip)
-			}
+		if handler, ok := accumulatorUpdaters[aggFunc.Func.Name]; ok {
+			handler(ac, aggFunc, argReg)
 		}
 
 		if argReg != 0 {

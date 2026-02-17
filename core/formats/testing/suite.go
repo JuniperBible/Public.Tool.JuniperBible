@@ -67,74 +67,63 @@ func RunFormatTests(t *testing.T, tc FormatTestCase) {
 		t.Fatal("Config is required")
 	}
 
-	// Create temp directory for test files
 	tmpDir, err := os.MkdirTemp("", "format-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Prepare test file
-	var testFilePath string
+	testFilePath := prepareTestFile(t, tc, tmpDir)
+
+	for _, st := range buildSubtests(tc, testFilePath, tmpDir) {
+		runSubtest(t, tc.SkipTests, st)
+	}
+}
+
+type subtest struct {
+	name    string
+	enabled bool
+	fn      func(*testing.T)
+}
+
+func prepareTestFile(t *testing.T, tc FormatTestCase, tmpDir string) string {
+	t.Helper()
 	if tc.SampleFile != "" {
-		testFilePath = tc.SampleFile
-	} else if tc.SampleContent != "" {
-		ext := ".txt"
-		if len(tc.Config.Extensions) > 0 {
-			ext = tc.Config.Extensions[0]
-		}
-		testFilePath = filepath.Join(tmpDir, "sample"+ext)
-		if err := os.WriteFile(testFilePath, []byte(tc.SampleContent), 0600); err != nil {
-			t.Fatalf("failed to write sample content: %v", err)
-		}
-	} else {
+		return tc.SampleFile
+	}
+	if tc.SampleContent == "" {
 		t.Fatal("either SampleFile or SampleContent is required")
 	}
-
-	// Run subtests
-	if !shouldSkip(tc.SkipTests, "Detect") {
-		t.Run("Detect", func(t *testing.T) {
-			testDetect(t, tc, testFilePath)
-		})
+	ext := ".txt"
+	if len(tc.Config.Extensions) > 0 {
+		ext = tc.Config.Extensions[0]
 	}
-
-	if !shouldSkip(tc.SkipTests, "DetectNegative") && tc.NegativeDetection != "" {
-		t.Run("DetectNegative", func(t *testing.T) {
-			testDetectNegative(t, tc, tmpDir)
-		})
+	path := filepath.Join(tmpDir, "sample"+ext)
+	if err := os.WriteFile(path, []byte(tc.SampleContent), 0600); err != nil {
+		t.Fatalf("failed to write sample content: %v", err)
 	}
+	return path
+}
 
-	if !shouldSkip(tc.SkipTests, "Ingest") {
-		t.Run("Ingest", func(t *testing.T) {
-			testIngest(t, tc, testFilePath, tmpDir)
-		})
+func buildSubtests(tc FormatTestCase, testFilePath, tmpDir string) []subtest {
+	hasEmit := tc.Config.Parse != nil && tc.Config.Emit != nil
+	return []subtest{
+		{"Detect", true, func(t *testing.T) { testDetect(t, tc, testFilePath) }},
+		{"DetectNegative", tc.NegativeDetection != "", func(t *testing.T) { testDetectNegative(t, tc, tmpDir) }},
+		{"Ingest", true, func(t *testing.T) { testIngest(t, tc, testFilePath, tmpDir) }},
+		{"Enumerate", true, func(t *testing.T) { testEnumerate(t, tc, testFilePath, tmpDir) }},
+		{"ExtractIR", tc.Config.Parse != nil, func(t *testing.T) { testExtractIR(t, tc, testFilePath, tmpDir) }},
+		{"EmitNative", hasEmit, func(t *testing.T) { testEmitNative(t, tc, testFilePath, tmpDir) }},
+		{"RoundTrip", hasEmit && tc.RoundTrip, func(t *testing.T) { testRoundTrip(t, tc, testFilePath, tmpDir) }},
 	}
+}
 
-	if !shouldSkip(tc.SkipTests, "Enumerate") {
-		t.Run("Enumerate", func(t *testing.T) {
-			testEnumerate(t, tc, testFilePath, tmpDir)
-		})
+func runSubtest(t *testing.T, skipList []string, st subtest) {
+	t.Helper()
+	if !st.enabled || shouldSkip(skipList, st.name) {
+		return
 	}
-
-	if tc.Config.Parse != nil {
-		if !shouldSkip(tc.SkipTests, "ExtractIR") {
-			t.Run("ExtractIR", func(t *testing.T) {
-				testExtractIR(t, tc, testFilePath, tmpDir)
-			})
-		}
-
-		if tc.Config.Emit != nil && !shouldSkip(tc.SkipTests, "EmitNative") {
-			t.Run("EmitNative", func(t *testing.T) {
-				testEmitNative(t, tc, testFilePath, tmpDir)
-			})
-		}
-
-		if tc.RoundTrip && tc.Config.Emit != nil && !shouldSkip(tc.SkipTests, "RoundTrip") {
-			t.Run("RoundTrip", func(t *testing.T) {
-				testRoundTrip(t, tc, testFilePath, tmpDir)
-			})
-		}
-	}
+	t.Run(st.name, st.fn)
 }
 
 // testDetect tests the detect functionality.

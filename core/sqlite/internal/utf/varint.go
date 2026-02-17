@@ -96,141 +96,72 @@ func GetVarint(buf []byte) (uint64, int) {
 	return getVarintSlow(buf)
 }
 
-// getVarintSlow handles decoding of larger varints.
-func getVarintSlow(buf []byte) (uint64, int) {
-	if len(buf) < 3 {
-		// Not enough data
-		return 0, 0
-	}
+const (
+	varintSlot20  = uint32(0x001fc07f)
+	varintSlot420 = uint32(0xf01fc07f)
+)
 
-	// Constants for bit manipulation
-	const slot_2_0 = 0x001fc07f   // (0x7f<<14) | 0x7f
-	const slot_4_2_0 = 0xf01fc07f // (0xf<<28) | slot_2_0
-
-	var a, b, s uint32
-
-	a = uint32(buf[0]) << 14
-	b = uint32(buf[1])
-	a |= uint32(buf[2])
-
-	// 3-byte varint
+func decodeVarint3to5(b9 *[9]byte) (uint64, int, uint32, uint32, uint32) {
+	a := uint32(b9[0])<<14 | uint32(b9[2])
+	b := uint32(b9[1])
 	if a&0x80 == 0 {
-		a &= slot_2_0
-		b &= 0x7f
-		b = b << 7
-		a |= b
-		return uint64(a), 3
+		return uint64((a&varintSlot20)|((b&0x7f)<<7)), 3, 0, 0, 0
 	}
-
-	if len(buf) < 4 {
-		return 0, 0
-	}
-
-	// Save state
-	a &= slot_2_0
-
-	b = b << 14
-	b |= uint32(buf[3])
-
-	// 4-byte varint
+	a &= varintSlot20
+	b = b<<14 | uint32(b9[3])
 	if b&0x80 == 0 {
-		b &= slot_2_0
-		a = a << 7
-		a |= b
-		return uint64(a), 4
+		return uint64((a<<7)|(b&varintSlot20)), 4, 0, 0, 0
 	}
-
-	if len(buf) < 5 {
-		return 0, 0
-	}
-
-	b &= slot_2_0
-	s = a
-
-	a = a << 14
-	a |= uint32(buf[4])
-
-	// 5-byte varint
+	b &= varintSlot20
+	s := a
+	a = a<<14 | uint32(b9[4])
 	if a&0x80 == 0 {
-		b = b << 7
-		a |= b
-		s = s >> 18
-		return uint64(s)<<32 | uint64(a), 5
+		return uint64(s>>18)<<32 | uint64(a|(b<<7)), 5, 0, 0, 0
 	}
+	return 0, 0, a, b, s
+}
 
-	if len(buf) < 6 {
-		return 0, 0
-	}
-
-	s = s << 7
-	s |= b
-
-	b = b << 14
-	b |= uint32(buf[5])
-
-	// 6-byte varint
+func decodeVarint6to9(b9 *[9]byte, a, b, s uint32) (uint64, int) {
+	s = s<<7 | b
+	b = b<<14 | uint32(b9[5])
 	if b&0x80 == 0 {
-		a &= slot_2_0
-		a = a << 7
-		a |= b
-		s = s >> 18
-		return uint64(s)<<32 | uint64(a), 6
+		a &= varintSlot20
+		return uint64(s>>18)<<32 | uint64((a<<7)|b), 6
 	}
-
-	if len(buf) < 7 {
-		return 0, 0
-	}
-
-	a = a << 14
-	a |= uint32(buf[6])
-
-	// 7-byte varint
+	a = a<<14 | uint32(b9[6])
 	if a&0x80 == 0 {
-		a &= slot_4_2_0
-		b &= slot_2_0
-		b = b << 7
-		a |= b
-		s = s >> 11
-		return uint64(s)<<32 | uint64(a), 7
+		a &= varintSlot420
+		b &= varintSlot20
+		return uint64(s>>11)<<32 | uint64(a|(b<<7)), 7
 	}
-
-	if len(buf) < 8 {
-		return 0, 0
-	}
-
-	a &= slot_2_0
-
-	b = b << 14
-	b |= uint32(buf[7])
-
-	// 8-byte varint
+	a &= varintSlot20
+	b = b<<14 | uint32(b9[7])
 	if b&0x80 == 0 {
-		b &= slot_4_2_0
-		a = a << 7
-		a |= b
-		s = s >> 4
-		return uint64(s)<<32 | uint64(a), 8
+		b &= varintSlot420
+		return uint64(s>>4)<<32 | uint64((a<<7)|b), 8
 	}
-
-	if len(buf) < 9 {
-		return 0, 0
-	}
-
-	// 9-byte varint
-	a = a << 15
-	a |= uint32(buf[8])
-
-	b &= slot_2_0
-	b = b << 8
-	a |= b
-
-	s = s << 4
-	b = uint32(buf[4])
-	b &= 0x7f
-	b = b >> 3
-	s |= b
-
+	a = a<<15 | uint32(b9[8])
+	b &= varintSlot20
+	a |= b << 8
+	s = s<<4 | (uint32(b9[4])&0x7f)>>3
 	return uint64(s)<<32 | uint64(a), 9
+}
+
+func getVarintSlow(buf []byte) (uint64, int) {
+	avail := len(buf)
+	if avail < 3 {
+		return 0, 0
+	}
+	var b9 [9]byte
+	copy(b9[:], buf)
+	v, n, a, b, s := decodeVarint3to5(&b9)
+	if n > 0 && n <= avail {
+		return v, n
+	}
+	if avail < 6 {
+		return 0, 0
+	}
+	return decodeVarint6to9(&b9, a, b, s)
 }
 
 // GetVarint32 decodes a varint from buf as a 32-bit value.

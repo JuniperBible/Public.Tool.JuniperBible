@@ -127,60 +127,59 @@ func extractGoBibleContent(data []byte, artifactID string) []*ir.Document {
 	sequence := 0
 	for _, f := range zr.File {
 		if strings.HasSuffix(f.Name, ".txt") || strings.Contains(f.Name, "verse") {
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-			content, err := io.ReadAll(rc)
-			rc.Close()
-			if err != nil {
-				continue
-			}
-
-			lines := strings.Split(string(content), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if len(line) > 5 {
-					sequence++
-					hash := sha256.Sum256([]byte(line))
-					doc.ContentBlocks = append(doc.ContentBlocks, &ir.ContentBlock{
-						ID:       fmt.Sprintf("cb-%d", sequence),
-						Sequence: sequence,
-						Text:     line,
-						Hash:     hex.EncodeToString(hash[:]),
-					})
-				}
-			}
+			appendTextLines(doc, f, &sequence)
 		}
-
 		if strings.HasPrefix(f.Name, "Bible/") || f.Name == "Collections" {
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-			content, err := io.ReadAll(rc)
-			rc.Close()
-			if err != nil {
-				continue
-			}
-
-			extracted := extractTextFromBinary(content)
-			for _, text := range extracted {
-				if len(text) > 5 {
-					sequence++
-					hash := sha256.Sum256([]byte(text))
-					doc.ContentBlocks = append(doc.ContentBlocks, &ir.ContentBlock{
-						ID:       fmt.Sprintf("cb-%d", sequence),
-						Sequence: sequence,
-						Text:     text,
-						Hash:     hex.EncodeToString(hash[:]),
-					})
-				}
-			}
+			appendBinaryTexts(doc, f, &sequence)
 		}
 	}
 
 	return []*ir.Document{doc}
+}
+
+func readZipFileContent(f *zip.File) ([]byte, error) {
+	rc, err := f.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	return io.ReadAll(rc)
+}
+
+func appendContentBlock(doc *ir.Document, text string, sequence *int) {
+	*sequence++
+	hash := sha256.Sum256([]byte(text))
+	doc.ContentBlocks = append(doc.ContentBlocks, &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", *sequence),
+		Sequence: *sequence,
+		Text:     text,
+		Hash:     hex.EncodeToString(hash[:]),
+	})
+}
+
+func appendTextLines(doc *ir.Document, f *zip.File, sequence *int) {
+	content, err := readZipFileContent(f)
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(content), "\n") {
+		line = strings.TrimSpace(line)
+		if len(line) > 5 {
+			appendContentBlock(doc, line, sequence)
+		}
+	}
+}
+
+func appendBinaryTexts(doc *ir.Document, f *zip.File, sequence *int) {
+	content, err := readZipFileContent(f)
+	if err != nil {
+		return
+	}
+	for _, text := range extractTextFromBinary(content) {
+		if len(text) > 5 {
+			appendContentBlock(doc, text, sequence)
+		}
+	}
 }
 
 func extractTextFromBinary(data []byte) []string {

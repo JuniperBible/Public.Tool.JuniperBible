@@ -557,99 +557,91 @@ func hasFilesInDir(dir string) bool {
 	return len(entries) > 0
 }
 
+// resolveTarGZPath normalises dstPath so it always ends in ".tar.gz".
+func resolveTarGZPath(dstPath string) string {
+	if strings.HasSuffix(dstPath, ".tar.xz") {
+		return strings.TrimSuffix(dstPath, ".tar.xz") + ".tar.gz"
+	}
+	if strings.HasSuffix(dstPath, ".tar.gz") {
+		return dstPath
+	}
+	return dstPath + ".tar.gz"
+}
+
+// writeFileContent copies the content of a regular file into the tar writer.
+func writeFileContent(tw *tar.Writer, path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = io.Copy(tw, file)
+	return err
+}
+
+// writeTarEntry writes a single filesystem entry (file or directory) into tw.
+func writeTarEntry(tw *tar.Writer, srcDir, path string, info os.FileInfo) error {
+	relPath, err := filepath.Rel(srcDir, path)
+	if err != nil {
+		return err
+	}
+	if relPath == "." {
+		return nil
+	}
+
+	header, err := tar.FileInfoHeader(info, "")
+	if err != nil {
+		return err
+	}
+	header.Name = relPath
+	if info.IsDir() {
+		header.Name += "/"
+	}
+	header.ModTime = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	if err := tw.WriteHeader(header); err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return nil
+	}
+	return writeFileContent(tw, path)
+}
+
+// closeTarGZWriters flushes and closes both writers, surfacing any write errors.
+func closeTarGZWriters(tw *tar.Writer, gw *gzip.Writer) error {
+	if err := tw.Close(); err != nil {
+		return err
+	}
+	return gw.Close()
+}
+
 // createTarGZ creates a tar.gz archive from a directory.
 // Files are stored at the root level (no directory prefix).
 func createTarGZ(srcDir, dstPath string) error {
-	// Create parent directory if needed
 	if err := os.MkdirAll(filepath.Dir(dstPath), 0700); err != nil {
 		return err
 	}
 
-	// Ensure .tar.gz extension
-	gzPath := dstPath
-	if strings.HasSuffix(dstPath, ".tar.xz") {
-		gzPath = strings.TrimSuffix(dstPath, ".tar.xz") + ".tar.gz"
-	} else if !strings.HasSuffix(dstPath, ".tar.gz") {
-		gzPath = dstPath + ".tar.gz"
-	}
-
-	// Create the output file
-	outFile, err := os.Create(gzPath)
+	outFile, err := os.Create(resolveTarGZPath(dstPath))
 	if err != nil {
 		return fmt.Errorf("failed to create archive file: %w", err)
 	}
 	defer outFile.Close()
 
-	// Create gzip writer
 	gw := gzip.NewWriter(outFile)
 	defer gw.Close()
-
-	// Create tar writer
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
 
-	err = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-
-		// Get relative path (files at root level, no prefix)
-		relPath, err := filepath.Rel(srcDir, path)
-		if err != nil {
-			return err
-		}
-
-		// Skip the root directory itself
-		if relPath == "." {
-			return nil
-		}
-
-		// Create header from file info
-		header, err := tar.FileInfoHeader(info, "")
-		if err != nil {
-			return err
-		}
-
-		// Use relative path directly (no prefix)
-		header.Name = relPath
-		if info.IsDir() {
-			header.Name += "/"
-		}
-
-		// Normalize timestamps for reproducibility
-		header.ModTime = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
-
-		// Write file content
-		if !info.IsDir() {
-			file, err := os.Open(path)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-
-			if _, err := io.Copy(tw, file); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
+		return writeTarEntry(tw, srcDir, path, info)
+	}); err != nil {
 		return err
 	}
 
-	// Close writers explicitly to check for errors
-	if err := tw.Close(); err != nil {
-		return err
-	}
-	if err := gw.Close(); err != nil {
-		return err
-	}
-
-	return nil
+	return closeTarGZWriters(tw, gw)
 }

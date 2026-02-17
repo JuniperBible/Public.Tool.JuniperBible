@@ -211,16 +211,30 @@ func emitHTML(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	// Generate HTML from IR
 	var buf strings.Builder
+	writeHTMLHeader(&buf, corpus)
 
-	// HTML header
-	buf.WriteString("<!DOCTYPE html>\n")
-	buf.WriteString("<html lang=\"")
-	if corpus.Language != "" {
-		buf.WriteString(corpus.Language)
-	} else {
-		buf.WriteString("en")
+	buf.WriteString(fmt.Sprintf("<h1>%s</h1>\n", escapeHTML(corpus.Title)))
+	for _, doc := range corpus.Documents {
+		writeDocumentHTML(&buf, doc)
 	}
-	buf.WriteString("\">\n")
+
+	buf.WriteString("</body>\n")
+	buf.WriteString("</html>\n")
+
+	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
+		return "", fmt.Errorf("failed to write HTML: %w", err)
+	}
+	return outputPath, nil
+}
+
+// writeHTMLHeader emits the DOCTYPE, <html>, <head>, and opening <body> tags.
+func writeHTMLHeader(buf *strings.Builder, corpus *ir.Corpus) {
+	lang := corpus.Language
+	if lang == "" {
+		lang = "en"
+	}
+	buf.WriteString("<!DOCTYPE html>\n")
+	buf.WriteString(fmt.Sprintf("<html lang=\"%s\">\n", lang))
 	buf.WriteString("<head>\n")
 	buf.WriteString("  <meta charset=\"UTF-8\">\n")
 	buf.WriteString("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n")
@@ -234,48 +248,48 @@ func emitHTML(corpus *ir.Corpus, outputDir string) (string, error) {
 	buf.WriteString("  </style>\n")
 	buf.WriteString("</head>\n")
 	buf.WriteString("<body>\n")
+}
 
-	buf.WriteString(fmt.Sprintf("<h1>%s</h1>\n", escapeHTML(corpus.Title)))
+// writeDocumentHTML emits the <article> element for a single document,
+// including all chapter sections and verse paragraphs.
+func writeDocumentHTML(buf *strings.Builder, doc *ir.Document) {
+	buf.WriteString(fmt.Sprintf("<article id=\"%s\">\n", doc.ID))
+	buf.WriteString(fmt.Sprintf("<h2>%s</h2>\n", escapeHTML(doc.Title)))
 
-	for _, doc := range corpus.Documents {
-		buf.WriteString(fmt.Sprintf("<article id=\"%s\">\n", doc.ID))
-		buf.WriteString(fmt.Sprintf("<h2>%s</h2>\n", escapeHTML(doc.Title)))
-
-		currentChapter := 0
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						if span.Ref.Chapter != currentChapter {
-							if currentChapter > 0 {
-								buf.WriteString("</section>\n")
-							}
-							currentChapter = span.Ref.Chapter
-							buf.WriteString(fmt.Sprintf("<section class=\"chapter\" id=\"ch%d\">\n", currentChapter))
-							buf.WriteString(fmt.Sprintf("<h3>Chapter %d</h3>\n", currentChapter))
-						}
-						buf.WriteString(fmt.Sprintf("<p class=\"verse\" data-verse=\"%d\">", span.Ref.Verse))
-						buf.WriteString(fmt.Sprintf("<span class=\"verse-num\">%d</span>", span.Ref.Verse))
-						buf.WriteString(fmt.Sprintf("<span class=\"verse-text\">%s</span>", escapeHTML(cb.Text)))
-						buf.WriteString("</p>\n")
-					}
-				}
+	currentChapter := 0
+	for _, cb := range doc.ContentBlocks {
+		for _, anchor := range cb.Anchors {
+			for _, span := range anchor.Spans {
+				currentChapter = emitVerseSpan(buf, cb, span, currentChapter)
 			}
 		}
+	}
+	if currentChapter > 0 {
+		buf.WriteString("</section>\n")
+	}
+	buf.WriteString("</article>\n")
+}
+
+// emitVerseSpan writes the chapter section header (when the chapter changes)
+// and the verse <p> element for a single VERSE span. It returns the (possibly
+// updated) current chapter number.
+func emitVerseSpan(buf *strings.Builder, cb *ir.ContentBlock, span *ir.Span, currentChapter int) int {
+	if span.Ref == nil || span.Type != "VERSE" {
+		return currentChapter
+	}
+	if span.Ref.Chapter != currentChapter {
 		if currentChapter > 0 {
 			buf.WriteString("</section>\n")
 		}
-		buf.WriteString("</article>\n")
+		currentChapter = span.Ref.Chapter
+		buf.WriteString(fmt.Sprintf("<section class=\"chapter\" id=\"ch%d\">\n", currentChapter))
+		buf.WriteString(fmt.Sprintf("<h3>Chapter %d</h3>\n", currentChapter))
 	}
-
-	buf.WriteString("</body>\n")
-	buf.WriteString("</html>\n")
-
-	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
-		return "", fmt.Errorf("failed to write HTML: %w", err)
-	}
-
-	return outputPath, nil
+	buf.WriteString(fmt.Sprintf("<p class=\"verse\" data-verse=\"%d\">", span.Ref.Verse))
+	buf.WriteString(fmt.Sprintf("<span class=\"verse-num\">%d</span>", span.Ref.Verse))
+	buf.WriteString(fmt.Sprintf("<span class=\"verse-text\">%s</span>", escapeHTML(cb.Text)))
+	buf.WriteString("</p>\n")
+	return currentChapter
 }
 
 func escapeHTML(s string) string {

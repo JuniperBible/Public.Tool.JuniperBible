@@ -354,83 +354,80 @@ type OptimizeOptions struct {
 	OrderBy []OrderByColumn
 }
 
+// indexScore holds a scored candidate index along with its estimated cost.
+type indexScore struct {
+	index *IndexInfo
+	score float64
+	cost  LogEst
+	nOut  LogEst
+}
+
+// applyOptionsBonus adds score bonuses dictated by OptimizeOptions.
+func (s *IndexSelector) applyOptionsBonus(index *IndexInfo, opts OptimizeOptions, score float64) float64 {
+	if opts.PreferCovering && len(index.Columns) > 3 {
+		score += 10
+	}
+	if opts.PreferUnique && index.Unique {
+		score += 15
+	}
+	if opts.ConsiderOrderBy && len(opts.OrderBy) > 0 && s.indexMatchesOrderBy(index, opts.OrderBy) {
+		score += 25 // Big bonus for avoiding sort
+	}
+	return score
+}
+
+// analyzeTermCounts counts equality constraints and detects range constraints
+// among the usable terms for an index.
+func analyzeTermCounts(usableTerms []*WhereTerm) (nEq int, hasRange bool) {
+	for _, term := range usableTerms {
+		if term.Operator == WO_EQ {
+			nEq++
+		} else if term.Operator&(WO_LT|WO_LE|WO_GT|WO_GE) != 0 {
+			hasRange = true
+		}
+	}
+	return nEq, hasRange
+}
+
+// scoreIndexEntry builds a complete indexScore for one index, incorporating
+// option bonuses and the cost model estimate.
+func (s *IndexSelector) scoreIndexEntry(index *IndexInfo, opts OptimizeOptions) indexScore {
+	score := s.applyOptionsBonus(index, opts, s.scoreIndex(index))
+
+	usableTerms := s.findUsableTermsForIndex(index)
+	nEq, hasRange := analyzeTermCounts(usableTerms)
+	cost, nOut := s.CostModel.EstimateIndexScan(s.Table, index, usableTerms, nEq, hasRange, false)
+
+	return indexScore{index: index, score: score, cost: cost, nOut: nOut}
+}
+
+// pickBestScore returns the highest-scoring entry from scores, preferring lower
+// cost when scores are equal.
+func pickBestScore(scores []indexScore) indexScore {
+	best := scores[0]
+	for _, candidate := range scores[1:] {
+		if candidate.score > best.score || (candidate.score == best.score && candidate.cost < best.cost) {
+			best = candidate
+		}
+	}
+	return best
+}
+
 // SelectBestIndexWithOptions selects the best index with advanced options.
 func (s *IndexSelector) SelectBestIndexWithOptions(opts OptimizeOptions) *IndexInfo {
 	if len(s.Table.Indexes) == 0 {
 		return nil
 	}
 
-	type indexScore struct {
-		index *IndexInfo
-		score float64
-		cost  LogEst
-		nOut  LogEst
-	}
-
 	scores := make([]indexScore, 0, len(s.Table.Indexes))
-
 	for _, index := range s.Table.Indexes {
-		baseScore := s.scoreIndex(index)
-
-		// Apply options
-		if opts.PreferCovering {
-			// Check if covering (simplified - would need actual column list)
-			if len(index.Columns) > 3 {
-				baseScore += 10
-			}
-		}
-
-		if opts.PreferUnique && index.Unique {
-			baseScore += 15
-		}
-
-		if opts.ConsiderOrderBy && len(opts.OrderBy) > 0 {
-			// Check if index can satisfy ORDER BY
-			if s.indexMatchesOrderBy(index, opts.OrderBy) {
-				baseScore += 25 // Big bonus for avoiding sort
-			}
-		}
-
-		// Estimate actual cost
-		usableTerms := s.findUsableTermsForIndex(index)
-		nEq := 0
-		hasRange := false
-		for _, term := range usableTerms {
-			if term.Operator == WO_EQ {
-				nEq++
-			} else if term.Operator&(WO_LT|WO_LE|WO_GT|WO_GE) != 0 {
-				hasRange = true
-			}
-		}
-
-		cost, nOut := s.CostModel.EstimateIndexScan(s.Table, index, usableTerms, nEq, hasRange, false)
-
-		scores = append(scores, indexScore{
-			index: index,
-			score: baseScore,
-			cost:  cost,
-			nOut:  nOut,
-		})
+		scores = append(scores, s.scoreIndexEntry(index, opts))
 	}
 
-	// Find best by combining score and cost
-	if len(scores) == 0 {
-		return nil
-	}
-
-	best := scores[0]
-	for i := 1; i < len(scores); i++ {
-		s := scores[i]
-		// Prefer higher score, but also consider cost
-		if s.score > best.score || (s.score == best.score && s.cost < best.cost) {
-			best = s
-		}
-	}
-
+	best := pickBestScore(scores)
 	if best.score > 0 {
 		return best.index
 	}
-
 	return nil
 }
 

@@ -69,46 +69,63 @@ func Load(id string) (*VersificationData, error) {
 	return &data, nil
 }
 
+// versIDAliases maps every accepted input alias to its canonical file-name ID.
+// The empty string maps to "kjv" (the default versification).
+var versIDAliases = map[string]string{
+	// KJV family
+	"":         "kjv", // Default to base KJV (39 OT + 27 NT)
+	"KJV":      "kjv",
+	"kjv":      "kjv",
+	"KJVA":     "kjva", // KJV with Apocrypha (53 OT + 27 NT)
+	"kjva":     "kjva",
+	// Vulgate
+	"Vulgate": "vulg",
+	"Vulg":    "vulg",
+	"vulg":    "vulg",
+	// Protestant modern translations
+	"NRSV":  "nrsv",
+	"nrsv":  "nrsv",
+	"NRSVA": "nrsva",
+	"nrsva": "nrsva",
+	// Greek / Hebrew manuscripts
+	"LXX":       "lxx",
+	"lxx":       "lxx",
+	"MT":        "leningrad",
+	"mt":        "leningrad",
+	"Leningrad": "leningrad",
+	// Eastern traditions
+	"Orthodox": "orthodox",
+	"orthodox": "orthodox",
+	// Catholic traditions
+	"Catholic":  "catholic",
+	"catholic":  "catholic",
+	"Catholic2": "catholic2",
+	"catholic2": "catholic2",
+	// German / Reformation traditions
+	"Luther":  "luther",
+	"luther":  "luther",
+	"German":  "german",
+	"german":  "german",
+	// Slavic tradition
+	"Synodal":     "synodal",
+	"synodal":     "synodal",
+	"SynodalProt": "synodalprot",
+	"synodalprot": "synodalprot",
+	// French traditions
+	"Calvin":  "calvin",
+	"calvin":  "calvin",
+	"DarbyFr": "darbyfr",
+	"darbyfr": "darbyfr",
+	"Segond":  "segond",
+	"segond":  "segond",
+}
+
 // normalizeID normalizes versification IDs to match file names.
 func normalizeID(id string) string {
-	switch id {
-	case "KJV", "kjv", "":
-		return "kjv" // Default to base KJV (39 OT + 27 NT)
-	case "KJVA", "kjva":
-		return "kjva" // KJV with Apocrypha (53 OT + 27 NT)
-	case "Vulgate", "Vulg", "vulg":
-		return "vulg"
-	case "NRSV", "nrsv":
-		return "nrsv"
-	case "NRSVA", "nrsva":
-		return "nrsva"
-	case "LXX", "lxx":
-		return "lxx"
-	case "MT", "mt", "Leningrad":
-		return "leningrad"
-	case "Orthodox", "orthodox":
-		return "orthodox"
-	case "Catholic", "catholic":
-		return "catholic"
-	case "Catholic2", "catholic2":
-		return "catholic2"
-	case "Luther", "luther":
-		return "luther"
-	case "German", "german":
-		return "german"
-	case "Synodal", "synodal":
-		return "synodal"
-	case "SynodalProt", "synodalprot":
-		return "synodalprot"
-	case "Calvin", "calvin":
-		return "calvin"
-	case "DarbyFr", "darbyfr":
-		return "darbyfr"
-	case "Segond", "segond":
-		return "segond"
-	default:
-		return id
+	if canonical, ok := versIDAliases[id]; ok {
+		return canonical
 	}
+	return id
 }
 
 // List returns all available versification IDs.

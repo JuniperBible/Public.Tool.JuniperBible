@@ -80,38 +80,43 @@ func (w *RawGenBookWriter) WriteModule() (int, error) {
 
 // buildTree builds the tree structure (parent/child/sibling links) from flat paths.
 func (w *RawGenBookWriter) buildTree() error {
-	// Sort nodes by path for consistent ordering
 	sort.Slice(w.nodes, func(i, j int) bool {
 		return w.nodes[i].Path < w.nodes[j].Path
 	})
+	w.extractNames()
+	pathIndex := w.buildPathIndex()
+	w.setParentLinks(pathIndex)
+	w.setChildLinks()
+	w.setSiblingLinks()
+	return nil
+}
 
-	// Extract names from paths
+func (w *RawGenBookWriter) extractNames() {
 	for i := range w.nodes {
 		parts := strings.Split(strings.TrimPrefix(w.nodes[i].Path, "/"), "/")
-		if len(parts) > 0 {
-			w.nodes[i].Name = parts[len(parts)-1]
-		}
+		w.nodes[i].Name = parts[len(parts)-1]
 	}
+}
 
-	// Build path -> index map
-	pathIndex := make(map[string]int)
+func (w *RawGenBookWriter) buildPathIndex() map[string]int {
+	pathIndex := make(map[string]int, len(w.nodes))
 	for i, node := range w.nodes {
 		pathIndex[node.Path] = i
 	}
+	return pathIndex
+}
 
-	// Set parent links
+func (w *RawGenBookWriter) setParentLinks(pathIndex map[string]int) {
 	for i := range w.nodes {
 		parentPath := getParentPath(w.nodes[i].Path)
-		if parentPath != "" {
-			if parentIdx, ok := pathIndex[parentPath]; ok {
-				w.nodes[i].Parent = parentIdx
-			}
+		if parentIdx, ok := pathIndex[parentPath]; ok && parentPath != "" {
+			w.nodes[i].Parent = parentIdx
 		}
 	}
+}
 
-	// Set child and sibling links
+func (w *RawGenBookWriter) setChildLinks() {
 	for i := range w.nodes {
-		// Find first child
 		for j := range w.nodes {
 			if w.nodes[j].Parent == i {
 				w.nodes[i].FirstChild = j
@@ -119,11 +124,11 @@ func (w *RawGenBookWriter) buildTree() error {
 			}
 		}
 	}
+}
 
-	// Set sibling links (nodes with same parent)
+func (w *RawGenBookWriter) setSiblingLinks() {
 	for i := range w.nodes {
 		parentIdx := w.nodes[i].Parent
-		// Find next sibling (next node with same parent, after this one)
 		for j := i + 1; j < len(w.nodes); j++ {
 			if w.nodes[j].Parent == parentIdx {
 				w.nodes[i].NextSibling = j
@@ -131,8 +136,6 @@ func (w *RawGenBookWriter) buildTree() error {
 			}
 		}
 	}
-
-	return nil
 }
 
 // getParentPath returns the parent path of the given path.

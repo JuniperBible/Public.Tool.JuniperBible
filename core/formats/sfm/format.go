@@ -66,6 +66,54 @@ func parseSFM(path string) (*ir.Corpus, error) {
 	return corpus, nil
 }
 
+func buildContentBlock(artifactID string, chapter, verse, sequence int, text string) *ir.ContentBlock {
+	hash := sha256.Sum256([]byte(text))
+	osisID := fmt.Sprintf("%s.%d.%d", artifactID, chapter, verse)
+	return &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", sequence),
+		Sequence: chapter*1000 + verse,
+		Text:     text,
+		Hash:     hex.EncodeToString(hash[:]),
+		Anchors: []*ir.Anchor{{
+			ID:       fmt.Sprintf("a-%d", sequence),
+			Position: 0,
+			Spans: []*ir.Span{{
+				ID:            fmt.Sprintf("s-%s", osisID),
+				Type:          "VERSE",
+				StartAnchorID: fmt.Sprintf("a-%d", sequence),
+				Ref:           &ir.Ref{Book: artifactID, Chapter: chapter, Verse: verse, OSISID: osisID},
+			}},
+		}},
+	}
+}
+
+func parseChapterLine(line string) int {
+	c, _ := strconv.Atoi(strings.TrimSpace(line[3:]))
+	return c
+}
+
+func parseVerseLine(line string) (int, string) {
+	parts := strings.SplitN(line[3:], " ", 2)
+	v, _ := strconv.Atoi(parts[0])
+	if v <= 0 {
+		return 0, ""
+	}
+	if len(parts) > 1 {
+		return v, parts[1]
+	}
+	return v, ""
+}
+
+func appendContinuationText(sb *strings.Builder, line string, verse int) {
+	if verse <= 0 {
+		return
+	}
+	if sb.Len() > 0 {
+		sb.WriteString(" ")
+	}
+	sb.WriteString(strings.TrimSpace(line))
+}
+
 func extractSFMContent(content, artifactID string) []*ir.Document {
 	doc := ir.NewDocument(artifactID, artifactID, 1)
 	scanner := bufio.NewScanner(strings.NewReader(content))
@@ -73,99 +121,81 @@ func extractSFMContent(content, artifactID string) []*ir.Document {
 	var verseText strings.Builder
 
 	flushVerse := func() {
-		if verseText.Len() > 0 && verse > 0 {
-			text := strings.TrimSpace(verseText.String())
-			if text != "" {
-				sequence++
-				hash := sha256.Sum256([]byte(text))
-				osisID := fmt.Sprintf("%s.%d.%d", artifactID, chapter, verse)
-				cb := &ir.ContentBlock{
-					ID:       fmt.Sprintf("cb-%d", sequence),
-					Sequence: chapter*1000 + verse,
-					Text:     text,
-					Hash:     hex.EncodeToString(hash[:]),
-					Anchors: []*ir.Anchor{{
-						ID:       fmt.Sprintf("a-%d", sequence),
-						Position: 0,
-						Spans: []*ir.Span{{
-							ID:            fmt.Sprintf("s-%s", osisID),
-							Type:          "VERSE",
-							StartAnchorID: fmt.Sprintf("a-%d", sequence),
-							Ref:           &ir.Ref{Book: artifactID, Chapter: chapter, Verse: verse, OSISID: osisID},
-						}},
-					}},
-				}
-				doc.ContentBlocks = append(doc.ContentBlocks, cb)
-			}
-			verseText.Reset()
+		if verseText.Len() == 0 || verse <= 0 {
+			return
 		}
+		text := strings.TrimSpace(verseText.String())
+		verseText.Reset()
+		if text == "" {
+			return
+		}
+		sequence++
+		doc.ContentBlocks = append(doc.ContentBlocks, buildContentBlock(artifactID, chapter, verse, sequence, text))
 	}
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "\\c ") {
+		switch {
+		case strings.HasPrefix(line, "\\c "):
 			flushVerse()
-			c, _ := strconv.Atoi(strings.TrimSpace(line[3:]))
-			if c > 0 {
+			if c := parseChapterLine(line); c > 0 {
 				chapter = c
 			}
-		} else if strings.HasPrefix(line, "\\v ") {
+		case strings.HasPrefix(line, "\\v "):
 			flushVerse()
-			parts := strings.SplitN(line[3:], " ", 2)
-			v, _ := strconv.Atoi(parts[0])
-			if v > 0 {
+			if v, inline := parseVerseLine(line); v > 0 {
 				verse = v
-				if len(parts) > 1 {
-					verseText.WriteString(parts[1])
-				}
+				verseText.WriteString(inline)
 			}
-		} else if !strings.HasPrefix(line, "\\") {
-			if verse > 0 {
-				if verseText.Len() > 0 {
-					verseText.WriteString(" ")
-				}
-				verseText.WriteString(strings.TrimSpace(line))
-			}
+		case !strings.HasPrefix(line, "\\"):
+			appendContinuationText(&verseText, line, verse)
 		}
 	}
 	flushVerse()
 	return []*ir.Document{doc}
 }
 
+func extractChapterVerse(cb *ir.ContentBlock) (int, int) {
+	if len(cb.Anchors) > 0 && len(cb.Anchors[0].Spans) > 0 && cb.Anchors[0].Spans[0].Ref != nil {
+		ref := cb.Anchors[0].Spans[0].Ref
+		return ref.Chapter, ref.Verse
+	}
+	return 1, cb.Sequence % 1000
+}
+
+func formatSFMDoc(doc *ir.Document) string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "\\id %s\n", doc.ID)
+	lastChapter := 0
+	for _, cb := range doc.ContentBlocks {
+		chapter, verse := extractChapterVerse(cb)
+		if chapter != lastChapter {
+			fmt.Fprintf(&buf, "\\c %d\n", chapter)
+			lastChapter = chapter
+		}
+		fmt.Fprintf(&buf, "\\v %d %s\n", verse, cb.Text)
+	}
+	return buf.String()
+}
+
+func writeSFMFile(outputPath string, corpus *ir.Corpus) error {
+	if raw, ok := corpus.Attributes["_format_raw"]; ok && raw != "" {
+		rawData, _ := hex.DecodeString(raw)
+		return os.WriteFile(outputPath, rawData, 0600)
+	}
+	var buf bytes.Buffer
+	for _, doc := range corpus.Documents {
+		buf.WriteString(formatSFMDoc(doc))
+	}
+	return os.WriteFile(outputPath, buf.Bytes(), 0600)
+}
+
 func emitSFM(corpus *ir.Corpus, outputDir string) (string, error) {
 	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
-
 	outputPath := filepath.Join(outputDir, corpus.ID+".sfm")
-
-	if raw, ok := corpus.Attributes["_format_raw"]; ok && raw != "" {
-		rawData, _ := hex.DecodeString(raw)
-		if err := os.WriteFile(outputPath, rawData, 0600); err != nil {
-			return "", fmt.Errorf("failed to write SFM: %w", err)
-		}
-		return outputPath, nil
-	}
-
-	var buf bytes.Buffer
-	for _, doc := range corpus.Documents {
-		fmt.Fprintf(&buf, "\\id %s\n", doc.ID)
-		lastChapter := 0
-		for _, cb := range doc.ContentBlocks {
-			chapter, verse := 1, cb.Sequence%1000
-			if len(cb.Anchors) > 0 && len(cb.Anchors[0].Spans) > 0 && cb.Anchors[0].Spans[0].Ref != nil {
-				chapter = cb.Anchors[0].Spans[0].Ref.Chapter
-				verse = cb.Anchors[0].Spans[0].Ref.Verse
-			}
-			if chapter != lastChapter {
-				fmt.Fprintf(&buf, "\\c %d\n", chapter)
-				lastChapter = chapter
-			}
-			fmt.Fprintf(&buf, "\\v %d %s\n", verse, cb.Text)
-		}
-	}
-
-	if err := os.WriteFile(outputPath, buf.Bytes(), 0600); err != nil {
+	if err := writeSFMFile(outputPath, corpus); err != nil {
 		return "", fmt.Errorf("failed to write SFM: %w", err)
 	}
 	return outputPath, nil

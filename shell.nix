@@ -23,6 +23,7 @@ pkgs.mkShell {
     git
     jq
     cloc
+    gocyclo
 
     # Documentation
     pandoc

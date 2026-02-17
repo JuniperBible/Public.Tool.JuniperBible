@@ -65,33 +65,70 @@ var osisToBookNum = func() map[string]int {
 	return m
 }()
 
+// extensionModuleType maps a recognised filename suffix to its module type.
+// Longer suffixes must be checked before shorter ones; the slice preserves that
+// order so the first match wins.
+var extensionModuleType = []struct {
+	suffix     string
+	moduleType string
+}{
+	{".commentaries.mybible", "commentary"},
+	{".dictionary.mybible", "dictionary"},
+	{".mybible", "bible"},
+}
+
+// classifyModuleType returns the MySword module type for the given lowercase
+// base filename, plus a bool indicating whether the filename is recognised at
+// all.
+func classifyModuleType(base string) (string, bool) {
+	for _, entry := range extensionModuleType {
+		if strings.HasSuffix(base, entry.suffix) {
+			return entry.moduleType, true
+		}
+	}
+	return "", false
+}
+
+// scanMySwordTables queries sqlite_master and returns whether the database
+// contains a Books/Bible table and an info/Details table.
+func scanMySwordTables(db interface{ Query(string, ...interface{}) (*sql.Rows, error) }) (hasBooksTable, hasInfoTable bool) {
+	rows, err := db.Query("SELECT name FROM sqlite_master WHERE type='table'")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			continue
+		}
+		if strings.EqualFold(name, "Books") || strings.EqualFold(name, "Bible") {
+			hasBooksTable = true
+		}
+		if strings.EqualFold(name, "info") || strings.EqualFold(name, "Details") {
+			hasInfoTable = true
+		}
+	}
+	return
+}
+
 func detect(path string) (*ipc.DetectResult, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot stat: %v", err)}, nil
 	}
-
 	if info.IsDir() {
 		return &ipc.DetectResult{Detected: false, Reason: "path is a directory, not a file"}, nil
 	}
 
-	// Check file extension - MySword uses .mybible
 	base := strings.ToLower(filepath.Base(path))
-	moduleType := ""
-
-	if strings.HasSuffix(base, ".mybible") {
-		if strings.HasSuffix(base, ".commentaries.mybible") {
-			moduleType = "commentary"
-		} else if strings.HasSuffix(base, ".dictionary.mybible") {
-			moduleType = "dictionary"
-		} else {
-			moduleType = "bible"
-		}
-	} else {
+	moduleType, ok := classifyModuleType(base)
+	if !ok {
 		return &ipc.DetectResult{Detected: false, Reason: "not a .mybible file"}, nil
 	}
 
-	// Verify it's a valid SQLite database
+	// Verify it's a valid SQLite database.
 	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
 		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot open as SQLite: %v", err)}, nil
@@ -102,33 +139,15 @@ func detect(path string) (*ipc.DetectResult, error) {
 		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("not a valid SQLite database: %v", err)}, nil
 	}
 
-	// Check for MySword-specific tables
-	hasBooksTable := false
-	hasInfoTable := false
+	hasBooksTable, hasInfoTable := scanMySwordTables(db)
 
-	rows, err := db.Query("SELECT name FROM sqlite_master WHERE type='table'")
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var name string
-			if err := rows.Scan(&name); err == nil {
-				if strings.EqualFold(name, "Books") || strings.EqualFold(name, "Bible") {
-					hasBooksTable = true
-				}
-				if strings.EqualFold(name, "info") || strings.EqualFold(name, "Details") {
-					hasInfoTable = true
-				}
-			}
-		}
-	}
+	// hasInfoTable indicates higher confidence (used for future enhancements).
+	_ = hasInfoTable
 
-	// For Bible modules, require a Books/Bible table
+	// Bible modules require a Books/Bible table.
 	if !hasBooksTable && moduleType == "bible" {
 		return &ipc.DetectResult{Detected: false, Reason: "no Books/Bible table found"}, nil
 	}
-
-	// hasInfoTable indicates higher confidence (used for future enhancements)
-	_ = hasInfoTable
 
 	return &ipc.DetectResult{Detected: true, Format: "MySword", Reason: fmt.Sprintf("MySword %s database detected", moduleType)}, nil
 }
@@ -175,6 +194,74 @@ func enumerate(path string) (*ipc.EnumerateResult, error) {
 	return &ipc.EnumerateResult{Entries: entries}, nil
 }
 
+// moduleTypeExtractors maps a lowercase file suffix to the (IR module type,
+// extract function) pair that should handle it.
+var moduleTypeExtractors = []struct {
+	suffix      string
+	moduleType  string
+	extractFunc func(*sql.DB, *ir.Corpus)
+}{
+	{".commentaries.mybible", "COMMENTARY", extractCommentaryIR},
+	{".dictionary.mybible", "DICTIONARY", extractDictionaryIR},
+	{".mybible", "BIBLE", extractBibleIR},
+}
+
+// dispatchExtract sets corpus.ModuleType and calls the appropriate extract
+// function based on the lowercase base filename.
+func dispatchExtract(base string, db *sql.DB, corpus *ir.Corpus) {
+	for _, entry := range moduleTypeExtractors {
+		if strings.HasSuffix(base, entry.suffix) {
+			corpus.ModuleType = entry.moduleType
+			entry.extractFunc(db, corpus)
+			return
+		}
+	}
+	// Fallback: treat as plain bible.
+	corpus.ModuleType = "BIBLE"
+	extractBibleIR(db, corpus)
+}
+
+// applyInfoTableMetadata reads the MySword-style "info" table and updates the
+// corpus title, description, and version when present.
+func applyInfoTableMetadata(db *sql.DB, corpus *ir.Corpus) {
+	var desc, detailedInfo, version string
+	row := db.QueryRow("SELECT description, detailed_info, version FROM info LIMIT 1")
+	if err := row.Scan(&desc, &detailedInfo, &version); err != nil {
+		return
+	}
+	if desc != "" {
+		corpus.Title = desc
+	}
+	if detailedInfo != "" {
+		corpus.Description = detailedInfo
+	}
+	if version != "" {
+		corpus.Attributes["version"] = version
+	}
+}
+
+// applyDetailsTableMetadata reads the e-Sword-compatible "Details" table and
+// updates the corpus when the title is still unset.
+func applyDetailsTableMetadata(db *sql.DB, corpus *ir.Corpus) {
+	if corpus.Title != "" {
+		return
+	}
+	var title, abbreviation, info string
+	row := db.QueryRow("SELECT Title, Abbreviation, Information FROM Details LIMIT 1")
+	if err := row.Scan(&title, &abbreviation, &info); err != nil {
+		return
+	}
+	if title != "" {
+		corpus.Title = title
+	}
+	if abbreviation != "" {
+		corpus.Attributes["abbreviation"] = abbreviation
+	}
+	if info != "" {
+		corpus.Description = info
+	}
+}
+
 func parse(path string) (*ir.Corpus, error) {
 	base := strings.ToLower(filepath.Base(path))
 	artifactID := filepath.Base(path)
@@ -182,7 +269,6 @@ func parse(path string) (*ir.Corpus, error) {
 		artifactID = strings.TrimSuffix(artifactID, filepath.Ext(artifactID))
 	}
 
-	// Read source for hashing
 	sourceData, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read source: %w", err)
@@ -200,49 +286,9 @@ func parse(path string) (*ir.Corpus, error) {
 	corpus.LossClass = "L1"
 	corpus.SourceHash = hex.EncodeToString(sourceHash[:])
 
-	// Determine module type from filename
-	if strings.HasSuffix(base, ".commentaries.mybible") {
-		corpus.ModuleType = "COMMENTARY"
-		extractCommentaryIR(db, corpus)
-	} else if strings.HasSuffix(base, ".dictionary.mybible") {
-		corpus.ModuleType = "DICTIONARY"
-		extractDictionaryIR(db, corpus)
-	} else {
-		corpus.ModuleType = "BIBLE"
-		extractBibleIR(db, corpus)
-	}
-
-	// Try to get metadata from info table (MySword style)
-	var desc, detailedInfo, version string
-	row := db.QueryRow("SELECT description, detailed_info, version FROM info LIMIT 1")
-	if err := row.Scan(&desc, &detailedInfo, &version); err == nil {
-		if desc != "" {
-			corpus.Title = desc
-		}
-		if detailedInfo != "" {
-			corpus.Description = detailedInfo
-		}
-		if version != "" {
-			corpus.Attributes["version"] = version
-		}
-	}
-
-	// Fall back to Details table (e-Sword compatible)
-	if corpus.Title == "" {
-		var title, abbreviation, info string
-		row := db.QueryRow("SELECT Title, Abbreviation, Information FROM Details LIMIT 1")
-		if err := row.Scan(&title, &abbreviation, &info); err == nil {
-			if title != "" {
-				corpus.Title = title
-			}
-			if abbreviation != "" {
-				corpus.Attributes["abbreviation"] = abbreviation
-			}
-			if info != "" {
-				corpus.Description = info
-			}
-		}
-	}
+	dispatchExtract(base, db, corpus)
+	applyInfoTableMetadata(db, corpus)
+	applyDetailsTableMetadata(db, corpus)
 
 	return corpus, nil
 }
@@ -472,53 +518,29 @@ func stripHTML(text string) string {
 	return strings.TrimSpace(result.String())
 }
 
-func emit(corpus *ir.Corpus, outputDir string) (string, error) {
-	// Determine output file extension
-	ext := ".mybible"
-	switch corpus.ModuleType {
-	case "COMMENTARY":
-		ext = ".commentaries.mybible"
-	case "DICTIONARY":
-		ext = ".dictionary.mybible"
+var moduleExtensions = map[string]string{
+	"COMMENTARY": ".commentaries.mybible",
+	"DICTIONARY": ".dictionary.mybible",
+}
+
+var moduleEmitters = map[string]func(*sql.DB, *ir.Corpus) error{
+	"BIBLE":      emitBibleNative,
+	"COMMENTARY": emitCommentaryNative,
+	"DICTIONARY": emitDictionaryNative,
+}
+
+func corpusTitle(corpus *ir.Corpus) string {
+	if corpus.Title != "" {
+		return corpus.Title
 	}
+	return corpus.ID
+}
 
-	outputPath := filepath.Join(outputDir, corpus.ID+ext)
-
-	// Create new SQLite database
-	db, err := sqlite.Open(outputPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create database: %w", err)
-	}
-	defer db.Close()
-
-	var emitErr error
-	switch corpus.ModuleType {
-	case "BIBLE":
-		emitErr = emitBibleNative(db, corpus)
-	case "COMMENTARY":
-		emitErr = emitCommentaryNative(db, corpus)
-	case "DICTIONARY":
-		emitErr = emitDictionaryNative(db, corpus)
-	default:
-		emitErr = emitBibleNative(db, corpus)
-	}
-
-	if emitErr != nil {
-		return "", fmt.Errorf("failed to emit content: %w", emitErr)
-	}
-
-	// Create info table with metadata (MySword style)
+func insertMetadata(db *sql.DB, corpus *ir.Corpus) error {
 	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS info (name TEXT, value TEXT)"); err != nil {
-		return "", fmt.Errorf("failed to create info table: %w", err)
+		return fmt.Errorf("failed to create info table: %w", err)
 	}
-
-	title := corpus.Title
-	if title == "" {
-		title = corpus.ID
-	}
-
-	// Insert metadata
-	db.Exec("INSERT INTO info (name, value) VALUES ('description', ?)", title)
+	db.Exec("INSERT INTO info (name, value) VALUES ('description', ?)", corpusTitle(corpus))
 	if corpus.Description != "" {
 		db.Exec("INSERT INTO info (name, value) VALUES ('detailed_info', ?)", corpus.Description)
 	}
@@ -526,6 +548,34 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 		db.Exec("INSERT INTO info (name, value) VALUES ('version', ?)", v)
 	}
 	db.Exec("INSERT INTO info (name, value) VALUES ('language', ?)", corpus.Language)
+	return nil
+}
+
+func emit(corpus *ir.Corpus, outputDir string) (string, error) {
+	ext := moduleExtensions[corpus.ModuleType]
+	if ext == "" {
+		ext = ".mybible"
+	}
+
+	outputPath := filepath.Join(outputDir, corpus.ID+ext)
+
+	db, err := sqlite.Open(outputPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create database: %w", err)
+	}
+	defer db.Close()
+
+	emitter := moduleEmitters[corpus.ModuleType]
+	if emitter == nil {
+		emitter = emitBibleNative
+	}
+	if err := emitter(db, corpus); err != nil {
+		return "", fmt.Errorf("failed to emit content: %w", err)
+	}
+
+	if err := insertMetadata(db, corpus); err != nil {
+		return "", err
+	}
 
 	return outputPath, nil
 }
@@ -608,38 +658,34 @@ func emitDictionaryNative(db *sql.DB, corpus *ir.Corpus) error {
 	return nil
 }
 
-// isValidTableName validates that a table name contains only safe characters.
+var knownTables = map[string]bool{
+	"Books":           true,
+	"Bible":           true,
+	"info":            true,
+	"Details":         true,
+	"commentaries":    true,
+	"Commentary":      true,
+	"dictionary":      true,
+	"Dictionary":      true,
+	"sqlite_sequence": true,
+}
+
+func isValidTableChar(ch rune) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-'
+}
+
+func hasOnlyValidTableChars(name string) bool {
+	for _, ch := range name {
+		if !isValidTableChar(ch) {
+			return false
+		}
+	}
+	return true
+}
+
 func isValidTableName(name string) bool {
 	if name == "" {
 		return false
 	}
-
-	// Whitelist of known valid MySword table names
-	validTables := map[string]bool{
-		"Books":           true,
-		"Bible":           true,
-		"info":            true,
-		"Details":         true,
-		"commentaries":    true,
-		"Commentary":      true,
-		"dictionary":      true,
-		"Dictionary":      true,
-		"sqlite_sequence": true,
-	}
-
-	if validTables[name] {
-		return true
-	}
-
-	// For other tables, validate characters
-	for _, ch := range name {
-		if !((ch >= 'a' && ch <= 'z') ||
-			(ch >= 'A' && ch <= 'Z') ||
-			(ch >= '0' && ch <= '9') ||
-			ch == '_' || ch == '-') {
-			return false
-		}
-	}
-
-	return true
+	return knownTables[name] || hasOnlyValidTableChars(name)
 }

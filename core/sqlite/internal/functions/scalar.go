@@ -64,94 +64,124 @@ func substrFunc(args []Value) (Value, error) {
 	if len(args) < 2 || len(args) > 3 {
 		return nil, fmt.Errorf("substr() requires 2 or 3 arguments")
 	}
-
 	if args[0].IsNull() {
 		return NewNullValue(), nil
 	}
 
 	isBlob := args[0].Type() == TypeBlob
-	var data []byte
-	var length int
-
-	if isBlob {
-		data = args[0].AsBlob()
-		length = len(data)
-	} else {
-		s := args[0].AsString()
-		data = []byte(s)
-		length = utf8.RuneCountInString(s)
-	}
+	length := substrInputLength(args[0], isBlob)
 
 	start := args[1].AsInt64()
-	var subLen int64 = int64(length) // default to rest of string
-
-	if len(args) == 3 {
-		subLen = args[2].AsInt64()
-		if subLen == 0 && args[2].IsNull() {
-			return NewNullValue(), nil
-		}
+	subLen, null := substrParseLength(args, length)
+	if null {
+		return NewNullValue(), nil
 	}
 
-	// Handle negative start (count from end)
-	if start < 0 {
+	start, subLen, null = substrAdjustStart(args[1], start, subLen, length)
+	if null {
+		return NewNullValue(), nil
+	}
+
+	start, subLen = substrAdjustNegLen(start, subLen)
+
+	if isBlob {
+		return substrBlobResult(args[0].AsBlob(), start, subLen, length), nil
+	}
+	return substrTextResult(args[0].AsString(), start, subLen), nil
+}
+
+// substrInputLength returns the logical length of the substr input value.
+// For blobs this is the byte count; for text it is the rune count.
+func substrInputLength(v Value, isBlob bool) int {
+	if isBlob {
+		return len(v.AsBlob())
+	}
+	return utf8.RuneCountInString(v.AsString())
+}
+
+// substrParseLength resolves the optional third argument into a subLen.
+// The second return value is true when the caller must return NULL.
+func substrParseLength(args []Value, length int) (subLen int64, returnNull bool) {
+	if len(args) != 3 {
+		return int64(length), false
+	}
+	if args[2].IsNull() {
+		return 0, true
+	}
+	return args[2].AsInt64(), false
+}
+
+// substrAdjustStart converts the 1-based SQLite start position to a 0-based
+// index and adjusts subLen when a negative start overflows the left boundary.
+// The third return value is true when the caller must return NULL.
+func substrAdjustStart(startArg Value, start, subLen int64, length int) (int64, int64, bool) {
+	switch {
+	case start < 0:
 		start = int64(length) + start
 		if start < 0 {
-			if subLen < 0 {
-				subLen = 0
-			} else {
+			if subLen >= 0 {
 				subLen += start
+			} else {
+				subLen = 0
 			}
 			start = 0
 		}
-	} else if start > 0 {
-		start-- // Convert to 0-indexed
-	} else if start == 0 {
-		// SQLite compatibility: substr(X, 0, N) returns empty string in standard mode
-		if args[1].IsNull() {
-			return NewNullValue(), nil
+	case start > 0:
+		start-- // convert to 0-based index
+	default: // start == 0
+		if startArg.IsNull() {
+			return 0, 0, true
 		}
 	}
+	return start, subLen, false
+}
 
-	// Handle negative length (characters before start)
-	if subLen < 0 {
-		if subLen < -start {
-			subLen = start
-		} else {
-			subLen = -subLen
-		}
-		start -= subLen
+// substrAdjustNegLen handles a negative subLen, which in SQLite means
+// "return characters that lie before the start position".
+func substrAdjustNegLen(start, subLen int64) (int64, int64) {
+	if subLen >= 0 {
+		return start, subLen
 	}
-
+	if subLen < -start {
+		subLen = start
+	} else {
+		subLen = -subLen
+	}
+	start -= subLen
 	if start < 0 {
 		start = 0
 	}
 	if subLen < 0 {
 		subLen = 0
 	}
+	return start, subLen
+}
 
-	if isBlob {
-		// Byte-based substring
-		if start >= int64(length) {
-			return NewBlobValue([]byte{}), nil
-		}
-		end := start + subLen
-		if end > int64(length) {
-			end = int64(length)
-		}
-		return NewBlobValue(data[start:end]), nil
-	} else {
-		// Character-based substring (UTF-8 aware)
-		s := args[0].AsString()
-		runes := []rune(s)
-		if start >= int64(len(runes)) {
-			return NewTextValue(""), nil
-		}
-		end := start + subLen
-		if end > int64(len(runes)) {
-			end = int64(len(runes))
-		}
-		return NewTextValue(string(runes[start:end])), nil
+// substrBlobResult extracts a byte slice from data using pre-adjusted,
+// 0-based start and subLen values.
+func substrBlobResult(data []byte, start, subLen int64, length int) Value {
+	if start >= int64(length) {
+		return NewBlobValue([]byte{})
 	}
+	end := start + subLen
+	if end > int64(length) {
+		end = int64(length)
+	}
+	return NewBlobValue(data[start:end])
+}
+
+// substrTextResult extracts a rune slice from s using pre-adjusted,
+// 0-based start and subLen values.
+func substrTextResult(s string, start, subLen int64) Value {
+	runes := []rune(s)
+	if start >= int64(len(runes)) {
+		return NewTextValue("")
+	}
+	end := start + subLen
+	if end > int64(len(runes)) {
+		end = int64(len(runes))
+	}
+	return NewTextValue(string(runes[start:end]))
 }
 
 // upperFunc implements upper(X)
@@ -497,53 +527,47 @@ func zeroblobFunc(args []Value) (Value, error) {
 	return NewBlobValue(blob), nil
 }
 
-// compareValues compares two values
-// Returns -1 if a < b, 0 if a == b, 1 if a > b
-func compareValues(a, b Value) int {
-	// NULL handling
-	if a.IsNull() && b.IsNull() {
-		return 0
-	}
-	if a.IsNull() {
+var typeComparators = map[ValueType]func(a, b Value) int{
+	TypeInteger: func(a, b Value) int { return cmpOrdered(a.AsInt64(), b.AsInt64()) },
+	TypeFloat:   func(a, b Value) int { return cmpOrdered(a.AsFloat64(), b.AsFloat64()) },
+	TypeText:    func(a, b Value) int { return strings.Compare(a.AsString(), b.AsString()) },
+	TypeBlob:    func(a, b Value) int { return bytes.Compare(a.AsBlob(), b.AsBlob()) },
+}
+
+func cmpOrdered[T int64 | float64](a, b T) int {
+	if a < b {
 		return -1
 	}
-	if b.IsNull() {
+	if a > b {
 		return 1
 	}
+	return 0
+}
 
-	// Type affinity ordering: NULL < INTEGER < REAL < TEXT < BLOB
+func nullCompare(a, b Value) (int, bool) {
+	if a.IsNull() && b.IsNull() {
+		return 0, true
+	}
+	if a.IsNull() {
+		return -1, true
+	}
+	if b.IsNull() {
+		return 1, true
+	}
+	return 0, false
+}
+
+func compareValues(a, b Value) int {
+	if n, ok := nullCompare(a, b); ok {
+		return n
+	}
 	if a.Type() != b.Type() {
 		return int(a.Type()) - int(b.Type())
 	}
-
-	switch a.Type() {
-	case TypeInteger:
-		aVal, bVal := a.AsInt64(), b.AsInt64()
-		if aVal < bVal {
-			return -1
-		} else if aVal > bVal {
-			return 1
-		}
-		return 0
-
-	case TypeFloat:
-		aVal, bVal := a.AsFloat64(), b.AsFloat64()
-		if aVal < bVal {
-			return -1
-		} else if aVal > bVal {
-			return 1
-		}
-		return 0
-
-	case TypeText:
-		return strings.Compare(a.AsString(), b.AsString())
-
-	case TypeBlob:
-		return bytes.Compare(a.AsBlob(), b.AsBlob())
-
-	default:
-		return 0
+	if cmp, ok := typeComparators[a.Type()]; ok {
+		return cmp(a, b)
 	}
+	return 0
 }
 
 // isDigit checks if a rune is a digit

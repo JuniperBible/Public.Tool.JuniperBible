@@ -377,50 +377,64 @@ func (rc *ResultCompiler) resolveQualifiedColumn(sel *Select, expr *Expr) error 
 		return nil
 	}
 
+	tableName, colName, err := extractQualifiedNames(expr)
+	if err != nil {
+		return err
+	}
+
+	srcItem := findTableInSrc(sel.Src, tableName)
+	if srcItem == nil {
+		return fmt.Errorf("no such table: %s", tableName)
+	}
+
+	col, colIdx := findColumnInTable(srcItem.Table, colName)
+	if col == nil {
+		return fmt.Errorf("no such column: %s.%s", tableName, colName)
+	}
+
+	expr.Op = TK_COLUMN
+	expr.Table = srcItem.Cursor
+	expr.Column = colIdx
+	expr.ColumnRef = col
+	expr.Left = nil
+	expr.Right = nil
+	return nil
+}
+
+func extractQualifiedNames(expr *Expr) (string, string, error) {
 	if expr.Left == nil || expr.Left.Op != TK_ID {
-		return fmt.Errorf("invalid table reference")
+		return "", "", fmt.Errorf("invalid table reference")
 	}
 	if expr.Right == nil || expr.Right.Op != TK_ID {
-		return fmt.Errorf("invalid column reference")
+		return "", "", fmt.Errorf("invalid column reference")
 	}
+	return expr.Left.StringValue, expr.Right.StringValue, nil
+}
 
-	tableName := expr.Left.StringValue
-	colName := expr.Right.StringValue
-
-	// Find table in FROM clause
-	if sel.Src != nil {
-		for i := 0; i < sel.Src.Len(); i++ {
-			srcItem := sel.Src.Get(i)
-			if srcItem.Table == nil {
-				continue
-			}
-
-			// Check table name or alias
-			matchName := srcItem.Table.Name == tableName
-			matchAlias := srcItem.Alias == tableName
-
-			if matchName || matchAlias {
-				// Find column in table
-				table := srcItem.Table
-				for colIdx := 0; colIdx < table.NumColumns; colIdx++ {
-					col := table.GetColumn(colIdx)
-					if col.Name == colName {
-						// Convert to simple column reference
-						expr.Op = TK_COLUMN
-						expr.Table = srcItem.Cursor
-						expr.Column = colIdx
-						expr.ColumnRef = col
-						expr.Left = nil
-						expr.Right = nil
-						return nil
-					}
-				}
-				return fmt.Errorf("no such column: %s.%s", tableName, colName)
-			}
+func findTableInSrc(src *SrcList, tableName string) *SrcListItem {
+	if src == nil {
+		return nil
+	}
+	for i := 0; i < src.Len(); i++ {
+		item := src.Get(i)
+		if item.Table == nil {
+			continue
+		}
+		if item.Table.Name == tableName || item.Alias == tableName {
+			return item
 		}
 	}
+	return nil
+}
 
-	return fmt.Errorf("no such table: %s", tableName)
+func findColumnInTable(table *Table, colName string) (*Column, int) {
+	for colIdx := 0; colIdx < table.NumColumns; colIdx++ {
+		col := table.GetColumn(colIdx)
+		if col.Name == colName {
+			return col, colIdx
+		}
+	}
+	return nil, -1
 }
 
 // ComputeColumnAffinity determines the affinity of a result column.

@@ -570,11 +570,18 @@ lint:
 	@$(GO) vet $$($(GO) list ./... | grep -v '/core/ir$$')
 	@echo "Running go vet on core/ir without structtag check..."
 	@$(GO) vet -structtag=false ./core/ir/... 2>/dev/null || true
+	@echo "Running golangci-lint..."
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run; \
 	else \
-		echo "golangci-lint not installed, skipping"; \
+		echo "ERROR: golangci-lint not installed"; \
+		echo "Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
+		exit 1; \
 	fi
+
+complexity:
+	@echo "Checking cyclomatic complexity (max 6)..."
+	@./scripts/check-complexity.sh 6
 
 dev-deps:
 	$(GO) install golang.org/x/tools/cmd/goimports@latest

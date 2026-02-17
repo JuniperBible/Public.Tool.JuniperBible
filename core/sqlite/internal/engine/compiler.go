@@ -2,51 +2,47 @@ package engine
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/parser"
+	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/schema"
 	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/vdbe"
 )
 
+type stmtHandler func(parser.Statement) (*vdbe.VDBE, error)
+
 // Compiler compiles SQL AST to VDBE bytecode.
 type Compiler struct {
-	engine *Engine
+	engine   *Engine
+	handlers map[reflect.Type]stmtHandler
 }
 
 // NewCompiler creates a new SQL to VDBE compiler.
 func NewCompiler(engine *Engine) *Compiler {
-	return &Compiler{
-		engine: engine,
+	c := &Compiler{engine: engine}
+	c.handlers = map[reflect.Type]stmtHandler{
+		reflect.TypeOf((*parser.SelectStmt)(nil)):      func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileSelect(s.(*parser.SelectStmt)) },
+		reflect.TypeOf((*parser.InsertStmt)(nil)):      func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileInsert(s.(*parser.InsertStmt)) },
+		reflect.TypeOf((*parser.UpdateStmt)(nil)):      func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileUpdate(s.(*parser.UpdateStmt)) },
+		reflect.TypeOf((*parser.DeleteStmt)(nil)):      func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileDelete(s.(*parser.DeleteStmt)) },
+		reflect.TypeOf((*parser.CreateTableStmt)(nil)): func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileCreateTable(s.(*parser.CreateTableStmt)) },
+		reflect.TypeOf((*parser.CreateIndexStmt)(nil)): func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileCreateIndex(s.(*parser.CreateIndexStmt)) },
+		reflect.TypeOf((*parser.DropTableStmt)(nil)):   func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileDropTable(s.(*parser.DropTableStmt)) },
+		reflect.TypeOf((*parser.DropIndexStmt)(nil)):   func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileDropIndex(s.(*parser.DropIndexStmt)) },
+		reflect.TypeOf((*parser.BeginStmt)(nil)):       func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileBegin(s.(*parser.BeginStmt)) },
+		reflect.TypeOf((*parser.CommitStmt)(nil)):      func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileCommit(s.(*parser.CommitStmt)) },
+		reflect.TypeOf((*parser.RollbackStmt)(nil)):    func(s parser.Statement) (*vdbe.VDBE, error) { return c.CompileRollback(s.(*parser.RollbackStmt)) },
 	}
+	return c
 }
 
 // Compile compiles a SQL statement to VDBE bytecode.
 func (c *Compiler) Compile(stmt parser.Statement) (*vdbe.VDBE, error) {
-	switch s := stmt.(type) {
-	case *parser.SelectStmt:
-		return c.CompileSelect(s)
-	case *parser.InsertStmt:
-		return c.CompileInsert(s)
-	case *parser.UpdateStmt:
-		return c.CompileUpdate(s)
-	case *parser.DeleteStmt:
-		return c.CompileDelete(s)
-	case *parser.CreateTableStmt:
-		return c.CompileCreateTable(s)
-	case *parser.CreateIndexStmt:
-		return c.CompileCreateIndex(s)
-	case *parser.DropTableStmt:
-		return c.CompileDropTable(s)
-	case *parser.DropIndexStmt:
-		return c.CompileDropIndex(s)
-	case *parser.BeginStmt:
-		return c.CompileBegin(s)
-	case *parser.CommitStmt:
-		return c.CompileCommit(s)
-	case *parser.RollbackStmt:
-		return c.CompileRollback(s)
-	default:
+	handler, ok := c.handlers[reflect.TypeOf(stmt)]
+	if !ok {
 		return nil, fmt.Errorf("unsupported statement type: %T", stmt)
 	}
+	return handler(stmt)
 }
 
 // CompileSelect compiles a SELECT statement.
@@ -54,119 +50,136 @@ func (c *Compiler) CompileSelect(stmt *parser.SelectStmt) (*vdbe.VDBE, error) {
 	vm := vdbe.New()
 	vm.SetReadOnly(true)
 
-	// Allocate registers
-	// We need registers for:
-	// - Result columns
-	// - WHERE clause evaluation
-	// - Temporary values
 	numCols := len(stmt.Columns)
 	vm.AllocMemory(numCols + 10) // Extra registers for temps
 
-	// Open cursor for the table
 	if stmt.From == nil || len(stmt.From.Tables) == 0 {
-		// SELECT without FROM (e.g., SELECT 1+1)
-		// Just evaluate expressions and return
-		for i, col := range stmt.Columns {
-			if col.Expr != nil {
-				// Evaluate expression into register
-				// For now, simplified
-				vm.AddOp(vdbe.OpNull, 0, i, 0)
-			}
-		}
-		vm.AddOp(vdbe.OpResultRow, 0, numCols, 0)
-		vm.AddOp(vdbe.OpHalt, 0, 0, 0)
-
-		// Set result column names
-		colNames := make([]string, numCols)
-		for i, col := range stmt.Columns {
-			if col.Alias != "" {
-				colNames[i] = col.Alias
-			} else {
-				colNames[i] = fmt.Sprintf("column_%d", i)
-			}
-		}
-		vm.ResultCols = colNames
-		return vm, nil
+		return c.compileSelectNoFrom(vm, stmt)
 	}
 
-	// Get table name from FROM clause
 	tableName := stmt.From.Tables[0].TableName
 	table, ok := c.engine.schema.GetTable(tableName)
 	if !ok {
 		return nil, fmt.Errorf("table not found: %s", tableName)
 	}
 
-	// Allocate cursor
+	return c.compileSelectScan(vm, stmt, tableName, table)
+}
+
+// compileSelectNoFrom handles SELECT without a FROM clause (e.g. SELECT 1+1).
+func (c *Compiler) compileSelectNoFrom(vm *vdbe.VDBE, stmt *parser.SelectStmt) (*vdbe.VDBE, error) {
+	numCols := len(stmt.Columns)
+
+	for i, col := range stmt.Columns {
+		if col.Expr != nil {
+			// Evaluate expression into register; simplified for now.
+			vm.AddOp(vdbe.OpNull, 0, i, 0)
+		}
+	}
+	vm.AddOp(vdbe.OpResultRow, 0, numCols, 0)
+	vm.AddOp(vdbe.OpHalt, 0, 0, 0)
+
+	vm.ResultCols = resolveNoFromColNames(stmt.Columns)
+	return vm, nil
+}
+
+// resolveNoFromColNames builds result column names for a FROM-less SELECT.
+func resolveNoFromColNames(cols []parser.ResultColumn) []string {
+	names := make([]string, len(cols))
+	for i, col := range cols {
+		if col.Alias != "" {
+			names[i] = col.Alias
+		} else {
+			names[i] = fmt.Sprintf("column_%d", i)
+		}
+	}
+	return names
+}
+
+// compileSelectScan emits the full table-scan bytecode for a SELECT with a FROM clause.
+func (c *Compiler) compileSelectScan(vm *vdbe.VDBE, stmt *parser.SelectStmt, tableName string, table *schema.Table) (*vdbe.VDBE, error) {
 	cursorIdx := 0
 	vm.AllocCursors(1)
 
-	// Open cursor for table scan
 	vm.AddOp(vdbe.OpOpenRead, cursorIdx, int(table.RootPage), 0)
 	vm.SetComment(vm.NumOps()-1, fmt.Sprintf("Open cursor for %s", tableName))
 
-	// Move to first row
 	vm.AddOp(vdbe.OpRewind, cursorIdx, vm.NumOps()+100, 0) // Jump to end if empty
 	loopStart := vm.NumOps()
 
-	// Evaluate WHERE clause if present
+	// Evaluate WHERE clause if present.
 	if stmt.Where != nil {
-		// Evaluate WHERE expression
-		// If false, skip to Next
-		_ = numCols // whereReg would be numCols
-		// TODO: Compile WHERE expression
-		// For now, no filtering
+		// TODO: Compile WHERE expression; no filtering for now.
+		_ = len(stmt.Columns) // whereReg would be numCols
 	}
 
-	// Extract columns into result registers
-	for i, col := range stmt.Columns {
-		if col.Star {
-			// SELECT * - need all columns
-			for j := range table.Columns {
-				vm.AddOp(vdbe.OpColumn, cursorIdx, j, i+j)
-			}
-		} else {
-			// SELECT specific column
-			// Find column index
-			colIdx := 0
-			if ident, ok := col.Expr.(*parser.IdentExpr); ok {
-				colIdx = table.GetColumnIndex(ident.Name)
-				if colIdx < 0 {
-					return nil, fmt.Errorf("column not found: %s", ident.Name)
-				}
-			}
-			vm.AddOp(vdbe.OpColumn, cursorIdx, colIdx, i)
-		}
+	if err := emitColumnOps(vm, cursorIdx, stmt.Columns, table); err != nil {
+		return nil, err
 	}
 
-	// Return result row
-	vm.AddOp(vdbe.OpResultRow, 0, numCols, 0)
-
-	// Move to next row
+	vm.AddOp(vdbe.OpResultRow, 0, len(stmt.Columns), 0)
 	vm.AddOp(vdbe.OpNext, cursorIdx, loopStart, 0)
-
-	// Close cursor and halt
 	vm.AddOp(vdbe.OpClose, cursorIdx, 0, 0)
 	vm.AddOp(vdbe.OpHalt, 0, 0, 0)
 
-	// Set result column names
-	colNames := make([]string, numCols)
-	for i, col := range stmt.Columns {
-		if col.Alias != "" {
-			colNames[i] = col.Alias
-		} else if col.Star {
-			// For SELECT *, use actual column names
-			if i < len(table.Columns) {
-				colNames[i] = table.Columns[i].Name
-			}
-		} else if ident, ok := col.Expr.(*parser.IdentExpr); ok {
-			colNames[i] = ident.Name
-		} else {
-			colNames[i] = fmt.Sprintf("column_%d", i)
-		}
-	}
-	vm.ResultCols = colNames
-
+	vm.ResultCols = resolveTableColNames(stmt.Columns, table)
 	return vm, nil
+}
+
+// emitColumnOps emits OpColumn instructions for each result column in a table scan.
+func emitColumnOps(vm *vdbe.VDBE, cursorIdx int, cols []parser.ResultColumn, table *schema.Table) error {
+	for i, col := range cols {
+		if col.Star {
+			// SELECT * - emit one OpColumn per table column.
+			for j := range table.Columns {
+				vm.AddOp(vdbe.OpColumn, cursorIdx, j, i+j)
+			}
+			continue
+		}
+
+		colIdx, err := resolveColumnIndex(col, table)
+		if err != nil {
+			return err
+		}
+		vm.AddOp(vdbe.OpColumn, cursorIdx, colIdx, i)
+	}
+	return nil
+}
+
+// resolveColumnIndex resolves the physical column index for a non-star result column.
+func resolveColumnIndex(col parser.ResultColumn, table *schema.Table) (int, error) {
+	ident, ok := col.Expr.(*parser.IdentExpr)
+	if !ok {
+		return 0, nil
+	}
+	idx := table.GetColumnIndex(ident.Name)
+	if idx < 0 {
+		return 0, fmt.Errorf("column not found: %s", ident.Name)
+	}
+	return idx, nil
+}
+
+// resolveTableColNames builds result column names for a SELECT with a FROM clause.
+func resolveTableColNames(cols []parser.ResultColumn, table *schema.Table) []string {
+	names := make([]string, len(cols))
+	for i, col := range cols {
+		names[i] = resolveOneTableColName(i, col, table)
+	}
+	return names
+}
+
+// resolveOneTableColName resolves the display name for a single result column.
+func resolveOneTableColName(i int, col parser.ResultColumn, table *schema.Table) string {
+	if col.Alias != "" {
+		return col.Alias
+	}
+	if col.Star && i < len(table.Columns) {
+		return table.Columns[i].Name
+	}
+	if ident, ok := col.Expr.(*parser.IdentExpr); ok {
+		return ident.Name
+	}
+	return fmt.Sprintf("column_%d", i)
 }
 
 // CompileInsert compiles an INSERT statement.

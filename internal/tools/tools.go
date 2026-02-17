@@ -106,70 +106,75 @@ func Archive(cfg ArchiveConfig) (*ArchiveResult, error) {
 	return &ArchiveResult{OutputPath: cfg.Output}, nil
 }
 
-// Run executes a tool plugin with the Nix executor.
+func resolveInputPath(raw string) (string, error) {
+	if raw == "" {
+		return "", nil
+	}
+	abs, err := filepath.Abs(raw)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve input path: %w", err)
+	}
+	return abs, nil
+}
+
+func resolveOutputDir(raw string) (string, bool, error) {
+	if raw == "" {
+		dir, err := os.MkdirTemp("", "capsule-run-*")
+		if err != nil {
+			return "", false, fmt.Errorf("failed to create temp output directory: %w", err)
+		}
+		return dir, true, nil
+	}
+	abs, err := filepath.Abs(raw)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to resolve output directory: %w", err)
+	}
+	if err := os.MkdirAll(abs, 0700); err != nil {
+		return "", false, fmt.Errorf("failed to create output directory: %w", err)
+	}
+	return abs, false, nil
+}
+
+func writeTranscript(outDir string, data []byte) (string, error) {
+	if len(data) == 0 {
+		return "", nil
+	}
+	path := filepath.Join(outDir, "transcript.jsonl")
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return "", fmt.Errorf("failed to write transcript: %w", err)
+	}
+	return path, nil
+}
+
 func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
-	// Resolve input path if provided
-	inputPath := cfg.InputPath
-	if inputPath != "" {
-		var err error
-		inputPath, err = filepath.Abs(inputPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve input path: %w", err)
-		}
+	inputPath, err := resolveInputPath(cfg.InputPath)
+	if err != nil {
+		return nil, err
 	}
 
-	// Handle output directory
-	outDir := cfg.OutDir
-	cleanupOutDir := false
-	if outDir == "" {
-		var err error
-		outDir, err = os.MkdirTemp("", "capsule-run-*")
-		if err != nil {
-			return nil, fmt.Errorf("failed to create temp output directory: %w", err)
-		}
-		cleanupOutDir = true
-	} else {
-		var err error
-		outDir, err = filepath.Abs(outDir)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve output directory: %w", err)
-		}
-		if err := os.MkdirAll(outDir, 0700); err != nil {
-			return nil, fmt.Errorf("failed to create output directory: %w", err)
-		}
+	outDir, cleanup, err := resolveOutputDir(cfg.OutDir)
+	if err != nil {
+		return nil, err
 	}
-
-	// Cleanup temp directory if we created it
-	if cleanupOutDir {
+	if cleanup {
 		defer os.RemoveAll(outDir)
 	}
 
-	// Create runner request
 	req := runner.NewRequest(cfg.ToolID, cfg.Profile)
-	if inputPath != "" {
-		req.Inputs = []string{inputPath}
-	}
-
-	// Execute with Nix
-	executor := runner.NewNixExecutor(cfg.FlakePath)
-
 	var inputPaths []string
 	if inputPath != "" {
+		req.Inputs = []string{inputPath}
 		inputPaths = []string{inputPath}
 	}
 
-	result, err := executor.ExecuteRequest(ctx, req, inputPaths)
+	result, err := runner.NewNixExecutor(cfg.FlakePath).ExecuteRequest(ctx, req, inputPaths)
 	if err != nil {
 		return nil, fmt.Errorf("execution failed: %w", err)
 	}
 
-	// Write transcript to output directory if we have one
-	transcriptPath := ""
-	if len(result.TranscriptData) > 0 {
-		transcriptPath = filepath.Join(outDir, "transcript.jsonl")
-		if err := os.WriteFile(transcriptPath, result.TranscriptData, 0600); err != nil {
-			return nil, fmt.Errorf("failed to write transcript: %w", err)
-		}
+	transcriptPath, err := writeTranscript(outDir, result.TranscriptData)
+	if err != nil {
+		return nil, err
 	}
 
 	return &RunResult{

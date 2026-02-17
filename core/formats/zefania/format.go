@@ -336,50 +336,65 @@ func emitZefania(corpus *ir.Corpus, outputDir string) (string, error) {
 
 func emitZefaniaFromIR(corpus *ir.Corpus) string {
 	var buf strings.Builder
+	writeXMLBibleHeader(&buf, corpus)
+	for _, doc := range corpus.Documents {
+		writeBook(&buf, doc)
+	}
+	buf.WriteString("</XMLBIBLE>\n")
+	return buf.String()
+}
 
-	buf.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
-`)
+func writeXMLBibleHeader(buf *strings.Builder, corpus *ir.Corpus) {
+	buf.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
 	buf.WriteString(fmt.Sprintf(`<XMLBIBLE biblename="%s"`, escapeXML(corpus.Title)))
 	if corpus.Language != "" {
 		buf.WriteString(fmt.Sprintf(` language="%s"`, escapeXML(corpus.Language)))
 	}
 	buf.WriteString(">\n")
+}
 
-	for _, doc := range corpus.Documents {
-		bookNum := osisToZefaniaBook[doc.ID]
-		if bookNum == 0 {
-			bookNum = doc.Order
-		}
-		buf.WriteString(fmt.Sprintf(`  <BIBLEBOOK bnumber="%d" bname="%s">
-`, bookNum, escapeXML(doc.Title)))
+func resolveBookNumber(doc *ir.Document) int {
+	if n := osisToZefaniaBook[doc.ID]; n != 0 {
+		return n
+	}
+	return doc.Order
+}
 
-		currentChapter := 0
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						if span.Ref.Chapter != currentChapter {
-							if currentChapter > 0 {
-								buf.WriteString("    </CHAPTER>\n")
-							}
-							currentChapter = span.Ref.Chapter
-							buf.WriteString(fmt.Sprintf(`    <CHAPTER cnumber="%d">
-`, currentChapter))
-						}
-						buf.WriteString(fmt.Sprintf(`      <VERS vnumber="%d">%s</VERS>
-`, span.Ref.Verse, escapeXML(cb.Text)))
-					}
-				}
+func writeBook(buf *strings.Builder, doc *ir.Document) {
+	bookNum := resolveBookNumber(doc)
+	buf.WriteString(fmt.Sprintf("  <BIBLEBOOK bnumber=\"%d\" bname=\"%s\">\n", bookNum, escapeXML(doc.Title)))
+	currentChapter := writeChaptersFromBlocks(buf, doc.ContentBlocks)
+	if currentChapter > 0 {
+		buf.WriteString("    </CHAPTER>\n")
+	}
+	buf.WriteString("  </BIBLEBOOK>\n")
+}
+
+func writeChaptersFromBlocks(buf *strings.Builder, blocks []*ir.ContentBlock) int {
+	currentChapter := 0
+	for _, cb := range blocks {
+		for _, anchor := range cb.Anchors {
+			for _, span := range anchor.Spans {
+				currentChapter = writeVerseSpan(buf, cb.Text, span, currentChapter)
 			}
 		}
+	}
+	return currentChapter
+}
+
+func writeVerseSpan(buf *strings.Builder, text string, span *ir.Span, currentChapter int) int {
+	if span.Ref == nil || span.Type != "VERSE" {
+		return currentChapter
+	}
+	if span.Ref.Chapter != currentChapter {
 		if currentChapter > 0 {
 			buf.WriteString("    </CHAPTER>\n")
 		}
-		buf.WriteString("  </BIBLEBOOK>\n")
+		currentChapter = span.Ref.Chapter
+		buf.WriteString(fmt.Sprintf("    <CHAPTER cnumber=\"%d\">\n", currentChapter))
 	}
-
-	buf.WriteString("</XMLBIBLE>\n")
-	return buf.String()
+	buf.WriteString(fmt.Sprintf("      <VERS vnumber=\"%d\">%s</VERS>\n", span.Ref.Verse, escapeXML(text)))
+	return currentChapter
 }
 
 func escapeXML(s string) string {

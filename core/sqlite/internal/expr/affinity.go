@@ -5,6 +5,114 @@ import (
 	"strings"
 )
 
+// ----------------------------------------------------------------------------
+// GetExprAffinity
+// ----------------------------------------------------------------------------
+
+// exprAffinityResult is returned by each opcode handler in exprAffinityDispatch.
+// done=true means return the affinity; done=false means loop again with the
+// updated *Expr pointer.
+type exprAffinityResult struct {
+	aff  Affinity
+	e    *Expr
+	done bool
+}
+
+// exprAffinityDispatch maps each OpCode to a handler that computes the next
+// step of GetExprAffinity.  Only opcodes that need special treatment are
+// present; the default path (stored affinity) is handled by the caller.
+//
+// Populated by init() to avoid an initialization cycle: the handlers call
+// GetExprAffinity, which reads this map.
+var exprAffinityDispatch map[OpCode]func(*Expr) exprAffinityResult
+
+func init() {
+	exprAffinityDispatch = map[OpCode]func(*Expr) exprAffinityResult{
+		OpColumn:       affinityHandleColumn,
+		OpAggColumn:    affinityHandleColumn,
+		OpSelect:       affinityHandleSelect,
+		OpCast:         affinityHandleCast,
+		OpSelectColumn: affinityHandleSelectColumn,
+		OpVector:       affinityHandleVector,
+		OpFunction:     affinityHandleFunction,
+		OpCollate:      affinityHandleTransparent,
+		OpUnaryPlus:    affinityHandleTransparent,
+		OpRegister:     affinityHandleRegister,
+	}
+}
+
+func affinityHandleColumn(e *Expr) exprAffinityResult {
+	return exprAffinityResult{aff: e.Affinity, done: true}
+}
+
+func affinityHandleSelect(e *Expr) exprAffinityResult {
+	if e.Select != nil && e.Select.Columns != nil &&
+		len(e.Select.Columns.Items) > 0 {
+		return exprAffinityResult{
+			aff:  GetExprAffinity(e.Select.Columns.Items[0].Expr),
+			done: true,
+		}
+	}
+	return exprAffinityResult{aff: AFF_NONE, done: true}
+}
+
+func affinityHandleCast(e *Expr) exprAffinityResult {
+	return exprAffinityResult{aff: AffinityFromType(e.Token), done: true}
+}
+
+func affinityHandleSelectColumn(e *Expr) exprAffinityResult {
+	if e.Left != nil && e.Left.Op == OpSelect &&
+		e.Left.Select != nil && e.Left.Select.Columns != nil {
+		cols := e.Left.Select.Columns.Items
+		if e.IColumn >= 0 && e.IColumn < len(cols) {
+			return exprAffinityResult{
+				aff:  GetExprAffinity(cols[e.IColumn].Expr),
+				done: true,
+			}
+		}
+	}
+	return exprAffinityResult{aff: AFF_NONE, done: true}
+}
+
+func affinityHandleVector(e *Expr) exprAffinityResult {
+	if e.List != nil && len(e.List.Items) > 0 {
+		return exprAffinityResult{
+			aff:  GetExprAffinity(e.List.Items[0].Expr),
+			done: true,
+		}
+	}
+	return exprAffinityResult{aff: AFF_NONE, done: true}
+}
+
+func affinityHandleFunction(e *Expr) exprAffinityResult {
+	if e.Affinity == AFF_NONE && e.List != nil && len(e.List.Items) > 0 {
+		return exprAffinityResult{
+			aff:  GetExprAffinity(e.List.Items[0].Expr),
+			done: true,
+		}
+	}
+	return exprAffinityResult{aff: e.Affinity, done: true}
+}
+
+// affinityHandleTransparent handles OpCollate and OpUnaryPlus by descending
+// into the left operand.
+func affinityHandleTransparent(e *Expr) exprAffinityResult {
+	if e.Left != nil {
+		return exprAffinityResult{e: e.Left, done: false}
+	}
+	return exprAffinityResult{aff: AFF_NONE, done: true}
+}
+
+func affinityHandleRegister(e *Expr) exprAffinityResult {
+	if e.IOp2 != 0 {
+		// Manufacture a proxy expression carrying only the stored op so the
+		// dispatcher can be re-entered without mutating the original node.
+		proxy := &Expr{Op: e.IOp2, Affinity: e.Affinity}
+		return exprAffinityResult{e: proxy, done: false}
+	}
+	return exprAffinityResult{aff: e.Affinity, done: true}
+}
+
 // GetExprAffinity returns the affinity of an expression.
 // This determines how values should be coerced for comparison.
 //
@@ -16,78 +124,25 @@ func GetExprAffinity(e *Expr) Affinity {
 		return AFF_NONE
 	}
 
-	op := e.Op
-
-	// Handle various expression types
 	for {
-		switch op {
-		case OpColumn, OpAggColumn:
-			// Column references get affinity from table definition
-			// In a real implementation, this would look up the table schema
-			// For now, we return the stored affinity
-			return e.Affinity
-
-		case OpSelect:
-			// Scalar subquery: get affinity from first result column
-			if e.Select != nil && e.Select.Columns != nil &&
-				len(e.Select.Columns.Items) > 0 {
-				return GetExprAffinity(e.Select.Columns.Items[0].Expr)
-			}
-			return AFF_NONE
-
-		case OpCast:
-			// CAST expression: parse the target type
-			return AffinityFromType(e.Token)
-
-		case OpSelectColumn:
-			// Column from subquery result
-			if e.Left != nil && e.Left.Op == OpSelect {
-				if e.Left.Select != nil && e.Left.Select.Columns != nil {
-					cols := e.Left.Select.Columns.Items
-					if e.IColumn >= 0 && e.IColumn < len(cols) {
-						return GetExprAffinity(cols[e.IColumn].Expr)
-					}
-				}
-			}
-			return AFF_NONE
-
-		case OpVector:
-			// Vector expression: get affinity from first element
-			if e.List != nil && len(e.List.Items) > 0 {
-				return GetExprAffinity(e.List.Items[0].Expr)
-			}
-			return AFF_NONE
-
-		case OpFunction:
-			// Functions with deferred affinity determination
-			if e.Affinity == AFF_NONE && e.List != nil && len(e.List.Items) > 0 {
-				return GetExprAffinity(e.List.Items[0].Expr)
-			}
-			return e.Affinity
-
-		case OpCollate, OpUnaryPlus:
-			// Skip over these and check the operand
-			if e.Left != nil {
-				e = e.Left
-				op = e.Op
-				continue
-			}
-			return AFF_NONE
-
-		case OpRegister:
-			// Register may have original op stored
-			if e.IOp2 != 0 {
-				op = e.IOp2
-				continue
-			}
-			return e.Affinity
-
-		default:
-			// For all other expressions, use stored affinity
+		handler, ok := exprAffinityDispatch[e.Op]
+		if !ok {
+			// Default: use stored affinity.
 			return e.Affinity
 		}
+
+		res := handler(e)
+		if res.done {
+			return res.aff
+		}
+		// Continue loop with updated expression pointer.
+		e = res.e
 	}
 }
+
+// ----------------------------------------------------------------------------
+// AffinityFromType (unchanged – CC is already acceptable)
+// ----------------------------------------------------------------------------
 
 // AffinityFromType determines affinity from a type name.
 // This implements SQLite's type affinity rules:
@@ -130,6 +185,10 @@ func AffinityFromType(typeName string) Affinity {
 	// Default to NUMERIC
 	return AFF_NUMERIC
 }
+
+// ----------------------------------------------------------------------------
+// CompareAffinity (unchanged – CC is already acceptable)
+// ----------------------------------------------------------------------------
 
 // CompareAffinity determines the affinity to use when comparing two expressions.
 // This implements SQLite's type affinity rules for comparisons.
@@ -190,6 +249,93 @@ func GetComparisonAffinity(e *Expr) Affinity {
 	return aff
 }
 
+// ----------------------------------------------------------------------------
+// ApplyAffinity
+// ----------------------------------------------------------------------------
+
+// applyIntegerAffinity converts value to int64 when possible.
+func applyIntegerAffinity(value interface{}) interface{} {
+	switch v := value.(type) {
+	case int64:
+		return v
+	case float64:
+		return int64(v)
+	case string:
+		if i, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return i
+		}
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return int64(f)
+		}
+		return v
+	default:
+		return value
+	}
+}
+
+// applyRealAffinity converts value to float64 when possible.
+func applyRealAffinity(value interface{}) interface{} {
+	switch v := value.(type) {
+	case float64:
+		return v
+	case int64:
+		return float64(v)
+	case string:
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+		return v
+	default:
+		return value
+	}
+}
+
+// applyNumericAffinity converts value to the most appropriate numeric type.
+func applyNumericAffinity(value interface{}) interface{} {
+	switch v := value.(type) {
+	case float64:
+		return v
+	case int64:
+		return float64(v)
+	case string:
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+		if i, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return i
+		}
+		return v
+	default:
+		return value
+	}
+}
+
+// applyTextAffinity converts value to a string representation.
+func applyTextAffinity(value interface{}) interface{} {
+	switch v := value.(type) {
+	case string:
+		return v
+	case int:
+		return strconv.Itoa(v)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case float64:
+		return strconv.FormatFloat(v, 'g', -1, 64)
+	default:
+		return value
+	}
+}
+
+// applyAffinityDispatch maps each Affinity constant to its converter function.
+// AFF_BLOB and AFF_NONE perform no conversion and are absent from the map;
+// the caller returns the value unchanged for any missing key.
+var applyAffinityDispatch = map[Affinity]func(interface{}) interface{}{
+	AFF_INTEGER: applyIntegerAffinity,
+	AFF_REAL:    applyRealAffinity,
+	AFF_NUMERIC: applyNumericAffinity,
+	AFF_TEXT:    applyTextAffinity,
+}
+
 // ApplyAffinity converts a value according to the specified affinity.
 // This is a simplified version - a real implementation would work with
 // actual SQLite values.
@@ -198,74 +344,16 @@ func ApplyAffinity(value interface{}, aff Affinity) interface{} {
 		return nil
 	}
 
-	switch aff {
-	case AFF_INTEGER:
-		// Try to convert to integer
-		switch v := value.(type) {
-		case int64:
-			return v
-		case float64:
-			return int64(v)
-		case string:
-			if i, err := strconv.ParseInt(v, 10, 64); err == nil {
-				return i
-			}
-			// Try as float first
-			if f, err := strconv.ParseFloat(v, 64); err == nil {
-				return int64(f)
-			}
-			// Can't convert, keep as string
-			return v
-		default:
-			return value
-		}
-
-	case AFF_REAL, AFF_NUMERIC:
-		// Try to convert to numeric
-		switch v := value.(type) {
-		case float64:
-			return v
-		case int64:
-			return float64(v)
-		case string:
-			if f, err := strconv.ParseFloat(v, 64); err == nil {
-				return f
-			}
-			// For NUMERIC, also try integer
-			if aff == AFF_NUMERIC {
-				if i, err := strconv.ParseInt(v, 10, 64); err == nil {
-					return i
-				}
-			}
-			// Can't convert, keep as string
-			return v
-		default:
-			return value
-		}
-
-	case AFF_TEXT:
-		// Convert to text
-		switch v := value.(type) {
-		case string:
-			return v
-		case int:
-			return strconv.Itoa(v)
-		case int64:
-			return strconv.FormatInt(v, 10)
-		case float64:
-			return strconv.FormatFloat(v, 'g', -1, 64)
-		default:
-			return value
-		}
-
-	case AFF_BLOB, AFF_NONE:
-		// No conversion
-		return value
-
-	default:
-		return value
+	if convert, ok := applyAffinityDispatch[aff]; ok {
+		return convert(value)
 	}
+	// AFF_BLOB, AFF_NONE, and any unknown affinity: no conversion.
+	return value
 }
+
+// ----------------------------------------------------------------------------
+// SetTableColumnAffinity (unchanged – single statement, CC=1)
+// ----------------------------------------------------------------------------
 
 // SetTableColumnAffinity sets the affinity for a column expression based
 // on the table schema. This would be called during name resolution.
@@ -276,6 +364,98 @@ func SetTableColumnAffinity(e *Expr, colType string) {
 	e.Affinity = AffinityFromType(colType)
 }
 
+// ----------------------------------------------------------------------------
+// PropagateAffinity
+// ----------------------------------------------------------------------------
+
+// opAffinityTable maps opcodes that unconditionally produce a fixed affinity.
+// Opcodes requiring dynamic computation (OpNegate, OpCase) are handled
+// separately by propagateAffinitySpecial.
+var opAffinityTable = map[OpCode]Affinity{
+	// Arithmetic operators produce numeric results.
+	OpPlus:      AFF_NUMERIC,
+	OpMinus:     AFF_NUMERIC,
+	OpMultiply:  AFF_NUMERIC,
+	OpDivide:    AFF_NUMERIC,
+	OpRemainder: AFF_NUMERIC,
+
+	// String concatenation produces text.
+	OpConcat: AFF_TEXT,
+
+	// Bitwise operators produce integers.
+	OpBitAnd: AFF_INTEGER,
+	OpBitOr:  AFF_INTEGER,
+	OpBitXor: AFF_INTEGER,
+	OpLShift: AFF_INTEGER,
+	OpRShift: AFF_INTEGER,
+
+	// Comparison and logical operators produce boolean (integer 0/1).
+	OpEq: AFF_INTEGER, OpNe: AFF_INTEGER,
+	OpLt: AFF_INTEGER, OpLe: AFF_INTEGER,
+	OpGt: AFF_INTEGER, OpGe: AFF_INTEGER,
+	OpAnd: AFF_INTEGER, OpOr: AFF_INTEGER,
+	OpNot: AFF_INTEGER,
+	OpIs: AFF_INTEGER, OpIsNot: AFF_INTEGER,
+	OpIsNull: AFF_INTEGER, OpNotNull: AFF_INTEGER,
+	OpIn: AFF_INTEGER, OpNotIn: AFF_INTEGER,
+	OpBetween: AFF_INTEGER, OpNotBetween: AFF_INTEGER,
+	OpLike: AFF_INTEGER, OpGlob: AFF_INTEGER,
+	OpExists: AFF_INTEGER,
+}
+
+// propagateAffinityNegate handles the OpNegate case: unary minus preserves
+// numeric affinity of the operand or defaults to NUMERIC.
+func propagateAffinityNegate(e *Expr) {
+	if e.Left == nil {
+		return
+	}
+	aff := GetExprAffinity(e.Left)
+	if IsNumericAffinity(aff) {
+		e.Affinity = aff
+	} else {
+		e.Affinity = AFF_NUMERIC
+	}
+}
+
+// propagateAffinityCase handles the OpCase case: affinity is taken from
+// THEN/ELSE clauses and unified to NONE on disagreement.
+func propagateAffinityCase(e *Expr) {
+	if e.List == nil {
+		return
+	}
+
+	var resultAff Affinity = AFF_NONE
+	// CASE list layout: WHEN1, THEN1, WHEN2, THEN2, ..., [ELSE]
+	for i := 1; i < len(e.List.Items); i += 2 {
+		thenAff := GetExprAffinity(e.List.Items[i].Expr)
+		if resultAff == AFF_NONE {
+			resultAff = thenAff
+		} else if resultAff != thenAff {
+			resultAff = AFF_NONE
+		}
+	}
+
+	// Check optional ELSE clause (present when item count is odd).
+	if len(e.List.Items)%2 == 1 {
+		elseIdx := len(e.List.Items) - 1
+		elseAff := GetExprAffinity(e.List.Items[elseIdx].Expr)
+		if resultAff == AFF_NONE {
+			resultAff = elseAff
+		} else if resultAff != elseAff {
+			resultAff = AFF_NONE
+		}
+	}
+
+	e.Affinity = resultAff
+}
+
+// propagateAffinitySpecial handles opcodes that require dynamic computation
+// rather than a fixed table lookup.
+var propagateAffinitySpecial = map[OpCode]func(*Expr){
+	OpNegate: propagateAffinityNegate,
+	OpCase:   propagateAffinityCase,
+}
+
 // PropagateAffinity propagates affinity information through an expression tree.
 // This is called during semantic analysis.
 func PropagateAffinity(e *Expr) {
@@ -283,80 +463,24 @@ func PropagateAffinity(e *Expr) {
 		return
 	}
 
-	// Recursively process children
-	if e.Left != nil {
-		PropagateAffinity(e.Left)
-	}
-	if e.Right != nil {
-		PropagateAffinity(e.Right)
-	}
+	// Recursively process children.
+	PropagateAffinity(e.Left)
+	PropagateAffinity(e.Right)
 	if e.List != nil {
 		for _, item := range e.List.Items {
 			PropagateAffinity(item.Expr)
 		}
 	}
 
-	// Set affinity based on operation
-	switch e.Op {
-	case OpPlus, OpMinus, OpMultiply, OpDivide, OpRemainder:
-		// Arithmetic operators produce numeric results
-		e.Affinity = AFF_NUMERIC
-
-	case OpConcat:
-		// String concatenation produces text
-		e.Affinity = AFF_TEXT
-
-	case OpBitAnd, OpBitOr, OpBitXor, OpLShift, OpRShift:
-		// Bitwise operators produce integers
-		e.Affinity = AFF_INTEGER
-
-	case OpEq, OpNe, OpLt, OpLe, OpGt, OpGe,
-		OpAnd, OpOr, OpNot, OpIs, OpIsNot,
-		OpIsNull, OpNotNull, OpIn, OpNotIn,
-		OpBetween, OpNotBetween, OpLike, OpGlob, OpExists:
-		// Comparison and logical operators produce boolean (integer 0/1)
-		e.Affinity = AFF_INTEGER
-
-	case OpNegate:
-		// Unary minus preserves numeric affinity
-		if e.Left != nil {
-			aff := GetExprAffinity(e.Left)
-			if IsNumericAffinity(aff) {
-				e.Affinity = aff
-			} else {
-				e.Affinity = AFF_NUMERIC
-			}
-		}
-
-	case OpCase:
-		// CASE expression: affinity from THEN/ELSE clauses
-		// Look at all THEN clauses and ELSE clause
-		if e.List != nil {
-			var resultAff Affinity = AFF_NONE
-			// CASE list is: WHEN1, THEN1, WHEN2, THEN2, ..., [ELSE]
-			for i := 1; i < len(e.List.Items); i += 2 {
-				thenAff := GetExprAffinity(e.List.Items[i].Expr)
-				if resultAff == AFF_NONE {
-					resultAff = thenAff
-				} else if resultAff != thenAff {
-					// Different affinities, use NONE
-					resultAff = AFF_NONE
-				}
-			}
-			// Check ELSE clause
-			if len(e.List.Items)%2 == 1 {
-				elseIdx := len(e.List.Items) - 1
-				elseAff := GetExprAffinity(e.List.Items[elseIdx].Expr)
-				if resultAff == AFF_NONE {
-					resultAff = elseAff
-				} else if resultAff != elseAff {
-					resultAff = AFF_NONE
-				}
-			}
-			e.Affinity = resultAff
-		}
-
-	default:
-		// For other operations, affinity is already set or remains NONE
+	// Apply fixed-affinity table first.
+	if aff, ok := opAffinityTable[e.Op]; ok {
+		e.Affinity = aff
+		return
 	}
+
+	// Apply dynamic handlers for opcodes that need computation.
+	if handler, ok := propagateAffinitySpecial[e.Op]; ok {
+		handler(e)
+	}
+	// For all other opcodes, affinity is already set or remains NONE.
 }

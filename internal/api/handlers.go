@@ -535,6 +535,42 @@ func detectFormat(path string) string {
 	return "unknown"
 }
 
+func wrapReader(r io.Reader, path string) (io.Reader, func(), error) {
+	if strings.HasSuffix(path, ".xz") {
+		xzReader, err := xz.NewReader(r)
+		if err != nil {
+			return nil, nil, fmt.Errorf("xz decompress: %w", err)
+		}
+		return xzReader, func() {}, nil
+	}
+	if strings.HasSuffix(path, ".gz") {
+		gzReader, err := gzip.NewReader(r)
+		if err != nil {
+			return nil, nil, fmt.Errorf("gzip decompress: %w", err)
+		}
+		return gzReader, func() { gzReader.Close() }, nil
+	}
+	return r, func() {}, nil
+}
+
+func processTarEntry(header *tar.Header, tarReader *tar.Reader) (*CapsuleManifest, *ArtifactInfo, error) {
+	if header.Name != "manifest.json" {
+		if header.FileInfo().IsDir() {
+			return nil, nil, nil
+		}
+		return nil, &ArtifactInfo{ID: header.Name, Name: filepath.Base(header.Name), Size: header.Size}, nil
+	}
+	data, err := io.ReadAll(tarReader)
+	if err != nil {
+		return nil, nil, err
+	}
+	m := &CapsuleManifest{}
+	if err := json.Unmarshal(data, m); err != nil {
+		return nil, nil, err
+	}
+	return m, nil, nil
+}
+
 func readCapsule(path string) (*CapsuleManifest, []ArtifactInfo, error) {
 	f, err := safefile.Open(path)
 	if err != nil {
@@ -542,24 +578,13 @@ func readCapsule(path string) (*CapsuleManifest, []ArtifactInfo, error) {
 	}
 	defer f.Close()
 
-	var reader io.Reader = f
-
-	if strings.HasSuffix(path, ".xz") {
-		xzReader, err := xz.NewReader(reader)
-		if err != nil {
-			return nil, nil, fmt.Errorf("xz decompress: %w", err)
-		}
-		reader = xzReader
-	} else if strings.HasSuffix(path, ".gz") {
-		gzReader, err := gzip.NewReader(reader)
-		if err != nil {
-			return nil, nil, fmt.Errorf("gzip decompress: %w", err)
-		}
-		defer gzReader.Close()
-		reader = gzReader
+	wrapped, cleanup, err := wrapReader(f, path)
+	if err != nil {
+		return nil, nil, err
 	}
+	defer cleanup()
 
-	tarReader := tar.NewReader(reader)
+	tarReader := tar.NewReader(wrapped)
 	var manifest *CapsuleManifest
 	var artifacts []ArtifactInfo
 
@@ -571,22 +596,15 @@ func readCapsule(path string) (*CapsuleManifest, []ArtifactInfo, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-
-		if header.Name == "manifest.json" {
-			data, err := io.ReadAll(tarReader)
-			if err != nil {
-				return nil, nil, err
-			}
-			manifest = &CapsuleManifest{}
-			if err := json.Unmarshal(data, manifest); err != nil {
-				return nil, nil, err
-			}
-		} else if !header.FileInfo().IsDir() {
-			artifacts = append(artifacts, ArtifactInfo{
-				ID:   header.Name,
-				Name: filepath.Base(header.Name),
-				Size: header.Size,
-			})
+		m, a, err := processTarEntry(header, tarReader)
+		if err != nil {
+			return nil, nil, err
+		}
+		if m != nil {
+			manifest = m
+		}
+		if a != nil {
+			artifacts = append(artifacts, *a)
 		}
 	}
 

@@ -265,50 +265,61 @@ func (p *Parser) parseCompoundSelect(left *SelectStmt) (*SelectStmt, error) {
 	return result, nil
 }
 
+func (p *Parser) isTableStar() bool {
+	return p.check(TK_ID) && p.peekAhead(1).Type == TK_DOT && p.peekAhead(2).Type == TK_STAR
+}
+
+func (p *Parser) parseAlias() (string, error) {
+	if p.match(TK_AS) {
+		if !p.check(TK_ID) && !p.check(TK_STRING) {
+			return "", p.error("expected alias after AS")
+		}
+		return Unquote(p.advance().Lexeme), nil
+	}
+	if p.check(TK_ID) || p.check(TK_STRING) {
+		return Unquote(p.advance().Lexeme), nil
+	}
+	return "", nil
+}
+
+func (p *Parser) parseExprColumn() (ResultColumn, error) {
+	expr, err := p.parseExpression()
+	if err != nil {
+		return ResultColumn{}, err
+	}
+	col := ResultColumn{Expr: expr}
+	col.Alias, err = p.parseAlias()
+	if err != nil {
+		return ResultColumn{}, err
+	}
+	return col, nil
+}
+
+func (p *Parser) parseOneResultColumn() (ResultColumn, error) {
+	if p.match(TK_STAR) {
+		return ResultColumn{Star: true}, nil
+	}
+	if p.isTableStar() {
+		table := p.advance().Lexeme
+		p.advance()
+		p.advance()
+		return ResultColumn{Table: table, Star: true}, nil
+	}
+	return p.parseExprColumn()
+}
+
 func (p *Parser) parseResultColumns() ([]ResultColumn, error) {
 	columns := make([]ResultColumn, 0)
-
 	for {
-		if p.match(TK_STAR) {
-			columns = append(columns, ResultColumn{Star: true})
-		} else {
-			// Check for table.*
-			if p.check(TK_ID) && p.peekAhead(1).Type == TK_DOT && p.peekAhead(2).Type == TK_STAR {
-				table := p.advance().Lexeme
-				p.advance() // consume dot
-				p.advance() // consume star
-				columns = append(columns, ResultColumn{
-					Table: table,
-					Star:  true,
-				})
-			} else {
-				expr, err := p.parseExpression()
-				if err != nil {
-					return nil, err
-				}
-
-				col := ResultColumn{Expr: expr}
-
-				// Optional AS alias
-				if p.match(TK_AS) {
-					if !p.check(TK_ID) && !p.check(TK_STRING) {
-						return nil, p.error("expected alias after AS")
-					}
-					col.Alias = Unquote(p.advance().Lexeme)
-				} else if p.check(TK_ID) || p.check(TK_STRING) {
-					// Implicit alias
-					col.Alias = Unquote(p.advance().Lexeme)
-				}
-
-				columns = append(columns, col)
-			}
+		col, err := p.parseOneResultColumn()
+		if err != nil {
+			return nil, err
 		}
-
+		columns = append(columns, col)
 		if !p.match(TK_COMMA) {
 			break
 		}
 	}
-
 	return columns, nil
 }
 
@@ -348,112 +359,168 @@ func (p *Parser) parseFromClause() (*FromClause, error) {
 
 func (p *Parser) parseTableOrSubquery() (*TableOrSubquery, error) {
 	table := &TableOrSubquery{}
-
+	var err error
 	if p.match(TK_LP) {
-		// Subquery
-		if !p.match(TK_SELECT) {
-			return nil, p.error("expected SELECT in subquery")
-		}
-		subquery, err := p.parseSelect()
-		if err != nil {
-			return nil, err
-		}
-		if !p.match(TK_RP) {
-			return nil, p.error("expected ) after subquery")
-		}
-		table.Subquery = subquery
+		err = p.parseSubquery(table)
 	} else {
-		// Table name
-		if !p.check(TK_ID) {
-			return nil, p.error("expected table name")
-		}
-		table.TableName = Unquote(p.advance().Lexeme)
-
-		// INDEXED BY
-		if p.match(TK_INDEXED) {
-			if !p.match(TK_BY) {
-				return nil, p.error("expected BY after INDEXED")
-			}
-			if !p.check(TK_ID) {
-				return nil, p.error("expected index name")
-			}
-			table.Indexed = Unquote(p.advance().Lexeme)
-		}
+		err = p.parseTableRef(table)
 	}
+	if err != nil {
+		return nil, err
+	}
+	if err = p.parseTableAlias(table); err != nil {
+		return nil, err
+	}
+	return table, nil
+}
 
-	// Optional alias
+func (p *Parser) parseSubquery(table *TableOrSubquery) error {
+	if !p.match(TK_SELECT) {
+		return p.error("expected SELECT in subquery")
+	}
+	subquery, err := p.parseSelect()
+	if err != nil {
+		return err
+	}
+	if !p.match(TK_RP) {
+		return p.error("expected ) after subquery")
+	}
+	table.Subquery = subquery
+	return nil
+}
+
+func (p *Parser) parseTableRef(table *TableOrSubquery) error {
+	if !p.check(TK_ID) {
+		return p.error("expected table name")
+	}
+	table.TableName = Unquote(p.advance().Lexeme)
+	if !p.match(TK_INDEXED) {
+		return nil
+	}
+	if !p.match(TK_BY) {
+		return p.error("expected BY after INDEXED")
+	}
+	if !p.check(TK_ID) {
+		return p.error("expected index name")
+	}
+	table.Indexed = Unquote(p.advance().Lexeme)
+	return nil
+}
+
+func (p *Parser) parseTableAlias(table *TableOrSubquery) error {
 	if p.match(TK_AS) {
 		if !p.check(TK_ID) {
-			return nil, p.error("expected alias after AS")
+			return p.error("expected alias after AS")
 		}
 		table.Alias = Unquote(p.advance().Lexeme)
-	} else if p.check(TK_ID) && !p.isJoinKeyword() {
-		// Implicit alias
+		return nil
+	}
+	if p.check(TK_ID) && !p.isJoinKeyword() {
 		table.Alias = Unquote(p.advance().Lexeme)
 	}
+	return nil
+}
 
-	return table, nil
+// joinTypeMap maps a keyword token to its JoinType. Tokens that accept an
+// optional OUTER suffix are listed in joinOuterTokens.
+var joinTypeMap = map[TokenType]JoinType{
+	TK_LEFT:  JoinLeft,
+	TK_RIGHT: JoinRight,
+	TK_INNER: JoinInner,
+	TK_CROSS: JoinCross,
+}
+
+// joinOuterTokens is the set of join-type tokens that may be followed by OUTER.
+var joinOuterTokens = map[TokenType]bool{
+	TK_LEFT:  true,
+	TK_RIGHT: true,
 }
 
 func (p *Parser) parseJoinClause() (*JoinClause, error) {
 	join := &JoinClause{}
 
-	// Parse join type
-	if p.match(TK_NATURAL) {
-		// NATURAL join
-	}
+	p.match(TK_NATURAL) // optional NATURAL prefix; type stays JoinInner (zero value)
 
-	if p.match(TK_LEFT) {
-		join.Type = JoinLeft
-		p.match(TK_OUTER)
-	} else if p.match(TK_RIGHT) {
-		join.Type = JoinRight
-		p.match(TK_OUTER)
-	} else if p.match(TK_INNER) {
-		join.Type = JoinInner
-	} else if p.match(TK_CROSS) {
-		join.Type = JoinCross
-	}
+	p.parseJoinType(join)
 
 	if !p.match(TK_JOIN) {
 		return nil, p.error("expected JOIN")
 	}
 
-	// Parse table
 	table, err := p.parseTableOrSubquery()
 	if err != nil {
 		return nil, err
 	}
 	join.Table = *table
 
-	// Parse join condition
-	if p.match(TK_ON) {
-		condition, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		join.Condition.On = condition
-	} else if p.match(TK_USING) {
-		if !p.match(TK_LP) {
-			return nil, p.error("expected ( after USING")
-		}
-		columns := make([]string, 0)
-		for {
-			if !p.check(TK_ID) {
-				return nil, p.error("expected column name")
-			}
-			columns = append(columns, Unquote(p.advance().Lexeme))
-			if !p.match(TK_COMMA) {
-				break
-			}
-		}
-		if !p.match(TK_RP) {
-			return nil, p.error("expected ) after USING columns")
-		}
-		join.Condition.Using = columns
-	}
+	return join, p.parseJoinCondition(join)
+}
 
-	return join, nil
+// parseJoinType consumes the optional directional keyword (LEFT, RIGHT, INNER,
+// CROSS) and the optional OUTER suffix, then sets join.Type.
+func (p *Parser) parseJoinType(join *JoinClause) {
+	for tok, jt := range joinTypeMap {
+		if !p.match(tok) {
+			continue
+		}
+		join.Type = jt
+		if joinOuterTokens[tok] {
+			p.match(TK_OUTER) // optional OUTER, discard
+		}
+		return
+	}
+}
+
+// parseJoinCondition parses the optional ON or USING clause.
+func (p *Parser) parseJoinCondition(join *JoinClause) error {
+	if p.match(TK_ON) {
+		return p.parseJoinOnCondition(join)
+	}
+	if p.match(TK_USING) {
+		return p.parseJoinUsingCondition(join)
+	}
+	return nil
+}
+
+// parseJoinOnCondition parses an ON <expr> join condition.
+func (p *Parser) parseJoinOnCondition(join *JoinClause) error {
+	condition, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	join.Condition.On = condition
+	return nil
+}
+
+// parseJoinUsingCondition parses a USING (col, ...) join condition.
+func (p *Parser) parseJoinUsingCondition(join *JoinClause) error {
+	if !p.match(TK_LP) {
+		return p.error("expected ( after USING")
+	}
+	columns, err := p.parseUsingColumnList()
+	if err != nil {
+		return err
+	}
+	if !p.match(TK_RP) {
+		return p.error("expected ) after USING columns")
+	}
+	join.Condition.Using = columns
+	return nil
+}
+
+// parseUsingColumnList parses the comma-separated identifier list inside USING().
+func (p *Parser) parseUsingColumnList() ([]string, error) {
+	columns := make([]string, 0)
+	for {
+		if !p.check(TK_ID) {
+			return nil, p.error("expected column name")
+		}
+		columns = append(columns, Unquote(p.advance().Lexeme))
+		if !p.match(TK_COMMA) {
+			break
+		}
+	}
+	return columns, nil
 }
 
 // =============================================================================
@@ -463,7 +530,6 @@ func (p *Parser) parseJoinClause() (*JoinClause, error) {
 func (p *Parser) parseInsert() (*InsertStmt, error) {
 	stmt := &InsertStmt{}
 
-	// OR conflict clause
 	if p.match(TK_OR) {
 		stmt.OnConflict = p.parseOnConflict()
 	}
@@ -471,62 +537,82 @@ func (p *Parser) parseInsert() (*InsertStmt, error) {
 	if !p.match(TK_INTO) {
 		return nil, p.error("expected INTO after INSERT")
 	}
-
 	if !p.check(TK_ID) {
 		return nil, p.error("expected table name")
 	}
 	stmt.Table = Unquote(p.advance().Lexeme)
 
-	// Column list
-	if p.match(TK_LP) {
-		for {
-			if !p.check(TK_ID) {
-				return nil, p.error("expected column name")
-			}
-			stmt.Columns = append(stmt.Columns, Unquote(p.advance().Lexeme))
-			if !p.match(TK_COMMA) {
-				break
-			}
+	if err := p.parseInsertColumnList(stmt); err != nil {
+		return nil, err
+	}
+	if err := p.parseInsertSource(stmt); err != nil {
+		return nil, err
+	}
+	return stmt, nil
+}
+
+// parseInsertColumnList parses the optional (col1, col2, ...) column list.
+func (p *Parser) parseInsertColumnList(stmt *InsertStmt) error {
+	if !p.match(TK_LP) {
+		return nil
+	}
+	for {
+		if !p.check(TK_ID) {
+			return p.error("expected column name")
 		}
-		if !p.match(TK_RP) {
-			return nil, p.error("expected ) after column list")
+		stmt.Columns = append(stmt.Columns, Unquote(p.advance().Lexeme))
+		if !p.match(TK_COMMA) {
+			break
 		}
 	}
+	if !p.match(TK_RP) {
+		return p.error("expected ) after column list")
+	}
+	return nil
+}
 
-	// VALUES or SELECT
-	if p.match(TK_VALUES) {
-		for {
-			if !p.match(TK_LP) {
-				return nil, p.error("expected ( before values")
-			}
-			values, err := p.parseExpressionList()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Values = append(stmt.Values, values)
-			if !p.match(TK_RP) {
-				return nil, p.error("expected ) after values")
-			}
-			if !p.match(TK_COMMA) {
-				break
-			}
+// parseInsertValues parses the VALUES (...), (...) clause.
+func (p *Parser) parseInsertValues(stmt *InsertStmt) error {
+	for {
+		if !p.match(TK_LP) {
+			return p.error("expected ( before values")
 		}
-	} else if p.match(TK_SELECT) {
+		values, err := p.parseExpressionList()
+		if err != nil {
+			return err
+		}
+		stmt.Values = append(stmt.Values, values)
+		if !p.match(TK_RP) {
+			return p.error("expected ) after values")
+		}
+		if !p.match(TK_COMMA) {
+			break
+		}
+	}
+	return nil
+}
+
+// parseInsertSource parses the VALUES, SELECT, or DEFAULT VALUES source.
+func (p *Parser) parseInsertSource(stmt *InsertStmt) error {
+	switch {
+	case p.match(TK_VALUES):
+		return p.parseInsertValues(stmt)
+	case p.match(TK_SELECT):
 		sel, err := p.parseSelect()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		stmt.Select = sel
-	} else if p.match(TK_DEFAULT) {
+		return nil
+	case p.match(TK_DEFAULT):
 		if !p.match(TK_VALUES) {
-			return nil, p.error("expected VALUES after DEFAULT")
+			return p.error("expected VALUES after DEFAULT")
 		}
 		stmt.DefaultVals = true
-	} else {
-		return nil, p.error("expected VALUES, SELECT, or DEFAULT")
+		return nil
+	default:
+		return p.error("expected VALUES, SELECT, or DEFAULT")
 	}
-
-	return stmt, nil
 }
 
 // =============================================================================
@@ -536,7 +622,6 @@ func (p *Parser) parseInsert() (*InsertStmt, error) {
 func (p *Parser) parseUpdate() (*UpdateStmt, error) {
 	stmt := &UpdateStmt{}
 
-	// OR conflict clause
 	if p.match(TK_OR) {
 		stmt.OnConflict = p.parseOnConflict()
 	}
@@ -550,63 +635,91 @@ func (p *Parser) parseUpdate() (*UpdateStmt, error) {
 		return nil, p.error("expected SET")
 	}
 
-	// Parse assignments
+	if err := p.parseUpdateClauses(stmt); err != nil {
+		return nil, err
+	}
+	return stmt, nil
+}
+
+// parseUpdateClauses parses all post-SET clauses: assignments, WHERE, ORDER BY,
+// and LIMIT. Grouping them here keeps parseUpdate at CC <= 6.
+func (p *Parser) parseUpdateClauses(stmt *UpdateStmt) error {
+	if err := p.parseUpdateAssignments(stmt); err != nil {
+		return err
+	}
+	if err := p.parseUpdateWhereClause(stmt); err != nil {
+		return err
+	}
+	if err := p.parseUpdateOrderByClause(stmt); err != nil {
+		return err
+	}
+	return p.parseUpdateLimitClause(stmt)
+}
+
+// parseUpdateAssignments parses the comma-separated col = expr assignment list.
+func (p *Parser) parseUpdateAssignments(stmt *UpdateStmt) error {
 	for {
 		if !p.check(TK_ID) {
-			return nil, p.error("expected column name")
+			return p.error("expected column name")
 		}
 		column := Unquote(p.advance().Lexeme)
 
 		if !p.match(TK_EQ) {
-			return nil, p.error("expected = after column name")
+			return p.error("expected = after column name")
 		}
-
 		value, err := p.parseExpression()
 		if err != nil {
-			return nil, err
+			return err
 		}
-
-		stmt.Sets = append(stmt.Sets, Assignment{
-			Column: column,
-			Value:  value,
-		})
+		stmt.Sets = append(stmt.Sets, Assignment{Column: column, Value: value})
 
 		if !p.match(TK_COMMA) {
 			break
 		}
 	}
+	return nil
+}
 
-	// WHERE clause
-	if p.match(TK_WHERE) {
-		where, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Where = where
+// parseUpdateWhereClause parses the optional WHERE clause.
+func (p *Parser) parseUpdateWhereClause(stmt *UpdateStmt) error {
+	if !p.match(TK_WHERE) {
+		return nil
 	}
-
-	// ORDER BY clause
-	if p.match(TK_ORDER) {
-		if !p.match(TK_BY) {
-			return nil, p.error("expected BY after ORDER")
-		}
-		orderBy, err := p.parseOrderByList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OrderBy = orderBy
+	where, err := p.parseExpression()
+	if err != nil {
+		return err
 	}
+	stmt.Where = where
+	return nil
+}
 
-	// LIMIT clause
-	if p.match(TK_LIMIT) {
-		limit, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Limit = limit
+// parseUpdateOrderByClause parses the optional ORDER BY clause.
+func (p *Parser) parseUpdateOrderByClause(stmt *UpdateStmt) error {
+	if !p.match(TK_ORDER) {
+		return nil
 	}
+	if !p.match(TK_BY) {
+		return p.error("expected BY after ORDER")
+	}
+	orderBy, err := p.parseOrderByList()
+	if err != nil {
+		return err
+	}
+	stmt.OrderBy = orderBy
+	return nil
+}
 
-	return stmt, nil
+// parseUpdateLimitClause parses the optional LIMIT clause.
+func (p *Parser) parseUpdateLimitClause(stmt *UpdateStmt) error {
+	if !p.match(TK_LIMIT) {
+		return nil
+	}
+	limit, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	stmt.Limit = limit
+	return nil
 }
 
 // =============================================================================
@@ -678,11 +791,8 @@ func (p *Parser) parseCreate() (Statement, error) {
 func (p *Parser) parseCreateTable(temp bool) (*CreateTableStmt, error) {
 	stmt := &CreateTableStmt{Temp: temp}
 
-	if p.match(TK_IF) {
-		if !p.match(TK_NOT) || !p.match(TK_EXISTS) {
-			return nil, p.error("expected NOT EXISTS after IF")
-		}
-		stmt.IfNotExists = true
+	if err := p.parseIfNotExists(&stmt.IfNotExists); err != nil {
+		return nil, err
 	}
 
 	if !p.check(TK_ID) {
@@ -690,62 +800,96 @@ func (p *Parser) parseCreateTable(temp bool) (*CreateTableStmt, error) {
 	}
 	stmt.Name = Unquote(p.advance().Lexeme)
 
-	// AS SELECT or column definitions
 	if p.match(TK_AS) {
-		if !p.match(TK_SELECT) {
-			return nil, p.error("expected SELECT after AS")
-		}
-		sel, err := p.parseSelect()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Select = sel
-		return stmt, nil
+		return p.parseCreateTableAsSelect(stmt)
 	}
 
+	if err := p.parseCreateTableBody(stmt); err != nil {
+		return nil, err
+	}
+	if err := p.parseTableOptions(stmt); err != nil {
+		return nil, err
+	}
+	return stmt, nil
+}
+
+// parseIfNotExists parses the optional IF NOT EXISTS clause and sets the flag.
+func (p *Parser) parseIfNotExists(flag *bool) error {
+	if !p.match(TK_IF) {
+		return nil
+	}
+	if !p.match(TK_NOT) || !p.match(TK_EXISTS) {
+		return p.error("expected NOT EXISTS after IF")
+	}
+	*flag = true
+	return nil
+}
+
+// parseCreateTableAsSelect handles CREATE TABLE ... AS SELECT ....
+func (p *Parser) parseCreateTableAsSelect(stmt *CreateTableStmt) (*CreateTableStmt, error) {
+	if !p.match(TK_SELECT) {
+		return nil, p.error("expected SELECT after AS")
+	}
+	sel, err := p.parseSelect()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Select = sel
+	return stmt, nil
+}
+
+// parseCreateTableBody parses the parenthesised column-definition and
+// table-constraint list.
+func (p *Parser) parseCreateTableBody(stmt *CreateTableStmt) error {
 	if !p.match(TK_LP) {
-		return nil, p.error("expected ( after table name")
+		return p.error("expected ( after table name")
 	}
-
-	// Parse column definitions
 	for {
-		col, err := p.parseColumnDef()
-		if err != nil {
-			// Check if it's a table constraint
-			constraint, err2 := p.parseTableConstraint()
-			if err2 != nil {
-				return nil, err // return original column error
-			}
-			stmt.Constraints = append(stmt.Constraints, *constraint)
-		} else {
-			stmt.Columns = append(stmt.Columns, *col)
+		if err := p.parseColumnOrConstraint(stmt); err != nil {
+			return err
 		}
-
 		if !p.match(TK_COMMA) {
 			break
 		}
 	}
-
 	if !p.match(TK_RP) {
-		return nil, p.error("expected ) after column definitions")
+		return p.error("expected ) after column definitions")
 	}
+	return nil
+}
 
-	// Table options
+// parseColumnOrConstraint attempts to parse one column definition; on failure
+// it falls back to a table constraint.
+func (p *Parser) parseColumnOrConstraint(stmt *CreateTableStmt) error {
+	col, colErr := p.parseColumnDef()
+	if colErr == nil {
+		stmt.Columns = append(stmt.Columns, *col)
+		return nil
+	}
+	constraint, err := p.parseTableConstraint()
+	if err != nil {
+		return colErr // return the original column-parse error
+	}
+	stmt.Constraints = append(stmt.Constraints, *constraint)
+	return nil
+}
+
+// parseTableOptions parses the trailing WITHOUT ROWID / STRICT options.
+func (p *Parser) parseTableOptions(stmt *CreateTableStmt) error {
 	for {
-		if p.match(TK_WITHOUT) {
+		switch {
+		case p.match(TK_WITHOUT):
 			if !p.match(TK_ROWID) {
-				return nil, p.error("expected ROWID after WITHOUT")
+				return p.error("expected ROWID after WITHOUT")
 			}
 			stmt.WithoutRowID = true
-		} else if p.match(TK_STRICT) {
+		case p.match(TK_STRICT):
 			stmt.Strict = true
-		} else {
-			break
+		default:
+			return nil
 		}
 		p.match(TK_COMMA)
 	}
-
-	return stmt, nil
 }
 
 func (p *Parser) parseColumnDef() (*ColumnDef, error) {
@@ -795,10 +939,32 @@ func (p *Parser) parseTypeName() string {
 	return strings.Join(parts, "")
 }
 
+// columnConstraintHandler is a function that fills in the constraint details
+// for one specific constraint keyword. The keyword has already been consumed.
+type columnConstraintHandler func(p *Parser, c *ColumnConstraint) error
+
+// columnConstraintHandlers maps each leading keyword to its handler.
+// Order matters when iterating, but map lookup is used for dispatch, so the
+// handlers are individually keyed. The one two-token prefix (PRIMARY KEY) is
+// handled by the PRIMARY handler itself.
+var columnConstraintHandlers = map[TokenType]columnConstraintHandler{
+	TK_PRIMARY: (*Parser).applyConstraintPrimaryKey,
+	TK_NOT:     (*Parser).applyConstraintNotNull,
+	TK_UNIQUE:  (*Parser).applyConstraintUnique,
+	TK_CHECK:   (*Parser).applyConstraintCheck,
+	TK_DEFAULT: (*Parser).applyConstraintDefault,
+	TK_COLLATE: (*Parser).applyConstraintCollate,
+}
+
+// columnConstraintOrder defines the token-check order so the dispatch is
+// deterministic (maps have no guaranteed iteration order in Go).
+var columnConstraintOrder = []TokenType{
+	TK_PRIMARY, TK_NOT, TK_UNIQUE, TK_CHECK, TK_DEFAULT, TK_COLLATE,
+}
+
 func (p *Parser) parseColumnConstraint() (*ColumnConstraint, error) {
 	constraint := &ColumnConstraint{}
 
-	// Optional constraint name
 	if p.match(TK_CONSTRAINT) {
 		if !p.check(TK_ID) {
 			return nil, p.error("expected constraint name")
@@ -806,126 +972,191 @@ func (p *Parser) parseColumnConstraint() (*ColumnConstraint, error) {
 		constraint.Name = Unquote(p.advance().Lexeme)
 	}
 
-	if p.match(TK_PRIMARY) {
-		if !p.match(TK_KEY) {
-			return nil, p.error("expected KEY after PRIMARY")
+	for _, tok := range columnConstraintOrder {
+		if !p.match(tok) {
+			continue
 		}
-		constraint.Type = ConstraintPrimaryKey
-		constraint.PrimaryKey = &PrimaryKeyConstraint{}
-
-		if p.match(TK_ASC) {
-			constraint.PrimaryKey.Order = SortAsc
-		} else if p.match(TK_DESC) {
-			constraint.PrimaryKey.Order = SortDesc
-		}
-
-		if p.match(TK_AUTOINCREMENT) {
-			constraint.PrimaryKey.Autoincrement = true
-		}
-	} else if p.match(TK_NOT) {
-		if !p.match(TK_NULL) {
-			return nil, p.error("expected NULL after NOT")
-		}
-		constraint.Type = ConstraintNotNull
-		constraint.NotNull = true
-	} else if p.match(TK_UNIQUE) {
-		constraint.Type = ConstraintUnique
-		constraint.Unique = true
-	} else if p.match(TK_CHECK) {
-		if !p.match(TK_LP) {
-			return nil, p.error("expected ( after CHECK")
-		}
-		expr, err := p.parseExpression()
-		if err != nil {
+		handler := columnConstraintHandlers[tok]
+		if err := handler(p, constraint); err != nil {
 			return nil, err
 		}
-		if !p.match(TK_RP) {
-			return nil, p.error("expected ) after CHECK expression")
-		}
-		constraint.Type = ConstraintCheck
-		constraint.Check = expr
-	} else if p.match(TK_DEFAULT) {
-		expr, err := p.parsePrimaryExpression()
-		if err != nil {
-			return nil, err
-		}
-		constraint.Type = ConstraintDefault
-		constraint.Default = expr
-	} else if p.match(TK_COLLATE) {
-		if !p.check(TK_ID) {
-			return nil, p.error("expected collation name")
-		}
-		constraint.Type = ConstraintCollate
-		constraint.Collate = Unquote(p.advance().Lexeme)
-	} else {
-		return nil, p.error("expected column constraint")
+		return constraint, nil
 	}
 
-	return constraint, nil
+	return nil, p.error("expected column constraint")
 }
+
+// applyConstraintPrimaryKey handles PRIMARY KEY [ASC|DESC] [AUTOINCREMENT].
+func (p *Parser) applyConstraintPrimaryKey(c *ColumnConstraint) error {
+	if !p.match(TK_KEY) {
+		return p.error("expected KEY after PRIMARY")
+	}
+	c.Type = ConstraintPrimaryKey
+	c.PrimaryKey = &PrimaryKeyConstraint{}
+	if p.match(TK_ASC) {
+		c.PrimaryKey.Order = SortAsc
+	} else if p.match(TK_DESC) {
+		c.PrimaryKey.Order = SortDesc
+	}
+	if p.match(TK_AUTOINCREMENT) {
+		c.PrimaryKey.Autoincrement = true
+	}
+	return nil
+}
+
+// applyConstraintNotNull handles NOT NULL.
+func (p *Parser) applyConstraintNotNull(c *ColumnConstraint) error {
+	if !p.match(TK_NULL) {
+		return p.error("expected NULL after NOT")
+	}
+	c.Type = ConstraintNotNull
+	c.NotNull = true
+	return nil
+}
+
+// applyConstraintUnique handles UNIQUE.
+func (p *Parser) applyConstraintUnique(c *ColumnConstraint) error {
+	c.Type = ConstraintUnique
+	c.Unique = true
+	return nil
+}
+
+// applyConstraintCheck handles CHECK (expr).
+func (p *Parser) applyConstraintCheck(c *ColumnConstraint) error {
+	if !p.match(TK_LP) {
+		return p.error("expected ( after CHECK")
+	}
+	expr, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	if !p.match(TK_RP) {
+		return p.error("expected ) after CHECK expression")
+	}
+	c.Type = ConstraintCheck
+	c.Check = expr
+	return nil
+}
+
+// applyConstraintDefault handles DEFAULT <primary-expr>.
+func (p *Parser) applyConstraintDefault(c *ColumnConstraint) error {
+	expr, err := p.parsePrimaryExpression()
+	if err != nil {
+		return err
+	}
+	c.Type = ConstraintDefault
+	c.Default = expr
+	return nil
+}
+
+// applyConstraintCollate handles COLLATE <name>.
+func (p *Parser) applyConstraintCollate(c *ColumnConstraint) error {
+	if !p.check(TK_ID) {
+		return p.error("expected collation name")
+	}
+	c.Type = ConstraintCollate
+	c.Collate = Unquote(p.advance().Lexeme)
+	return nil
+}
+
+// tableConstraintHandler fills in a TableConstraint once its leading keyword
+// has been consumed. Mirrors the columnConstraintHandler pattern.
+type tableConstraintHandler func(p *Parser, c *TableConstraint) error
+
+// tableConstraintHandlers maps each leading keyword to its handler.
+var tableConstraintHandlers = map[TokenType]tableConstraintHandler{
+	TK_PRIMARY: (*Parser).applyTableConstraintPrimaryKey,
+	TK_UNIQUE:  (*Parser).applyTableConstraintUnique,
+	TK_CHECK:   (*Parser).applyTableConstraintCheck,
+}
+
+// tableConstraintOrder determines the order in which keywords are tried.
+var tableConstraintOrder = []TokenType{TK_PRIMARY, TK_UNIQUE, TK_CHECK}
 
 func (p *Parser) parseTableConstraint() (*TableConstraint, error) {
 	constraint := &TableConstraint{}
 
-	// Optional constraint name
-	if p.match(TK_CONSTRAINT) {
-		if !p.check(TK_ID) {
-			return nil, p.error("expected constraint name")
-		}
-		constraint.Name = Unquote(p.advance().Lexeme)
+	if err := p.parseTableConstraintName(constraint); err != nil {
+		return nil, err
 	}
 
-	if p.match(TK_PRIMARY) {
-		if !p.match(TK_KEY) {
-			return nil, p.error("expected KEY after PRIMARY")
+	for _, tok := range tableConstraintOrder {
+		if !p.match(tok) {
+			continue
 		}
-		constraint.Type = ConstraintPrimaryKey
-		constraint.PrimaryKey = &PrimaryKeyTableConstraint{}
-
-		if !p.match(TK_LP) {
-			return nil, p.error("expected ( after PRIMARY KEY")
-		}
-		cols, err := p.parseIndexedColumns()
-		if err != nil {
+		if err := tableConstraintHandlers[tok](p, constraint); err != nil {
 			return nil, err
 		}
-		constraint.PrimaryKey.Columns = cols
-		if !p.match(TK_RP) {
-			return nil, p.error("expected ) after PRIMARY KEY columns")
-		}
-	} else if p.match(TK_UNIQUE) {
-		constraint.Type = ConstraintUnique
-		constraint.Unique = &UniqueTableConstraint{}
-
-		if !p.match(TK_LP) {
-			return nil, p.error("expected ( after UNIQUE")
-		}
-		cols, err := p.parseIndexedColumns()
-		if err != nil {
-			return nil, err
-		}
-		constraint.Unique.Columns = cols
-		if !p.match(TK_RP) {
-			return nil, p.error("expected ) after UNIQUE columns")
-		}
-	} else if p.match(TK_CHECK) {
-		if !p.match(TK_LP) {
-			return nil, p.error("expected ( after CHECK")
-		}
-		expr, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		if !p.match(TK_RP) {
-			return nil, p.error("expected ) after CHECK expression")
-		}
-		constraint.Type = ConstraintCheck
-		constraint.Check = expr
-	} else {
-		return nil, p.error("expected table constraint")
+		return constraint, nil
 	}
 
-	return constraint, nil
+	return nil, p.error("expected table constraint")
+}
+
+// parseTableConstraintName parses the optional CONSTRAINT <name> prefix.
+func (p *Parser) parseTableConstraintName(c *TableConstraint) error {
+	if !p.match(TK_CONSTRAINT) {
+		return nil
+	}
+	if !p.check(TK_ID) {
+		return p.error("expected constraint name")
+	}
+	c.Name = Unquote(p.advance().Lexeme)
+	return nil
+}
+
+// applyTableConstraintPrimaryKey handles PRIMARY KEY (columns...).
+func (p *Parser) applyTableConstraintPrimaryKey(c *TableConstraint) error {
+	if !p.match(TK_KEY) {
+		return p.error("expected KEY after PRIMARY")
+	}
+	if !p.match(TK_LP) {
+		return p.error("expected ( after PRIMARY KEY")
+	}
+	cols, err := p.parseIndexedColumns()
+	if err != nil {
+		return err
+	}
+	if !p.match(TK_RP) {
+		return p.error("expected ) after PRIMARY KEY columns")
+	}
+	c.Type = ConstraintPrimaryKey
+	c.PrimaryKey = &PrimaryKeyTableConstraint{Columns: cols}
+	return nil
+}
+
+// applyTableConstraintUnique handles UNIQUE (columns...).
+func (p *Parser) applyTableConstraintUnique(c *TableConstraint) error {
+	if !p.match(TK_LP) {
+		return p.error("expected ( after UNIQUE")
+	}
+	cols, err := p.parseIndexedColumns()
+	if err != nil {
+		return err
+	}
+	if !p.match(TK_RP) {
+		return p.error("expected ) after UNIQUE columns")
+	}
+	c.Type = ConstraintUnique
+	c.Unique = &UniqueTableConstraint{Columns: cols}
+	return nil
+}
+
+// applyTableConstraintCheck handles CHECK (expr).
+func (p *Parser) applyTableConstraintCheck(c *TableConstraint) error {
+	if !p.match(TK_LP) {
+		return p.error("expected ( after CHECK")
+	}
+	expr, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	if !p.match(TK_RP) {
+		return p.error("expected ) after CHECK expression")
+	}
+	c.Type = ConstraintCheck
+	c.Check = expr
+	return nil
 }
 
 func (p *Parser) parseCreateIndex() (*CreateIndexStmt, error) {
@@ -935,51 +1166,73 @@ func (p *Parser) parseCreateIndex() (*CreateIndexStmt, error) {
 		stmt.Unique = true
 	}
 
-	if p.match(TK_IF) {
-		if !p.match(TK_NOT) || !p.match(TK_EXISTS) {
-			return nil, p.error("expected NOT EXISTS after IF")
-		}
-		stmt.IfNotExists = true
-	}
-
-	if !p.check(TK_ID) {
-		return nil, p.error("expected index name")
-	}
-	stmt.Name = Unquote(p.advance().Lexeme)
-
-	if !p.match(TK_ON) {
-		return nil, p.error("expected ON after index name")
-	}
-
-	if !p.check(TK_ID) {
-		return nil, p.error("expected table name")
-	}
-	stmt.Table = Unquote(p.advance().Lexeme)
-
-	if !p.match(TK_LP) {
-		return nil, p.error("expected ( after table name")
-	}
-
-	cols, err := p.parseIndexedColumns()
-	if err != nil {
+	if err := p.parseIndexIfNotExists(stmt); err != nil {
 		return nil, err
 	}
-	stmt.Columns = cols
-
-	if !p.match(TK_RP) {
-		return nil, p.error("expected ) after columns")
+	if err := p.parseIndexNameAndTable(stmt); err != nil {
+		return nil, err
 	}
-
-	// WHERE clause
-	if p.match(TK_WHERE) {
-		where, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Where = where
+	if err := p.parseIndexColumns(stmt); err != nil {
+		return nil, err
+	}
+	if err := p.parseIndexWhereClause(stmt); err != nil {
+		return nil, err
 	}
 
 	return stmt, nil
+}
+
+func (p *Parser) parseIndexIfNotExists(stmt *CreateIndexStmt) error {
+	if !p.match(TK_IF) {
+		return nil
+	}
+	if !p.match(TK_NOT) || !p.match(TK_EXISTS) {
+		return p.error("expected NOT EXISTS after IF")
+	}
+	stmt.IfNotExists = true
+	return nil
+}
+
+func (p *Parser) parseIndexNameAndTable(stmt *CreateIndexStmt) error {
+	if !p.check(TK_ID) {
+		return p.error("expected index name")
+	}
+	stmt.Name = Unquote(p.advance().Lexeme)
+	if !p.match(TK_ON) {
+		return p.error("expected ON after index name")
+	}
+	if !p.check(TK_ID) {
+		return p.error("expected table name")
+	}
+	stmt.Table = Unquote(p.advance().Lexeme)
+	return nil
+}
+
+func (p *Parser) parseIndexColumns(stmt *CreateIndexStmt) error {
+	if !p.match(TK_LP) {
+		return p.error("expected ( after table name")
+	}
+	cols, err := p.parseIndexedColumns()
+	if err != nil {
+		return err
+	}
+	stmt.Columns = cols
+	if !p.match(TK_RP) {
+		return p.error("expected ) after columns")
+	}
+	return nil
+}
+
+func (p *Parser) parseIndexWhereClause(stmt *CreateIndexStmt) error {
+	if !p.match(TK_WHERE) {
+		return nil
+	}
+	where, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	stmt.Where = where
+	return nil
 }
 
 func (p *Parser) parseIndexedColumns() ([]IndexedColumn, error) {

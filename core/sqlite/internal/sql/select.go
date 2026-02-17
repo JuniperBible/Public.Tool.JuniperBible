@@ -121,65 +121,85 @@ func (c *SelectCompiler) compileSimpleSelect(sel *Select, dest *SelectDest) erro
 		return fmt.Errorf("no VDBE available")
 	}
 
-	// Initialize output destination
-	if dest.Sdst == 0 {
-		dest.Sdst = c.parse.AllocRegs(sel.EList.Len())
-		dest.NSdst = sel.EList.Len()
-	}
-
-	// Generate prologue
+	c.ensureOutputDest(sel, dest)
 	addrEnd := vdbe.MakeLabel()
 
-	// Process FROM clause - open table cursors
 	if err := c.processFromClause(sel); err != nil {
 		return err
 	}
 
-	// Set up DISTINCT handling if needed
+	distinct, sort, hasOrderBy, err := c.setupSelectContexts(sel)
+	if err != nil {
+		return err
+	}
+
+	addrBreak := vdbe.MakeLabel()
+	addrContinue := vdbe.MakeLabel()
+
+	if err := c.compileSelectLoop(sel, dest, &sort, &distinct, hasOrderBy, addrBreak, addrContinue); err != nil {
+		return err
+	}
+
+	vdbe.ResolveLabel(addrBreak)
+	vdbe.ResolveLabel(addrEnd)
+
+	return nil
+}
+
+// ensureOutputDest allocates output registers in dest if not already allocated.
+func (c *SelectCompiler) ensureOutputDest(sel *Select, dest *SelectDest) {
+	if dest.Sdst == 0 {
+		dest.Sdst = c.parse.AllocRegs(sel.EList.Len())
+		dest.NSdst = sel.EList.Len()
+	}
+}
+
+// setupSelectContexts initialises DISTINCT and ORDER BY contexts for sel.
+func (c *SelectCompiler) setupSelectContexts(sel *Select) (DistinctCtx, SortCtx, bool, error) {
 	var distinct DistinctCtx
 	if sel.SelFlags&SF_Distinct != 0 {
 		c.setupDistinct(sel, &distinct)
 	}
 
-	// Set up ORDER BY handling if needed
 	var sort SortCtx
 	hasOrderBy := sel.OrderBy != nil && sel.OrderBy.Len() > 0
 	if hasOrderBy {
 		if err := c.setupOrderBy(sel, &sort); err != nil {
-			return err
+			return distinct, sort, false, err
 		}
 	}
 
-	// Generate loop labels
-	addrBreak := vdbe.MakeLabel()
-	addrContinue := vdbe.MakeLabel()
+	return distinct, sort, hasOrderBy, nil
+}
 
-	// Generate WHERE clause code
+// compileSelectLoop emits the WHERE filter, GROUP BY (if any), inner loop,
+// ORDER BY sort tail, and LIMIT check for a simple SELECT.
+func (c *SelectCompiler) compileSelectLoop(
+	sel *Select,
+	dest *SelectDest,
+	sort *SortCtx,
+	distinct *DistinctCtx,
+	hasOrderBy bool,
+	addrBreak int,
+	addrContinue int,
+) error {
 	if sel.Where != nil {
 		c.compileWhereClause(sel.Where, addrContinue)
 	}
 
-	// Process GROUP BY and aggregates if present
 	if sel.GroupBy != nil && sel.GroupBy.Len() > 0 {
 		return c.compileGroupBy(sel, dest)
 	}
 
-	// Generate inner loop code (extract result columns)
-	c.selectInnerLoop(sel, -1, &sort, &distinct, dest, addrContinue, addrBreak)
+	c.selectInnerLoop(sel, -1, sort, distinct, dest, addrContinue, addrBreak)
 
-	// Generate ORDER BY sorting code
 	if hasOrderBy {
-		c.generateSortTail(sel, &sort, sel.EList.Len(), dest)
+		c.generateSortTail(sel, sort, sel.EList.Len(), dest)
 	}
 
-	// Apply LIMIT/OFFSET
 	if sel.Limit != 0 {
 		c.applyLimit(sel, dest, addrBreak)
 	}
-
-	// Generate epilogue
-	vdbe.ResolveLabel(addrBreak)
-	vdbe.ResolveLabel(addrEnd)
 
 	return nil
 }
@@ -244,7 +264,6 @@ func (c *SelectCompiler) selectInnerLoop(
 	iContinue int,
 	iBreak int,
 ) error {
-	vdbe := c.parse.GetVdbe()
 	nResultCol := sel.EList.Len()
 
 	// Allocate registers for result if needed
@@ -255,85 +274,100 @@ func (c *SelectCompiler) selectInnerLoop(
 		dest.NSdst = nResultCol
 	}
 
-	// Extract result columns
+	c.extractResultColumns(sel, srcTab, nResultCol, regResult)
+	c.applyDistinctFilter(distinct, nResultCol, regResult, iContinue)
+	c.applyOffsetFilter(sort, sel, iContinue)
+
+	if err := c.disposeResult(dest, nResultCol, regResult); err != nil {
+		return err
+	}
+
+	c.applyLimitFilter(sort, sel, iBreak)
+	return nil
+}
+
+// extractResultColumns loads result column values into registers.
+// If srcTab >= 0 the values are read from an intermediate table cursor;
+// otherwise each expression in the SELECT list is evaluated directly.
+func (c *SelectCompiler) extractResultColumns(sel *Select, srcTab int, nResultCol int, regResult int) {
+	vdbe := c.parse.GetVdbe()
 	if srcTab >= 0 {
 		// Pull data from intermediate table
 		for i := 0; i < nResultCol; i++ {
-			// OP_Column srcTab, column_idx, reg
 			vdbe.AddOp3(OP_Column, srcTab, i, regResult+i)
 		}
-	} else {
-		// Evaluate result expressions
-		for i := 0; i < nResultCol; i++ {
-			expr := sel.EList.Get(i).Expr
-			c.compileExpr(expr, regResult+i)
-		}
+		return
 	}
-
-	// Handle DISTINCT if needed
-	if distinct != nil && distinct.IsTnct != 0 {
-		c.codeDistinct(distinct, nResultCol, regResult, iContinue)
+	// Evaluate result expressions directly
+	for i := 0; i < nResultCol; i++ {
+		expr := sel.EList.Get(i).Expr
+		c.compileExpr(expr, regResult+i)
 	}
+}
 
-	// Apply OFFSET if no ORDER BY
-	if sort == nil && sel.Offset > 0 {
-		c.codeOffset(sel.Offset, iContinue)
+// applyDistinctFilter emits code to skip duplicate rows when DISTINCT is active.
+func (c *SelectCompiler) applyDistinctFilter(distinct *DistinctCtx, nResultCol int, regResult int, iContinue int) {
+	if distinct == nil || distinct.IsTnct == 0 {
+		return
 	}
+	c.codeDistinct(distinct, nResultCol, regResult, iContinue)
+}
 
-	// Dispose of the result according to destination
+// applyOffsetFilter emits code to skip the first OFFSET rows when there is no
+// ORDER BY clause (OFFSET is handled by the sorter when ORDER BY is present).
+func (c *SelectCompiler) applyOffsetFilter(sort *SortCtx, sel *Select, iContinue int) {
+	if sort != nil || sel.Offset <= 0 {
+		return
+	}
+	c.codeOffset(sel.Offset, iContinue)
+}
+
+// disposeResult emits code to deliver the current result row to dest.
+func (c *SelectCompiler) disposeResult(dest *SelectDest, nResultCol int, regResult int) error {
+	vdbe := c.parse.GetVdbe()
 	switch dest.Dest {
 	case SRT_Output:
-		// Return result row
-		// OP_ResultRow reg, num_cols
 		vdbe.AddOp2(OP_ResultRow, regResult, nResultCol)
 
 	case SRT_Mem:
-		// Store in memory cells
 		if regResult != dest.SDParm {
-			// OP_Copy src, dst, count
 			vdbe.AddOp3(OP_Copy, regResult, dest.SDParm, nResultCol-1)
 		}
 
 	case SRT_Set:
-		// Store as key in index
 		r1 := c.parse.AllocReg()
-		// OP_MakeRecord reg, count, dst
 		vdbe.AddOp3(OP_MakeRecord, regResult, nResultCol, r1)
-		// OP_IdxInsert cursor, record_reg, key_reg, key_count
 		vdbe.AddOp4Int(OP_IdxInsert, dest.SDParm, r1, regResult, nResultCol)
 		c.parse.ReleaseReg(r1)
 
 	case SRT_Table, SRT_EphemTab:
-		// Store in table
 		r1 := c.parse.AllocReg()
 		r2 := c.parse.AllocReg()
-		// Make record
 		vdbe.AddOp3(OP_MakeRecord, regResult, nResultCol, r1)
-		// Get new rowid
 		vdbe.AddOp2(OP_NewRowid, dest.SDParm, r2)
-		// Insert row
 		vdbe.AddOp3(OP_Insert, dest.SDParm, r1, r2)
 		c.parse.ReleaseReg(r1)
 		c.parse.ReleaseReg(r2)
 
 	case SRT_Exists:
-		// Just set flag to 1
 		vdbe.AddOp2(OP_Integer, 1, dest.SDParm)
 
 	case SRT_Coroutine:
-		// Yield to coroutine
 		vdbe.AddOp1(OP_Yield, dest.SDParm)
 
 	default:
 		return fmt.Errorf("unsupported destination type: %d", dest.Dest)
 	}
-
-	// Apply LIMIT if no ORDER BY
-	if sort == nil && sel.Limit > 0 {
-		c.applyLimitCheck(sel.Limit, iBreak)
-	}
-
 	return nil
+}
+
+// applyLimitFilter emits code to stop iteration once the LIMIT is reached when
+// there is no ORDER BY clause (LIMIT is handled by the sorter otherwise).
+func (c *SelectCompiler) applyLimitFilter(sort *SortCtx, sel *Select, iBreak int) {
+	if sort != nil || sel.Limit <= 0 {
+		return
+	}
+	c.applyLimitCheck(sel.Limit, iBreak)
 }
 
 // codeDistinct generates code to enforce DISTINCT.

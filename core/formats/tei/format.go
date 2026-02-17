@@ -97,94 +97,86 @@ func extractTEIMetadata(content string, corpus *ir.Corpus) {
 }
 
 func extractTEIContent(content, artifactID string) []*ir.Document {
-	var documents []*ir.Document
-
-	divPattern := regexp.MustCompile(`<div[^>]*type="([^"]*)"[^>]*n="([^"]*)"[^>]*>([\s\S]*?)</div>`)
-	divMatches := divPattern.FindAllStringSubmatch(content, -1)
-
 	sequence := 0
+	documents := extractStructuredDocuments(content, &sequence)
+	if len(documents) > 0 {
+		return documents
+	}
+	return extractFallbackDocument(content, artifactID, &sequence)
+}
+
+// newContentBlock builds a ContentBlock for the given text and sequence counter.
+// It returns nil when text is empty or shorter than minLen, leaving sequence unchanged.
+func newContentBlock(seq *int, text string, minLen int) *ir.ContentBlock {
+	text = strings.TrimSpace(text)
+	if len(text) <= minLen {
+		return nil
+	}
+	*seq++
+	hash := sha256.Sum256([]byte(text))
+	return &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", *seq),
+		Sequence: *seq,
+		Text:     text,
+		Hash:     hex.EncodeToString(hash[:]),
+	}
+}
+
+// appendBlocksFromMatches appends a ContentBlock to doc for every regex match
+// whose captured text (index captureIdx) is longer than minLen characters.
+func appendBlocksFromMatches(doc *ir.Document, matches [][]string, captureIdx int, seq *int, minLen int) {
+	for _, m := range matches {
+		if len(m) <= captureIdx {
+			continue
+		}
+		if cb := newContentBlock(seq, m[captureIdx], minLen); cb != nil {
+			doc.ContentBlocks = append(doc.ContentBlocks, cb)
+		}
+	}
+}
+
+// extractStructuredDocuments parses <div type="book|chapter"> elements and
+// returns one Document per qualifying div, or nil when none are found.
+func extractStructuredDocuments(content string, seq *int) []*ir.Document {
+	divPattern := regexp.MustCompile(`<div[^>]*type="([^"]*)"[^>]*n="([^"]*)"[^>]*>([\s\S]*?)</div>`)
+	segPattern := regexp.MustCompile(`<seg[^>]*n="([^"]*)"[^>]*>([^<]*)</seg>`)
+	versePattern := regexp.MustCompile(`<ab[^>]*n="([^"]*)"[^>]*>([^<]*)</ab>`)
+
+	var documents []*ir.Document
 	docOrder := 0
 
-	for _, match := range divMatches {
+	for _, match := range divPattern.FindAllStringSubmatch(content, -1) {
 		if len(match) < 4 {
 			continue
 		}
-
-		divType := match[1]
-		divN := match[2]
-		divContent := match[3]
-
-		if divType == "book" || divType == "chapter" {
-			docOrder++
-			doc := ir.NewDocument(divN, divN, docOrder)
-
-			segPattern := regexp.MustCompile(`<seg[^>]*n="([^"]*)"[^>]*>([^<]*)</seg>`)
-			versePattern := regexp.MustCompile(`<ab[^>]*n="([^"]*)"[^>]*>([^<]*)</ab>`)
-
-			for _, segMatch := range segPattern.FindAllStringSubmatch(divContent, -1) {
-				if len(segMatch) >= 3 {
-					sequence++
-					text := strings.TrimSpace(segMatch[2])
-					if len(text) > 0 {
-						hash := sha256.Sum256([]byte(text))
-						doc.ContentBlocks = append(doc.ContentBlocks, &ir.ContentBlock{
-							ID:       fmt.Sprintf("cb-%d", sequence),
-							Sequence: sequence,
-							Text:     text,
-							Hash:     hex.EncodeToString(hash[:]),
-						})
-					}
-				}
-			}
-
-			for _, verseMatch := range versePattern.FindAllStringSubmatch(divContent, -1) {
-				if len(verseMatch) >= 3 {
-					sequence++
-					text := strings.TrimSpace(verseMatch[2])
-					if len(text) > 0 {
-						hash := sha256.Sum256([]byte(text))
-						doc.ContentBlocks = append(doc.ContentBlocks, &ir.ContentBlock{
-							ID:       fmt.Sprintf("cb-%d", sequence),
-							Sequence: sequence,
-							Text:     text,
-							Hash:     hex.EncodeToString(hash[:]),
-						})
-					}
-				}
-			}
-
-			if len(doc.ContentBlocks) > 0 {
-				documents = append(documents, doc)
-			}
+		divType, divN, divContent := match[1], match[2], match[3]
+		if divType != "book" && divType != "chapter" {
+			continue
 		}
-	}
 
-	if len(documents) == 0 {
-		doc := ir.NewDocument(artifactID, artifactID, 1)
-
-		pPattern := regexp.MustCompile(`<p[^>]*>([^<]+)</p>`)
-		for _, match := range pPattern.FindAllStringSubmatch(content, -1) {
-			if len(match) >= 2 {
-				sequence++
-				text := strings.TrimSpace(match[1])
-				if len(text) > 5 {
-					hash := sha256.Sum256([]byte(text))
-					doc.ContentBlocks = append(doc.ContentBlocks, &ir.ContentBlock{
-						ID:       fmt.Sprintf("cb-%d", sequence),
-						Sequence: sequence,
-						Text:     text,
-						Hash:     hex.EncodeToString(hash[:]),
-					})
-				}
-			}
-		}
+		docOrder++
+		doc := ir.NewDocument(divN, divN, docOrder)
+		appendBlocksFromMatches(doc, segPattern.FindAllStringSubmatch(divContent, -1), 2, seq, 0)
+		appendBlocksFromMatches(doc, versePattern.FindAllStringSubmatch(divContent, -1), 2, seq, 0)
 
 		if len(doc.ContentBlocks) > 0 {
-			documents = []*ir.Document{doc}
+			documents = append(documents, doc)
 		}
 	}
 
 	return documents
+}
+
+// extractFallbackDocument builds a single Document from <p> elements when no
+// structured divs were found. Returns an empty slice when no paragraphs exist.
+func extractFallbackDocument(content, artifactID string, seq *int) []*ir.Document {
+	doc := ir.NewDocument(artifactID, artifactID, 1)
+	pPattern := regexp.MustCompile(`<p[^>]*>([^<]+)</p>`)
+	appendBlocksFromMatches(doc, pPattern.FindAllStringSubmatch(content, -1), 1, seq, 5)
+	if len(doc.ContentBlocks) == 0 {
+		return nil
+	}
+	return []*ir.Document{doc}
 }
 
 func emitTEI(corpus *ir.Corpus, outputDir string) (string, error) {

@@ -86,54 +86,57 @@ func (b *WhereLoopBuilder) addIndexScans(index *IndexInfo) {
 	}
 }
 
-// addIndexScanWithColumns adds loops for using nCol columns of an index.
-func (b *WhereLoopBuilder) addIndexScanWithColumns(index *IndexInfo, nCol int) {
-	// Find terms that can use the first nCol index columns
-	usableTerms := b.findUsableTerms(index, nCol)
-	if len(usableTerms) == 0 {
-		return // No terms can use this index prefix
-	}
+type termConstraints struct {
+	nEq      int
+	hasRange bool
+}
 
-	// Count equality constraints
-	nEq := 0
-	hasRange := false
-	for _, term := range usableTerms {
+func analyzeTermConstraints(terms []*WhereTerm) termConstraints {
+	c := termConstraints{}
+	for _, term := range terms {
 		if term.Operator == WO_EQ {
-			nEq++
+			c.nEq++
 		} else if term.Operator&(WO_LT|WO_LE|WO_GT|WO_GE) != 0 {
-			hasRange = true
+			c.hasRange = true
 		}
 	}
+	return c
+}
 
-	// Check if index is covering (for SELECT *)
-	// In a real implementation, we'd need to know which columns are needed
-	covering := false // Simplified: assume not covering
-
-	// Estimate cost
-	cost, nOut := b.CostModel.EstimateIndexScan(b.Table, index, usableTerms, nEq, hasRange, covering)
-
-	// Determine flags
+func computeIndexFlags(c termConstraints, terms []*WhereTerm, index *IndexInfo, covering bool) WhereFlags {
 	flags := WHERE_INDEXED
-	if nEq > 0 {
+	if c.nEq > 0 {
 		flags |= WHERE_COLUMN_EQ
 	}
-	if hasRange {
+	if c.hasRange {
 		flags |= WHERE_COLUMN_RANGE
-		if hasLowerBound(usableTerms) {
+		if hasLowerBound(terms) {
 			flags |= WHERE_BTM_LIMIT
 		}
-		if hasUpperBound(usableTerms) {
+		if hasUpperBound(terms) {
 			flags |= WHERE_TOP_LIMIT
 		}
 	}
 	if covering {
 		flags |= WHERE_IDX_ONLY
 	}
-
-	// Check if this gives exactly one row (unique index with all columns = const)
-	if index.Unique && nEq >= len(index.Columns) {
+	if index.Unique && c.nEq >= len(index.Columns) {
 		flags |= WHERE_ONEROW
 	}
+	return flags
+}
+
+// addIndexScanWithColumns adds loops for using nCol columns of an index.
+func (b *WhereLoopBuilder) addIndexScanWithColumns(index *IndexInfo, nCol int) {
+	usableTerms := b.findUsableTerms(index, nCol)
+	if len(usableTerms) == 0 {
+		return
+	}
+
+	c := analyzeTermConstraints(usableTerms)
+	covering := false
+	cost, nOut := b.CostModel.EstimateIndexScan(b.Table, index, usableTerms, c.nEq, c.hasRange, covering)
+	flags := computeIndexFlags(c, usableTerms, index, covering)
 
 	loop := &WhereLoop{
 		TabIndex: b.Cursor,
@@ -145,15 +148,10 @@ func (b *WhereLoopBuilder) addIndexScanWithColumns(index *IndexInfo, nCol int) {
 		Terms:    usableTerms,
 	}
 
-	// Set bitmask for this table
 	loop.MaskSelf.Set(b.Cursor)
-
-	// Set prerequisites (tables that must be evaluated first)
 	b.setPrerequisites(loop)
-
 	b.Loops = append(b.Loops, loop)
 
-	// Also try with IN operator if applicable
 	b.tryInOperator(index, nCol, usableTerms)
 }
 
@@ -360,72 +358,64 @@ func (b *WhereLoopBuilder) setPrerequisites(loop *WhereLoop) {
 	loop.Prereq = prereq
 }
 
-// OptimizeForSkipScan checks if skip-scan optimization is possible.
-// Skip-scan allows using an index even when the first column is not constrained.
-func (b *WhereLoopBuilder) OptimizeForSkipScan(index *IndexInfo) *WhereLoop {
-	// Skip-scan is beneficial when:
-	// 1. First column has low cardinality
-	// 2. Later column has constraint
-	// 3. Cost of scanning all first-column values is less than full table scan
-
-	if len(index.Columns) < 2 {
-		return nil
-	}
-
-	// Check if first column is unconstrained but later columns are constrained
-	firstColIdx := index.Columns[0].Index
-	hasFirstCol := false
+func (b *WhereLoopBuilder) columnConstrained(colIdx int) bool {
 	for _, term := range b.Terms {
-		if term.LeftCursor == b.Cursor && term.LeftColumn == firstColIdx {
-			hasFirstCol = true
-			break
+		if term.LeftCursor == b.Cursor && term.LeftColumn == colIdx {
+			return true
 		}
 	}
+	return false
+}
 
-	if hasFirstCol {
-		return nil // First column is already constrained, normal index scan is better
-	}
-
-	// Find terms for later columns
-	laterTerms := make([]*WhereTerm, 0)
+func (b *WhereLoopBuilder) laterColumnTerms(index *IndexInfo) []*WhereTerm {
+	terms := make([]*WhereTerm, 0)
 	for i := 1; i < len(index.Columns); i++ {
 		colIdx := index.Columns[i].Index
 		for _, term := range b.Terms {
 			if term.LeftCursor == b.Cursor && term.LeftColumn == colIdx {
-				laterTerms = append(laterTerms, term)
+				terms = append(terms, term)
 				break
 			}
 		}
 	}
+	return terms
+}
 
-	if len(laterTerms) == 0 {
-		return nil // No constraints on later columns
-	}
-
-	// Estimate distinct values in first column (simplified)
-	distinctFirst := LogEst(40) // Assume ~10 distinct values (2^4 = 16, rounded up)
-
-	// Estimate cost: seek for each distinct value in first column
-	// For each value, scan matching rows based on later column constraints
-	nEq := 0
-	for _, term := range laterTerms {
+func countEqualityTerms(terms []*WhereTerm) int {
+	n := 0
+	for _, term := range terms {
 		if term.Operator == WO_EQ {
-			nEq++
+			n++
 		}
 	}
+	return n
+}
 
+func (b *WhereLoopBuilder) skipScanCostViable(index *IndexInfo, laterTerms []*WhereTerm) (cost, nOut LogEst, ok bool) {
+	distinctFirst := LogEst(40)
+	nEq := countEqualityTerms(laterTerms)
 	baseCost, baseNOut := b.CostModel.EstimateIndexScan(b.Table, index, laterTerms, nEq, false, false)
-
-	// Total cost = cost per first-column value * number of distinct values
-	cost := distinctFirst.Add(baseCost)
-	nOut := distinctFirst.Add(baseNOut)
-
-	// Only use skip-scan if cheaper than full table scan
+	cost = distinctFirst.Add(baseCost)
+	nOut = distinctFirst.Add(baseNOut)
 	fullScanCost, _ := b.CostModel.EstimateFullScan(b.Table)
-	if cost >= fullScanCost {
+	return cost, nOut, cost < fullScanCost
+}
+
+func (b *WhereLoopBuilder) OptimizeForSkipScan(index *IndexInfo) *WhereLoop {
+	if len(index.Columns) < 2 {
 		return nil
 	}
-
+	if b.columnConstrained(index.Columns[0].Index) {
+		return nil
+	}
+	laterTerms := b.laterColumnTerms(index)
+	if len(laterTerms) == 0 {
+		return nil
+	}
+	cost, nOut, ok := b.skipScanCostViable(index, laterTerms)
+	if !ok {
+		return nil
+	}
 	loop := &WhereLoop{
 		TabIndex: b.Cursor,
 		Setup:    0,
@@ -435,10 +425,8 @@ func (b *WhereLoopBuilder) OptimizeForSkipScan(index *IndexInfo) *WhereLoop {
 		Index:    index,
 		Terms:    laterTerms,
 	}
-
 	loop.MaskSelf.Set(b.Cursor)
 	b.setPrerequisites(loop)
-
 	return loop
 }
 

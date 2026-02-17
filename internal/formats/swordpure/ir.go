@@ -75,6 +75,62 @@ type IRAnnotation struct {
 	Confidence float64 `json:"confidence,omitempty"`
 }
 
+// buildCorpusAttributes collects optional metadata fields from a conf file
+// into the attribute map stored on the corpus.
+func buildCorpusAttributes(conf *ConfFile) map[string]string {
+	attrs := make(map[string]string)
+	if conf.About != "" {
+		attrs["about"] = conf.About
+	}
+	if conf.Copyright != "" {
+		attrs["copyright"] = conf.Copyright
+	}
+	if conf.License != "" {
+		attrs["license"] = conf.License
+	}
+	if conf.SourceType != "" {
+		attrs["source_type"] = conf.SourceType
+	}
+	return attrs
+}
+
+// shouldSkipBook returns true when a book should be omitted because the
+// corresponding testament is not present in the module.
+func shouldSkipBook(osisID string, hasOT, hasNT bool) bool {
+	if ntBookSet[osisID] {
+		return !hasNT
+	}
+	return !hasOT
+}
+
+// extractBookVerses iterates over every chapter/verse of book, appending
+// parsed content blocks to doc and updating stats. sequence is advanced for
+// each accepted verse.
+func extractBookVerses(zt *ZTextModule, book BookData, doc *IRDocument, stats *ExtractionStats, sequence *int) {
+	for ch := 1; ch <= len(book.Chapters); ch++ {
+		for v := 1; v <= book.Chapters[ch-1]; v++ {
+			ref := &Ref{Book: book.OSIS, Chapter: ch, Verse: v}
+			rawText, err := zt.GetVerseText(ref)
+			if err != nil || rawText == "" {
+				continue
+			}
+			// Skip verses that only contain structural markup (chapter/book markers)
+			// with no actual verse text. This handles versification differences where
+			// some verses exist in one versification but not another.
+			if stripMarkup(rawText) == "" {
+				continue
+			}
+
+			block := parseVerseContent(ref.String(), rawText, *sequence)
+			*sequence++
+			doc.ContentBlocks = append(doc.ContentBlocks, block)
+			stats.Verses++
+			stats.Tokens += len(block.Tokens)
+			stats.Annotations += len(block.Annotations)
+		}
+	}
+}
+
 // extractCorpus extracts a full IR corpus from a zText module.
 func extractCorpus(zt *ZTextModule, conf *ConfFile) (*IRCorpus, *ExtractionStats, error) {
 	vers, err := VersificationFromConf(conf)
@@ -90,38 +146,15 @@ func extractCorpus(zt *ZTextModule, conf *ConfFile) (*IRCorpus, *ExtractionStats
 		Title:         conf.Description,
 		Versification: conf.Versification,
 		LossClass:     "L1", // Full text extracted with parsed markup
-		Attributes:    make(map[string]string),
-	}
-
-	// Store raw conf for potential L0 round-trip
-	if conf.About != "" {
-		corpus.Attributes["about"] = conf.About
-	}
-	if conf.Copyright != "" {
-		corpus.Attributes["copyright"] = conf.Copyright
-	}
-	if conf.License != "" {
-		corpus.Attributes["license"] = conf.License
-	}
-	if conf.SourceType != "" {
-		corpus.Attributes["source_type"] = conf.SourceType
+		Attributes:    buildCorpusAttributes(conf),
 	}
 
 	stats := &ExtractionStats{}
 	sequence := 0
+	hasOT, hasNT := zt.HasOT(), zt.HasNT()
 
-	// Determine which testaments are available
-	hasOT := zt.HasOT()
-	hasNT := zt.HasNT()
-
-	// Extract all verses using versification
 	for bookIdx, book := range vers.Books {
-		// Skip books from missing testaments
-		isNT := ntBookSet[book.OSIS]
-		if isNT && !hasNT {
-			continue
-		}
-		if !isNT && !hasOT {
+		if shouldSkipBook(book.OSIS, hasOT, hasNT) {
 			continue
 		}
 
@@ -131,32 +164,7 @@ func extractCorpus(zt *ZTextModule, conf *ConfFile) (*IRCorpus, *ExtractionStats
 			Order: bookIdx + 1,
 		}
 
-		for ch := 1; ch <= len(book.Chapters); ch++ {
-			for v := 1; v <= book.Chapters[ch-1]; v++ {
-				ref := &Ref{Book: book.OSIS, Chapter: ch, Verse: v}
-				rawText, err := zt.GetVerseText(ref)
-				if err != nil || rawText == "" {
-					continue
-				}
-
-				// Skip verses that only contain structural markup (chapter/book markers)
-				// with no actual verse text. This handles versification differences where
-				// some verses exist in one versification but not another.
-				plainText := stripMarkup(rawText)
-				if plainText == "" {
-					continue
-				}
-
-				// Parse verse content (keeps raw + extracts structured data)
-				block := parseVerseContent(ref.String(), rawText, sequence)
-				sequence++
-
-				doc.ContentBlocks = append(doc.ContentBlocks, block)
-				stats.Verses++
-				stats.Tokens += len(block.Tokens)
-				stats.Annotations += len(block.Annotations)
-			}
-		}
+		extractBookVerses(zt, book, doc, stats, &sequence)
 
 		if len(doc.ContentBlocks) > 0 {
 			corpus.Documents = append(corpus.Documents, doc)
@@ -221,6 +229,53 @@ func computeHash(text string) string {
 	return hex.EncodeToString(h[:])
 }
 
+// isWTagAt returns true if text[i:] starts a <w ...> or <w> opening tag.
+func isWTagAt(text string, i int) bool {
+	return i+2 < len(text) && text[i] == '<' && text[i+1] == 'w' && (text[i+2] == ' ' || text[i+2] == '>')
+}
+
+// findTagClose scans forward from start for the '>' character that closes an
+// XML/HTML opening tag. Returns the index of '>' or -1 if not found.
+func findTagClose(text string, start int) int {
+	for j := start; j < len(text); j++ {
+		if text[j] == '>' {
+			return j
+		}
+	}
+	return -1
+}
+
+// findCloseW scans forward from start for the literal string "</w>".
+// Returns the index of '<' in "</w>" or -1 if not found.
+func findCloseW(text string, start int) int {
+	for j := start; j < len(text); j++ {
+		if j+3 < len(text) && text[j:j+4] == "</w>" {
+			return j
+		}
+	}
+	return -1
+}
+
+// buildWToken constructs a single IRToken from a parsed <w> word element.
+func buildWToken(plainWord, lemma, morph string, idx, charPos int) *IRToken {
+	token := &IRToken{
+		ID:        fmt.Sprintf("t%d", idx),
+		Index:     idx,
+		CharStart: charPos,
+		CharEnd:   charPos + len(plainWord),
+		Text:      plainWord,
+		Type:      "word",
+	}
+	if lemma != "" {
+		token.Strongs = parseStrongs(lemma)
+		token.Lemma = lemma
+	}
+	if morph != "" {
+		token.Morphology = morph
+	}
+	return token
+}
+
 // parseTokensFromMarkup extracts tokens with Strong's numbers and morphology from OSIS/ThML.
 // Parses: <w lemma="strong:H1234" morph="...">word</w>
 func parseTokensFromMarkup(text string) []*IRToken {
@@ -228,76 +283,38 @@ func parseTokensFromMarkup(text string) []*IRToken {
 	tokenIdx := 0
 	charPos := 0
 
-	// Simple state machine to parse <w> tags
-	i := 0
-	for i < len(text) {
-		// Look for <w ... > tags
-		if i+2 < len(text) && text[i] == '<' && text[i+1] == 'w' && (text[i+2] == ' ' || text[i+2] == '>') {
-			// Find the end of the opening tag
-			tagEnd := i
-			for tagEnd < len(text) && text[tagEnd] != '>' {
-				tagEnd++
-			}
-			if tagEnd >= len(text) {
-				break
-			}
-
-			// Extract attributes from the tag
-			tagContent := text[i : tagEnd+1]
-			lemma := extractAttr(tagContent, "lemma")
-			morph := extractAttr(tagContent, "morph")
-
-			// Find the word text (between > and </w>)
-			wordStart := tagEnd + 1
-			wordEnd := wordStart
-			for wordEnd < len(text) {
-				if wordEnd+3 < len(text) && text[wordEnd:wordEnd+4] == "</w>" {
-					break
-				}
-				wordEnd++
-			}
-
-			if wordEnd < len(text) {
-				wordText := text[wordStart:wordEnd]
-				plainWord := stripMarkup(wordText)
-
-				if plainWord != "" {
-					token := &IRToken{
-						ID:        fmt.Sprintf("t%d", tokenIdx),
-						Index:     tokenIdx,
-						CharStart: charPos,
-						CharEnd:   charPos + len(plainWord),
-						Text:      plainWord,
-						Type:      "word",
-					}
-
-					// Parse Strong's numbers from lemma
-					if lemma != "" {
-						token.Strongs = parseStrongs(lemma)
-						token.Lemma = lemma
-					}
-
-					// Store morphology
-					if morph != "" {
-						token.Morphology = morph
-					}
-
-					tokens = append(tokens, token)
-					tokenIdx++
-					charPos += len(plainWord) + 1 // +1 for space
-				}
-
-				i = wordEnd + 4 // Skip past </w>
-				continue
-			}
+	for i := 0; i < len(text); {
+		if !isWTagAt(text, i) {
+			i++
+			continue
 		}
-		i++
+
+		tagClose := findTagClose(text, i)
+		if tagClose < 0 {
+			break
+		}
+
+		lemma := extractAttr(text[i:tagClose+1], "lemma")
+		morph := extractAttr(text[i:tagClose+1], "morph")
+
+		wordEnd := findCloseW(text, tagClose+1)
+		if wordEnd < 0 {
+			i = tagClose + 1
+			continue
+		}
+
+		plainWord := stripMarkup(text[tagClose+1 : wordEnd])
+		if plainWord != "" {
+			tokens = append(tokens, buildWToken(plainWord, lemma, morph, tokenIdx, charPos))
+			tokenIdx++
+			charPos += len(plainWord) + 1 // +1 for space
+		}
+		i = wordEnd + 4 // skip past </w>
 	}
 
 	// If no <w> tags found, tokenize plain text
 	if len(tokens) == 0 {
-		plainText := stripMarkup(text)
-		tokens = tokenizePlainText(plainText)
+		return tokenizePlainText(stripMarkup(text))
 	}
 
 	return tokens
@@ -576,56 +593,44 @@ type ChapterMarker struct {
 
 // ParseChapterMarkers extracts chapter boundary markers from raw OSIS/ThML markup.
 // This is useful for detecting versification differences and chapter boundaries.
+func chapterTagEnd(rawMarkup string, start int) int {
+	for i := start; i < len(rawMarkup); i++ {
+		if rawMarkup[i] == '>' {
+			return i
+		}
+	}
+	return -1
+}
+
+func buildChapterMarker(tagContent string) (ChapterMarker, bool) {
+	m := ChapterMarker{
+		OsisID: extractAttr(tagContent, "osisID"),
+		SID:    extractAttr(tagContent, "sID"),
+		EID:    extractAttr(tagContent, "eID"),
+	}
+	m.IsStart = m.SID != ""
+	m.IsEnd = m.EID != ""
+	return m, m.OsisID != "" || m.SID != "" || m.EID != ""
+}
+
 func ParseChapterMarkers(rawMarkup string) []ChapterMarker {
 	var markers []ChapterMarker
-
-	// Parse <chapter osisID="..." sID="..." /> start markers
 	i := 0
 	for i < len(rawMarkup) {
-		chapterStart := strings.Index(rawMarkup[i:], "<chapter")
-		if chapterStart < 0 {
+		rel := strings.Index(rawMarkup[i:], "<chapter")
+		if rel < 0 {
 			break
 		}
-		chapterStart += i
-
-		// Find end of tag
-		tagEnd := chapterStart
-		for tagEnd < len(rawMarkup) && rawMarkup[tagEnd] != '>' {
-			tagEnd++
-		}
-		if tagEnd >= len(rawMarkup) {
+		start := i + rel
+		end := chapterTagEnd(rawMarkup, start)
+		if end < 0 {
 			break
 		}
-
-		tagContent := rawMarkup[chapterStart : tagEnd+1]
-
-		marker := ChapterMarker{}
-
-		// Extract osisID
-		if osisID := extractAttr(tagContent, "osisID"); osisID != "" {
-			marker.OsisID = osisID
+		if m, ok := buildChapterMarker(rawMarkup[start : end+1]); ok {
+			markers = append(markers, m)
 		}
-
-		// Extract sID (start marker)
-		if sID := extractAttr(tagContent, "sID"); sID != "" {
-			marker.SID = sID
-			marker.IsStart = true
-		}
-
-		// Extract eID (end marker)
-		if eID := extractAttr(tagContent, "eID"); eID != "" {
-			marker.EID = eID
-			marker.IsEnd = true
-		}
-
-		// Only add if we got meaningful data
-		if marker.OsisID != "" || marker.SID != "" || marker.EID != "" {
-			markers = append(markers, marker)
-		}
-
-		i = tagEnd + 1
+		i = end + 1
 	}
-
 	return markers
 }
 

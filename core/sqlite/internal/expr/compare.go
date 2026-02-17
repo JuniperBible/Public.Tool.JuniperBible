@@ -41,6 +41,41 @@ var (
 	}
 )
 
+var collSeqByName = map[string]*CollSeq{
+	"BINARY": CollSeqBinary,
+	"NOCASE": CollSeqNoCase,
+	"RTRIM":  CollSeqRTrim,
+}
+
+func collSeqFromName(name string) *CollSeq {
+	if cs, ok := collSeqByName[strings.ToUpper(name)]; ok {
+		return cs
+	}
+	return CollSeqBinary
+}
+
+func collSeqFromCollateOp(e *Expr) *CollSeq {
+	return collSeqFromName(e.CollSeq)
+}
+
+func collSeqFromColumn(e *Expr) *CollSeq {
+	if e.Op != OpColumn || e.CollSeq == "" {
+		return nil
+	}
+	cs := collSeqFromName(e.CollSeq)
+	if cs == CollSeqBinary {
+		return nil
+	}
+	return cs
+}
+
+func nextCollSeqExpr(e *Expr) *Expr {
+	if e.HasProperty(EP_Collate) && e.Left != nil && e.Left.HasProperty(EP_Collate) {
+		return e.Left
+	}
+	return nil
+}
+
 // compareBinary performs binary (byte-by-byte) comparison.
 func compareBinary(a, b string) int {
 	return strings.Compare(a, b)
@@ -61,47 +96,19 @@ func compareRTrim(a, b string) int {
 // GetCollSeq returns the collation sequence for an expression.
 // Returns CollSeqBinary if no specific collation is set.
 func GetCollSeq(e *Expr) *CollSeq {
-	if e == nil {
-		return CollSeqBinary
-	}
-
-	// Walk up the tree looking for COLLATE operator
 	for e != nil {
 		if e.Op == OpCollate {
-			switch strings.ToUpper(e.CollSeq) {
-			case "NOCASE":
-				return CollSeqNoCase
-			case "RTRIM":
-				return CollSeqRTrim
-			case "BINARY":
-				return CollSeqBinary
-			default:
-				// Unknown collation, use binary
-				return CollSeqBinary
-			}
+			return collSeqFromCollateOp(e)
 		}
-
-		// For binary operators, check left operand for collation
-		if e.HasProperty(EP_Collate) {
-			if e.Left != nil && e.Left.HasProperty(EP_Collate) {
-				e = e.Left
-				continue
-			}
+		if next := nextCollSeqExpr(e); next != nil {
+			e = next
+			continue
 		}
-
-		// Check column collation
-		if e.Op == OpColumn && e.CollSeq != "" {
-			switch strings.ToUpper(e.CollSeq) {
-			case "NOCASE":
-				return CollSeqNoCase
-			case "RTRIM":
-				return CollSeqRTrim
-			}
+		if cs := collSeqFromColumn(e); cs != nil {
+			return cs
 		}
-
 		break
 	}
-
 	return CollSeqBinary
 }
 
@@ -126,111 +133,112 @@ func GetBinaryCompareCollSeq(left, right *Expr) *CollSeq {
 	return CollSeqBinary
 }
 
+// intToCompareResult converts a three-way integer (negative/zero/positive) to
+// a CompareResult, following the same convention used by strings.Compare and
+// bytes.Compare.
+func intToCompareResult(n int) CompareResult {
+	if n < 0 {
+		return CmpLess
+	}
+	if n > 0 {
+		return CmpGreater
+	}
+	return CmpEqual
+}
+
+// compareIntegers compares two int64 values.
+func compareIntegers(l, r int64) CompareResult {
+	if l < r {
+		return CmpLess
+	}
+	if l > r {
+		return CmpGreater
+	}
+	return CmpEqual
+}
+
+// toFloat64 widens an int64 or float64 to float64.
+// The caller must ensure v is one of those two types.
+func toFloat64(v interface{}) float64 {
+	if i, ok := v.(int64); ok {
+		return float64(i)
+	}
+	return v.(float64)
+}
+
+// compareNumerics compares two values that are each int64 or float64.
+func compareNumerics(left, right interface{}) CompareResult {
+	lf := toFloat64(left)
+	rf := toFloat64(right)
+	if math.IsNaN(lf) || math.IsNaN(rf) {
+		return CmpNull
+	}
+	if lf < rf {
+		return CmpLess
+	}
+	if lf > rf {
+		return CmpGreater
+	}
+	return CmpEqual
+}
+
+// compareStrings compares two strings using the supplied collation sequence.
+func compareStrings(l, r string, coll *CollSeq) CompareResult {
+	if coll == nil {
+		coll = CollSeqBinary
+	}
+	return intToCompareResult(coll.Compare(l, r))
+}
+
+// compareBlobs compares two byte slices.
+func compareBlobs(l, r []byte) CompareResult {
+	return intToCompareResult(bytes.Compare(l, r))
+}
+
+// isNumeric reports whether a value is an int64 or float64.
+func isNumeric(v interface{}) bool {
+	switch v.(type) {
+	case int64, float64:
+		return true
+	}
+	return false
+}
+
 // CompareValues compares two values according to SQLite semantics.
 // Returns CmpLess, CmpEqual, CmpGreater, or CmpNull.
 func CompareValues(left, right interface{}, aff Affinity, coll *CollSeq) CompareResult {
-	// Handle NULL values
 	if left == nil || right == nil {
 		return CmpNull
 	}
 
-	// Apply affinity conversion
 	left = ApplyAffinity(left, aff)
 	right = ApplyAffinity(right, aff)
 
-	// Compare based on types
-	leftInt, leftIsInt := left.(int64)
-	rightInt, rightIsInt := right.(int64)
-
-	leftFloat, leftIsFloat := left.(float64)
-	rightFloat, rightIsFloat := right.(float64)
-
-	leftStr, leftIsStr := left.(string)
-	rightStr, rightIsStr := right.(string)
-
-	leftBlob, leftIsBlob := left.([]byte)
-	rightBlob, rightIsBlob := right.([]byte)
-
-	// Integer comparison
-	if leftIsInt && rightIsInt {
-		if leftInt < rightInt {
-			return CmpLess
+	// Identical concrete types: fast paths.
+	if lv, ok := left.(int64); ok {
+		if rv, ok := right.(int64); ok {
+			return compareIntegers(lv, rv)
 		}
-		if leftInt > rightInt {
-			return CmpGreater
+	}
+	if lv, ok := left.(string); ok {
+		if rv, ok := right.(string); ok {
+			return compareStrings(lv, rv, coll)
 		}
-		return CmpEqual
+	}
+	if lv, ok := left.([]byte); ok {
+		if rv, ok := right.([]byte); ok {
+			return compareBlobs(lv, rv)
+		}
 	}
 
-	// Float comparison
-	if (leftIsInt || leftIsFloat) && (rightIsInt || rightIsFloat) {
-		var lf, rf float64
-		if leftIsInt {
-			lf = float64(leftInt)
-		} else {
-			lf = leftFloat
-		}
-		if rightIsInt {
-			rf = float64(rightInt)
-		} else {
-			rf = rightFloat
-		}
-
-		// Handle NaN
-		if math.IsNaN(lf) || math.IsNaN(rf) {
-			return CmpNull
-		}
-
-		if lf < rf {
-			return CmpLess
-		}
-		if lf > rf {
-			return CmpGreater
-		}
-		return CmpEqual
+	// Mixed numeric (int64 / float64) comparison.
+	if isNumeric(left) && isNumeric(right) {
+		return compareNumerics(left, right)
 	}
 
-	// String comparison
-	if leftIsStr && rightIsStr {
-		if coll == nil {
-			coll = CollSeqBinary
-		}
-		cmp := coll.Compare(leftStr, rightStr)
-		if cmp < 0 {
-			return CmpLess
-		}
-		if cmp > 0 {
-			return CmpGreater
-		}
-		return CmpEqual
-	}
-
-	// BLOB comparison
-	if leftIsBlob && rightIsBlob {
-		cmp := bytes.Compare(leftBlob, rightBlob)
-		if cmp < 0 {
-			return CmpLess
-		}
-		if cmp > 0 {
-			return CmpGreater
-		}
-		return CmpEqual
-	}
-
-	// Mixed type comparison: use type precedence
+	// Mixed type: use SQLite type-precedence ordering.
 	// NULL < INTEGER < REAL < TEXT < BLOB
-	leftType := valueType(left)
-	rightType := valueType(right)
-
-	if leftType < rightType {
-		return CmpLess
-	}
-	if leftType > rightType {
-		return CmpGreater
-	}
-
-	// Same type but different Go types (shouldn't happen)
-	return CmpEqual
+	return intToCompareResult(valueType(left) - valueType(right))
 }
 
 // valueType returns a type order for mixed comparisons.
@@ -251,81 +259,61 @@ func valueType(v interface{}) int {
 	}
 }
 
+// comparisonPredicate maps each standard comparison OpCode to a predicate that
+// accepts a non-NULL CompareResult and returns the boolean outcome.
+var comparisonPredicate = map[OpCode]func(CompareResult) bool{
+	OpEq: func(c CompareResult) bool { return c == CmpEqual },
+	OpNe: func(c CompareResult) bool { return c != CmpEqual },
+	OpLt: func(c CompareResult) bool { return c == CmpLess },
+	OpLe: func(c CompareResult) bool { return c == CmpLess || c == CmpEqual },
+	OpGt: func(c CompareResult) bool { return c == CmpGreater },
+	OpGe: func(c CompareResult) bool { return c == CmpGreater || c == CmpEqual },
+}
+
+// evaluateIs implements the IS operator (NULL-safe equality).
+func evaluateIs(left, right interface{}, cmp CompareResult) interface{} {
+	if left == nil && right == nil {
+		return true
+	}
+	if left == nil || right == nil {
+		return false
+	}
+	return cmp == CmpEqual
+}
+
+// evaluateIsNot implements the IS NOT operator (NULL-safe inequality).
+func evaluateIsNot(left, right interface{}, cmp CompareResult) interface{} {
+	if left == nil && right == nil {
+		return false
+	}
+	if left == nil || right == nil {
+		return true
+	}
+	return cmp != CmpEqual
+}
+
 // EvaluateComparison evaluates a comparison expression.
 // Returns true, false, or nil (for NULL result).
 func EvaluateComparison(op OpCode, left, right interface{}, aff Affinity, coll *CollSeq) interface{} {
 	cmp := CompareValues(left, right, aff, coll)
 
-	// Handle NULL propagation (except for IS and IS NOT)
-	if cmp == CmpNull {
-		switch op {
-		case OpIs, OpIsNot:
-			// IS and IS NOT don't propagate NULL
-		default:
-			return nil
-		}
+	if op == OpIs {
+		return evaluateIs(left, right, cmp)
+	}
+	if op == OpIsNot {
+		return evaluateIsNot(left, right, cmp)
 	}
 
-	switch op {
-	case OpEq:
-		if cmp == CmpNull {
-			return nil
-		}
-		return cmp == CmpEqual
-
-	case OpNe:
-		if cmp == CmpNull {
-			return nil
-		}
-		return cmp != CmpEqual
-
-	case OpLt:
-		if cmp == CmpNull {
-			return nil
-		}
-		return cmp == CmpLess
-
-	case OpLe:
-		if cmp == CmpNull {
-			return nil
-		}
-		return cmp == CmpLess || cmp == CmpEqual
-
-	case OpGt:
-		if cmp == CmpNull {
-			return nil
-		}
-		return cmp == CmpGreater
-
-	case OpGe:
-		if cmp == CmpNull {
-			return nil
-		}
-		return cmp == CmpGreater || cmp == CmpEqual
-
-	case OpIs:
-		// IS operator: NULL IS NULL is true
-		if left == nil && right == nil {
-			return true
-		}
-		if left == nil || right == nil {
-			return false
-		}
-		return cmp == CmpEqual
-
-	case OpIsNot:
-		// IS NOT operator: NULL IS NOT NULL is false
-		if left == nil && right == nil {
-			return false
-		}
-		if left == nil || right == nil {
-			return true
-		}
-		return cmp != CmpEqual
-
-	default:
+	// All remaining operators propagate NULL.
+	if cmp == CmpNull {
 		return nil
 	}
+
+	pred, ok := comparisonPredicate[op]
+	if !ok {
+		return nil
+	}
+	return pred(cmp)
 }
 
 // EvaluateLike evaluates the LIKE operator.
@@ -353,70 +341,100 @@ func matchLike(pattern, str string, escape rune, isGlob bool) bool {
 	return matchLikeRunes(pRunes, sRunes, escape, isGlob, 0, 0)
 }
 
+// stepResult carries the outcome of processing a single pattern character.
+// When done is true, the caller must return result immediately.
+// Otherwise newPi and newSi are the updated indices to continue from.
+type stepResult struct {
+	newPi, newSi int
+	done         bool
+	result       bool
+}
+
+// stepEscape handles an escape character in the pattern.
+func stepEscape(pattern, str []rune, isGlob bool, pi, si int) stepResult {
+	pi++ // skip the escape rune itself
+	if pi >= len(pattern) {
+		return stepResult{done: true, result: false}
+	}
+	if si >= len(str) {
+		return stepResult{done: true, result: false}
+	}
+	if !matchChar(pattern[pi], str[si], isGlob) {
+		return stepResult{done: true, result: false}
+	}
+	return stepResult{newPi: pi + 1, newSi: si + 1}
+}
+
+// stepMultiWildcard handles % (LIKE) or * (GLOB): matches zero or more chars.
+func stepMultiWildcard(pattern, str []rune, escape rune, isGlob bool, pi, si int) stepResult {
+	pi++ // consume the wildcard
+	if pi >= len(pattern) {
+		// Trailing wildcard — matches everything remaining.
+		return stepResult{done: true, result: true}
+	}
+	for si <= len(str) {
+		if matchLikeRunes(pattern, str, escape, isGlob, pi, si) {
+			return stepResult{done: true, result: true}
+		}
+		si++
+	}
+	return stepResult{done: true, result: false}
+}
+
+// stepSingleWildcard handles _ (LIKE) or ? (GLOB): matches exactly one char.
+func stepSingleWildcard(str []rune, pi, si int) stepResult {
+	if si >= len(str) {
+		return stepResult{done: true, result: false}
+	}
+	return stepResult{newPi: pi + 1, newSi: si + 1}
+}
+
+// stepLiteral handles a literal character match.
+func stepLiteral(pattern, str []rune, isGlob bool, pi, si int) stepResult {
+	if si >= len(str) {
+		return stepResult{done: true, result: false}
+	}
+	if !matchChar(pattern[pi], str[si], isGlob) {
+		return stepResult{done: true, result: false}
+	}
+	return stepResult{newPi: pi + 1, newSi: si + 1}
+}
+
+// isMultiWildcard reports whether pc is the multi-character wildcard for the
+// current mode (% for LIKE, * for GLOB).
+func isMultiWildcard(pc rune, isGlob bool) bool {
+	return (isGlob && pc == '*') || (!isGlob && pc == '%')
+}
+
+// isSingleWildcard reports whether pc is the single-character wildcard for the
+// current mode (_ for LIKE, ? for GLOB).
+func isSingleWildcard(pc rune, isGlob bool) bool {
+	return (isGlob && pc == '?') || (!isGlob && pc == '_')
+}
+
 // matchLikeRunes performs recursive pattern matching.
 func matchLikeRunes(pattern, str []rune, escape rune, isGlob bool, pi, si int) bool {
 	for pi < len(pattern) {
 		pc := pattern[pi]
 
-		// Handle escape character
-		if escape != 0 && pc == escape {
-			pi++
-			if pi >= len(pattern) {
-				return false
-			}
-			pc = pattern[pi]
-			if si >= len(str) {
-				return false
-			}
-			if !matchChar(pc, str[si], isGlob) {
-				return false
-			}
-			pi++
-			si++
-			continue
+		var step stepResult
+		switch {
+		case escape != 0 && pc == escape:
+			step = stepEscape(pattern, str, isGlob, pi, si)
+		case isMultiWildcard(pc, isGlob):
+			step = stepMultiWildcard(pattern, str, escape, isGlob, pi, si)
+		case isSingleWildcard(pc, isGlob):
+			step = stepSingleWildcard(str, pi, si)
+		default:
+			step = stepLiteral(pattern, str, isGlob, pi, si)
 		}
 
-		// Wildcard matching
-		if (isGlob && pc == '*') || (!isGlob && pc == '%') {
-			// Match zero or more characters
-			pi++
-			if pi >= len(pattern) {
-				// Trailing wildcard matches everything
-				return true
-			}
-
-			// Try matching at each position
-			for si <= len(str) {
-				if matchLikeRunes(pattern, str, escape, isGlob, pi, si) {
-					return true
-				}
-				si++
-			}
-			return false
+		if step.done {
+			return step.result
 		}
-
-		if (isGlob && pc == '?') || (!isGlob && pc == '_') {
-			// Match exactly one character
-			if si >= len(str) {
-				return false
-			}
-			pi++
-			si++
-			continue
-		}
-
-		// Literal character match
-		if si >= len(str) {
-			return false
-		}
-		if !matchChar(pc, str[si], isGlob) {
-			return false
-		}
-		pi++
-		si++
+		pi, si = step.newPi, step.newSi
 	}
 
-	// Pattern exhausted: match if string is also exhausted
 	return si >= len(str)
 }
 

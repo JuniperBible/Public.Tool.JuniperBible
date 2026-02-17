@@ -369,75 +369,93 @@ func computeHash(data []byte) string {
 
 // emitUSFMFromIR converts IR Corpus back to USFM text
 func emitUSFMFromIR(corpus *ir.Corpus) ([]byte, error) {
-	// Check if we have the original raw USFM for L0 lossless round-trip
 	if rawUSFM, ok := corpus.Attributes["_format_raw"]; ok && rawUSFM != "" {
 		return []byte(rawUSFM), nil
 	}
 
-	// Otherwise, reconstruct USFM from IR structure
 	var buf bytes.Buffer
-
 	for _, doc := range corpus.Documents {
-		// Write book ID
-		buf.WriteString(fmt.Sprintf("\\id %s\n", doc.ID))
+		emitDocHeader(doc, &buf)
+		emitDocBlocks(doc, &buf)
+	}
+	return buf.Bytes(), nil
+}
 
-		// Write header
-		if doc.Title != "" {
-			buf.WriteString(fmt.Sprintf("\\h %s\n", doc.Title))
+// emitDocHeader writes the book ID, title, and attribute markers for a document.
+func emitDocHeader(doc *ir.Document, buf *bytes.Buffer) {
+	buf.WriteString(fmt.Sprintf("\\id %s\n", doc.ID))
+	if doc.Title != "" {
+		buf.WriteString(fmt.Sprintf("\\h %s\n", doc.Title))
+	}
+	for key, val := range doc.Attributes {
+		if key != "h" && !strings.HasPrefix(key, "_") {
+			buf.WriteString(fmt.Sprintf("\\%s %s\n", key, val))
 		}
+	}
+}
 
-		// Write attributes (toc entries, mt, etc.)
-		if doc.Attributes != nil {
-			for key, val := range doc.Attributes {
-				if key != "h" && !strings.HasPrefix(key, "_") {
-					buf.WriteString(fmt.Sprintf("\\%s %s\n", key, val))
-				}
-			}
+// emitDocBlocks writes all content blocks for a document, tracking chapter transitions.
+func emitDocBlocks(doc *ir.Document, buf *bytes.Buffer) {
+	currentChapter := 0
+	for _, block := range doc.ContentBlocks {
+		if span := findVerseSpan(block); span != nil {
+			emitVerseBlock(block, span, buf, &currentChapter)
+		} else if len(block.Anchors) == 0 && block.Text != "" {
+			emitNonVerseBlock(block, buf)
 		}
+	}
+}
 
-		currentChapter := 0
-
-		for _, block := range doc.ContentBlocks {
-			// Check for verse spans to determine chapter/verse
-			for _, anchor := range block.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Type == "VERSE" && span.Ref != nil {
-						// Write chapter marker if changed
-						if span.Ref.Chapter != currentChapter {
-							currentChapter = span.Ref.Chapter
-							buf.WriteString(fmt.Sprintf("\\c %d\n", currentChapter))
-						}
-
-						// Write verse
-						if span.Ref.VerseEnd > 0 && span.Ref.VerseEnd != span.Ref.Verse {
-							buf.WriteString(fmt.Sprintf("\\v %d-%d %s\n", span.Ref.Verse, span.Ref.VerseEnd, block.Text))
-						} else {
-							buf.WriteString(fmt.Sprintf("\\v %d %s\n", span.Ref.Verse, block.Text))
-						}
-						break
-					}
-				}
-			}
-
-			// Handle non-verse blocks (paragraphs, poetry)
-			if len(block.Anchors) == 0 && block.Text != "" {
-				if block.Attributes != nil {
-					if marker, ok := block.Attributes["marker"].(string); ok {
-						buf.WriteString(fmt.Sprintf("\\%s %s\n", marker, block.Text))
-					} else if blockType, ok := block.Attributes["type"].(string); ok {
-						switch blockType {
-						case "poetry":
-							buf.WriteString(fmt.Sprintf("\\q %s\n", block.Text))
-						case "paragraph":
-							buf.WriteString(fmt.Sprintf("\\p %s\n", block.Text))
-						default:
-							buf.WriteString(fmt.Sprintf("\\p %s\n", block.Text))
-						}
-					}
-				}
+// findVerseSpan returns the first VERSE-typed span with a non-nil Ref found in
+// any anchor of block, or nil if none exists.
+func findVerseSpan(block *ir.ContentBlock) *ir.Span {
+	for _, anchor := range block.Anchors {
+		for _, span := range anchor.Spans {
+			if span.Type == "VERSE" && span.Ref != nil {
+				return span
 			}
 		}
 	}
+	return nil
+}
 
-	return buf.Bytes(), nil
+// emitVerseBlock writes the chapter marker (when changed) and verse marker for block.
+func emitVerseBlock(block *ir.ContentBlock, span *ir.Span, buf *bytes.Buffer, currentChapter *int) {
+	if span.Ref.Chapter != *currentChapter {
+		*currentChapter = span.Ref.Chapter
+		buf.WriteString(fmt.Sprintf("\\c %d\n", *currentChapter))
+	}
+	if span.Ref.VerseEnd > 0 && span.Ref.VerseEnd != span.Ref.Verse {
+		buf.WriteString(fmt.Sprintf("\\v %d-%d %s\n", span.Ref.Verse, span.Ref.VerseEnd, block.Text))
+	} else {
+		buf.WriteString(fmt.Sprintf("\\v %d %s\n", span.Ref.Verse, block.Text))
+	}
+}
+
+// markerForBlock resolves the USFM marker for a non-verse content block.
+// It prefers an explicit "marker" attribute, then maps "type" to a default marker.
+func markerForBlock(block *ir.ContentBlock) string {
+	if block.Attributes == nil {
+		return ""
+	}
+	if marker, ok := block.Attributes["marker"].(string); ok {
+		return marker
+	}
+	typeMarkers := map[string]string{"poetry": "q", "paragraph": "p"}
+	if blockType, ok := block.Attributes["type"].(string); ok {
+		if m, found := typeMarkers[blockType]; found {
+			return m
+		}
+		return "p"
+	}
+	return ""
+}
+
+// emitNonVerseBlock writes the USFM line for a paragraph or poetry block.
+func emitNonVerseBlock(block *ir.ContentBlock, buf *bytes.Buffer) {
+	marker := markerForBlock(block)
+	if marker == "" {
+		return
+	}
+	buf.WriteString(fmt.Sprintf("\\%s %s\n", marker, block.Text))
 }

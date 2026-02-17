@@ -623,74 +623,81 @@ func (v *VDBE) execSeekLE(instr *Instruction) error {
 	return nil
 }
 
+// seekNotFound marks the cursor as EOF and, if addr is positive, redirects
+// the program counter to addr. It always returns nil so callers can
+// "return seekNotFound(...)".
+func (v *VDBE) seekNotFound(cursor *Cursor, addr int) error {
+	cursor.EOF = true
+	if addr > 0 {
+		v.PC = addr
+	}
+	return nil
+}
+
+// seekGetBtCursor extracts the *btree.BtCursor from cursor, returning nil when
+// the underlying cursor is absent or has the wrong type.
+func seekGetBtCursor(cursor *Cursor) *btree.BtCursor {
+	btc, ok := cursor.BtreeCursor.(*btree.BtCursor)
+	if !ok {
+		return nil
+	}
+	return btc
+}
+
+// seekLinearScan walks the btree from its current position looking for
+// targetRowid. It returns true (found) together with a nil error when the row
+// exists, false (not found) with nil when the scan is exhausted, and false
+// with a non-nil error only on unexpected failures.
+//
+// In a real implementation this would use the btree's own key-search path
+// instead of a sequential walk.
+func seekLinearScan(btCursor *btree.BtCursor, targetRowid int64) (found bool, err error) {
+	for {
+		currentRowid := btCursor.GetKey()
+		if currentRowid == targetRowid {
+			return true, nil
+		}
+		if currentRowid > targetRowid {
+			return false, nil
+		}
+		if err = btCursor.Next(); err != nil {
+			return false, nil //nolint:nilerr // end-of-tree is not an error here
+		}
+	}
+}
+
 func (v *VDBE) execSeekRowid(instr *Instruction) error {
-	// Seek cursor P1 to rowid in register P3, jump to P2 if not found
+	// Seek cursor P1 to rowid in register P3, jump to P2 if not found.
 	cursor, err := v.GetCursor(instr.P1)
 	if err != nil {
 		return err
 	}
 
-	// Get the target rowid
 	rowidReg, err := v.GetMem(instr.P3)
 	if err != nil {
 		return err
 	}
 
-	targetRowid := rowidReg.IntValue()
-
-	// Get btree cursor
-	btCursor, ok := cursor.BtreeCursor.(*btree.BtCursor)
-	if !ok || btCursor == nil {
-		// No cursor - not found, jump to P2
-		if instr.P2 > 0 {
-			v.PC = instr.P2
-		}
-		cursor.EOF = true
-		return nil
+	btCursor := seekGetBtCursor(cursor)
+	if btCursor == nil {
+		return v.seekNotFound(cursor, instr.P2)
 	}
 
-	// Move to first entry
-	err = btCursor.MoveToFirst()
+	if err = btCursor.MoveToFirst(); err != nil {
+		return v.seekNotFound(cursor, instr.P2)
+	}
+
+	found, err := seekLinearScan(btCursor, rowidReg.IntValue())
 	if err != nil {
-		// Empty tree - not found, jump to P2
-		if instr.P2 > 0 {
-			v.PC = instr.P2
-		}
-		cursor.EOF = true
-		return nil
+		return err
+	}
+	if !found {
+		return v.seekNotFound(cursor, instr.P2)
 	}
 
-	// Linear search through the btree to find matching rowid
-	// In a real implementation, this would use a binary search or btree search
-	for {
-		currentRowid := btCursor.GetKey()
-		if currentRowid == targetRowid {
-			// Found it - don't jump
-			cursor.EOF = false
-			v.IncrCacheCtr()
-			return nil
-		}
-
-		if currentRowid > targetRowid {
-			// Passed it - not found
-			if instr.P2 > 0 {
-				v.PC = instr.P2
-			}
-			cursor.EOF = true
-			return nil
-		}
-
-		// Move to next entry
-		err = btCursor.Next()
-		if err != nil {
-			// Reached end - not found, jump to P2
-			if instr.P2 > 0 {
-				v.PC = instr.P2
-			}
-			cursor.EOF = true
-			return nil
-		}
-	}
+	cursor.EOF = false
+	v.IncrCacheCtr()
+	return nil
 }
 
 // Data retrieval implementations
@@ -1118,30 +1125,56 @@ func encodeValue(val interface{}) (uint64, []byte) {
 	}
 }
 
-// encodeInt64 encodes an int64 to its optimal SQLite serial type and bytes.
-func encodeInt64(v int64) (uint64, []byte) {
-	switch {
-	case v == 0:
-		return 8, nil
-	case v == 1:
-		return 9, nil
-	case v >= -128 && v <= 127:
-		return 1, []byte{byte(v)}
-	case v >= -32768 && v <= 32767:
+var int64Ranges = []struct {
+	lo      int64
+	hi      int64
+	serial  uint64
+}{
+	{-128, 127, 1},
+	{-32768, 32767, 2},
+	{-8388608, 8388607, 3},
+	{-2147483648, 2147483647, 4},
+}
+
+func int64SerialType(v int64) uint64 {
+	for _, r := range int64Ranges {
+		if v >= r.lo && v <= r.hi {
+			return r.serial
+		}
+	}
+	return 6
+}
+
+func int64Bytes(v int64, serial uint64) []byte {
+	switch serial {
+	case 1:
+		return []byte{byte(v)}
+	case 2:
 		buf := make([]byte, 2)
 		binary.BigEndian.PutUint16(buf, uint16(v))
-		return 2, buf
-	case v >= -8388608 && v <= 8388607:
-		return 3, []byte{byte(v >> 16), byte(v >> 8), byte(v)}
-	case v >= -2147483648 && v <= 2147483647:
+		return buf
+	case 3:
+		return []byte{byte(v >> 16), byte(v >> 8), byte(v)}
+	case 4:
 		buf := make([]byte, 4)
 		binary.BigEndian.PutUint32(buf, uint32(v))
-		return 4, buf
+		return buf
 	default:
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, uint64(v))
-		return 6, buf
+		return buf
 	}
+}
+
+func encodeInt64(v int64) (uint64, []byte) {
+	if v == 0 {
+		return 8, nil
+	}
+	if v == 1 {
+		return 9, nil
+	}
+	serial := int64SerialType(v)
+	return serial, int64Bytes(v, serial)
 }
 
 // encodeFloat64 encodes a float64 to SQLite serial type 7 format.

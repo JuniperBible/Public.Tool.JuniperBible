@@ -93,6 +93,68 @@ cleanup() {
 
 trap cleanup EXIT
 
+# Guard helpers - return 1 (causing caller to return) when condition not met
+
+# skip_if_quick <label>
+# Skips the named test and returns 1 when QUICK_MODE is true.
+skip_if_quick() {
+    $QUICK_MODE || return 0
+    skip_test "$1"
+    return 1
+}
+
+# require_dir <path> <label>
+# Skips the named test and returns 1 when the directory does not exist.
+require_dir() {
+    [[ -d "$1" ]] && return 0
+    skip_test "$2"
+    return 1
+}
+
+# require_file <path> <label>
+# Skips the named test and returns 1 when the file does not exist.
+require_file() {
+    [[ -f "$1" ]] && return 0
+    skip_test "$2"
+    return 1
+}
+
+# verbose_dump <output>
+# Prints output only when VERBOSE is true.
+verbose_dump() {
+    $VERBOSE && echo "$1" || true
+}
+
+# mod_id <mod>
+# Prints the canonical module identifier for a lower-case module directory name.
+mod_id() {
+    case "$1" in
+        kjv)       echo "KJV" ;;
+        drc)       echo "DRC" ;;
+        vulgate)   echo "Vulgate" ;;
+        asv)       echo "ASV" ;;
+        geneva1599) echo "Geneva1599" ;;
+        *)         echo "$1" | tr '[:lower:]' '[:upper:]' ;;
+    esac
+}
+
+# run_go_test <pkg_pattern> <tail_lines> <label>
+# Runs go test, checks for passing output, and reports the result.
+run_go_test() {
+    local pkg="$1" lines="$2" label="$3"
+    local output
+    output=$(go test "$pkg" -short 2>&1 | tail -"$lines")
+    local pass_count fail_count
+    pass_count=$(echo "$output" | grep -c "^ok" || true)
+    fail_count=$(echo "$output" | grep -c "^FAIL" || true)
+    if [[ $fail_count -eq 0 ]]; then
+        pass_test "$label ($pass_count packages)"
+    else
+        fail_test "$label - $fail_count packages failed"
+        verbose_dump "$output"
+    fi
+}
+
 # Setup
 setup() {
     log_info "Setting up test environment..."
@@ -123,16 +185,14 @@ test_juniper_list() {
 
     for mod in "${TEST_MODULES[@]}"; do
         local mod_path="$SAMPLE_DATA/$mod"
-        if [[ -d "$mod_path" ]]; then
-            local output=$("$CAPSULE_BIN" juniper list "$mod_path" 2>&1)
-            if echo "$output" | grep -qi "modules"; then
-                pass_test "juniper list $mod"
-            else
-                fail_test "juniper list $mod - unexpected output"
-                $VERBOSE && echo "$output"
-            fi
+        require_dir "$mod_path" "juniper list $mod - directory not found" || continue
+        local output
+        output=$("$CAPSULE_BIN" juniper list "$mod_path" 2>&1)
+        if echo "$output" | grep -qi "modules"; then
+            pass_test "juniper list $mod"
         else
-            skip_test "juniper list $mod - directory not found"
+            fail_test "juniper list $mod - unexpected output"
+            verbose_dump "$output"
         fi
     done
 }
@@ -143,31 +203,23 @@ test_juniper_ingest() {
 
     for mod in "${TEST_MODULES[@]}"; do
         local mod_path="$SAMPLE_DATA/$mod"
-        # Map directory name to module ID (case-sensitive)
-        case "$mod" in
-            kjv) mod_upper="KJV" ;;
-            drc) mod_upper="DRC" ;;
-            vulgate) mod_upper="Vulgate" ;;
-            asv) mod_upper="ASV" ;;
-            geneva1599) mod_upper="Geneva1599" ;;
-            *) mod_upper=$(echo "$mod" | tr '[:lower:]' '[:upper:]') ;;
-        esac
-
-        if [[ -d "$mod_path" ]]; then
-            local output=$("$CAPSULE_BIN" juniper ingest --path "$mod_path" -o "$TEST_DIR" "$mod_upper" 2>&1)
-            if [[ -f "$TEST_DIR/$mod_upper.capsule.tar.gz" ]]; then
-                local size=$(stat -f%z "$TEST_DIR/$mod_upper.capsule.tar.gz" 2>/dev/null || stat -c%s "$TEST_DIR/$mod_upper.capsule.tar.gz" 2>/dev/null)
-                if [[ $size -gt 0 ]]; then
-                    pass_test "juniper ingest $mod_upper (${size} bytes)"
-                else
-                    fail_test "juniper ingest $mod_upper - empty capsule"
-                fi
-            else
-                fail_test "juniper ingest $mod_upper - capsule not created"
-                $VERBOSE && echo "$output"
-            fi
+        require_dir "$mod_path" "juniper ingest $mod - directory not found" || continue
+        local mod_upper
+        mod_upper=$(mod_id "$mod")
+        local capsule_file="$TEST_DIR/$mod_upper.capsule.tar.gz"
+        local output
+        output=$("$CAPSULE_BIN" juniper ingest --path "$mod_path" -o "$TEST_DIR" "$mod_upper" 2>&1)
+        if [[ ! -f "$capsule_file" ]]; then
+            fail_test "juniper ingest $mod_upper - capsule not created"
+            verbose_dump "$output"
+            continue
+        fi
+        local size
+        size=$(stat -f%z "$capsule_file" 2>/dev/null || stat -c%s "$capsule_file" 2>/dev/null)
+        if [[ $size -gt 0 ]]; then
+            pass_test "juniper ingest $mod_upper (${size} bytes)"
         else
-            skip_test "juniper ingest $mod - directory not found"
+            fail_test "juniper ingest $mod_upper - empty capsule"
         fi
     done
 }
@@ -177,16 +229,14 @@ test_capsule_ingest() {
     log_test "Capsule Ingest - Create Proper Capsules"
 
     local conf_file="$SAMPLE_DATA/kjv/mods.d/kjv.conf"
-    if [[ -f "$conf_file" ]]; then
-        local output=$("$CAPSULE_BIN" capsule ingest "$conf_file" --out "$TEST_DIR/kjv-proper.capsule.tar.gz" 2>&1)
-        if [[ -f "$TEST_DIR/kjv-proper.capsule.tar.gz" ]]; then
-            pass_test "capsule ingest kjv.conf"
-        else
-            fail_test "capsule ingest kjv.conf - capsule not created"
-            $VERBOSE && echo "$output"
-        fi
+    require_file "$conf_file" "capsule ingest - kjv.conf not found" || return 0
+    local output
+    output=$("$CAPSULE_BIN" capsule ingest "$conf_file" --out "$TEST_DIR/kjv-proper.capsule.tar.gz" 2>&1)
+    if [[ -f "$TEST_DIR/kjv-proper.capsule.tar.gz" ]]; then
+        pass_test "capsule ingest kjv.conf"
     else
-        skip_test "capsule ingest - kjv.conf not found"
+        fail_test "capsule ingest kjv.conf - capsule not created"
+        verbose_dump "$output"
     fi
 }
 
@@ -194,16 +244,14 @@ test_capsule_ingest() {
 test_capsule_verify() {
     log_test "Capsule Verify"
 
-    if [[ -f "$TEST_DIR/kjv-proper.capsule.tar.gz" ]]; then
-        local output=$("$CAPSULE_BIN" capsule verify "$TEST_DIR/kjv-proper.capsule.tar.gz" 2>&1)
-        if echo "$output" | grep -qi "passed\|ok"; then
-            pass_test "capsule verify"
-        else
-            fail_test "capsule verify - verification failed"
-            $VERBOSE && echo "$output"
-        fi
+    require_file "$TEST_DIR/kjv-proper.capsule.tar.gz" "capsule verify - capsule not found" || return 0
+    local output
+    output=$("$CAPSULE_BIN" capsule verify "$TEST_DIR/kjv-proper.capsule.tar.gz" 2>&1)
+    if echo "$output" | grep -qi "passed\|ok"; then
+        pass_test "capsule verify"
     else
-        skip_test "capsule verify - capsule not found"
+        fail_test "capsule verify - verification failed"
+        verbose_dump "$output"
     fi
 }
 
@@ -211,20 +259,18 @@ test_capsule_verify() {
 test_capsule_export() {
     log_test "Capsule Export"
 
-    if [[ -f "$TEST_DIR/kjv-proper.capsule.tar.gz" ]]; then
-        local output=$("$CAPSULE_BIN" capsule export "$TEST_DIR/kjv-proper.capsule.tar.gz" --artifact kjv --out "$TEST_DIR/kjv-exported.conf" 2>&1)
-        if [[ -f "$TEST_DIR/kjv-exported.conf" ]]; then
-            if grep -q "KJV" "$TEST_DIR/kjv-exported.conf"; then
-                pass_test "capsule export"
-            else
-                fail_test "capsule export - content mismatch"
-            fi
-        else
-            fail_test "capsule export - file not created"
-            $VERBOSE && echo "$output"
-        fi
+    require_file "$TEST_DIR/kjv-proper.capsule.tar.gz" "capsule export - capsule not found" || return 0
+    local output
+    output=$("$CAPSULE_BIN" capsule export "$TEST_DIR/kjv-proper.capsule.tar.gz" --artifact kjv --out "$TEST_DIR/kjv-exported.conf" 2>&1)
+    if [[ ! -f "$TEST_DIR/kjv-exported.conf" ]]; then
+        fail_test "capsule export - file not created"
+        verbose_dump "$output"
+        return 0
+    fi
+    if grep -q "KJV" "$TEST_DIR/kjv-exported.conf"; then
+        pass_test "capsule export"
     else
-        skip_test "capsule export - capsule not found"
+        fail_test "capsule export - content mismatch"
     fi
 }
 
@@ -233,16 +279,14 @@ test_format_detect() {
     log_test "Format Detect"
 
     local kjv_path="$SAMPLE_DATA/kjv"
-    if [[ -d "$kjv_path" ]]; then
-        local output=$("$CAPSULE_BIN" format detect "$kjv_path" 2>&1)
-        if echo "$output" | grep -qi "sword\|MATCH"; then
-            pass_test "format detect kjv"
-        else
-            fail_test "format detect kjv - SWORD not detected"
-            $VERBOSE && echo "$output"
-        fi
+    require_dir "$kjv_path" "format detect - kjv not found" || return 0
+    local output
+    output=$("$CAPSULE_BIN" format detect "$kjv_path" 2>&1)
+    if echo "$output" | grep -qi "sword\|MATCH"; then
+        pass_test "format detect kjv"
     else
-        skip_test "format detect - kjv not found"
+        fail_test "format detect kjv - SWORD not detected"
+        verbose_dump "$output"
     fi
 }
 
@@ -250,14 +294,16 @@ test_format_detect() {
 test_plugins_list() {
     log_test "Plugins List"
 
-    local output=$("$CAPSULE_BIN" plugins list 2>&1)
-    local format_count=$(echo "$output" | grep -c "format\." || true)
+    local output
+    output=$("$CAPSULE_BIN" plugins list 2>&1)
+    local format_count
+    format_count=$(echo "$output" | grep -c "format\." || true)
 
     if [[ $format_count -ge 30 ]]; then
         pass_test "plugins list ($format_count format plugins)"
     else
         fail_test "plugins list - expected 30+ format plugins, got $format_count"
-        $VERBOSE && echo "$output"
+        verbose_dump "$output"
     fi
 }
 
@@ -265,18 +311,16 @@ test_plugins_list() {
 test_webui() {
     log_test "Web UI Tests"
 
-    if $QUICK_MODE; then
-        skip_test "Web UI tests - skipped in quick mode"
-        return
-    fi
-
-    local output=$(go test ./cmd/capsule-web/ -v -run "Test" 2>&1 | tail -20)
+    skip_if_quick "Web UI tests - skipped in quick mode" || return 0
+    local output
+    output=$(go test ./cmd/capsule-web/ -v -run "Test" 2>&1 | tail -20)
     if echo "$output" | grep -q "PASS"; then
-        local pass_count=$(echo "$output" | grep -c "PASS" || true)
+        local pass_count
+        pass_count=$(echo "$output" | grep -c "PASS" || true)
         pass_test "Web UI tests ($pass_count passed)"
     else
         fail_test "Web UI tests - some tests failed"
-        $VERBOSE && echo "$output"
+        verbose_dump "$output"
     fi
 }
 
@@ -284,10 +328,7 @@ test_webui() {
 test_webui_endpoints() {
     log_test "Web UI HTTP Endpoints"
 
-    if $QUICK_MODE; then
-        skip_test "Web UI HTTP tests - skipped in quick mode"
-        return
-    fi
+    skip_if_quick "Web UI HTTP tests - skipped in quick mode" || return 0
 
     # Start web server
     "$CAPSULE_WEB_BIN" -capsules "$SAMPLE_DATA/capsules" -port 8899 &
@@ -297,7 +338,8 @@ test_webui_endpoints() {
     # Test endpoints
     local endpoints=("/" "/plugins" "/convert" "/tools" "/sword")
     for endpoint in "${endpoints[@]}"; do
-        local response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8899$endpoint" 2>/dev/null || echo "000")
+        local response
+        response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8899$endpoint" 2>/dev/null || echo "000")
         if [[ "$response" == "200" ]]; then
             pass_test "HTTP GET $endpoint"
         else
@@ -314,25 +356,9 @@ test_go_unit() {
     log_test "Go Unit Tests"
 
     if $QUICK_MODE; then
-        # Run only core tests in quick mode
-        local output=$(go test ./core/... -short 2>&1 | tail -10)
-        if echo "$output" | grep -q "ok"; then
-            pass_test "core package tests (quick)"
-        else
-            fail_test "core package tests failed"
-            $VERBOSE && echo "$output"
-        fi
+        run_go_test "./core/..." 10 "core package tests (quick)"
     else
-        local output=$(go test ./... -short 2>&1 | tail -30)
-        local pass_count=$(echo "$output" | grep -c "^ok" || true)
-        local fail_count=$(echo "$output" | grep -c "^FAIL" || true)
-
-        if [[ $fail_count -eq 0 ]]; then
-            pass_test "All Go tests ($pass_count packages)"
-        else
-            fail_test "Go tests - $fail_count packages failed"
-            $VERBOSE && echo "$output"
-        fi
+        run_go_test "./..." 30 "All Go tests"
     fi
 }
 
@@ -340,13 +366,15 @@ test_go_unit() {
 test_mysword_plugin() {
     log_test "MySword Plugin"
 
-    local output=$(go test ./plugins/format/mysword/ -v 2>&1 | tail -15)
+    local output
+    output=$(go test ./plugins/format/mysword/ -v 2>&1 | tail -15)
     if echo "$output" | grep -q "PASS"; then
-        local pass_count=$(echo "$output" | grep -c "PASS" || true)
+        local pass_count
+        pass_count=$(echo "$output" | grep -c "PASS" || true)
         pass_test "MySword plugin tests ($pass_count passed)"
     else
         fail_test "MySword plugin tests failed"
-        $VERBOSE && echo "$output"
+        verbose_dump "$output"
     fi
 }
 
@@ -354,23 +382,16 @@ test_mysword_plugin() {
 test_cgo_comparison() {
     log_test "CGO Comparison Tests"
 
-    if $QUICK_MODE; then
-        skip_test "CGO comparison tests - skipped in quick mode"
-        return
-    fi
+    skip_if_quick "CGO comparison tests - skipped in quick mode" || return 0
+    command -v diatheke &>/dev/null || { skip_test "CGO comparison tests - diatheke not installed"; return 0; }
 
-    # Check if native tools are available
-    if ! command -v diatheke &> /dev/null; then
-        skip_test "CGO comparison tests - diatheke not installed"
-        return
-    fi
-
-    local output=$(go test ./plugins/format/sword-pure/ -run CGOComparison -v -timeout 10m 2>&1 | tail -20)
+    local output
+    output=$(go test ./plugins/format/sword-pure/ -run CGOComparison -v -timeout 10m 2>&1 | tail -20)
     if echo "$output" | grep -q "PASS"; then
         pass_test "CGO comparison tests"
     else
         fail_test "CGO comparison tests failed"
-        $VERBOSE && echo "$output"
+        verbose_dump "$output"
     fi
 }
 

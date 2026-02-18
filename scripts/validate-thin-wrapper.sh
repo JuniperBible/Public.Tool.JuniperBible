@@ -53,150 +53,160 @@ PASSED=0
 FAILED=0
 WARNED=0
 
-# Check 1: Plugin directory exists
-if [ -d "$PLUGIN_DIR" ]; then
-    success "Plugin directory exists: $PLUGIN_DIR"
-    ((PASSED++))
-else
-    fail "Plugin directory not found: $PLUGIN_DIR"
-    ((FAILED++))
-fi
+# ---------------------------------------------------------------------------
+# Unified check runner
+# Accepts a pass message, fail message, and a command string to evaluate.
+# Sets the global PASSED/FAILED counters accordingly.
+# ---------------------------------------------------------------------------
+run_check() {
+    local pass_msg="$1"
+    local fail_msg="$2"
+    local cmd="$3"
 
-# Check 2: main.go exists
-if [ -f "${PLUGIN_DIR}/main.go" ]; then
-    success "main.go exists"
-    ((PASSED++))
-else
-    fail "main.go not found"
-    ((FAILED++))
-    exit 1
-fi
+    if eval "$cmd"; then
+        success "$pass_msg"
+        ((PASSED++))
+    else
+        fail "$fail_msg"
+        ((FAILED++))
+    fi
+}
 
-# Check 3: Has standalone build tag
-if grep -q "^//go:build standalone" "${PLUGIN_DIR}/main.go"; then
-    success "Has //go:build standalone tag"
-    ((PASSED++))
-else
-    fail "Missing //go:build standalone tag"
-    ((FAILED++))
-fi
+# ---------------------------------------------------------------------------
+# Special check: line count (three-way branch kept in its own function so the
+# main flow remains a simple loop with no nested conditionals).
+# ---------------------------------------------------------------------------
+check_line_count() {
+    local file="$1"
+    local count
+    count=$(wc -l < "$file")
 
-# Check 4: Line count (should be ~5-20 lines)
-LINE_COUNT=$(wc -l < "${PLUGIN_DIR}/main.go")
-if [ "$LINE_COUNT" -le 20 ]; then
-    success "Line count is acceptable: ${LINE_COUNT} lines (≤20)"
-    ((PASSED++))
-elif [ "$LINE_COUNT" -le 30 ]; then
-    warn "Line count is high: ${LINE_COUNT} lines (target ≤20)"
-    ((WARNED++))
-else
-    fail "Line count too high: ${LINE_COUNT} lines (should be ≤20)"
-    ((FAILED++))
-fi
+    if [ "$count" -le 20 ]; then
+        success "Line count is acceptable: ${count} lines (<=20)"
+        ((PASSED++))
+    elif [ "$count" -le 30 ]; then
+        warn "Line count is high: ${count} lines (target <=20)"
+        ((WARNED++))
+    else
+        fail "Line count too high: ${count} lines (should be <=20)"
+        ((FAILED++))
+    fi
+}
 
-# Check 5: Imports canonical format package
-if grep -q "github.com/FocuswithJustin/JuniperBible/core/formats/${FORMAT_NAME_LOWER}" "${PLUGIN_DIR}/main.go"; then
-    success "Imports canonical format package"
-    ((PASSED++))
-else
-    fail "Does not import canonical format package"
-    ((FAILED++))
-fi
+# ---------------------------------------------------------------------------
+# Special check: count occurrences of a list of tokens in a file.
+# Reports pass when count is zero; fail otherwise.
+# ---------------------------------------------------------------------------
+check_absent_tokens() {
+    local file="$1"
+    local pass_msg="$2"
+    local fail_msg_prefix="$3"
+    shift 3
+    local tokens=("$@")
+    local count=0
 
-# Check 6: Imports SDK format package
-if grep -q "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format" "${PLUGIN_DIR}/main.go"; then
-    success "Imports SDK format package"
-    ((PASSED++))
-else
-    fail "Does not import SDK format package"
-    ((FAILED++))
-fi
+    for token in "${tokens[@]}"; do
+        if grep -q "$token" "$file"; then
+            ((count++))
+        fi
+    done
 
-# Check 7: Calls format.Run()
-if grep -q "format.Run(" "${PLUGIN_DIR}/main.go"; then
-    success "Calls format.Run()"
-    ((PASSED++))
-else
-    fail "Does not call format.Run()"
-    ((FAILED++))
-fi
+    if [ "$count" -eq 0 ]; then
+        success "$pass_msg"
+        ((PASSED++))
+    else
+        fail "${fail_msg_prefix}${count}"
+        ((FAILED++))
+    fi
+}
 
-# Check 8: Passes Config variable
-if grep -q "${FORMAT_NAME_LOWER}.Config" "${PLUGIN_DIR}/main.go"; then
-    success "Passes Config variable"
-    ((PASSED++))
-else
-    fail "Does not pass Config variable"
-    ((FAILED++))
-fi
+# ---------------------------------------------------------------------------
+# Simple boolean checks expressed as parallel arrays:
+#   CHECKS_CMD   – the shell command evaluated by run_check
+#   CHECKS_PASS  – message printed on success
+#   CHECKS_FAIL  – message printed on failure
+#   CHECKS_FATAL – '1' means exit immediately on failure (like original check 2)
+# ---------------------------------------------------------------------------
+CHECKS_CMD=(
+    "[ -d '${PLUGIN_DIR}' ]"
+    "[ -f '${PLUGIN_DIR}/main.go' ]"
+    "grep -q '^//go:build standalone' '${PLUGIN_DIR}/main.go'"
+    "grep -q 'github.com/FocuswithJustin/JuniperBible/core/formats/${FORMAT_NAME_LOWER}' '${PLUGIN_DIR}/main.go'"
+    "grep -q 'github.com/FocuswithJustin/JuniperBible/plugins/sdk/format' '${PLUGIN_DIR}/main.go'"
+    "grep -q 'format.Run(' '${PLUGIN_DIR}/main.go'"
+    "grep -q '${FORMAT_NAME_LOWER}.Config' '${PLUGIN_DIR}/main.go'"
+    "[ -d '${CANONICAL_DIR}' ]"
+    "[ -f '${CANONICAL_DIR}/format.go' ]"
+    "[ -f '${CANONICAL_DIR}/format.go' ] && grep -q 'var Config = &format.Config' '${CANONICAL_DIR}/format.go'"
+    "go build -tags standalone -o /dev/null '${PLUGIN_DIR}/main.go' 2>/dev/null"
+)
 
-# Check 9: Canonical directory exists
-if [ -d "$CANONICAL_DIR" ]; then
-    success "Canonical directory exists: $CANONICAL_DIR"
-    ((PASSED++))
-else
-    fail "Canonical directory not found: $CANONICAL_DIR"
-    ((FAILED++))
-fi
+CHECKS_PASS=(
+    "Plugin directory exists: ${PLUGIN_DIR}"
+    "main.go exists"
+    "Has //go:build standalone tag"
+    "Imports canonical format package"
+    "Imports SDK format package"
+    "Calls format.Run()"
+    "Passes Config variable"
+    "Canonical directory exists: ${CANONICAL_DIR}"
+    "Canonical format.go exists"
+    "Config variable exported in canonical package"
+    "Compiles with standalone tag"
+)
 
-# Check 10: Canonical format.go exists
-if [ -f "${CANONICAL_DIR}/format.go" ]; then
-    success "Canonical format.go exists"
-    ((PASSED++))
-else
-    fail "Canonical format.go not found"
-    ((FAILED++))
-fi
+CHECKS_FAIL=(
+    "Plugin directory not found: ${PLUGIN_DIR}"
+    "main.go not found"
+    "Missing //go:build standalone tag"
+    "Does not import canonical format package"
+    "Does not import SDK format package"
+    "Does not call format.Run()"
+    "Does not pass Config variable"
+    "Canonical directory not found: ${CANONICAL_DIR}"
+    "Canonical format.go not found"
+    "Config variable not found in canonical package"
+    "Does not compile with standalone tag"
+)
 
-# Check 11: Config variable exported in canonical
-if [ -f "${CANONICAL_DIR}/format.go" ] && grep -q "var Config = &format.Config" "${CANONICAL_DIR}/format.go"; then
-    success "Config variable exported in canonical package"
-    ((PASSED++))
-else
-    fail "Config variable not found in canonical package"
-    ((FAILED++))
-fi
+# Index of the check whose failure causes an immediate exit (0-based; check 2
+# in the original script was the main.go existence check, now index 1).
+FATAL_CHECK_INDEX=1
 
-# Check 12: Compiles with standalone tag
-if go build -tags standalone -o /dev/null "${PLUGIN_DIR}/main.go" 2>/dev/null; then
-    success "Compiles with standalone tag"
-    ((PASSED++))
-else
-    fail "Does not compile with standalone tag"
-    ((FAILED++))
-fi
+# ---------------------------------------------------------------------------
+# Run all simple boolean checks
+# ---------------------------------------------------------------------------
+for i in "${!CHECKS_CMD[@]}"; do
+    run_check "${CHECKS_PASS[$i]}" "${CHECKS_FAIL[$i]}" "${CHECKS_CMD[$i]}"
 
-# Check 13: No duplicated IPC types in wrapper
-DUPLICATES=0
-for TYPE in "IPCRequest" "IPCResponse" "DetectResult" "IngestResult" "Corpus"; do
-    if grep -q "type $TYPE" "${PLUGIN_DIR}/main.go"; then
-        ((DUPLICATES++))
+    if [ "$i" -eq "$FATAL_CHECK_INDEX" ] && [ "$FAILED" -gt 0 ]; then
+        exit 1
     fi
 done
-if [ "$DUPLICATES" -eq 0 ]; then
-    success "No duplicated IPC types in wrapper"
-    ((PASSED++))
-else
-    fail "Found $DUPLICATES duplicated IPC type definitions"
-    ((FAILED++))
-fi
 
-# Check 14: No handler functions in wrapper
-HANDLERS=0
-for HANDLER in "handleDetect" "handleIngest" "handleEnumerate" "handleExtractIR" "handleEmitNative"; do
-    if grep -q "func $HANDLER" "${PLUGIN_DIR}/main.go"; then
-        ((HANDLERS++))
-    fi
-done
-if [ "$HANDLERS" -eq 0 ]; then
-    success "No handler functions in wrapper (delegated to SDK)"
-    ((PASSED++))
-else
-    fail "Found $HANDLERS handler functions (should be in canonical package)"
-    ((FAILED++))
-fi
+# ---------------------------------------------------------------------------
+# Line count check (three-way: pass / warn / fail)
+# ---------------------------------------------------------------------------
+check_line_count "${PLUGIN_DIR}/main.go"
 
+# ---------------------------------------------------------------------------
+# Absence checks: IPC type duplication and handler functions
+# ---------------------------------------------------------------------------
+check_absent_tokens \
+    "${PLUGIN_DIR}/main.go" \
+    "No duplicated IPC types in wrapper" \
+    "Found duplicated IPC type definitions: " \
+    "type IPCRequest" "type IPCResponse" "type DetectResult" "type IngestResult" "type Corpus"
+
+check_absent_tokens \
+    "${PLUGIN_DIR}/main.go" \
+    "No handler functions in wrapper (delegated to SDK)" \
+    "Found handler functions (should be in canonical package): " \
+    "func handleDetect" "func handleIngest" "func handleEnumerate" "func handleExtractIR" "func handleEmitNative"
+
+# ---------------------------------------------------------------------------
 # Summary
+# ---------------------------------------------------------------------------
 echo ""
 echo "================================"
 echo "Validation Summary"

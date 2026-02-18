@@ -168,109 +168,87 @@ func (c *GBFConverter) extractCrossRefs(text string) []string {
 	return refs
 }
 
-// convertToMarkdown converts GBF markup to Markdown.
-func (c *GBFConverter) convertToMarkdown(text string) string {
-	// Use placeholders for content we want to preserve
-	const redLetterStart = "\x00RED_START\x00"
-	const redLetterEnd = "\x00RED_END\x00"
+// regexReplacement pairs a compiled pattern with its replacement string.
+type regexReplacement struct {
+	re          *regexp.Regexp
+	replacement string
+}
 
-	// Convert red letter text
-	re := regexp.MustCompile(`<FR>([^<]*)<Fr>`)
-	text = re.ReplaceAllString(text, redLetterStart+"$1"+redLetterEnd)
-
-	// Convert italic
-	re = regexp.MustCompile(`<FI>([^<]*)<Fi>`)
-	text = re.ReplaceAllString(text, "*$1*")
-
-	// Convert bold
-	re = regexp.MustCompile(`<FB>([^<]*)<Fb>`)
-	text = re.ReplaceAllString(text, "**$1**")
-
-	// Convert OT quotations (use blockquote style)
-	re = regexp.MustCompile(`<FO>([^<]*)<Fo>`)
-	text = re.ReplaceAllString(text, "> $1")
-
-	// Convert superscript (use caret notation like Strong's)
-	re = regexp.MustCompile(`<FS>([^<]*)<Fs>`)
-	text = re.ReplaceAllString(text, "^$1^")
-
-	// Convert underline to emphasis (Markdown has no underline)
-	re = regexp.MustCompile(`<FU>([^<]*)<Fu>`)
-	text = re.ReplaceAllString(text, "_$1_")
-
-	// Handle Strong's numbers
-	if c.PreserveStrongs {
-		// Hebrew Strong's: <WH1234>word<Wh>
-		re = regexp.MustCompile(`<WH(\d+)>([^<]*)<Wh>`)
-		text = re.ReplaceAllString(text, "$2^H$1^")
-
-		// Greek Strong's: <WG1234>word<Wg>
-		re = regexp.MustCompile(`<WG(\d+)>([^<]*)<Wg>`)
-		text = re.ReplaceAllString(text, "$2^G$1^")
-	} else {
-		// Just extract words, remove Strong's tags
-		re = regexp.MustCompile(`<WH\d+>([^<]*)<Wh>`)
-		text = re.ReplaceAllString(text, "$1")
-		re = regexp.MustCompile(`<WG\d+>([^<]*)<Wg>`)
-		text = re.ReplaceAllString(text, "$1")
+// strongsReplacements returns the regex replacements for Strong's numbers.
+// When preserve is true the numbers are annotated; otherwise they are stripped.
+func strongsReplacements(preserve bool) []regexReplacement {
+	if preserve {
+		return []regexReplacement{
+			{regexp.MustCompile(`<WH(\d+)>([^<]*)<Wh>`), "$2^H$1^"}, // Hebrew Strong's: annotate
+			{regexp.MustCompile(`<WG(\d+)>([^<]*)<Wg>`), "$2^G$1^"}, // Greek Strong's: annotate
+		}
 	}
+	return []regexReplacement{
+		{regexp.MustCompile(`<WH\d+>([^<]*)<Wh>`), "$1"}, // Hebrew Strong's: strip tags
+		{regexp.MustCompile(`<WG\d+>([^<]*)<Wg>`), "$1"}, // Greek Strong's: strip tags
+	}
+}
 
-	// Remove morphology tags
-	re = regexp.MustCompile(`<WT[^>]*>`)
-	text = re.ReplaceAllString(text, "")
-	re = regexp.MustCompile(`<Wt>`)
-	text = re.ReplaceAllString(text, "")
+// normalizeWhitespace collapses runs of spaces/tabs, trims each line, and
+// removes runs of more than two consecutive newlines.
+func normalizeWhitespace(text string) string {
+	text = regexp.MustCompile(`[ \t]+`).ReplaceAllString(text, " ")
 
-	// Remove footnotes (already extracted)
-	re = regexp.MustCompile(`<RF>[^<]*<Rf>`)
-	text = re.ReplaceAllString(text, "")
-
-	// Remove cross-references (already extracted)
-	re = regexp.MustCompile(`<RX>[^<]*<Rx>`)
-	text = re.ReplaceAllString(text, "")
-
-	// Convert paragraph/section marks
-	re = regexp.MustCompile(`<CM>`)
-	text = re.ReplaceAllString(text, "\n\n")
-
-	// Convert line breaks
-	re = regexp.MustCompile(`<CL>`)
-	text = re.ReplaceAllString(text, "\n")
-
-	// Convert indents
-	re = regexp.MustCompile(`<CI>`)
-	text = re.ReplaceAllString(text, "    ")
-
-	// Remove title markers but keep content
-	re = regexp.MustCompile(`<TS>([^<]*)<Ts>`)
-	text = re.ReplaceAllString(text, "\n### $1\n")
-
-	// Remove any remaining GBF tags
-	re = regexp.MustCompile(`<[A-Z][A-Za-z0-9]*>`)
-	text = re.ReplaceAllString(text, "")
-	re = regexp.MustCompile(`<[A-Za-z][a-z]>`)
-	text = re.ReplaceAllString(text, "")
-
-	// Restore placeholders
-	text = strings.ReplaceAll(text, redLetterStart, `<span class="red-letter">`)
-	text = strings.ReplaceAll(text, redLetterEnd, `</span>`)
-
-	// Clean up whitespace
-	re = regexp.MustCompile(`[ \t]+`)
-	text = re.ReplaceAllString(text, " ")
-
-	// Remove leading/trailing whitespace from lines
 	lines := strings.Split(text, "\n")
 	for i, line := range lines {
 		lines[i] = strings.TrimSpace(line)
 	}
 	text = strings.Join(lines, "\n")
 
-	// Remove multiple blank lines
-	re = regexp.MustCompile(`\n{3,}`)
-	text = re.ReplaceAllString(text, "\n\n")
+	return regexp.MustCompile(`\n{3,}`).ReplaceAllString(text, "\n\n")
+}
 
-	return text
+// convertToMarkdown converts GBF markup to Markdown.
+func (c *GBFConverter) convertToMarkdown(text string) string {
+	const redLetterStart = "\x00RED_START\x00"
+	const redLetterEnd = "\x00RED_END\x00"
+
+	// Static replacements applied in order before and after the
+	// conditional Strong's block.
+	staticBefore := []regexReplacement{
+		{regexp.MustCompile(`<FR>([^<]*)<Fr>`), redLetterStart + "$1" + redLetterEnd}, // red letter
+		{regexp.MustCompile(`<FI>([^<]*)<Fi>`), "*$1*"},                               // italic
+		{regexp.MustCompile(`<FB>([^<]*)<Fb>`), "**$1**"},                             // bold
+		{regexp.MustCompile(`<FO>([^<]*)<Fo>`), "> $1"},                               // OT quotation → blockquote
+		{regexp.MustCompile(`<FS>([^<]*)<Fs>`), "^$1^"},                               // superscript
+		{regexp.MustCompile(`<FU>([^<]*)<Fu>`), "_$1_"},                               // underline → emphasis
+	}
+
+	staticAfter := []regexReplacement{
+		{regexp.MustCompile(`<WT[^>]*>`), ""},                  // morphology open tags
+		{regexp.MustCompile(`<Wt>`), ""},                       // morphology close tag
+		{regexp.MustCompile(`<RF>[^<]*<Rf>`), ""},              // footnotes (already extracted)
+		{regexp.MustCompile(`<RX>[^<]*<Rx>`), ""},              // cross-references (already extracted)
+		{regexp.MustCompile(`<CM>`), "\n\n"},                   // paragraph/section mark
+		{regexp.MustCompile(`<CL>`), "\n"},                     // line break
+		{regexp.MustCompile(`<CI>`), "    "},                   // indent
+		{regexp.MustCompile(`<TS>([^<]*)<Ts>`), "\n### $1\n"}, // title → heading
+		{regexp.MustCompile(`<[A-Z][A-Za-z0-9]*>`), ""},       // remaining open GBF tags
+		{regexp.MustCompile(`<[A-Za-z][a-z]>`), ""},           // remaining close GBF tags
+	}
+
+	for _, r := range staticBefore {
+		text = r.re.ReplaceAllString(text, r.replacement)
+	}
+
+	for _, r := range strongsReplacements(c.PreserveStrongs) {
+		text = r.re.ReplaceAllString(text, r.replacement)
+	}
+
+	for _, r := range staticAfter {
+		text = r.re.ReplaceAllString(text, r.replacement)
+	}
+
+	// Restore red-letter placeholders to HTML spans.
+	text = strings.ReplaceAll(text, redLetterStart, `<span class="red-letter">`)
+	text = strings.ReplaceAll(text, redLetterEnd, `</span>`)
+
+	return normalizeWhitespace(text)
 }
 
 // ConvertText converts GBF to plain Markdown text.

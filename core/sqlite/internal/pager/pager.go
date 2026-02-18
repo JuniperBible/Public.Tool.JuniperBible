@@ -142,8 +142,19 @@ func OpenWithPageSize(filename string, readOnly bool, pageSize int) (*Pager, err
 	if !isValidPageSize(pageSize) {
 		return nil, ErrInvalidPageSize
 	}
+	pager := newPager(filename, pageSize, readOnly)
+	if err := pager.openFile(readOnly); err != nil {
+		return nil, err
+	}
+	if err := pager.initOrReadHeader(readOnly); err != nil {
+		return nil, err
+	}
+	return pager, nil
+}
 
-	pager := &Pager{
+// newPager creates a new Pager instance.
+func newPager(filename string, pageSize int, readOnly bool) *Pager {
+	return &Pager{
 		filename:        filename,
 		journalFilename: filename + "-journal",
 		pageSize:        pageSize,
@@ -152,54 +163,59 @@ func OpenWithPageSize(filename string, readOnly bool, pageSize int) (*Pager, err
 		state:           PagerStateOpen,
 		lockState:       LockNone,
 		cache:           NewPageCache(pageSize, DefaultCacheSize),
+		maxPageNum:      0x7FFFFFFF,
 	}
+}
 
-	// Open the database file
+// openFile opens the database file.
+func (p *Pager) openFile(readOnly bool) error {
 	var err error
 	if readOnly {
-		pager.file, err = os.OpenFile(filename, os.O_RDONLY, 0)
+		p.file, err = os.OpenFile(p.filename, os.O_RDONLY, 0)
 	} else {
-		pager.file, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
+		p.file, err = os.OpenFile(p.filename, os.O_RDWR|os.O_CREATE, 0600)
 	}
-
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database file: %w", err)
+		return fmt.Errorf("failed to open database file: %w", err)
 	}
+	return nil
+}
 
-	// Check if this is a new database
-	info, err := pager.file.Stat()
+// initOrReadHeader initializes a new database or reads the header.
+func (p *Pager) initOrReadHeader(readOnly bool) error {
+	info, err := p.file.Stat()
 	if err != nil {
-		pager.file.Close()
-		return nil, fmt.Errorf("failed to stat database file: %w", err)
+		p.file.Close()
+		return fmt.Errorf("failed to stat database file: %w", err)
 	}
-
 	if info.Size() == 0 {
-		// New database - write header
-		if readOnly {
-			pager.file.Close()
-			return nil, errors.New("cannot create new database in read-only mode")
-		}
-
-		if err := pager.initializeNewDatabase(); err != nil {
-			pager.file.Close()
-			return nil, err
-		}
-	} else {
-		// Existing database - read header
-		if err := pager.readHeader(); err != nil {
-			pager.file.Close()
-			return nil, err
-		}
+		return p.initNewDatabase(readOnly)
 	}
+	return p.readExistingDatabase(info)
+}
 
-	// Calculate database size
-	pager.dbSize = Pgno(info.Size() / int64(pager.pageSize))
-	pager.dbOrigSize = pager.dbSize
+// initNewDatabase initializes a new empty database.
+func (p *Pager) initNewDatabase(readOnly bool) error {
+	if readOnly {
+		p.file.Close()
+		return errors.New("cannot create new database in read-only mode")
+	}
+	if err := p.initializeNewDatabase(); err != nil {
+		p.file.Close()
+		return err
+	}
+	return nil
+}
 
-	// Set maximum page number (SQLite uses 32-bit page numbers)
-	pager.maxPageNum = 0x7FFFFFFF
-
-	return pager, nil
+// readExistingDatabase reads the header and calculates size.
+func (p *Pager) readExistingDatabase(info os.FileInfo) error {
+	if err := p.readHeader(); err != nil {
+		p.file.Close()
+		return err
+	}
+	p.dbSize = Pgno(info.Size() / int64(p.pageSize))
+	p.dbOrigSize = p.dbSize
+	return nil
 }
 
 // Close closes the pager and releases all resources.
@@ -296,36 +312,46 @@ func (p *Pager) Write(page *DbPage) error {
 		return errors.New("nil page")
 	}
 
-	// Start a write transaction if not already started
-	if p.state == PagerStateOpen || p.state == PagerStateReader {
-		if err := p.beginWriteTransaction(); err != nil {
-			return err
-		}
+	if err := p.ensureWriteTransaction(); err != nil {
+		return err
 	}
 
-	// Journal the page if not already writeable
+	if err := p.preparePageForWrite(page); err != nil {
+		return err
+	}
+
+	page.MakeWriteable()
+	page.MakeDirty()
+	p.advanceToWriterCachemod()
+
+	return nil
+}
+
+func (p *Pager) ensureWriteTransaction() error {
+	if p.state == PagerStateOpen || p.state == PagerStateReader {
+		return p.beginWriteTransaction()
+	}
+	return nil
+}
+
+func (p *Pager) preparePageForWrite(page *DbPage) error {
 	if !page.IsWriteable() {
 		if err := p.journalPage(page); err != nil {
 			return err
 		}
 	}
 
-	// Save page state for savepoints
 	if len(p.savepoints) > 0 {
-		if err := p.savePageState(page); err != nil {
-			return err
-		}
-	}
-
-	page.MakeWriteable()
-	page.MakeDirty()
-
-	// Update state
-	if p.state == PagerStateWriterLocked {
-		p.state = PagerStateWriterCachemod
+		return p.savePageState(page)
 	}
 
 	return nil
+}
+
+func (p *Pager) advanceToWriterCachemod() {
+	if p.state == PagerStateWriterLocked {
+		p.state = PagerStateWriterCachemod
+	}
 }
 
 // Commit commits the current write transaction.

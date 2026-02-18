@@ -186,81 +186,90 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	}, nil
 }
 
-// Execute runs a tool on a capsule artifact and stores the transcript.
-func Execute(ctx context.Context, cfg ExecuteConfig) (*ExecuteResult, error) {
-	// Create temporary directory for unpacking
-	tempDir, err := os.MkdirTemp("", "capsule-tool-run-*")
+func unpackAndExportArtifact(capsulePath, artifactID, tempDir string) (*capsule.Capsule, string, error) {
+	cap, err := capsule.Unpack(capsulePath, tempDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Unpack the capsule
-	cap, err := capsule.Unpack(cfg.CapsulePath, tempDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unpack capsule: %w", err)
+		return nil, "", fmt.Errorf("failed to unpack capsule: %w", err)
 	}
 
-	// Check artifact exists
-	artifact, ok := cap.Manifest.Artifacts[cfg.ArtifactID]
+	artifact, ok := cap.Manifest.Artifacts[artifactID]
 	if !ok {
-		return nil, fmt.Errorf("artifact not found: %s", cfg.ArtifactID)
+		return nil, "", fmt.Errorf("artifact not found: %s", artifactID)
 	}
 
-	// Export artifact to temp directory for tool input
 	inputPath := filepath.Join(tempDir, "input", artifact.OriginalName)
 	if err := os.MkdirAll(filepath.Dir(inputPath), 0700); err != nil {
-		return nil, fmt.Errorf("failed to create input dir: %w", err)
+		return nil, "", fmt.Errorf("failed to create input dir: %w", err)
 	}
-	if err := cap.Export(cfg.ArtifactID, capsule.ExportModeIdentity, inputPath); err != nil {
-		return nil, fmt.Errorf("failed to export artifact: %w", err)
+	if err := cap.Export(artifactID, capsule.ExportModeIdentity, inputPath); err != nil {
+		return nil, "", fmt.Errorf("failed to export artifact: %w", err)
 	}
 
-	// Create runner request
+	return cap, inputPath, nil
+}
+
+func executeToolRequest(ctx context.Context, cfg ExecuteConfig, inputPath string) (*runner.ExecutionResult, error) {
 	req := runner.NewRequest(cfg.ToolID, cfg.Profile)
 	req.Inputs = []string{inputPath}
 
-	// Execute with Nix
-	executor := runner.NewNixExecutor(cfg.FlakePath)
-	result, err := executor.ExecuteRequest(ctx, req, []string{inputPath})
+	result, err := runner.NewNixExecutor(cfg.FlakePath).ExecuteRequest(ctx, req, []string{inputPath})
 	if err != nil {
 		return nil, fmt.Errorf("tool execution failed: %w", err)
 	}
-
 	if len(result.TranscriptData) == 0 {
 		return nil, fmt.Errorf("no transcript generated")
 	}
+	return result, nil
+}
 
-	// Create run record
-	runID := fmt.Sprintf("run-%s-%s-%d", cfg.ToolID, cfg.Profile, len(cap.Manifest.Runs)+1)
+func buildRunRecord(cfg ExecuteConfig, runIndex int) (string, *capsule.Run) {
+	runID := fmt.Sprintf("run-%s-%s-%d", cfg.ToolID, cfg.Profile, runIndex)
 	run := &capsule.Run{
 		ID: runID,
 		Plugin: &capsule.PluginInfo{
 			PluginID: cfg.ToolID,
 			Kind:     "tool",
 		},
-		Inputs: []capsule.RunInput{
-			{ArtifactID: cfg.ArtifactID},
-		},
-		Command: &capsule.Command{
-			Profile: cfg.Profile,
-		},
-		Status: "completed",
+		Inputs:  []capsule.RunInput{{ArtifactID: cfg.ArtifactID}},
+		Command: &capsule.Command{Profile: cfg.Profile},
+		Status:  "completed",
 	}
+	return runID, run
+}
 
-	// Add run to capsule
-	if err := cap.AddRun(run, result.TranscriptData); err != nil {
-		return nil, fmt.Errorf("failed to add run: %w", err)
+func persistRunResult(cap *capsule.Capsule, run *capsule.Run, transcriptData []byte, capsulePath string) error {
+	if err := cap.AddRun(run, transcriptData); err != nil {
+		return fmt.Errorf("failed to add run: %w", err)
 	}
-
-	// Save manifest
 	if err := cap.SaveManifest(); err != nil {
-		return nil, fmt.Errorf("failed to save manifest: %w", err)
+		return fmt.Errorf("failed to save manifest: %w", err)
+	}
+	if err := cap.Pack(capsulePath); err != nil {
+		return fmt.Errorf("failed to repack capsule: %w", err)
+	}
+	return nil
+}
+
+func Execute(ctx context.Context, cfg ExecuteConfig) (*ExecuteResult, error) {
+	tempDir, err := os.MkdirTemp("", "capsule-tool-run-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	cap, inputPath, err := unpackAndExportArtifact(cfg.CapsulePath, cfg.ArtifactID, tempDir)
+	if err != nil {
+		return nil, err
 	}
 
-	// Repack the capsule
-	if err := cap.Pack(cfg.CapsulePath); err != nil {
-		return nil, fmt.Errorf("failed to repack capsule: %w", err)
+	result, err := executeToolRequest(ctx, cfg, inputPath)
+	if err != nil {
+		return nil, err
+	}
+
+	runID, run := buildRunRecord(cfg, len(cap.Manifest.Runs)+1)
+	if err := persistRunResult(cap, run, result.TranscriptData, cfg.CapsulePath); err != nil {
+		return nil, err
 	}
 
 	return &ExecuteResult{

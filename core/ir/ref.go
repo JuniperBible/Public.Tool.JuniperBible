@@ -204,26 +204,32 @@ type RefRange struct {
 
 // Contains returns true if the reference is within this range.
 func (rr *RefRange) Contains(ref *Ref) bool {
-	// Simple implementation - checks if ref is between start and end
-	// A full implementation would need proper verse ordering
-	if rr.Start.Book != ref.Book || rr.End.Book != ref.Book {
+	if !rr.bookMatches(ref) {
 		return false
 	}
-
-	// Check chapter range
-	if ref.Chapter < rr.Start.Chapter || ref.Chapter > rr.End.Chapter {
+	if !rr.chapterInRange(ref) {
 		return false
 	}
+	return rr.verseInRange(ref)
+}
 
-	// Same start chapter - check verse
+// bookMatches returns true if ref's book matches both start and end.
+func (rr *RefRange) bookMatches(ref *Ref) bool {
+	return rr.Start.Book == ref.Book && rr.End.Book == ref.Book
+}
+
+// chapterInRange returns true if ref's chapter is within range.
+func (rr *RefRange) chapterInRange(ref *Ref) bool {
+	return ref.Chapter >= rr.Start.Chapter && ref.Chapter <= rr.End.Chapter
+}
+
+// verseInRange returns true if ref's verse is within range for its chapter.
+func (rr *RefRange) verseInRange(ref *Ref) bool {
 	if ref.Chapter == rr.Start.Chapter && ref.Verse < rr.Start.Verse {
 		return false
 	}
-
-	// Same end chapter - check verse
 	if ref.Chapter == rr.End.Chapter && ref.Verse > rr.End.Verse {
 		return false
 	}
-
 	return true
 }

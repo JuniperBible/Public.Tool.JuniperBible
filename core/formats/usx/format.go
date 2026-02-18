@@ -307,48 +307,48 @@ func emitUSX(corpus *ir.Corpus, outputDir string) (string, error) {
 	return outputPath, nil
 }
 
-func emitUSXFromIR(corpus *ir.Corpus) string {
-	var buf strings.Builder
-
-	version := "3.0"
+func getUSXVersion(corpus *ir.Corpus) string {
 	if v, ok := corpus.Attributes["usx_version"]; ok {
-		version = v
+		return v
 	}
+	return "3.0"
+}
 
-	buf.WriteString(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<usx version="%s">
-`, version))
-
-	for _, doc := range corpus.Documents {
-		buf.WriteString(fmt.Sprintf(`  <book code="%s" style="id">%s</book>
-`, doc.ID, doc.Title))
-
-		currentChapter := 0
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						if span.Ref.Chapter != currentChapter {
-							if currentChapter > 0 {
-								buf.WriteString("  </para>\n")
-							}
-							currentChapter = span.Ref.Chapter
-							buf.WriteString(fmt.Sprintf(`  <chapter number="%d" style="c" sid="%s.%d"/>
-  <para style="p">
-`, currentChapter, doc.ID, currentChapter))
-						}
-						buf.WriteString(fmt.Sprintf(`    <verse number="%d" style="v" sid="%s"/>%s<verse eid="%s"/>
-`, span.Ref.Verse, span.Ref.OSISID, escapeXML(cb.Text), span.Ref.OSISID))
-					}
-				}
-			}
-		}
-
-		if currentChapter > 0 {
+func emitVerseSpan(buf *strings.Builder, span *ir.Span, text string, docID string, currentChapter *int) {
+	if span.Ref == nil || span.Type != "VERSE" {
+		return
+	}
+	if span.Ref.Chapter != *currentChapter {
+		if *currentChapter > 0 {
 			buf.WriteString("  </para>\n")
 		}
+		*currentChapter = span.Ref.Chapter
+		buf.WriteString(fmt.Sprintf("  <chapter number=\"%d\" style=\"c\" sid=\"%s.%d\"/>\n  <para style=\"p\">\n", *currentChapter, docID, *currentChapter))
 	}
+	buf.WriteString(fmt.Sprintf("    <verse number=\"%d\" style=\"v\" sid=\"%s\"/>%s<verse eid=\"%s\"/>\n", span.Ref.Verse, span.Ref.OSISID, escapeXML(text), span.Ref.OSISID))
+}
 
+func emitDocumentBlocks(buf *strings.Builder, doc *ir.Document) {
+	buf.WriteString(fmt.Sprintf("  <book code=\"%s\" style=\"id\">%s</book>\n", doc.ID, doc.Title))
+	currentChapter := 0
+	for _, cb := range doc.ContentBlocks {
+		for _, anchor := range cb.Anchors {
+			for _, span := range anchor.Spans {
+				emitVerseSpan(buf, span, cb.Text, doc.ID, &currentChapter)
+			}
+		}
+	}
+	if currentChapter > 0 {
+		buf.WriteString("  </para>\n")
+	}
+}
+
+func emitUSXFromIR(corpus *ir.Corpus) string {
+	var buf strings.Builder
+	buf.WriteString(fmt.Sprintf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<usx version=\"%s\">\n", getUSXVersion(corpus)))
+	for _, doc := range corpus.Documents {
+		emitDocumentBlocks(&buf, doc)
+	}
 	buf.WriteString("</usx>\n")
 	return buf.String()
 }

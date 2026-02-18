@@ -193,55 +193,54 @@ var PluginKinds = []string{"format", "tool", "juniper", "example"}
 // It supports both flat structure (plugins/format-osis/) and
 // nested structure (plugins/format/osis/).
 func DiscoverPlugins(dir string) ([]*Plugin, error) {
-	var plugins []*Plugin
-
-	// Convert to absolute path to ensure plugins can be executed
-	// from any working directory
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve plugin directory: %w", err)
 	}
-	dir = absDir
 
-	entries, err := os.ReadDir(dir)
+	entries, err := os.ReadDir(absDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return plugins, nil // Empty list if directory doesn't exist
+			return nil, nil
 		}
-		return nil, apperrors.NewIO("read", dir, err)
+		return nil, apperrors.NewIO("read", absDir, err)
 	}
 
+	return discoverPluginsInEntries(absDir, entries), nil
+}
+
+func discoverPluginsInEntries(dir string, entries []os.DirEntry) []*Plugin {
+	var plugins []*Plugin
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-
 		entryPath := filepath.Join(dir, entry.Name())
-		manifestPath := filepath.Join(entryPath, "plugin.json")
+		found := discoverPluginsFromEntry(entryPath, entry.Name())
+		plugins = append(plugins, found...)
+	}
+	return plugins
+}
 
-		// Check if this directory contains a plugin.json (flat structure)
-		if _, err := os.Stat(manifestPath); err == nil {
-			plugin, err := loadPluginFromDir(entryPath)
-			if err != nil {
-				logging.Warn("failed to load plugin", "path", entryPath, "error", err)
-				continue
-			}
-			plugins = append(plugins, plugin)
-			continue
+func discoverPluginsFromEntry(entryPath, name string) []*Plugin {
+	manifestPath := filepath.Join(entryPath, "plugin.json")
+	if _, err := os.Stat(manifestPath); err == nil {
+		if plugin, err := loadPluginFromDir(entryPath); err == nil {
+			return []*Plugin{plugin}
 		}
-
-		// Check if this is a kind directory (format, tool, etc.)
-		if isKindDirectory(entry.Name()) {
-			kindPlugins, err := discoverPluginsInKindDir(entryPath)
-			if err != nil {
-				logging.Warn("failed to scan kind directory", "path", entryPath, "error", err)
-				continue
-			}
-			plugins = append(plugins, kindPlugins...)
-		}
+		logging.Warn("failed to load plugin", "path", entryPath)
+		return nil
 	}
 
-	return plugins, nil
+	if isKindDirectory(name) {
+		plugins, err := discoverPluginsInKindDir(entryPath)
+		if err != nil {
+			logging.Warn("failed to scan kind directory", "path", entryPath, "error", err)
+			return nil
+		}
+		return plugins
+	}
+	return nil
 }
 
 // isKindDirectory checks if a directory name is a plugin kind directory.

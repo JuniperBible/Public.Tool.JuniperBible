@@ -115,41 +115,18 @@ func standardDetect(cfg *Config, path string) (*ipc.DetectResult, error) {
 // makeIngestHandler creates an ingest command handler.
 func makeIngestHandler(cfg *Config) func(map[string]interface{}) (interface{}, error) {
 	return func(args map[string]interface{}) (interface{}, error) {
-		path, ok := args["path"].(string)
-		if !ok || path == "" {
-			return nil, errors.MissingArg("path")
-		}
-		outputDir, ok := args["output_dir"].(string)
-		if !ok || outputDir == "" {
-			return nil, errors.MissingArg("output_dir")
+		path, outputDir, err := extractPathAndOutputDir(args)
+		if err != nil {
+			return nil, err
 		}
 
-		var data []byte
-		var metadata map[string]string
-		var err error
-
-		if cfg.IngestTransform != nil {
-			data, metadata, err = cfg.IngestTransform(path)
-			if err != nil {
-				return nil, errors.FileReadError(path, err)
-			}
-		} else {
-			data, err = os.ReadFile(path)
-			if err != nil {
-				return nil, errors.FileReadError(path, err)
-			}
-			metadata = map[string]string{}
+		data, metadata, err := readIngestData(cfg, path)
+		if err != nil {
+			return nil, err
 		}
 
-		// Ensure format is in metadata
-		if metadata == nil {
-			metadata = map[string]string{}
-		}
-		if _, ok := metadata["format"]; !ok {
-			metadata["format"] = cfg.Name
-		}
+		ensureFormatMetadata(metadata, cfg.Name)
 
-		// Store blob
 		hash, size, err := blob.Store(outputDir, data)
 		if err != nil {
 			return nil, errors.StorageError(err)
@@ -161,6 +138,42 @@ func makeIngestHandler(cfg *Config) func(map[string]interface{}) (interface{}, e
 			SizeBytes:  size,
 			Metadata:   metadata,
 		}, nil
+	}
+}
+
+func extractPathAndOutputDir(args map[string]interface{}) (string, string, error) {
+	path, ok := args["path"].(string)
+	if !ok || path == "" {
+		return "", "", errors.MissingArg("path")
+	}
+	outputDir, ok := args["output_dir"].(string)
+	if !ok || outputDir == "" {
+		return "", "", errors.MissingArg("output_dir")
+	}
+	return path, outputDir, nil
+}
+
+func readIngestData(cfg *Config, path string) ([]byte, map[string]string, error) {
+	if cfg.IngestTransform != nil {
+		data, metadata, err := cfg.IngestTransform(path)
+		if err != nil {
+			return nil, nil, errors.FileReadError(path, err)
+		}
+		return data, metadata, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, errors.FileReadError(path, err)
+	}
+	return data, map[string]string{}, nil
+}
+
+func ensureFormatMetadata(metadata map[string]string, formatName string) {
+	if metadata == nil {
+		return
+	}
+	if _, ok := metadata["format"]; !ok {
+		metadata["format"] = formatName
 	}
 }
 
@@ -184,37 +197,49 @@ func makeEnumerateHandler(cfg *Config) func(map[string]interface{}) (interface{}
 	}
 }
 
+// extractIRArgs extracts and validates path and output_dir from args.
+func extractIRArgs(args map[string]interface{}) (path, outputDir string, err error) {
+	path, ok := args["path"].(string)
+	if !ok || path == "" {
+		return "", "", errors.MissingArg("path")
+	}
+	outputDir, ok = args["output_dir"].(string)
+	if !ok || outputDir == "" {
+		return "", "", errors.MissingArg("output_dir")
+	}
+	return path, outputDir, nil
+}
+
+// parseAndWriteIR parses source to IR and writes it to outputDir.
+func parseAndWriteIR(cfg *Config, path, outputDir string) (*ir.Corpus, string, error) {
+	corpus, err := cfg.Parse(path)
+	if err != nil {
+		return nil, "", errors.ParseError(cfg.Name, err)
+	}
+	if corpus.SourceFormat == "" {
+		corpus.SourceFormat = cfg.Name
+	}
+	irPath, err := ir.Write(corpus, outputDir)
+	if err != nil {
+		return nil, "", errors.IRWriteError(outputDir, err)
+	}
+	return corpus, irPath, nil
+}
+
 // makeExtractIRHandler creates an extract-ir command handler.
 func makeExtractIRHandler(cfg *Config) func(map[string]interface{}) (interface{}, error) {
 	return func(args map[string]interface{}) (interface{}, error) {
-		path, ok := args["path"].(string)
-		if !ok || path == "" {
-			return nil, errors.MissingArg("path")
+		path, outputDir, err := extractIRArgs(args)
+		if err != nil {
+			return nil, err
 		}
-		outputDir, ok := args["output_dir"].(string)
-		if !ok || outputDir == "" {
-			return nil, errors.MissingArg("output_dir")
-		}
-
 		if cfg.Parse == nil {
 			return nil, errors.New(errors.CodeInternal, "format does not support IR extraction")
 		}
 
-		// Parse to IR
-		corpus, err := cfg.Parse(path)
+		corpus, irPath, err := parseAndWriteIR(cfg, path, outputDir)
 		if err != nil {
-			return nil, errors.ParseError(cfg.Name, err)
-		}
-
-		// Set source format if not set
-		if corpus.SourceFormat == "" {
-			corpus.SourceFormat = cfg.Name
-		}
-
-		// Write IR
-		irPath, err := ir.Write(corpus, outputDir)
-		if err != nil {
-			return nil, errors.IRWriteError(outputDir, err)
+			return nil, err
 		}
 
 		return &ipc.ExtractIRResult{

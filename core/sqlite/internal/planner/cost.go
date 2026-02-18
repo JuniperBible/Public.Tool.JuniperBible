@@ -115,39 +115,50 @@ func (c *CostModel) EstimateIndexLookup(
 	nEq int,
 	covering bool,
 ) (cost LogEst, nOut LogEst) {
-
-	// For unique index with all columns specified, we get exactly 1 row
 	if index.Unique && nEq >= len(index.Columns) {
-		nOut = 0 // LogEst(1) = 0
-		cost = costIndexSeek
-		if !covering {
-			cost += costRowidLookup
-		}
-		return
+		return c.estimateUniqueLookup(covering)
 	}
+	nOut = c.estimateOutputRows(index, nEq)
+	cost = c.calculateLookupCost(nOut, covering)
+	return
+}
 
-	// Otherwise, estimate based on statistics
+// estimateUniqueLookup returns cost for unique index with all columns specified.
+func (c *CostModel) estimateUniqueLookup(covering bool) (cost LogEst, nOut LogEst) {
+	nOut = 0
+	cost = costIndexSeek
+	if !covering {
+		cost += costRowidLookup
+	}
+	return
+}
+
+// estimateOutputRows estimates the number of rows for a given number of equality constraints.
+func (c *CostModel) estimateOutputRows(index *IndexInfo, nEq int) LogEst {
 	if nEq > 0 && nEq <= len(index.ColumnStats) {
-		nOut = index.ColumnStats[nEq-1]
-	} else {
-		// Estimate: reduce by ~10x per equality
-		nOut = index.RowLogEst
-		for i := 0; i < nEq; i++ {
-			nOut += selectivityEq
-			if nOut < 0 {
-				nOut = 0
-				break
-			}
+		return index.ColumnStats[nEq-1]
+	}
+	return c.applySelectivityReductions(index.RowLogEst, nEq)
+}
+
+// applySelectivityReductions reduces row estimate by selectivity per equality.
+func (c *CostModel) applySelectivityReductions(nOut LogEst, nEq int) LogEst {
+	for i := 0; i < nEq; i++ {
+		nOut += selectivityEq
+		if nOut < 0 {
+			return 0
 		}
 	}
+	return nOut
+}
 
-	// Cost = seek + scan matching rows
-	cost = costIndexSeek + nOut + costIndexNext
+// calculateLookupCost computes total cost for lookup.
+func (c *CostModel) calculateLookupCost(nOut LogEst, covering bool) LogEst {
+	cost := costIndexSeek + nOut + costIndexNext
 	if !covering {
 		cost += nOut + costRowidLookup
 	}
-
-	return
+	return cost
 }
 
 // EstimateRowidLookup estimates the cost of looking up a row by rowid/primary key.
@@ -192,40 +203,36 @@ func (c *CostModel) EstimateInOperator(
 	return
 }
 
+// operatorSelectivity maps operators to their default selectivity.
+var operatorSelectivity = map[WhereOperator]LogEst{
+	WO_IN:     selectivityIn,
+	WO_ISNULL: selectivityNull,
+}
+
 // EstimateTruthProbability estimates the probability that a term is true.
 // This is used to refine selectivity estimates.
 func (c *CostModel) EstimateTruthProbability(term *WhereTerm) LogEst {
-	// If explicitly set, use that
 	if term.TruthProb != 0 {
 		return term.TruthProb
 	}
-
-	// For equality with small integer constants (0, 1, -1), assume high selectivity
 	if term.Operator == WO_EQ {
-		if val, ok := term.RightValue.(int); ok {
-			if val >= -1 && val <= 1 {
-				return truthProbSmallInt
-			}
-		}
-		return selectivityEq
+		return c.estimateEqSelectivity(term)
 	}
-
-	// For range operators
 	if term.Operator&(WO_LT|WO_LE|WO_GT|WO_GE) != 0 {
 		return selectivityRange
 	}
-
-	// For IN operator
-	if term.Operator == WO_IN {
-		return selectivityIn
+	if sel, ok := operatorSelectivity[term.Operator]; ok {
+		return sel
 	}
-
-	// For IS NULL
-	if term.Operator == WO_ISNULL {
-		return selectivityNull
-	}
-
 	return truthProbDefault
+}
+
+// estimateEqSelectivity estimates selectivity for equality operator.
+func (c *CostModel) estimateEqSelectivity(term *WhereTerm) LogEst {
+	if val, ok := term.RightValue.(int); ok && val >= -1 && val <= 1 {
+		return truthProbSmallInt
+	}
+	return selectivityEq
 }
 
 // CompareCosts compares two access paths and returns true if path1 is better (lower cost).

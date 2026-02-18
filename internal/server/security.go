@@ -82,37 +82,29 @@ func APICSPConfig() CSPConfig {
 	}
 }
 
-// BuildCSPHeader builds a Content-Security-Policy header value from config.
+func (cfg CSPConfig) cspSourceDirectives() []struct{ name string; values []string } {
+	return []struct{ name string; values []string }{
+		{"default-src", cfg.DefaultSrc},
+		{"script-src", cfg.ScriptSrc},
+		{"style-src", cfg.StyleSrc},
+		{"img-src", cfg.ImgSrc},
+		{"font-src", cfg.FontSrc},
+		{"connect-src", cfg.ConnectSrc},
+		{"frame-ancestors", cfg.FrameAncestors},
+		{"base-uri", cfg.BaseURI},
+		{"form-action", cfg.FormAction},
+	}
+}
+
 func (cfg CSPConfig) BuildCSPHeader() string {
 	var directives []string
 
-	if len(cfg.DefaultSrc) > 0 {
-		directives = append(directives, "default-src "+strings.Join(cfg.DefaultSrc, " "))
+	for _, d := range cfg.cspSourceDirectives() {
+		if len(d.values) > 0 {
+			directives = append(directives, d.name+" "+strings.Join(d.values, " "))
+		}
 	}
-	if len(cfg.ScriptSrc) > 0 {
-		directives = append(directives, "script-src "+strings.Join(cfg.ScriptSrc, " "))
-	}
-	if len(cfg.StyleSrc) > 0 {
-		directives = append(directives, "style-src "+strings.Join(cfg.StyleSrc, " "))
-	}
-	if len(cfg.ImgSrc) > 0 {
-		directives = append(directives, "img-src "+strings.Join(cfg.ImgSrc, " "))
-	}
-	if len(cfg.FontSrc) > 0 {
-		directives = append(directives, "font-src "+strings.Join(cfg.FontSrc, " "))
-	}
-	if len(cfg.ConnectSrc) > 0 {
-		directives = append(directives, "connect-src "+strings.Join(cfg.ConnectSrc, " "))
-	}
-	if len(cfg.FrameAncestors) > 0 {
-		directives = append(directives, "frame-ancestors "+strings.Join(cfg.FrameAncestors, " "))
-	}
-	if len(cfg.BaseURI) > 0 {
-		directives = append(directives, "base-uri "+strings.Join(cfg.BaseURI, " "))
-	}
-	if len(cfg.FormAction) > 0 {
-		directives = append(directives, "form-action "+strings.Join(cfg.FormAction, " "))
-	}
+
 	if cfg.UpgradeInsecureRequests {
 		directives = append(directives, "upgrade-insecure-requests")
 	}
@@ -190,33 +182,40 @@ func removeJavaScriptURIs(input string) string {
 // It only allows http, https, and relative URLs.
 func SanitizeURL(input string) string {
 	input = strings.TrimSpace(input)
-
-	// Allow empty URLs
 	if input == "" {
 		return ""
 	}
 
-	// Allow relative URLs (starting with / or .)
-	if strings.HasPrefix(input, "/") || strings.HasPrefix(input, "./") || strings.HasPrefix(input, "../") {
-		// Still check for javascript: in case of malformed input
-		if strings.Contains(strings.ToLower(input), "javascript:") {
-			return ""
-		}
-		return input
+	if isRelativeURL(input) {
+		return sanitizeRelativeURL(input)
 	}
+	return sanitizeAbsoluteURL(input)
+}
 
-	// For absolute URLs, only allow http and https
+func isRelativeURL(input string) bool {
+	return strings.HasPrefix(input, "/") || strings.HasPrefix(input, "./") || strings.HasPrefix(input, "../")
+}
+
+func sanitizeRelativeURL(input string) string {
+	if containsJavascript(input) {
+		return ""
+	}
+	return input
+}
+
+func sanitizeAbsoluteURL(input string) string {
 	lower := strings.ToLower(input)
 	if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
 		return ""
 	}
-
-	// Block javascript: URIs (defense in depth)
-	if strings.Contains(lower, "javascript:") {
+	if containsJavascript(input) {
 		return ""
 	}
-
 	return input
+}
+
+func containsJavascript(input string) bool {
+	return strings.Contains(strings.ToLower(input), "javascript:")
 }
 
 // ValidateAlphanumeric checks if a string contains only alphanumeric characters, hyphens, and underscores.

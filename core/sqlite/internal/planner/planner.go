@@ -123,13 +123,8 @@ func (p *Planner) findBestSingleTable(info *WhereInfo) (*WherePath, error) {
 // findBestMultiTable finds the best plan for multiple tables using dynamic programming.
 func (p *Planner) findBestMultiTable(info *WhereInfo) (*WherePath, error) {
 	nTables := len(info.Tables)
+	const N = 5
 
-	// We'll use a simplified version of SQLite's algorithm
-	// Track the N best partial paths of each length
-
-	const N = 5 // Keep top 5 paths at each level
-
-	// Start with empty path
 	currentPaths := []*WherePath{{
 		MaskLoop: 0,
 		NRow:     0,
@@ -137,51 +132,51 @@ func (p *Planner) findBestMultiTable(info *WhereInfo) (*WherePath, error) {
 		Loops:    make([]*WhereLoop, 0),
 	}}
 
-	// For each table position in the join
 	for level := 0; level < nTables; level++ {
-		nextPaths := make([]*WherePath, 0)
-
-		// For each current partial path
-		for _, path := range currentPaths {
-			// Try extending with each possible table
-			for cursor := 0; cursor < nTables; cursor++ {
-				// Skip if table already in path
-				mask := Bitmask(1 << uint(cursor))
-				if path.MaskLoop.Overlaps(mask) {
-					continue
-				}
-
-				// Find loops for this table
-				candidateLoops := p.findLoopsForTable(info, cursor)
-
-				// Try each loop
-				for _, loop := range candidateLoops {
-					// Check prerequisites are satisfied
-					if !path.MaskLoop.HasAll(loop.Prereq) {
-						continue
-					}
-
-					// Create extended path
-					newPath := p.extendPath(path, loop)
-					nextPaths = append(nextPaths, newPath)
-				}
-			}
-		}
-
+		nextPaths := p.extendAllPaths(info, currentPaths, nTables)
 		if len(nextPaths) == 0 {
 			return nil, fmt.Errorf("no valid join order found at level %d", level)
 		}
-
-		// Keep only the best N paths
 		currentPaths = p.selectBestPaths(nextPaths, N)
 	}
 
-	// Return the best complete path
 	if len(currentPaths) == 0 {
 		return nil, fmt.Errorf("no complete path found")
 	}
-
 	return currentPaths[0], nil
+}
+
+// extendAllPaths extends all current paths with all valid next loops.
+func (p *Planner) extendAllPaths(info *WhereInfo, currentPaths []*WherePath, nTables int) []*WherePath {
+	nextPaths := make([]*WherePath, 0)
+	for _, path := range currentPaths {
+		nextPaths = append(nextPaths, p.extendPathWithTables(info, path, nTables)...)
+	}
+	return nextPaths
+}
+
+// extendPathWithTables extends a single path with all valid table loops.
+func (p *Planner) extendPathWithTables(info *WhereInfo, path *WherePath, nTables int) []*WherePath {
+	result := make([]*WherePath, 0)
+	for cursor := 0; cursor < nTables; cursor++ {
+		mask := Bitmask(1 << uint(cursor))
+		if path.MaskLoop.Overlaps(mask) {
+			continue
+		}
+		result = append(result, p.extendPathWithLoops(info, path, cursor)...)
+	}
+	return result
+}
+
+// extendPathWithLoops extends a path with all valid loops for a cursor.
+func (p *Planner) extendPathWithLoops(info *WhereInfo, path *WherePath, cursor int) []*WherePath {
+	result := make([]*WherePath, 0)
+	for _, loop := range p.findLoopsForTable(info, cursor) {
+		if path.MaskLoop.HasAll(loop.Prereq) {
+			result = append(result, p.extendPath(path, loop))
+		}
+	}
+	return result
 }
 
 // findLoopsForTable finds all loops for a specific table.
@@ -342,95 +337,91 @@ func (p *Planner) analyzeOrExpr(expr *OrExpr, tables []*TableInfo) (*WhereTerm, 
 	return term, nil
 }
 
+// parseOperatorMap maps string operators to WhereOperator values.
+var parseOperatorMap = map[string]WhereOperator{
+	"=":       WO_EQ,
+	"<":       WO_LT,
+	"<=":      WO_LE,
+	">":       WO_GT,
+	">=":      WO_GE,
+	"IN":      WO_IN,
+	"IS":      WO_IS,
+	"IS NULL": WO_ISNULL,
+}
+
 // parseOperator converts string operator to WhereOperator.
 func (p *Planner) parseOperator(op string) WhereOperator {
-	switch op {
-	case "=":
-		return WO_EQ
-	case "<":
-		return WO_LT
-	case "<=":
-		return WO_LE
-	case ">":
-		return WO_GT
-	case ">=":
-		return WO_GE
-	case "IN":
-		return WO_IN
-	case "IS":
-		return WO_IS
-	case "IS NULL":
-		return WO_ISNULL
-	default:
-		return 0
+	if wo, ok := parseOperatorMap[op]; ok {
+		return wo
 	}
+	return 0
 }
 
 // applyTransitiveClosure adds implied constraints from transitive relationships.
 // For example, if we have a=b and b=5, we can infer a=5.
 func (p *Planner) applyTransitiveClosure(clause *WhereClause) {
-	// Build equivalence classes
-	equiv := make(map[string][]string) // map column to equivalent columns
+	equiv := p.buildEquivalenceClasses(clause)
+	newTerms := p.propagateConstants(clause, equiv)
+	clause.Terms = append(clause.Terms, newTerms...)
+}
 
-	// Find equality constraints between columns
+// buildEquivalenceClasses builds a map of equivalent columns.
+func (p *Planner) buildEquivalenceClasses(clause *WhereClause) map[string][]string {
+	equiv := make(map[string][]string)
 	for _, term := range clause.Terms {
 		if term.Operator != WO_EQ {
 			continue
 		}
-
-		// Check if right side is also a column
-		if colExpr, ok := term.Expr.(*BinaryExpr); ok {
-			if rightCol, ok := colExpr.Right.(*ColumnExpr); ok {
-				leftKey := fmt.Sprintf("%d.%d", term.LeftCursor, term.LeftColumn)
-				rightKey := fmt.Sprintf("%d.%d", rightCol.Cursor, rightCol.UsedTables())
-
-				// Add to equivalence class
-				equiv[leftKey] = append(equiv[leftKey], rightKey)
-				equiv[rightKey] = append(equiv[rightKey], leftKey)
-			}
+		colExpr, ok := term.Expr.(*BinaryExpr)
+		if !ok {
+			continue
 		}
+		rightCol, ok := colExpr.Right.(*ColumnExpr)
+		if !ok {
+			continue
+		}
+		leftKey := fmt.Sprintf("%d.%d", term.LeftCursor, term.LeftColumn)
+		rightKey := fmt.Sprintf("%d.%d", rightCol.Cursor, rightCol.UsedTables())
+		equiv[leftKey] = append(equiv[leftKey], rightKey)
+		equiv[rightKey] = append(equiv[rightKey], leftKey)
 	}
+	return equiv
+}
 
-	// For each constant constraint, propagate to equivalent columns
+// propagateConstants creates new terms for equivalent columns with constant values.
+func (p *Planner) propagateConstants(clause *WhereClause, equiv map[string][]string) []*WhereTerm {
 	newTerms := make([]*WhereTerm, 0)
 	for _, term := range clause.Terms {
-		if term.Operator != WO_EQ {
+		if term.Operator != WO_EQ || term.RightValue == nil {
 			continue
 		}
-
-		// Check if this is column = constant
-		if _, ok := term.Expr.(*BinaryExpr); ok {
-			if term.RightValue != nil {
-				// This is column = constant
-				leftKey := fmt.Sprintf("%d.%d", term.LeftCursor, term.LeftColumn)
-
-				// Add equivalent constraints
-				for _, equivKey := range equiv[leftKey] {
-					// Parse equivalent column
-					var cursor, column int
-					fmt.Sscanf(equivKey, "%d.%d", &cursor, &column)
-
-					// Create new term
-					newTerm := &WhereTerm{
-						Expr:        term.Expr, // Simplified
-						Operator:    WO_EQ,
-						LeftCursor:  cursor,
-						LeftColumn:  column,
-						RightValue:  term.RightValue,
-						PrereqRight: 0,
-						PrereqAll:   term.PrereqAll,
-						TruthProb:   term.TruthProb,
-						Flags:       TERM_VIRTUAL, // Mark as generated
-						Parent:      -1,
-					}
-					newTerms = append(newTerms, newTerm)
-				}
-			}
+		if _, ok := term.Expr.(*BinaryExpr); !ok {
+			continue
+		}
+		leftKey := fmt.Sprintf("%d.%d", term.LeftCursor, term.LeftColumn)
+		for _, equivKey := range equiv[leftKey] {
+			newTerms = append(newTerms, p.createEquivTerm(term, equivKey))
 		}
 	}
+	return newTerms
+}
 
-	// Add new terms to clause
-	clause.Terms = append(clause.Terms, newTerms...)
+// createEquivTerm creates a new equivalent term for a column.
+func (p *Planner) createEquivTerm(term *WhereTerm, equivKey string) *WhereTerm {
+	var cursor, column int
+	fmt.Sscanf(equivKey, "%d.%d", &cursor, &column)
+	return &WhereTerm{
+		Expr:        term.Expr,
+		Operator:    WO_EQ,
+		LeftCursor:  cursor,
+		LeftColumn:  column,
+		RightValue:  term.RightValue,
+		PrereqRight: 0,
+		PrereqAll:   term.PrereqAll,
+		TruthProb:   term.TruthProb,
+		Flags:       TERM_VIRTUAL,
+		Parent:      -1,
+	}
 }
 
 // ExplainPlan returns a human-readable explanation of the query plan.
@@ -444,40 +435,57 @@ func (p *Planner) ExplainPlan(info *WhereInfo) string {
 	result += fmt.Sprintf("Estimated cost: %d\n\n", info.BestPath.Cost)
 
 	for i, loop := range info.BestPath.Loops {
-		table := info.Tables[loop.TabIndex]
-		indent := ""
-		for j := 0; j < i; j++ {
-			indent += "  "
-		}
-
-		if loop.Index != nil {
-			result += fmt.Sprintf("%s%d. SEARCH %s USING INDEX %s",
-				indent, i+1, table.Name, loop.Index.Name)
-
-			// Add constraint details
-			constraints := make([]string, 0)
-			for _, term := range loop.Terms {
-				if term.LeftColumn >= 0 && term.LeftColumn < len(table.Columns) {
-					col := table.Columns[term.LeftColumn].Name
-					op := operatorString(term.Operator)
-					constraints = append(constraints, fmt.Sprintf("%s%s?", col, op))
-				}
-			}
-
-			if len(constraints) > 0 {
-				result += " (" + joinStrings(constraints, " AND ") + ")"
-			}
-
-			result += "\n"
-		} else {
-			result += fmt.Sprintf("%s%d. SCAN %s\n", indent, i+1, table.Name)
-		}
-
-		result += fmt.Sprintf("%s   Cost: %d, Rows: %d\n",
-			indent, loop.Run.ToInt(), loop.NOut.ToInt())
+		result += p.explainLoop(info, loop, i)
 	}
 
 	return result
+}
+
+// explainLoop returns a human-readable explanation for a single loop.
+func (p *Planner) explainLoop(info *WhereInfo, loop *WhereLoop, i int) string {
+	table := info.Tables[loop.TabIndex]
+	indent := makeIndent(i)
+
+	var result string
+	if loop.Index != nil {
+		result = p.explainIndexLoop(table, loop, indent, i)
+	} else {
+		result = fmt.Sprintf("%s%d. SCAN %s\n", indent, i+1, table.Name)
+	}
+	result += fmt.Sprintf("%s   Cost: %d, Rows: %d\n", indent, loop.Run.ToInt(), loop.NOut.ToInt())
+	return result
+}
+
+// makeIndent creates an indentation string for the given level.
+func makeIndent(level int) string {
+	indent := ""
+	for j := 0; j < level; j++ {
+		indent += "  "
+	}
+	return indent
+}
+
+// explainIndexLoop explains an index-based loop.
+func (p *Planner) explainIndexLoop(table *TableInfo, loop *WhereLoop, indent string, i int) string {
+	result := fmt.Sprintf("%s%d. SEARCH %s USING INDEX %s", indent, i+1, table.Name, loop.Index.Name)
+	constraints := p.buildConstraintStrings(table, loop)
+	if len(constraints) > 0 {
+		result += " (" + joinStrings(constraints, " AND ") + ")"
+	}
+	return result + "\n"
+}
+
+// buildConstraintStrings builds constraint descriptions for explain output.
+func (p *Planner) buildConstraintStrings(table *TableInfo, loop *WhereLoop) []string {
+	constraints := make([]string, 0)
+	for _, term := range loop.Terms {
+		if term.LeftColumn >= 0 && term.LeftColumn < len(table.Columns) {
+			col := table.Columns[term.LeftColumn].Name
+			op := operatorString(term.Operator)
+			constraints = append(constraints, fmt.Sprintf("%s%s?", col, op))
+		}
+	}
+	return constraints
 }
 
 // joinStrings joins strings with a separator (helper function).

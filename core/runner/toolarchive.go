@@ -250,76 +250,71 @@ func (r *ToolRegistry) ListTools() ([]string, error) {
 
 // CreateToolArchive creates a new tool archive capsule from binaries.
 func CreateToolArchive(toolID, version, platform string, binaries map[string]string, destPath string) error {
-	// Create a temporary capsule
 	tempDir, err := toolOsMkdirTemp("", "tool-archive-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Initialize capsule
 	cap, err := capsuleNew(tempDir)
 	if err != nil {
 		return fmt.Errorf("failed to create capsule: %w", err)
 	}
 
-	executables := make(map[string]string)
+	executables, err := addBinariesToCapsule(cap, binaries)
+	if err != nil {
+		return err
+	}
 
-	// Add binaries as artifacts
+	if err := addToolManifest(cap, toolID, version, platform, executables); err != nil {
+		return err
+	}
+
+	if err := cap.Pack(destPath); err != nil {
+		return fmt.Errorf("failed to pack capsule: %w", err)
+	}
+	return nil
+}
+
+// addBinariesToCapsule adds binaries to the capsule and returns executables map
+func addBinariesToCapsule(cap *capsule.Capsule, binaries map[string]string) (map[string]string, error) {
+	executables := make(map[string]string)
 	for name, path := range binaries {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Errorf("failed to read binary %s: %w", name, err)
+			return nil, fmt.Errorf("failed to read binary %s: %w", name, err)
 		}
-
 		hash := cas.Hash(data)
 		artifactID := "exe-" + name
 		executables[name] = artifactID
 
-		// Store the binary
 		if _, err := cap.GetStore().Store(data); err != nil {
-			return fmt.Errorf("failed to store binary: %w", err)
+			return nil, fmt.Errorf("failed to store binary: %w", err)
 		}
-
-		// Add artifact to manifest
 		cap.Manifest.Artifacts[artifactID] = &capsule.Artifact{
-			ID:                artifactID,
-			Kind:              "executable",
-			PrimaryBlobSHA256: hash,
-			OriginalName:      name,
-			SizeBytes:         int64(len(data)),
+			ID: artifactID, Kind: "executable", PrimaryBlobSHA256: hash,
+			OriginalName: name, SizeBytes: int64(len(data)),
 		}
 	}
+	return executables, nil
+}
 
-	// Create tool manifest
+// addToolManifest creates and adds the tool manifest to the capsule
+func addToolManifest(cap *capsule.Capsule, toolID, version, platform string, executables map[string]string) error {
 	manifest := ToolArchiveManifest{
-		ToolID:      toolID,
-		Version:     version,
-		Platform:    platform,
-		Executables: executables,
+		ToolID: toolID, Version: version, Platform: platform, Executables: executables,
 	}
-
 	manifestData, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to serialize manifest: %w", err)
 	}
-
 	manifestHash := cas.Hash(manifestData)
 	if _, err := cap.GetStore().Store(manifestData); err != nil {
 		return fmt.Errorf("failed to store manifest: %w", err)
 	}
-
 	cap.Manifest.Artifacts["tool-manifest"] = &capsule.Artifact{
-		ID:                "tool-manifest",
-		Kind:              "metadata",
-		PrimaryBlobSHA256: manifestHash,
-		OriginalName:      "tool-manifest.json",
-		SizeBytes:         int64(len(manifestData)),
-	}
-
-	// Pack the capsule
-	if err := cap.Pack(destPath); err != nil {
-		return fmt.Errorf("failed to pack capsule: %w", err)
+		ID: "tool-manifest", Kind: "metadata", PrimaryBlobSHA256: manifestHash,
+		OriginalName: "tool-manifest.json", SizeBytes: int64(len(manifestData)),
 	}
 
 	return nil

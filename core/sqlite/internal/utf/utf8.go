@@ -91,35 +91,30 @@ func DecodeRune(data []byte) (r rune, size int) {
 	if len(data) == 0 {
 		return 0, 0
 	}
-
 	c := uint32(data[0])
-
-	// Fast path for ASCII
 	if c < 0xC0 {
 		return rune(c), 1
 	}
+	return decodeMultiByte(data, c)
+}
 
-	// Multi-byte sequence
-	if c >= 0xC0 {
-		c = uint32(utf8Trans1[c-0xC0])
-		size = 1
-		for size < len(data) && (data[size]&0xC0) == 0x80 {
-			c = (c << 6) + uint32(data[size]&0x3F)
-			size++
-		}
-
-		// Validate the decoded value
-		// - Must not encode ASCII values (< 0x80)
-		// - Must not be UTF-16 surrogates (0xD800-0xDFFF)
-		// - Must not be 0xFFFE or 0xFFFF
-		if c < 0x80 || (c&0xFFFFF800) == 0xD800 || (c&0xFFFFFFFE) == 0xFFFE {
-			return ReplacementChar, size
-		}
-
-		return rune(c), size
+// decodeMultiByte handles multi-byte UTF-8 sequences.
+func decodeMultiByte(data []byte, c uint32) (rune, int) {
+	c = uint32(utf8Trans1[c-0xC0])
+	size := 1
+	for size < len(data) && (data[size]&0xC0) == 0x80 {
+		c = (c << 6) + uint32(data[size]&0x3F)
+		size++
 	}
+	if isInvalidUTF8(c) {
+		return ReplacementChar, size
+	}
+	return rune(c), size
+}
 
-	return rune(c), 1
+// isInvalidUTF8 checks if a decoded value is invalid UTF-8.
+func isInvalidUTF8(c uint32) bool {
+	return c < 0x80 || (c&0xFFFFF800) == 0xD800 || (c&0xFFFFFFFE) == 0xFFFE
 }
 
 // DecodeRuneLimited decodes a single UTF-8 rune from data with a maximum

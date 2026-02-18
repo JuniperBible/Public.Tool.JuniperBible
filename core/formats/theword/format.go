@@ -139,31 +139,53 @@ func newContentBlock(sequence, chapter, verse int, book, text string) *ir.Conten
 }
 
 func parseVerses(lines []string, books []string, corpus *ir.Corpus) {
-	sequence := 0
-	bookDocs := make(map[string]*ir.Document)
-	lineIdx := 0
-
+	state := &parseState{
+		lines:    lines,
+		bookDocs: make(map[string]*ir.Document),
+		corpus:   corpus,
+	}
 	for _, book := range books {
-		if lineIdx >= len(lines) {
+		if state.lineIdx >= len(lines) {
 			break
 		}
-		doc, ok := bookDocs[book]
-		if !ok {
-			doc = &ir.Document{ID: book, Title: book, Order: len(bookDocs) + 1}
-			bookDocs[book] = doc
-			corpus.Documents = append(corpus.Documents, doc)
+		state.parseBook(book)
+	}
+}
+
+type parseState struct {
+	lines    []string
+	lineIdx  int
+	sequence int
+	bookDocs map[string]*ir.Document
+	corpus   *ir.Corpus
+}
+
+func (ps *parseState) parseBook(book string) {
+	doc := ps.getOrCreateDoc(book)
+	for chapter := 1; chapter <= 3 && ps.lineIdx < len(ps.lines); chapter++ {
+		ps.parseChapter(doc, book, chapter)
+	}
+}
+
+func (ps *parseState) getOrCreateDoc(book string) *ir.Document {
+	if doc, ok := ps.bookDocs[book]; ok {
+		return doc
+	}
+	doc := &ir.Document{ID: book, Title: book, Order: len(ps.bookDocs) + 1}
+	ps.bookDocs[book] = doc
+	ps.corpus.Documents = append(ps.corpus.Documents, doc)
+	return doc
+}
+
+func (ps *parseState) parseChapter(doc *ir.Document, book string, chapter int) {
+	for verse := 1; verse <= 10 && ps.lineIdx < len(ps.lines); verse++ {
+		text := strings.TrimSpace(ps.lines[ps.lineIdx])
+		ps.lineIdx++
+		if text == "" {
+			continue
 		}
-		for chapter := 1; chapter <= 3 && lineIdx < len(lines); chapter++ {
-			for verse := 1; verse <= 10 && lineIdx < len(lines); verse++ {
-				text := strings.TrimSpace(lines[lineIdx])
-				lineIdx++
-				if text == "" {
-					continue
-				}
-				sequence++
-				doc.ContentBlocks = append(doc.ContentBlocks, newContentBlock(sequence, chapter, verse, book, text))
-			}
-		}
+		ps.sequence++
+		doc.ContentBlocks = append(doc.ContentBlocks, newContentBlock(ps.sequence, chapter, verse, book, text))
 	}
 }
 

@@ -24,32 +24,30 @@ import (
 	_ "github.com/FocuswithJustin/JuniperBible/internal/embedded"
 )
 
+var commands = map[string]func([]string){
+	"list":        runList,
+	"ingest":      runIngest,
+	"install":     runInstall,
+	"cas-to-sword": runCASToSword,
+	"hugo":        runHugo,
+	"repoman":     runRepoman,
+	"help":        func(_ []string) { printUsage() },
+	"-h":          func(_ []string) { printUsage() },
+	"--help":      func(_ []string) { printUsage() },
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
 	}
-
-	switch os.Args[1] {
-	case "list":
-		runList(os.Args[2:])
-	case "ingest":
-		runIngest(os.Args[2:])
-	case "install":
-		runInstall(os.Args[2:])
-	case "cas-to-sword":
-		runCASToSword(os.Args[2:])
-	case "hugo":
-		runHugo(os.Args[2:])
-	case "repoman":
-		runRepoman(os.Args[2:])
-	case "help", "-h", "--help":
-		printUsage()
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
-		printUsage()
-		os.Exit(1)
+	if handler, ok := commands[os.Args[1]]; ok {
+		handler(os.Args[2:])
+		return
 	}
+	fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
+	printUsage()
+	os.Exit(1)
 }
 
 func runList(args []string) {
@@ -145,34 +143,33 @@ func runHugo(args []string) {
 	}
 }
 
+var repomanCommands = map[string]func([]string){
+	"list-sources": func([]string) { runRepomanListSources() },
+	"refresh":      runRepomanRefresh,
+	"list":         runRepomanList,
+	"install":      runRepomanInstall,
+	"installed":    runRepomanInstalled,
+	"uninstall":    runRepomanUninstall,
+	"verify":       runRepomanVerify,
+	"help":         func([]string) { printRepomanUsage() },
+	"-h":           func([]string) { printRepomanUsage() },
+	"--help":       func([]string) { printRepomanUsage() },
+}
+
 func runRepoman(args []string) {
 	if len(args) < 1 {
 		printRepomanUsage()
 		os.Exit(1)
 	}
 
-	switch args[0] {
-	case "list-sources":
-		runRepomanListSources()
-	case "refresh":
-		runRepomanRefresh(args[1:])
-	case "list":
-		runRepomanList(args[1:])
-	case "install":
-		runRepomanInstall(args[1:])
-	case "installed":
-		runRepomanInstalled(args[1:])
-	case "uninstall":
-		runRepomanUninstall(args[1:])
-	case "verify":
-		runRepomanVerify(args[1:])
-	case "help", "-h", "--help":
-		printRepomanUsage()
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown repoman command: %s\n", args[0])
-		printRepomanUsage()
-		os.Exit(1)
+	if handler, ok := repomanCommands[args[0]]; ok {
+		handler(args[1:])
+		return
 	}
+
+	fmt.Fprintf(os.Stderr, "Unknown repoman command: %s\n", args[0])
+	printRepomanUsage()
+	os.Exit(1)
 }
 
 func runRepomanListSources() {
@@ -326,18 +323,7 @@ func runRepomanVerify(args []string) {
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	fs.Parse(args)
 
-	if len(fs.Args()) < 1 {
-		fmt.Fprintf(os.Stderr, "Error: module name required\n")
-		os.Exit(1)
-	}
-
-	module := fs.Args()[0]
-	swordPath := *path
-	if swordPath == "" {
-		home, _ := os.UserHomeDir()
-		swordPath = home + "/.sword"
-	}
-
+	module, swordPath := parseVerifyArgs(fs, *path)
 	result, err := repoman.Verify(module, swordPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -345,29 +331,50 @@ func runRepomanVerify(args []string) {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		enc.Encode(result)
-		return
+		outputVerifyJSON(result)
+	} else {
+		outputVerifyText(module, result)
 	}
+}
 
+func parseVerifyArgs(fs *flag.FlagSet, path string) (string, string) {
+	if len(fs.Args()) < 1 {
+		fmt.Fprintf(os.Stderr, "Error: module name required\n")
+		os.Exit(1)
+	}
+	module := fs.Args()[0]
+	swordPath := path
+	if swordPath == "" {
+		home, _ := os.UserHomeDir()
+		swordPath = home + "/.sword"
+	}
+	return module, swordPath
+}
+
+func outputVerifyJSON(result *repoman.VerifyResult) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	enc.Encode(result)
+}
+
+func outputVerifyText(module string, result *repoman.VerifyResult) {
 	fmt.Printf("Verification result for %s:\n", module)
 	if result.Valid {
 		fmt.Println("  Status: VALID")
 	} else {
 		fmt.Println("  Status: INVALID")
 	}
-	if len(result.Errors) > 0 {
-		fmt.Println("  Errors:")
-		for _, e := range result.Errors {
-			fmt.Printf("    - %s\n", e)
-		}
+	printVerifyIssues("Errors", result.Errors)
+	printVerifyIssues("Warnings", result.Warnings)
+}
+
+func printVerifyIssues(label string, issues []string) {
+	if len(issues) == 0 {
+		return
 	}
-	if len(result.Warnings) > 0 {
-		fmt.Println("  Warnings:")
-		for _, w := range result.Warnings {
-			fmt.Printf("    - %s\n", w)
-		}
+	fmt.Printf("  %s:\n", label)
+	for _, issue := range issues {
+		fmt.Printf("    - %s\n", issue)
 	}
 }
 

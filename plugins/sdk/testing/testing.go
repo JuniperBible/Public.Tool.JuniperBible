@@ -269,55 +269,72 @@ func (pt *PluginTest) AssertRoundTrip(path string) {
 	}
 }
 
+// resolvePluginPath returns the plugin path, building if needed.
+func (pt *PluginTest) resolvePluginPath() string {
+	if pt.pluginPath != "" {
+		return pt.pluginPath
+	}
+	pluginName := filepath.Base(pt.t.Name())
+	pluginPath := filepath.Join(".", "plugin-"+pluginName)
+	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
+		buildCmd := exec.Command("go", "build", "-o", pluginPath, ".")
+		if err := buildCmd.Run(); err != nil {
+			pt.t.Fatalf("failed to build plugin: %v", err)
+		}
+	}
+	return pluginPath
+}
+
+// runPluginCommand executes the plugin and returns stdout/stderr.
+func (pt *PluginTest) runPluginCommand(pluginPath string, reqData []byte) (*bytes.Buffer, *bytes.Buffer, error) {
+	cmd := exec.Command(pluginPath)
+	cmd.Stdin = bytes.NewReader(reqData)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	return &stdout, &stderr, err
+}
+
 // executePlugin executes the plugin with a request and returns the response.
 func (pt *PluginTest) executePlugin(req *ipc.Request) *ipc.Response {
 	pt.t.Helper()
 
-	// Determine plugin path
-	pluginPath := pt.pluginPath
-	if pluginPath == "" {
-		// Build plugin from current directory
-		pluginName := filepath.Base(pt.t.Name())
-		pluginPath = filepath.Join(".", "plugin-"+pluginName)
-		if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
-			buildCmd := exec.Command("go", "build", "-o", pluginPath, ".")
-			if err := buildCmd.Run(); err != nil {
-				pt.t.Fatalf("failed to build plugin: %v", err)
-			}
-		}
-	}
-
-	// Marshal request
+	pluginPath := pt.resolvePluginPath()
 	reqData, err := json.Marshal(req)
 	if err != nil {
 		pt.t.Fatalf("failed to marshal request: %v", err)
 	}
 
-	// Execute plugin
-	cmd := exec.Command(pluginPath)
-	cmd.Stdin = bytes.NewReader(reqData)
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		// Try to parse response even on error
-		if stdout.Len() > 0 {
-			var resp ipc.Response
-			if err := json.Unmarshal(stdout.Bytes(), &resp); err == nil {
-				return &resp
-			}
+	stdout, stderr, runErr := pt.runPluginCommand(pluginPath, reqData)
+	if runErr != nil {
+		if resp := pt.tryParseResponse(stdout); resp != nil {
+			return resp
 		}
-		pt.t.Fatalf("plugin execution failed: %v\nstderr: %s", err, stderr.String())
+		pt.t.Fatalf("plugin execution failed: %v\nstderr: %s", runErr, stderr.String())
 	}
 
-	// Parse response
+	return pt.parseResponse(stdout)
+}
+
+// tryParseResponse attempts to parse a response from stdout.
+func (pt *PluginTest) tryParseResponse(stdout *bytes.Buffer) *ipc.Response {
+	if stdout.Len() == 0 {
+		return nil
+	}
+	var resp ipc.Response
+	if err := json.Unmarshal(stdout.Bytes(), &resp); err == nil {
+		return &resp
+	}
+	return nil
+}
+
+// parseResponse parses the response from stdout.
+func (pt *PluginTest) parseResponse(stdout *bytes.Buffer) *ipc.Response {
 	var resp ipc.Response
 	if err := json.Unmarshal(stdout.Bytes(), &resp); err != nil {
 		pt.t.Fatalf("failed to parse response: %v\noutput: %s", err, stdout.String())
 	}
-
 	return &resp
 }
 

@@ -322,32 +322,42 @@ func DisplayVdbeProgram(vdbe *Vdbe) {
 	fmt.Println("----------------------------------------")
 
 	for addr, op := range vdbe.Ops {
-		fmt.Printf("%4d: %-20s P1=%-3d P2=%-3d P3=%-3d",
-			addr, OpcodeToString(op.Opcode), op.P1, op.P2, op.P3)
-
-		if op.P4 != nil {
-			fmt.Printf(" P4=%v", op.P4)
-		}
-		if op.P5 != 0 {
-			fmt.Printf(" P5=%d", op.P5)
-		}
-		if op.Comment != "" {
-			fmt.Printf(" ; %s", op.Comment)
-		}
-		fmt.Println()
+		displayVdbeOp(addr, op)
 	}
 
 	fmt.Println("----------------------------------------")
+	displayVdbeColumns(vdbe)
+}
 
-	if vdbe.NumCols > 0 {
-		fmt.Printf("Result columns (%d):\n", vdbe.NumCols)
-		for i := 0; i < vdbe.NumCols; i++ {
-			fmt.Printf("  %d: %s", i, vdbe.ColNames[i])
-			if vdbe.ColTypes[i] != "" {
-				fmt.Printf(" (%s)", vdbe.ColTypes[i])
-			}
-			fmt.Println()
+// displayVdbeOp prints a single VDBE operation.
+func displayVdbeOp(addr int, op VdbeOp) {
+	fmt.Printf("%4d: %-20s P1=%-3d P2=%-3d P3=%-3d",
+		addr, OpcodeToString(op.Opcode), op.P1, op.P2, op.P3)
+
+	if op.P4 != nil {
+		fmt.Printf(" P4=%v", op.P4)
+	}
+	if op.P5 != 0 {
+		fmt.Printf(" P5=%d", op.P5)
+	}
+	if op.Comment != "" {
+		fmt.Printf(" ; %s", op.Comment)
+	}
+	fmt.Println()
+}
+
+// displayVdbeColumns prints VDBE result columns.
+func displayVdbeColumns(vdbe *Vdbe) {
+	if vdbe.NumCols == 0 {
+		return
+	}
+	fmt.Printf("Result columns (%d):\n", vdbe.NumCols)
+	for i := 0; i < vdbe.NumCols; i++ {
+		fmt.Printf("  %d: %s", i, vdbe.ColNames[i])
+		if vdbe.ColTypes[i] != "" {
+			fmt.Printf(" (%s)", vdbe.ColTypes[i])
 		}
+		fmt.Println()
 	}
 }
 

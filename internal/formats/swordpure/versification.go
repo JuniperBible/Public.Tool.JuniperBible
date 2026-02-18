@@ -56,34 +56,26 @@ var ntBookSet = map[string]bool{
 // It first tries to load from embedded SWORD versification data, falling back
 // to hardcoded data for systems not in SWORD (e.g., Ethiopian).
 func NewVersification(id VersificationID) (*Versification, error) {
-	// Try loading from embedded SWORD data first
 	if v := loadFromVersdata(string(id)); v != nil {
 		return v, nil
 	}
+	return loadFallbackVersification(id)
+}
 
-	// Fall back to hardcoded data for special cases
-	switch id {
-	case VersEthiopian, "Orthodox", "Tewahedo":
+// loadFallbackVersification handles special cases and defaults.
+func loadFallbackVersification(id VersificationID) (*Versification, error) {
+	if id == VersEthiopian || id == "Orthodox" || id == "Tewahedo" {
 		return newEthiopianVersification(), nil
-	case VersLDS:
-		// LDS uses KJV Bible versification (additional LDS scriptures are separate)
-		if v := loadFromVersdata("KJV"); v != nil {
-			return v, nil
-		}
-		return newKJVVersification(), nil
-	case "":
-		// Empty defaults to KJV
-		if v := loadFromVersdata("KJV"); v != nil {
-			return v, nil
-		}
-		return newKJVVersification(), nil
-	default:
-		// Default to KJV for unknown systems
-		if v := loadFromVersdata("KJV"); v != nil {
-			return v, nil
-		}
-		return newKJVVersification(), nil
 	}
+	return loadKJVFallback()
+}
+
+// loadKJVFallback loads KJV versification as fallback.
+func loadKJVFallback() (*Versification, error) {
+	if v := loadFromVersdata("KJV"); v != nil {
+		return v, nil
+	}
+	return newKJVVersification(), nil
 }
 
 var versIDMap = map[string]VersificationID{
@@ -191,71 +183,64 @@ func (v *Versification) GetOTBookCount() int {
 	return len(v.Books) // All books are OT
 }
 
-// CalculateIndex calculates the absolute verse index for a reference.
-// If isNT is true, indices are relative to the NT start (Matt = 0).
-// SWORD modules use a complex indexing scheme with headers for:
-// - Module (1 entry at start)
-// - Each book (1 entry per book)
-// - Each chapter (1 entry per chapter)
-// Plus the actual verse entries.
+func (v *Versification) resolveTestamentBounds(bookIdx int, isNT bool) (startBook, relativeIdx int, err error) {
+	otBookCount := v.GetOTBookCount()
+	if !isNT {
+		return 0, bookIdx, nil
+	}
+	if bookIdx < otBookCount {
+		return -1, -1, fmt.Errorf("book is not in NT")
+	}
+	return otBookCount, bookIdx - otBookCount, nil
+}
+
+func validateChapterVerse(book BookData, ref *Ref) error {
+	if ref.Chapter < 1 || ref.Chapter > len(book.Chapters) {
+		return fmt.Errorf("invalid chapter %d for %s", ref.Chapter, ref.Book)
+	}
+	if ref.Verse < 1 || ref.Verse > book.Chapters[ref.Chapter-1] {
+		return fmt.Errorf("invalid verse %d for %s %d", ref.Verse, ref.Book, ref.Chapter)
+	}
+	return nil
+}
+
+func sumPrecedingBooks(books []BookData, startBook, relativeIdx int) int {
+	index := 0
+	for i := 0; i < relativeIdx; i++ {
+		index++ // Book intro
+		for _, count := range books[startBook+i].Chapters {
+			index++ // Chapter heading
+			index += count
+		}
+	}
+	return index
+}
+
 func (v *Versification) CalculateIndex(ref *Ref, isNT bool) (int, error) {
 	bookIdx := v.GetBookIndex(ref.Book)
 	if bookIdx < 0 {
 		return -1, fmt.Errorf("unknown book: %s", ref.Book)
 	}
 
-	// Adjust for testament - use dynamic OT book count for this versification
-	otBookCount := v.GetOTBookCount()
-	startBook := 0
-	if isNT {
-		startBook = otBookCount
-		if bookIdx < otBookCount {
-			return -1, fmt.Errorf("book %s is not in NT", ref.Book)
-		}
-		bookIdx -= otBookCount
+	startBook, relativeIdx, err := v.resolveTestamentBounds(bookIdx, isNT)
+	if err != nil {
+		return -1, fmt.Errorf("book %s is not in NT", ref.Book)
 	}
 
-	book := v.Books[startBook+bookIdx]
-
-	// Validate chapter and verse
-	if ref.Chapter < 1 || ref.Chapter > len(book.Chapters) {
-		return -1, fmt.Errorf("invalid chapter %d for %s", ref.Chapter, ref.Book)
-	}
-	if ref.Verse < 1 || ref.Verse > book.Chapters[ref.Chapter-1] {
-		return -1, fmt.Errorf("invalid verse %d for %s %d", ref.Verse, ref.Book, ref.Chapter)
+	book := v.Books[startBook+relativeIdx]
+	if err := validateChapterVerse(book, ref); err != nil {
+		return -1, err
 	}
 
-	// Calculate index with SWORD headers:
-	// [0] = empty slot
-	// [1] = module header
-	// [2] = book intro
-	// [3] = chapter heading
-	// [4+] = verses
+	index := 2 + sumPrecedingBooks(v.Books, startBook, relativeIdx)
+	index++ // current book intro
 
-	index := 2 // Empty slot + Module header
-
-	// Add book intros + chapter headings + verses from previous books
-	for i := 0; i < bookIdx; i++ {
-		index++ // Book intro
-		for _, count := range v.Books[startBook+i].Chapters {
-			index++        // Chapter heading
-			index += count // Verses in chapter
-		}
-	}
-
-	// Add current book intro
-	index++
-
-	// Add chapter headings + verses from previous chapters in current book
 	for c := 0; c < ref.Chapter-1; c++ {
-		index++                   // Chapter heading
-		index += book.Chapters[c] // Verses in chapter
+		index++
+		index += book.Chapters[c]
 	}
 
-	// Add current chapter heading
-	index++
-
-	// Add current verse (1-based within chapter)
+	index++            // current chapter heading
 	index += ref.Verse - 1
 
 	return index, nil
@@ -268,47 +253,52 @@ func (v *Versification) IndexToRef(index int, isNT bool) (*Ref, error) {
 		return nil, fmt.Errorf("invalid index: %d (must be >= 4 for first verse)", index)
 	}
 
-	otBookCount := v.GetOTBookCount()
-	startBook := 0
-	endBook := otBookCount
-	if isNT {
-		startBook = otBookCount
-		endBook = len(v.Books)
-	}
-
-	// Start after empty slot + module header (2)
-	remaining := index - 2
+	startBook, endBook := v.getBookRange(isNT)
+	remaining := index - 2 // Start after empty slot + module header
 
 	for bookIdx := startBook; bookIdx < endBook; bookIdx++ {
 		book := v.Books[bookIdx]
-
-		// Subtract book intro (1)
-		remaining--
-		if remaining < 0 {
-			return nil, fmt.Errorf("index %d is a book intro", index)
+		ref, newRemaining, done := v.scanBook(book, remaining, index)
+		if done {
+			return ref, nil
 		}
-
-		for chapterIdx, verseCount := range book.Chapters {
-			// Subtract chapter heading (1)
-			remaining--
-			if remaining < 0 {
-				return nil, fmt.Errorf("index %d is a chapter heading", index)
-			}
-
-			// Check if the verse is in this chapter
-			if remaining < verseCount {
-				return &Ref{
-					Book:    book.OSIS,
-					Chapter: chapterIdx + 1,
-					Verse:   remaining + 1,
-				}, nil
-			}
-
-			remaining -= verseCount
-		}
+		remaining = newRemaining
 	}
 
 	return nil, fmt.Errorf("index %d out of range", index)
+}
+
+// getBookRange returns the start and end book indices for OT or NT.
+func (v *Versification) getBookRange(isNT bool) (start, end int) {
+	otBookCount := v.GetOTBookCount()
+	if isNT {
+		return otBookCount, len(v.Books)
+	}
+	return 0, otBookCount
+}
+
+// scanBook scans a book for the verse at the given remaining index.
+func (v *Versification) scanBook(book BookData, remaining, origIndex int) (*Ref, int, bool) {
+	remaining-- // book intro
+	if remaining < 0 {
+		return nil, remaining, false // is book intro, continue to error
+	}
+
+	for chapterIdx, verseCount := range book.Chapters {
+		remaining-- // chapter heading
+		if remaining < 0 {
+			return nil, remaining, false // is chapter heading
+		}
+		if remaining < verseCount {
+			return &Ref{
+				Book:    book.OSIS,
+				Chapter: chapterIdx + 1,
+				Verse:   remaining + 1,
+			}, remaining, true
+		}
+		remaining -= verseCount
+	}
+	return nil, remaining, false
 }
 
 // newKJVVersification creates the KJV versification system.

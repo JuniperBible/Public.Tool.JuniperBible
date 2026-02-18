@@ -175,64 +175,52 @@ func (j *Journal) Sync() error {
 func (j *Journal) Rollback(pager *Pager) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-
 	if j.file == nil {
-		// If journal doesn't exist or isn't open, nothing to rollback
 		return nil
 	}
-
-	// Seek to start of journal entries (after header)
 	if _, err := j.file.Seek(JournalHeaderSize, 0); err != nil {
 		return fmt.Errorf("failed to seek in journal: %w", err)
 	}
+	if err := j.restoreAllEntries(pager); err != nil {
+		return err
+	}
+	if err := pager.file.Sync(); err != nil {
+		return fmt.Errorf("failed to sync database after rollback: %w", err)
+	}
+	return nil
+}
 
-	pagesRestored := 0
+// restoreAllEntries reads and restores all journal entries.
+func (j *Journal) restoreAllEntries(pager *Pager) error {
 	entrySize := 4 + j.pageSize + 4
-
-	// Read and apply journal entries
 	for {
 		entry := make([]byte, entrySize)
 		n, err := j.file.Read(entry)
-
-		if err == io.EOF {
+		if err == io.EOF || n < entrySize {
 			break
 		}
 		if err != nil {
 			return fmt.Errorf("failed to read journal entry: %w", err)
 		}
-		if n < entrySize {
-			// Incomplete entry - journal may be corrupt or incomplete
-			break
+		if err := j.restoreEntry(pager, entry); err != nil {
+			return err
 		}
-
-		// Parse page number
-		pageNum := binary.BigEndian.Uint32(entry[0:4])
-
-		// Extract page data
-		pageData := entry[4 : 4+j.pageSize]
-
-		// Verify checksum
-		storedChecksum := binary.BigEndian.Uint32(entry[4+j.pageSize:])
-		calculatedChecksum := j.calculateChecksum(pageNum, pageData)
-
-		if storedChecksum != calculatedChecksum {
-			return fmt.Errorf("journal checksum mismatch for page %d", pageNum)
-		}
-
-		// Write original page data back to database
-		offset := int64(pageNum-1) * int64(j.pageSize)
-		if _, err := pager.file.WriteAt(pageData, offset); err != nil {
-			return fmt.Errorf("failed to restore page %d: %w", pageNum, err)
-		}
-
-		pagesRestored++
 	}
+	return nil
+}
 
-	// Sync the database file
-	if err := pager.file.Sync(); err != nil {
-		return fmt.Errorf("failed to sync database after rollback: %w", err)
+// restoreEntry restores a single journal entry.
+func (j *Journal) restoreEntry(pager *Pager, entry []byte) error {
+	pageNum := binary.BigEndian.Uint32(entry[0:4])
+	pageData := entry[4 : 4+j.pageSize]
+	storedChecksum := binary.BigEndian.Uint32(entry[4+j.pageSize:])
+	if storedChecksum != j.calculateChecksum(pageNum, pageData) {
+		return fmt.Errorf("journal checksum mismatch for page %d", pageNum)
 	}
-
+	offset := int64(pageNum-1) * int64(j.pageSize)
+	if _, err := pager.file.WriteAt(pageData, offset); err != nil {
+		return fmt.Errorf("failed to restore page %d: %w", pageNum, err)
+	}
 	return nil
 }
 
@@ -293,54 +281,51 @@ func (j *Journal) Exists() bool {
 func (j *Journal) IsValid() (bool, error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-
-	// Check if file exists
-	info, err := os.Stat(j.filename)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-
-	// Check if file has content
-	if info.Size() < JournalHeaderSize {
+	if !j.journalFileExists() {
 		return false, nil
 	}
-
-	// Open file for reading if not already open
-	needClose := false
-	if j.file == nil {
-		j.file, err = os.Open(j.filename)
-		if err != nil {
-			return false, err
-		}
-		needClose = true
+	cleanup, err := j.ensureFileOpen()
+	if err != nil {
+		return false, err
 	}
+	defer cleanup()
+	return j.validateHeader()
+}
 
-	if needClose {
-		defer func() {
-			j.file.Close()
-			j.file = nil
-		}()
+// journalFileExists checks if the journal file exists and has content.
+func (j *Journal) journalFileExists() bool {
+	info, err := os.Stat(j.filename)
+	return err == nil && info.Size() >= JournalHeaderSize
+}
+
+// ensureFileOpen opens the journal file if not already open, returning a cleanup function.
+func (j *Journal) ensureFileOpen() (func(), error) {
+	if j.file != nil {
+		return func() {}, nil
 	}
+	var err error
+	j.file, err = os.Open(j.filename)
+	if err != nil {
+		return nil, err
+	}
+	return func() {
+		j.file.Close()
+		j.file = nil
+	}, nil
+}
 
-	// Read and validate header
+// validateHeader reads and validates the journal header.
+func (j *Journal) validateHeader() (bool, error) {
 	header, err := j.readHeader()
 	if err != nil {
 		return false, err
 	}
-
-	// Check magic number
 	if header.Magic != JournalMagic {
 		return false, nil
 	}
-
-	// Check page size matches
 	if int(header.PageSize) != j.pageSize {
 		return false, nil
 	}
-
 	return true, nil
 }
 

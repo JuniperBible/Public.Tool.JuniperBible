@@ -12,53 +12,48 @@ import (
 // Returns true if a row is ready, false if halted.
 // This mirrors SQLite's sqlite3_step() behavior.
 func (v *VDBE) Step() (bool, error) {
-	// Check state
-	if v.State == StateHalt {
-		return false, fmt.Errorf("VDBE is halted")
+	if err := v.prepareForStep(); err != nil {
+		return false, err
 	}
+	return v.runUntilRowOrHalt()
+}
 
-	if v.State == StateInit {
+// prepareForStep transitions the VDBE to running state.
+func (v *VDBE) prepareForStep() error {
+	switch v.State {
+	case StateHalt:
+		return fmt.Errorf("VDBE is halted")
+	case StateInit:
 		v.State = StateReady
-	}
-
-	if v.State == StateReady {
+		fallthrough
+	case StateReady:
 		v.PC = 0
 		v.State = StateRun
-	}
-
-	// If a row is ready, clear it and continue execution
-	if v.State == StateRowReady {
+	case StateRowReady:
 		v.ResultRow = nil
 		v.State = StateRun
 	}
+	return nil
+}
 
-	// Execute instructions until row ready or halt
+// runUntilRowOrHalt executes instructions until a row is ready or the program halts.
+func (v *VDBE) runUntilRowOrHalt() (bool, error) {
 	for {
-		// Check if we're at the end of the program
 		if v.PC >= len(v.Program) {
 			v.State = StateHalt
 			return false, nil
 		}
-
-		// Get the current instruction
 		instr := v.Program[v.PC]
 		v.PC++
 		v.NumSteps++
-
-		// Execute the instruction
-		err := v.execInstruction(instr)
-		if err != nil {
+		if err := v.execInstruction(instr); err != nil {
 			v.SetError(err.Error())
 			v.State = StateHalt
 			return false, err
 		}
-
-		// Check if we halted
 		if v.State == StateHalt {
 			return false, nil
 		}
-
-		// Check if a row is ready - this pauses execution
 		if v.State == StateRowReady {
 			return true, nil
 		}
@@ -703,44 +698,44 @@ func (v *VDBE) execSeekRowid(instr *Instruction) error {
 // Data retrieval implementations
 
 func (v *VDBE) execColumn(instr *Instruction) error {
-	// Read column P2 from cursor P1 into register P3
 	cursor, err := v.GetCursor(instr.P1)
 	if err != nil {
 		return err
 	}
-
 	dst, err := v.GetMem(instr.P3)
 	if err != nil {
 		return err
 	}
+	payload := v.getColumnPayload(cursor, dst)
+	if payload == nil {
+		return nil
+	}
+	return v.parseColumnIntoMem(payload, instr.P2, dst)
+}
 
-	// Check for null row or EOF
+// getColumnPayload returns the payload from cursor, or nil if unavailable.
+func (v *VDBE) getColumnPayload(cursor *Cursor, dst *Mem) []byte {
 	if cursor.NullRow || cursor.EOF {
 		dst.SetNull()
 		return nil
 	}
-
-	// Get btree cursor
 	btCursor, ok := cursor.BtreeCursor.(*btree.BtCursor)
 	if !ok || btCursor == nil {
 		dst.SetNull()
 		return nil
 	}
-
-	// Get payload from current cell
 	payload := btCursor.GetPayload()
 	if payload == nil {
 		dst.SetNull()
-		return nil
 	}
+	return payload
+}
 
-	// Parse the record to extract columns
-	colIndex := instr.P2
-	err = parseRecordColumn(payload, colIndex, dst)
-	if err != nil {
+// parseColumnIntoMem parses a record column into dst.
+func (v *VDBE) parseColumnIntoMem(payload []byte, colIndex int, dst *Mem) error {
+	if err := parseRecordColumn(payload, colIndex, dst); err != nil {
 		return fmt.Errorf("failed to parse record column: %w", err)
 	}
-
 	return nil
 }
 
@@ -827,18 +822,17 @@ func getVarint(buf []byte, offset int) (uint64, int) {
 	if offset >= len(buf) {
 		return 0, 0
 	}
-
-	// Fast path for 1-byte case (most common)
 	if buf[offset] < 0x80 {
 		return uint64(buf[offset]), 1
 	}
-
-	// Fast path for 2-byte case
 	if offset+1 < len(buf) && buf[offset+1] < 0x80 {
 		return (uint64(buf[offset]&0x7f) << 7) | uint64(buf[offset+1]), 2
 	}
+	return getVarintGeneral(buf, offset)
+}
 
-	// General case - decode byte by byte
+// getVarintGeneral handles the general case for varints > 2 bytes.
+func getVarintGeneral(buf []byte, offset int) (uint64, int) {
 	var v uint64
 	for i := 0; i < 9 && offset+i < len(buf); i++ {
 		b := buf[offset+i]
@@ -848,7 +842,6 @@ func getVarint(buf []byte, offset int) (uint64, int) {
 				return v, i + 1
 			}
 		} else {
-			// 9th byte uses all 8 bits
 			v = (v << 8) | uint64(b)
 			return v, 9
 		}
@@ -856,29 +849,15 @@ func getVarint(buf []byte, offset int) (uint64, int) {
 	return v, 0
 }
 
+// serialTypeLenTable maps serial types 0-11 to their byte lengths.
+var serialTypeLenTable = [12]int{0, 1, 2, 3, 4, 6, 8, 8, 0, 0, 0, 0}
+
 // serialTypeLen returns the number of bytes required for a value with the given serial type
 func serialTypeLen(serialType uint64) int {
-	switch serialType {
-	case 0, 8, 9: // NULL, 0, 1
-		return 0
-	case 1: // INT8
-		return 1
-	case 2: // INT16
-		return 2
-	case 3: // INT24
-		return 3
-	case 4: // INT32
-		return 4
-	case 5: // INT48
-		return 6
-	case 6, 7: // INT64, FLOAT64
-		return 8
-	default:
-		if serialType >= 12 {
-			return int(serialType-12) / 2
-		}
-		return 0
+	if serialType < 12 {
+		return serialTypeLenTable[serialType]
 	}
+	return int(serialType-12) / 2
 }
 
 // parseSerialValue parses a SQLite record value based on its serial type.
@@ -1201,29 +1180,20 @@ func encodeVarint(v uint64) []byte {
 	return encodeVarintN(v, n)
 }
 
+// varintThresholds defines the upper bounds for each varint size.
+var varintThresholds = [8]uint64{
+	0x7f, 0x3fff, 0x1fffff, 0xfffffff,
+	0x7ffffffff, 0x3ffffffffff, 0x1ffffffffffff, 0xffffffffffffff,
+}
+
 // varintLen returns the number of bytes needed to encode v as a SQLite varint.
 func varintLen(v uint64) int {
-	// SQLite varint thresholds: 7, 14, 21, 28, 35, 42, 49, 56, 64 bits
-	switch {
-	case v <= 0x7f:
-		return 1
-	case v <= 0x3fff:
-		return 2
-	case v <= 0x1fffff:
-		return 3
-	case v <= 0xfffffff:
-		return 4
-	case v <= 0x7ffffffff:
-		return 5
-	case v <= 0x3ffffffffff:
-		return 6
-	case v <= 0x1ffffffffffff:
-		return 7
-	case v <= 0xffffffffffffff:
-		return 8
-	default:
-		return 9
+	for i, thresh := range varintThresholds {
+		if v <= thresh {
+			return i + 1
+		}
 	}
+	return 9
 }
 
 // encodeVarintN encodes v as an n-byte SQLite varint.
@@ -1259,61 +1229,64 @@ func appendVarint(buf []byte, v uint64) []byte {
 }
 
 func (v *VDBE) execInsert(instr *Instruction) error {
-	// Insert record from register P2 into cursor P1
-	// P1 = cursor number
-	// P2 = register containing record data (blob)
-	// P3 = register containing rowid (or 0 to use cursor.LastRowid)
-	cursor, err := v.GetCursor(instr.P1)
+	cursor, btCursor, err := v.getWritableBtreeCursor(instr.P1)
 	if err != nil {
 		return err
 	}
-
-	// Verify cursor is writable
-	if !cursor.Writable {
-		return fmt.Errorf("cursor %d is not writable (opened with OpenRead instead of OpenWrite)", instr.P1)
-	}
-
-	// Get the btree cursor
-	btCursor, ok := cursor.BtreeCursor.(*btree.BtCursor)
-	if !ok || btCursor == nil {
-		return fmt.Errorf("invalid btree cursor for insert")
-	}
-
-	// Get the record data from register P2
-	data, err := v.GetMem(instr.P2)
+	payload, err := v.getInsertPayload(instr.P2)
 	if err != nil {
 		return err
 	}
-
-	if !data.IsBlob() {
-		return fmt.Errorf("insert data must be a blob")
-	}
-
-	payload := data.BlobValue()
-
-	// Get the rowid from register P3 (or use cursor.LastRowid if P3 is 0)
-	var rowid int64
-	if instr.P3 == 0 {
-		rowid = cursor.LastRowid
-	} else {
-		rowidMem, err := v.GetMem(instr.P3)
-		if err != nil {
-			return err
-		}
-		rowid = rowidMem.IntValue()
-	}
-
-	// Insert into the btree
-	err = btCursor.Insert(rowid, payload)
+	rowid, err := v.getInsertRowid(instr.P3, cursor)
 	if err != nil {
+		return err
+	}
+	if err = btCursor.Insert(rowid, payload); err != nil {
 		return fmt.Errorf("btree insert failed: %w", err)
 	}
-
-	// Update cursor's LastRowid
 	cursor.LastRowid = rowid
-
 	v.NumChanges++
 	return nil
+}
+
+// getWritableBtreeCursor returns a writable btree cursor for the given cursor number.
+func (v *VDBE) getWritableBtreeCursor(cursorNum int) (*Cursor, *btree.BtCursor, error) {
+	cursor, err := v.GetCursor(cursorNum)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !cursor.Writable {
+		return nil, nil, fmt.Errorf("cursor %d is not writable (opened with OpenRead instead of OpenWrite)", cursorNum)
+	}
+	btCursor, ok := cursor.BtreeCursor.(*btree.BtCursor)
+	if !ok || btCursor == nil {
+		return nil, nil, fmt.Errorf("invalid btree cursor for insert")
+	}
+	return cursor, btCursor, nil
+}
+
+// getInsertPayload retrieves the blob payload from the given register.
+func (v *VDBE) getInsertPayload(reg int) ([]byte, error) {
+	data, err := v.GetMem(reg)
+	if err != nil {
+		return nil, err
+	}
+	if !data.IsBlob() {
+		return nil, fmt.Errorf("insert data must be a blob")
+	}
+	return data.BlobValue(), nil
+}
+
+// getInsertRowid determines the rowid for the insert operation.
+func (v *VDBE) getInsertRowid(p3 int, cursor *Cursor) (int64, error) {
+	if p3 == 0 {
+		return cursor.LastRowid, nil
+	}
+	rowidMem, err := v.GetMem(p3)
+	if err != nil {
+		return 0, err
+	}
+	return rowidMem.IntValue(), nil
 }
 
 func (v *VDBE) execDelete(instr *Instruction) error {

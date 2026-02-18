@@ -144,46 +144,40 @@ func GetExprAffinity(e *Expr) Affinity {
 // AffinityFromType (unchanged – CC is already acceptable)
 // ----------------------------------------------------------------------------
 
+// affinityRules maps substring patterns to affinities, checked in order.
+var affinityRules = []struct {
+	patterns []string
+	affinity Affinity
+}{
+	{[]string{"INT"}, AFF_INTEGER},
+	{[]string{"CHAR", "CLOB", "TEXT"}, AFF_TEXT},
+	{[]string{"BLOB"}, AFF_BLOB},
+	{[]string{"REAL", "FLOA", "DOUB"}, AFF_REAL},
+}
+
 // AffinityFromType determines affinity from a type name.
-// This implements SQLite's type affinity rules:
-//   - Contains "INT" -> INTEGER
-//   - Contains "CHAR", "CLOB", or "TEXT" -> TEXT
-//   - Contains "BLOB" or is empty -> BLOB
-//   - Contains "REAL", "FLOA", or "DOUB" -> REAL
-//   - Otherwise -> NUMERIC
+// This implements SQLite's type affinity rules.
 func AffinityFromType(typeName string) Affinity {
 	if typeName == "" {
 		return AFF_BLOB
 	}
-
 	upper := strings.ToUpper(typeName)
-
-	// INTEGER affinity
-	if strings.Contains(upper, "INT") {
-		return AFF_INTEGER
+	for _, rule := range affinityRules {
+		if containsAnyAffinity(upper, rule.patterns) {
+			return rule.affinity
+		}
 	}
-
-	// TEXT affinity
-	if strings.Contains(upper, "CHAR") ||
-		strings.Contains(upper, "CLOB") ||
-		strings.Contains(upper, "TEXT") {
-		return AFF_TEXT
-	}
-
-	// BLOB affinity
-	if strings.Contains(upper, "BLOB") {
-		return AFF_BLOB
-	}
-
-	// REAL affinity
-	if strings.Contains(upper, "REAL") ||
-		strings.Contains(upper, "FLOA") ||
-		strings.Contains(upper, "DOUB") {
-		return AFF_REAL
-	}
-
-	// Default to NUMERIC
 	return AFF_NUMERIC
+}
+
+// containsAnyAffinity returns true if s contains any of the patterns.
+func containsAnyAffinity(s string, patterns []string) bool {
+	for _, p := range patterns {
+		if strings.Contains(s, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // ----------------------------------------------------------------------------
@@ -213,40 +207,45 @@ func CompareAffinity(left, right *Expr) Affinity {
 	return aff1
 }
 
+// comparisonOps is the set of comparison operators.
+var comparisonOps = map[OpCode]bool{
+	OpEq: true, OpNe: true, OpLt: true, OpLe: true,
+	OpGt: true, OpGe: true, OpIs: true, OpIsNot: true,
+}
+
 // GetComparisonAffinity returns the affinity for a comparison expression.
 func GetComparisonAffinity(e *Expr) Affinity {
-	if e == nil {
+	if e == nil || !comparisonOps[e.Op] {
 		return AFF_NONE
 	}
-
-	// Must be a comparison operator
-	switch e.Op {
-	case OpEq, OpNe, OpLt, OpLe, OpGt, OpGe, OpIs, OpIsNot:
-		// OK
-	default:
-		return AFF_NONE
-	}
-
 	if e.Left == nil {
 		return AFF_BLOB
 	}
-
-	aff := GetExprAffinity(e.Left)
-	if e.Right != nil {
-		aff = CompareAffinity(e.Right, e.Left)
-	} else if e.HasProperty(EP_xIsSelect) && e.Select != nil {
-		// Comparing with subquery result
-		if e.Select.Columns != nil && len(e.Select.Columns.Items) > 0 {
-			rightAff := GetExprAffinity(e.Select.Columns.Items[0].Expr)
-			aff = CompareAffinity(&Expr{Affinity: rightAff}, e.Left)
-		}
-	}
-
+	aff := computeComparisonAffinity(e)
 	if aff == AFF_NONE {
-		aff = AFF_BLOB
+		return AFF_BLOB
 	}
-
 	return aff
+}
+
+// computeComparisonAffinity computes the affinity for a valid comparison expression.
+func computeComparisonAffinity(e *Expr) Affinity {
+	if e.Right != nil {
+		return CompareAffinity(e.Right, e.Left)
+	}
+	if e.HasProperty(EP_xIsSelect) && e.Select != nil {
+		return subqueryComparisonAffinity(e)
+	}
+	return GetExprAffinity(e.Left)
+}
+
+// subqueryComparisonAffinity computes affinity when comparing with a subquery.
+func subqueryComparisonAffinity(e *Expr) Affinity {
+	if e.Select.Columns != nil && len(e.Select.Columns.Items) > 0 {
+		rightAff := GetExprAffinity(e.Select.Columns.Items[0].Expr)
+		return CompareAffinity(&Expr{Affinity: rightAff}, e.Left)
+	}
+	return GetExprAffinity(e.Left)
 }
 
 // ----------------------------------------------------------------------------

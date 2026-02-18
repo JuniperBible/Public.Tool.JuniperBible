@@ -150,12 +150,10 @@ func parse(path string) (*ir.Corpus, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	artifactID := strings.TrimSuffix(filepath.Base(path), ext)
 
-	// Read source for hashing
-	sourceData, err := os.ReadFile(path)
+	sourceHash, err := computeSourceHash(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read source: %w", err)
+		return nil, err
 	}
-	sourceHash := sha256.Sum256(sourceData)
 
 	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
@@ -166,8 +164,24 @@ func parse(path string) (*ir.Corpus, error) {
 	corpus := ir.NewCorpus(artifactID, "BIBLE", "")
 	corpus.SourceFormat = "e-Sword"
 	corpus.LossClass = "L1"
-	corpus.SourceHash = hex.EncodeToString(sourceHash[:])
+	corpus.SourceHash = sourceHash
 
+	extractByExtension(db, corpus, ext)
+	applyDetailsMetadata(db, corpus)
+
+	return corpus, nil
+}
+
+func computeSourceHash(path string) (string, error) {
+	sourceData, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read source: %w", err)
+	}
+	hash := sha256.Sum256(sourceData)
+	return hex.EncodeToString(hash[:]), nil
+}
+
+func extractByExtension(db *sql.DB, corpus *ir.Corpus, ext string) {
 	switch ext {
 	case ".bblx":
 		corpus.ModuleType = "BIBLE"
@@ -181,34 +195,32 @@ func parse(path string) (*ir.Corpus, error) {
 	default:
 		corpus.ModuleType = "GENERAL"
 	}
+}
 
-	// Try to get metadata from Details table
+func applyDetailsMetadata(db *sql.DB, corpus *ir.Corpus) {
 	var title, abbreviation, info string
 	row := db.QueryRow("SELECT Title, Abbreviation, Information FROM Details LIMIT 1")
-	if err := row.Scan(&title, &abbreviation, &info); err == nil {
-		if title != "" {
-			corpus.Title = title
-		}
-		if abbreviation != "" {
-			corpus.Attributes["abbreviation"] = abbreviation
-		}
-		if info != "" {
-			corpus.Description = info
-		}
+	if err := row.Scan(&title, &abbreviation, &info); err != nil {
+		return
 	}
-
-	return corpus, nil
+	if title != "" {
+		corpus.Title = title
+	}
+	if abbreviation != "" {
+		corpus.Attributes["abbreviation"] = abbreviation
+	}
+	if info != "" {
+		corpus.Description = info
+	}
 }
 
 func extractBibleIR(db *sql.DB, corpus *ir.Corpus) {
-	// Query Bible table: Book, Chapter, Verse, Scripture
 	rows, err := db.Query("SELECT Book, Chapter, Verse, Scripture FROM Bible ORDER BY Book, Chapter, Verse")
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
-	// Group by book
 	bookDocs := make(map[int]*ir.Document)
 	sequence := 0
 
@@ -218,52 +230,51 @@ func extractBibleIR(db *sql.DB, corpus *ir.Corpus) {
 		if err := rows.Scan(&bookNum, &chapter, &verse, &scripture); err != nil {
 			continue
 		}
-
-		// Get or create document for this book
-		doc, ok := bookDocs[bookNum]
-		if !ok {
-			osisID := bookNumToOSIS[bookNum]
-			if osisID == "" {
-				osisID = fmt.Sprintf("Book%d", bookNum)
-			}
-			doc = ir.NewDocument(osisID, osisID, bookNum)
-			doc.Attributes = map[string]string{"book_num": fmt.Sprintf("%d", bookNum)}
-			bookDocs[bookNum] = doc
-		}
-
-		// Clean RTF from scripture text
-		text := stripRTF(scripture)
-
+		doc := getOrCreateBookDoc(bookDocs, bookNum)
 		sequence++
-		osisID := bookNumToOSIS[bookNum]
-		if osisID == "" {
-			osisID = fmt.Sprintf("Book%d", bookNum)
-		}
-		refID := fmt.Sprintf("%s.%d.%d", osisID, chapter, verse)
-
-		// Create content block for verse
-		hash := sha256.Sum256([]byte(text))
-		cb := &ir.ContentBlock{
-			ID:       fmt.Sprintf("cb-%d", sequence),
-			Sequence: sequence,
-			Text:     text,
-			Hash:     hex.EncodeToString(hash[:]),
-			Anchors: []*ir.Anchor{{
-				ID:       fmt.Sprintf("a-%d-0", sequence),
-				Position: 0,
-				Spans: []*ir.Span{{
-					ID:            fmt.Sprintf("s-%s", refID),
-					Type:          "VERSE",
-					StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
-					Ref:           &ir.Ref{Book: osisID, Chapter: chapter, Verse: verse, OSISID: refID},
-				}},
-			}},
-		}
-
-		doc.ContentBlocks = append(doc.ContentBlocks, cb)
+		doc.ContentBlocks = append(doc.ContentBlocks, createBibleContentBlock(bookNum, chapter, verse, stripRTF(scripture), sequence))
 	}
 
-	// Add documents to corpus in order
+	appendDocsInOrder(corpus, bookDocs)
+}
+
+// getOrCreateBookDoc gets or creates a document for a book number
+func getOrCreateBookDoc(bookDocs map[int]*ir.Document, bookNum int) *ir.Document {
+	if doc, ok := bookDocs[bookNum]; ok {
+		return doc
+	}
+	osisID := bookNumToOSIS[bookNum]
+	if osisID == "" {
+		osisID = fmt.Sprintf("Book%d", bookNum)
+	}
+	doc := ir.NewDocument(osisID, osisID, bookNum)
+	doc.Attributes = map[string]string{"book_num": fmt.Sprintf("%d", bookNum)}
+	bookDocs[bookNum] = doc
+	return doc
+}
+
+// createBibleContentBlock creates a content block for a verse
+func createBibleContentBlock(bookNum, chapter, verse int, text string, sequence int) *ir.ContentBlock {
+	osisID := bookNumToOSIS[bookNum]
+	if osisID == "" {
+		osisID = fmt.Sprintf("Book%d", bookNum)
+	}
+	refID := fmt.Sprintf("%s.%d.%d", osisID, chapter, verse)
+	hash := sha256.Sum256([]byte(text))
+	return &ir.ContentBlock{
+		ID: fmt.Sprintf("cb-%d", sequence), Sequence: sequence, Text: text, Hash: hex.EncodeToString(hash[:]),
+		Anchors: []*ir.Anchor{{
+			ID: fmt.Sprintf("a-%d-0", sequence), Position: 0,
+			Spans: []*ir.Span{{
+				ID: fmt.Sprintf("s-%s", refID), Type: "VERSE", StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
+				Ref: &ir.Ref{Book: osisID, Chapter: chapter, Verse: verse, OSISID: refID},
+			}},
+		}},
+	}
+}
+
+// appendDocsInOrder adds documents to corpus in book order
+func appendDocsInOrder(corpus *ir.Corpus, bookDocs map[int]*ir.Document) {
 	for i := 1; i <= 66; i++ {
 		if doc, ok := bookDocs[i]; ok {
 			corpus.Documents = append(corpus.Documents, doc)
@@ -425,43 +436,58 @@ func stripRTF(text string) string {
 	return strings.TrimSpace(result.String())
 }
 
-func emit(corpus *ir.Corpus, outputDir string) (string, error) {
-	// Determine output file extension
-	ext := ".bblx"
-	switch corpus.ModuleType {
-	case "COMMENTARY":
-		ext = ".cmtx"
-	case "DICTIONARY":
-		ext = ".dctx"
-	}
+var eswordExtensions = map[string]string{
+	"COMMENTARY": ".cmtx",
+	"DICTIONARY": ".dctx",
+}
 
+func getEswordExtension(moduleType string) string {
+	if ext, ok := eswordExtensions[moduleType]; ok {
+		return ext
+	}
+	return ".bblx"
+}
+
+func emit(corpus *ir.Corpus, outputDir string) (string, error) {
+	ext := getEswordExtension(string(corpus.ModuleType))
 	outputPath := filepath.Join(outputDir, corpus.ID+ext)
 
-	// Create new SQLite database
 	db, err := sqlite.Open(outputPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create database: %w", err)
 	}
 	defer db.Close()
 
-	var emitErr error
-	switch corpus.ModuleType {
-	case "BIBLE":
-		emitErr = emitBibleNative(db, corpus)
-	case "COMMENTARY":
-		emitErr = emitCommentaryNative(db, corpus)
-	case "DICTIONARY":
-		emitErr = emitDictionaryNative(db, corpus)
-	default:
-		emitErr = emitBibleNative(db, corpus)
-	}
-	if emitErr != nil {
-		return "", fmt.Errorf("failed to emit content: %w", emitErr)
+	if err := emitCorpusContent(db, corpus); err != nil {
+		return "", err
 	}
 
-	// Create Details table with metadata
+	if err := createDetailsTable(db, corpus); err != nil {
+		return "", err
+	}
+
+	return outputPath, nil
+}
+
+func emitCorpusContent(db *sql.DB, corpus *ir.Corpus) error {
+	emitters := map[string]func(*sql.DB, *ir.Corpus) error{
+		"BIBLE":      emitBibleNative,
+		"COMMENTARY": emitCommentaryNative,
+		"DICTIONARY": emitDictionaryNative,
+	}
+	emitFn := emitters[string(corpus.ModuleType)]
+	if emitFn == nil {
+		emitFn = emitBibleNative
+	}
+	if err := emitFn(db, corpus); err != nil {
+		return fmt.Errorf("failed to emit content: %w", err)
+	}
+	return nil
+}
+
+func createDetailsTable(db *sql.DB, corpus *ir.Corpus) error {
 	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Details (Title TEXT, Abbreviation TEXT, Information TEXT, Version TEXT, Font TEXT, RightToLeft INTEGER)"); err != nil {
-		return "", fmt.Errorf("failed to create Details table: %w", err)
+		return fmt.Errorf("failed to create Details table: %w", err)
 	}
 	title := corpus.Title
 	if title == "" {
@@ -470,10 +496,9 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	abbreviation := corpus.Attributes["abbreviation"]
 	if _, err := db.Exec("INSERT INTO Details (Title, Abbreviation, Information, Version, RightToLeft) VALUES (?, ?, ?, ?, ?)",
 		title, abbreviation, corpus.Description, "1.0", 0); err != nil {
-		return "", fmt.Errorf("failed to insert Details: %w", err)
+		return fmt.Errorf("failed to insert Details: %w", err)
 	}
-
-	return outputPath, nil
+	return nil
 }
 
 func emitBibleNative(db *sql.DB, corpus *ir.Corpus) error {
@@ -482,22 +507,42 @@ func emitBibleNative(db *sql.DB, corpus *ir.Corpus) error {
 	}
 
 	for _, doc := range corpus.Documents {
-		bookNum := 0
-		if num, ok := doc.Attributes["book_num"]; ok {
-			fmt.Sscanf(num, "%d", &bookNum)
-		} else if num, ok := osisToBookNum[doc.ID]; ok {
-			bookNum = num
+		if err := emitBibleDocument(db, doc); err != nil {
+			return err
 		}
+	}
+	return nil
+}
 
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						if _, err := db.Exec("INSERT INTO Bible (Book, Chapter, Verse, Scripture) VALUES (?, ?, ?, ?)",
-							bookNum, span.Ref.Chapter, span.Ref.Verse, cb.Text); err != nil {
-							return fmt.Errorf("insert Bible verse %s.%d.%d: %w", doc.ID, span.Ref.Chapter, span.Ref.Verse, err)
-						}
-					}
+func getBookNum(doc *ir.Document) int {
+	if num, ok := doc.Attributes["book_num"]; ok {
+		var bookNum int
+		fmt.Sscanf(num, "%d", &bookNum)
+		return bookNum
+	}
+	if num, ok := osisToBookNum[doc.ID]; ok {
+		return num
+	}
+	return 0
+}
+
+func emitBibleDocument(db *sql.DB, doc *ir.Document) error {
+	bookNum := getBookNum(doc)
+	for _, cb := range doc.ContentBlocks {
+		if err := emitBibleContentBlock(db, doc.ID, bookNum, cb); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func emitBibleContentBlock(db *sql.DB, docID string, bookNum int, cb *ir.ContentBlock) error {
+	for _, anchor := range cb.Anchors {
+		for _, span := range anchor.Spans {
+			if span.Ref != nil && span.Type == "VERSE" {
+				if _, err := db.Exec("INSERT INTO Bible (Book, Chapter, Verse, Scripture) VALUES (?, ?, ?, ?)",
+					bookNum, span.Ref.Chapter, span.Ref.Verse, cb.Text); err != nil {
+					return fmt.Errorf("insert Bible verse %s.%d.%d: %w", docID, span.Ref.Chapter, span.Ref.Verse, err)
 				}
 			}
 		}
@@ -509,23 +554,38 @@ func emitCommentaryNative(db *sql.DB, corpus *ir.Corpus) error {
 	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Commentary (Book INTEGER, ChapterBegin INTEGER, ChapterEnd INTEGER, VerseBegin INTEGER, VerseEnd INTEGER, Comments TEXT)"); err != nil {
 		return fmt.Errorf("create Commentary table: %w", err)
 	}
-
 	for _, doc := range corpus.Documents {
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil {
-						bookNum := osisToBookNum[span.Ref.Book]
-						verseEnd := span.Ref.Verse
-						if span.Ref.VerseEnd > 0 {
-							verseEnd = span.Ref.VerseEnd
-						}
-						if _, err := db.Exec("INSERT INTO Commentary (Book, ChapterBegin, ChapterEnd, VerseBegin, VerseEnd, Comments) VALUES (?, ?, ?, ?, ?, ?)",
-							bookNum, span.Ref.Chapter, span.Ref.Chapter, span.Ref.Verse, verseEnd, cb.Text); err != nil {
-							return fmt.Errorf("insert Commentary entry: %w", err)
-						}
-					}
-				}
+		if err := emitDocumentCommentaries(db, doc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// emitDocumentCommentaries writes commentary entries for a document
+func emitDocumentCommentaries(db *sql.DB, doc *ir.Document) error {
+	for _, cb := range doc.ContentBlocks {
+		if err := emitContentBlockCommentaries(db, cb); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// emitContentBlockCommentaries writes commentary entries for a content block
+func emitContentBlockCommentaries(db *sql.DB, cb *ir.ContentBlock) error {
+	for _, anchor := range cb.Anchors {
+		for _, span := range anchor.Spans {
+			if span.Ref == nil {
+				continue
+			}
+			verseEnd := span.Ref.Verse
+			if span.Ref.VerseEnd > 0 {
+				verseEnd = span.Ref.VerseEnd
+			}
+			if _, err := db.Exec("INSERT INTO Commentary (Book, ChapterBegin, ChapterEnd, VerseBegin, VerseEnd, Comments) VALUES (?, ?, ?, ?, ?, ?)",
+				osisToBookNum[span.Ref.Book], span.Ref.Chapter, span.Ref.Chapter, span.Ref.Verse, verseEnd, cb.Text); err != nil {
+				return fmt.Errorf("insert Commentary entry: %w", err)
 			}
 		}
 	}

@@ -66,60 +66,50 @@ var Config = &format.Config{
 }
 
 func detectJSON(path string) (*ipc.DetectResult, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot stat: %v", err),
-		}, nil
+	if result := checkJSONFile(path); result != nil {
+		return result, nil
 	}
-
-	if info.IsDir() {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "path is a directory",
-		}, nil
-	}
-
-	// Check extension
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext != ".json" {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "not a .json file",
-		}, nil
-	}
-
-	// Try to parse as JSONBible
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot read file: %v", err),
-		}, nil
+		return notDetected(fmt.Sprintf("cannot read file: %v", err)), nil
 	}
+	return validateJSONContent(data)
+}
 
+// checkJSONFile checks if path is a valid JSON file candidate.
+func checkJSONFile(path string) *ipc.DetectResult {
+	info, err := os.Stat(path)
+	if err != nil {
+		return notDetected(fmt.Sprintf("cannot stat: %v", err))
+	}
+	if info.IsDir() {
+		return notDetected("path is a directory")
+	}
+	if ext := strings.ToLower(filepath.Ext(path)); ext != ".json" {
+		return notDetected("not a .json file")
+	}
+	return nil
+}
+
+// validateJSONContent validates JSON content is Capsule format.
+func validateJSONContent(data []byte) (*ipc.DetectResult, error) {
 	var jsonBible JSONBible
 	if err := json.Unmarshal(data, &jsonBible); err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "not valid JSON",
-		}, nil
+		return notDetected("not valid JSON"), nil
 	}
-
-	// Check for our format markers
 	if jsonBible.Meta.ID == "" && len(jsonBible.Books) == 0 && len(jsonBible.Verses) == 0 {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "not a Capsule JSON Bible format",
-		}, nil
+		return notDetected("not a Capsule JSON Bible format"), nil
 	}
-
 	return &ipc.DetectResult{
 		Detected: true,
 		Format:   "JSON",
 		Reason:   "Capsule JSON Bible format detected",
 	}, nil
+}
+
+// notDetected creates a not-detected result with the given reason.
+func notDetected(reason string) *ipc.DetectResult {
+	return &ipc.DetectResult{Detected: false, Reason: reason}
 }
 
 func parseJSON(path string) (*ir.Corpus, error) {
@@ -128,112 +118,85 @@ func parseJSON(path string) (*ir.Corpus, error) {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	sourceHash := sha256.Sum256(data)
-
 	var jsonBible JSONBible
 	if err := json.Unmarshal(data, &jsonBible); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	// Convert JSONBible to IR Corpus
-	corpus := ir.NewCorpus(jsonBible.Meta.ID, "BIBLE", jsonBible.Meta.Language)
-	corpus.Version = jsonBible.Meta.Version
-	corpus.Title = jsonBible.Meta.Title
-	corpus.Description = jsonBible.Meta.Description
+	corpus := createJSONCorpus(data, jsonBible)
+	populateCorpusFromJSON(corpus, jsonBible)
+	return corpus, nil
+}
+
+func createJSONCorpus(data []byte, jb JSONBible) *ir.Corpus {
+	sourceHash := sha256.Sum256(data)
+	corpus := ir.NewCorpus(jb.Meta.ID, "BIBLE", jb.Meta.Language)
+	corpus.Version = jb.Meta.Version
+	corpus.Title = jb.Meta.Title
+	corpus.Description = jb.Meta.Description
 	corpus.SourceFormat = "JSON"
 	corpus.SourceHash = hex.EncodeToString(sourceHash[:])
 	corpus.LossClass = "L0"
-	corpus.Attributes = make(map[string]string)
+	corpus.Attributes = map[string]string{"_json_raw": string(data)}
+	return corpus
+}
 
-	// Store raw for L0 round-trip
-	corpus.Attributes["_json_raw"] = string(data)
-
+func populateCorpusFromJSON(corpus *ir.Corpus, jb JSONBible) {
 	sequence := 0
-	for _, book := range jsonBible.Books {
-		doc := ir.NewDocument(book.ID, book.Name, book.Order)
+	if len(jb.Books) > 0 {
+		populateFromBooks(corpus, jb.Books, &sequence)
+	} else if len(jb.Verses) > 0 {
+		populateFromFlatVerses(corpus, jb.Verses, &sequence)
+	}
+}
 
+func populateFromBooks(corpus *ir.Corpus, books []JSONBook, sequence *int) {
+	for _, book := range books {
+		doc := ir.NewDocument(book.ID, book.Name, book.Order)
 		for _, chapter := range book.Chapters {
 			for _, verse := range chapter.Verses {
-				sequence++
-				hash := sha256.Sum256([]byte(verse.Text))
 				osisID := fmt.Sprintf("%s.%d.%d", book.ID, chapter.Number, verse.Verse)
-
-				cb := &ir.ContentBlock{
-					ID:       fmt.Sprintf("cb-%d", sequence),
-					Sequence: sequence,
-					Text:     verse.Text,
-					Hash:     hex.EncodeToString(hash[:]),
-					Anchors: []*ir.Anchor{
-						{
-							ID:       fmt.Sprintf("a-%d-0", sequence),
-							Position: 0,
-							Spans: []*ir.Span{
-								{
-									ID:            fmt.Sprintf("s-%s", osisID),
-									Type:          "VERSE",
-									StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
-									Ref: &ir.Ref{
-										Book:    book.ID,
-										Chapter: chapter.Number,
-										Verse:   verse.Verse,
-										OSISID:  osisID,
-									},
-								},
-							},
-						},
-					},
-				}
+				cb := createVerseContentBlock(sequence, verse.Text, osisID, book.ID, chapter.Number, verse.Verse)
 				doc.ContentBlocks = append(doc.ContentBlocks, cb)
 			}
 		}
-
 		corpus.Documents = append(corpus.Documents, doc)
 	}
+}
 
-	// Also handle flat verses if present
-	if len(jsonBible.Books) == 0 && len(jsonBible.Verses) > 0 {
-		bookDocs := make(map[string]*ir.Document)
-		for _, verse := range jsonBible.Verses {
-			doc, ok := bookDocs[verse.Book]
-			if !ok {
-				doc = ir.NewDocument(verse.Book, verse.Book, len(bookDocs)+1)
-				bookDocs[verse.Book] = doc
-				corpus.Documents = append(corpus.Documents, doc)
-			}
-
-			sequence++
-			hash := sha256.Sum256([]byte(verse.Text))
-
-			cb := &ir.ContentBlock{
-				ID:       fmt.Sprintf("cb-%d", sequence),
-				Sequence: sequence,
-				Text:     verse.Text,
-				Hash:     hex.EncodeToString(hash[:]),
-				Anchors: []*ir.Anchor{
-					{
-						ID:       fmt.Sprintf("a-%d-0", sequence),
-						Position: 0,
-						Spans: []*ir.Span{
-							{
-								ID:            fmt.Sprintf("s-%s", verse.ID),
-								Type:          "VERSE",
-								StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
-								Ref: &ir.Ref{
-									Book:    verse.Book,
-									Chapter: verse.Chapter,
-									Verse:   verse.Verse,
-									OSISID:  verse.ID,
-								},
-							},
-						},
-					},
-				},
-			}
-			doc.ContentBlocks = append(doc.ContentBlocks, cb)
+func populateFromFlatVerses(corpus *ir.Corpus, verses []JSONVerse, sequence *int) {
+	bookDocs := make(map[string]*ir.Document)
+	for _, verse := range verses {
+		doc, ok := bookDocs[verse.Book]
+		if !ok {
+			doc = ir.NewDocument(verse.Book, verse.Book, len(bookDocs)+1)
+			bookDocs[verse.Book] = doc
+			corpus.Documents = append(corpus.Documents, doc)
 		}
+		cb := createVerseContentBlock(sequence, verse.Text, verse.ID, verse.Book, verse.Chapter, verse.Verse)
+		doc.ContentBlocks = append(doc.ContentBlocks, cb)
 	}
+}
 
-	return corpus, nil
+func createVerseContentBlock(sequence *int, text, osisID, book string, chapter, verse int) *ir.ContentBlock {
+	*sequence++
+	hash := sha256.Sum256([]byte(text))
+	return &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", *sequence),
+		Sequence: *sequence,
+		Text:     text,
+		Hash:     hex.EncodeToString(hash[:]),
+		Anchors: []*ir.Anchor{{
+			ID:       fmt.Sprintf("a-%d-0", *sequence),
+			Position: 0,
+			Spans: []*ir.Span{{
+				ID:            fmt.Sprintf("s-%s", osisID),
+				Type:          "VERSE",
+				StartAnchorID: fmt.Sprintf("a-%d-0", *sequence),
+				Ref:           &ir.Ref{Book: book, Chapter: chapter, Verse: verse, OSISID: osisID},
+			}},
+		}},
+	}
 }
 
 func emitJSON(corpus *ir.Corpus, outputDir string) (string, error) {

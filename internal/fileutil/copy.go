@@ -29,22 +29,25 @@ func CopyDir(src, dst string) error {
 		return err
 	}
 
-	for _, entry := range entries {
-		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
+	return copyEntries(entries, src, dst)
+}
 
-		if entry.IsDir() {
-			if err := CopyDir(srcPath, dstPath); err != nil {
-				return err
-			}
-		} else {
-			if err := CopyFile(srcPath, dstPath); err != nil {
-				return err
-			}
+func copyEntries(entries []os.DirEntry, src, dst string) error {
+	for _, entry := range entries {
+		if err := copyEntry(entry, src, dst); err != nil {
+			return err
 		}
 	}
-
 	return nil
+}
+
+func copyEntry(entry os.DirEntry, src, dst string) error {
+	srcPath := filepath.Join(src, entry.Name())
+	dstPath := filepath.Join(dst, entry.Name())
+	if entry.IsDir() {
+		return CopyDir(srcPath, dstPath)
+	}
+	return CopyFile(srcPath, dstPath)
 }
 
 // CopyFile copies a single file from src to dst.

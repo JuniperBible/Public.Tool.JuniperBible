@@ -48,61 +48,61 @@ func GetSecurityConfig() SecurityConfig {
 	return globalSecurityConfig
 }
 
-// ValidatePluginPath validates that a plugin path is safe to execute.
-// It checks for:
-// - Path traversal attempts (../)
-// - Absolute path restrictions (must be in allowed directories)
-// - Symbolic link restrictions
-// - Executable file existence
-func ValidatePluginPath(pluginPath string) error {
+func resolvePluginAbsPath(pluginPath string) (string, error) {
 	if pluginPath == "" {
-		return fmt.Errorf("%w: empty path", ErrInvalidPluginPath)
+		return "", fmt.Errorf("%w: empty path", ErrInvalidPluginPath)
 	}
-
-	// Convert to absolute path
+	if strings.Contains(pluginPath, "..") {
+		return "", fmt.Errorf("%w: path traversal detected", ErrInvalidPluginPath)
+	}
 	absPath, err := filepath.Abs(pluginPath)
 	if err != nil {
-		return fmt.Errorf("%w: failed to resolve absolute path: %v", ErrInvalidPluginPath, err)
+		return "", fmt.Errorf("%w: failed to resolve absolute path: %v", ErrInvalidPluginPath, err)
 	}
+	return absPath, nil
+}
 
-	// Check for path traversal attempts in the original path
-	if strings.Contains(pluginPath, "..") {
-		return fmt.Errorf("%w: path traversal detected", ErrInvalidPluginPath)
-	}
-
-	// Check if file exists
+func lstatPluginFile(absPath string) (os.FileInfo, error) {
 	info, err := os.Lstat(absPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("%w: plugin file not found", ErrInvalidPluginPath)
+			return nil, fmt.Errorf("%w: plugin file not found", ErrInvalidPluginPath)
 		}
-		return fmt.Errorf("%w: failed to stat plugin file: %v", ErrInvalidPluginPath, err)
+		return nil, fmt.Errorf("%w: failed to stat plugin file: %v", ErrInvalidPluginPath, err)
 	}
+	return info, nil
+}
 
-	// Prevent following symlinks to unauthorized locations
-	if info.Mode()&os.ModeSymlink != 0 {
-		// Resolve symlink
-		realPath, err := filepath.EvalSymlinks(absPath)
-		if err != nil {
-			return fmt.Errorf("%w: failed to resolve symlink: %v", ErrInvalidPluginPath, err)
-		}
-		// Validate the real path
-		if err := validatePluginDirectory(realPath); err != nil {
-			return fmt.Errorf("%w: symlink target failed validation: %v", ErrInvalidPluginPath, err)
-		}
+func validateSymlink(absPath string, info os.FileInfo) error {
+	if info.Mode()&os.ModeSymlink == 0 {
+		return nil
 	}
+	realPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		return fmt.Errorf("%w: failed to resolve symlink: %v", ErrInvalidPluginPath, err)
+	}
+	if err := validatePluginDirectory(realPath); err != nil {
+		return fmt.Errorf("%w: symlink target failed validation: %v", ErrInvalidPluginPath, err)
+	}
+	return nil
+}
 
-	// Ensure file is regular (not device, socket, etc.)
+func ValidatePluginPath(pluginPath string) error {
+	absPath, err := resolvePluginAbsPath(pluginPath)
+	if err != nil {
+		return err
+	}
+	info, err := lstatPluginFile(absPath)
+	if err != nil {
+		return err
+	}
+	if err := validateSymlink(absPath, info); err != nil {
+		return err
+	}
 	if !info.Mode().IsRegular() {
 		return fmt.Errorf("%w: not a regular file", ErrInvalidPluginPath)
 	}
-
-	// Check if path is within allowed directories
-	if err := validatePluginDirectory(absPath); err != nil {
-		return err
-	}
-
-	return nil
+	return validatePluginDirectory(absPath)
 }
 
 // validatePluginDirectory checks if a path is within allowed plugin directories.
@@ -142,31 +142,41 @@ func ValidatePluginManifestSecurity(manifest *PluginManifest) error {
 	if manifest == nil {
 		return fmt.Errorf("manifest is nil")
 	}
+	if err := validateManifestRequired(manifest); err != nil {
+		return err
+	}
+	if err := validateManifestKind(manifest); err != nil {
+		return err
+	}
+	return validateManifestEntrypoint(manifest)
+}
 
-	// Check if manifest is required
+// validateManifestRequired checks if required fields are present.
+func validateManifestRequired(manifest *PluginManifest) error {
 	if globalSecurityConfig.RequireManifest && manifest.PluginID == "" {
 		return fmt.Errorf("plugin manifest required but missing plugin_id")
 	}
+	return nil
+}
 
-	// Validate plugin kind is known
-	if globalSecurityConfig.RestrictToKnownKinds {
-		validKind := false
-		for _, kind := range PluginKinds {
-			if manifest.Kind == kind {
-				validKind = true
-				break
-			}
-		}
-		if !validKind {
-			return fmt.Errorf("unknown plugin kind: %s (allowed: %v)", manifest.Kind, PluginKinds)
+// validateManifestKind checks if the plugin kind is known.
+func validateManifestKind(manifest *PluginManifest) error {
+	if !globalSecurityConfig.RestrictToKnownKinds {
+		return nil
+	}
+	for _, kind := range PluginKinds {
+		if manifest.Kind == kind {
+			return nil
 		}
 	}
+	return fmt.Errorf("unknown plugin kind: %s (allowed: %v)", manifest.Kind, PluginKinds)
+}
 
-	// Validate entrypoint doesn't contain path traversal
+// validateManifestEntrypoint checks for path traversal in entrypoint.
+func validateManifestEntrypoint(manifest *PluginManifest) error {
 	if strings.Contains(manifest.Entrypoint, "..") {
 		return fmt.Errorf("entrypoint contains path traversal")
 	}
-
 	return nil
 }
 

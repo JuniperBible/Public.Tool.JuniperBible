@@ -108,37 +108,44 @@ func ParseConfFile(path string) (*ConfFile, error) {
 		FilePath:   path,
 	}
 
+	if err := scanConfFile(f, conf); err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+func scanConfFile(f *os.File, conf *ConfFile) error {
 	scanner := bufio.NewScanner(f)
 	var state confScanState
 
 	for scanner.Scan() {
-		line := scanner.Text()
-
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			state.handleSectionHeader(line, conf)
-			continue
-		}
-
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-
-		if state.handleLineContinuation(line) {
-			continue
-		}
-
-		state.flushMultiline(conf)
-		state.handleKeyValue(line, conf)
+		processConfLine(scanner.Text(), &state, conf)
 	}
-
 	state.flushMultiline(conf)
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading conf file: %w", err)
+		return fmt.Errorf("error reading conf file: %w", err)
+	}
+	return nil
+}
+
+func processConfLine(line string, state *confScanState, conf *ConfFile) {
+	if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+		state.handleSectionHeader(line, conf)
+		return
 	}
 
-	return conf, nil
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		return
+	}
+
+	if state.handleLineContinuation(line) {
+		return
+	}
+
+	state.flushMultiline(conf)
+	state.handleKeyValue(line, conf)
 }
 
 // confFieldMap returns a map from lowercase conf-file key to the corresponding

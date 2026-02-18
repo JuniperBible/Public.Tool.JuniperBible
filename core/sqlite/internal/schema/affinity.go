@@ -36,40 +36,36 @@ const (
 //   - "REAL", "DOUBLE", "FLOAT" -> REAL
 //   - "NUMERIC", "DECIMAL(10,2)", "BOOLEAN", "DATE" -> NUMERIC
 func DetermineAffinity(typeName string) Affinity {
-	// Empty type name gets BLOB affinity (per SQLite rules)
 	if typeName == "" {
 		return AffinityBlob
 	}
-
-	// Convert to uppercase for case-insensitive matching
 	upper := strings.ToUpper(typeName)
+	return determineAffinityFromUpper(upper)
+}
 
-	// Rule 1: INTEGER affinity
+func determineAffinityFromUpper(upper string) Affinity {
 	if strings.Contains(upper, "INT") {
 		return AffinityInteger
 	}
-
-	// Rule 2: TEXT affinity
-	if strings.Contains(upper, "CHAR") ||
-		strings.Contains(upper, "CLOB") ||
-		strings.Contains(upper, "TEXT") {
+	if containsAny(upper, "CHAR", "CLOB", "TEXT") {
 		return AffinityText
 	}
-
-	// Rule 3: BLOB affinity
 	if strings.Contains(upper, "BLOB") {
 		return AffinityBlob
 	}
-
-	// Rule 4: REAL affinity
-	if strings.Contains(upper, "REAL") ||
-		strings.Contains(upper, "FLOA") ||
-		strings.Contains(upper, "DOUB") {
+	if containsAny(upper, "REAL", "FLOA", "DOUB") {
 		return AffinityReal
 	}
-
-	// Rule 5: Default to NUMERIC affinity
 	return AffinityNumeric
+}
+
+func containsAny(s string, substrs ...string) bool {
+	for _, sub := range substrs {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsNumericAffinity returns true if the affinity is numeric (NUMERIC, INTEGER, or REAL).

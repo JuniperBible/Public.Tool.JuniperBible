@@ -348,38 +348,60 @@ func convertColumns(colDefs []parser.ColumnDef) ([]*Column, []string) {
 	return columns, primaryKeyColumns
 }
 
+var tableConstraintTypeMap = map[parser.ConstraintType]ConstraintType{
+	parser.ConstraintPrimaryKey: ConstraintPrimaryKey,
+	parser.ConstraintUnique:     ConstraintUnique,
+	parser.ConstraintCheck:      ConstraintCheck,
+	parser.ConstraintForeignKey: ConstraintForeignKey,
+}
+
+func applyTablePrimaryKey(tc *TableConstraint, c parser.TableConstraint, pkCols *[]string) {
+	if c.PrimaryKey == nil {
+		return
+	}
+	for _, col := range c.PrimaryKey.Columns {
+		tc.Columns = append(tc.Columns, col.Column)
+		*pkCols = append(*pkCols, col.Column)
+	}
+}
+
+func applyTableUnique(tc *TableConstraint, c parser.TableConstraint, _ *[]string) {
+	if c.Unique == nil {
+		return
+	}
+	for _, col := range c.Unique.Columns {
+		tc.Columns = append(tc.Columns, col.Column)
+	}
+}
+
+func applyTableCheck(tc *TableConstraint, c parser.TableConstraint, _ *[]string) {
+	if c.Check != nil {
+		tc.Expression = c.Check.String()
+	}
+}
+
+func applyTableForeignKey(tc *TableConstraint, c parser.TableConstraint, _ *[]string) {
+	if c.ForeignKey != nil {
+		tc.Columns = c.ForeignKey.Columns
+	}
+}
+
+type tableConstraintHandler func(tc *TableConstraint, c parser.TableConstraint, pkCols *[]string)
+
+var tableConstraintHandlers = map[parser.ConstraintType]tableConstraintHandler{
+	parser.ConstraintPrimaryKey: applyTablePrimaryKey,
+	parser.ConstraintUnique:     applyTableUnique,
+	parser.ConstraintCheck:      applyTableCheck,
+	parser.ConstraintForeignKey: applyTableForeignKey,
+}
+
 // convertTableConstraint converts a parser table constraint to a schema constraint.
 func convertTableConstraint(constraint parser.TableConstraint, pkCols *[]string) TableConstraint {
 	tc := TableConstraint{Name: constraint.Name}
-
-	switch constraint.Type {
-	case parser.ConstraintPrimaryKey:
-		tc.Type = ConstraintPrimaryKey
-		if constraint.PrimaryKey != nil {
-			for _, col := range constraint.PrimaryKey.Columns {
-				tc.Columns = append(tc.Columns, col.Column)
-				*pkCols = append(*pkCols, col.Column)
-			}
-		}
-	case parser.ConstraintUnique:
-		tc.Type = ConstraintUnique
-		if constraint.Unique != nil {
-			for _, col := range constraint.Unique.Columns {
-				tc.Columns = append(tc.Columns, col.Column)
-			}
-		}
-	case parser.ConstraintCheck:
-		tc.Type = ConstraintCheck
-		if constraint.Check != nil {
-			tc.Expression = constraint.Check.String()
-		}
-	case parser.ConstraintForeignKey:
-		tc.Type = ConstraintForeignKey
-		if constraint.ForeignKey != nil {
-			tc.Columns = constraint.ForeignKey.Columns
-		}
+	tc.Type = tableConstraintTypeMap[constraint.Type]
+	if handler, ok := tableConstraintHandlers[constraint.Type]; ok {
+		handler(&tc, constraint, pkCols)
 	}
-
 	return tc
 }
 
@@ -436,41 +458,58 @@ func (s *Schema) CreateIndex(stmt *parser.CreateIndexStmt) (*Index, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Check if index already exists
+	if existing, skip := s.checkExistingIndex(stmt); skip {
+		return existing, nil
+	} else if existing != nil {
+		return nil, fmt.Errorf("index already exists: %s", stmt.Name)
+	}
+
+	if !s.tableExistsLocked(stmt.Table) {
+		return nil, fmt.Errorf("table not found: %s", stmt.Table)
+	}
+
+	index := s.buildIndex(stmt)
+	s.Indexes[stmt.Name] = index
+	return index, nil
+}
+
+// checkExistingIndex checks if an index already exists.
+// Returns (existing, true) if should skip, (existing, false) if error needed, (nil, false) if OK to proceed.
+func (s *Schema) checkExistingIndex(stmt *parser.CreateIndexStmt) (*Index, bool) {
 	lowerName := strings.ToLower(stmt.Name)
 	for indexName := range s.Indexes {
 		if strings.ToLower(indexName) == lowerName {
 			if stmt.IfNotExists {
-				return s.Indexes[indexName], nil
+				return s.Indexes[indexName], true
 			}
-			return nil, fmt.Errorf("index already exists: %s", stmt.Name)
+			return s.Indexes[indexName], false
 		}
 	}
+	return nil, false
+}
 
-	// Verify table exists
-	lowerTableName := strings.ToLower(stmt.Table)
-	tableExists := false
-	for tableName := range s.Tables {
-		if strings.ToLower(tableName) == lowerTableName {
-			tableExists = true
-			break
+// tableExistsLocked checks if a table exists (caller must hold lock).
+func (s *Schema) tableExistsLocked(tableName string) bool {
+	lowerTableName := strings.ToLower(tableName)
+	for name := range s.Tables {
+		if strings.ToLower(name) == lowerTableName {
+			return true
 		}
 	}
-	if !tableExists {
-		return nil, fmt.Errorf("table not found: %s", stmt.Table)
-	}
+	return false
+}
 
-	// Extract column names
+// buildIndex creates an Index from a CREATE INDEX statement.
+func (s *Schema) buildIndex(stmt *parser.CreateIndexStmt) *Index {
 	columns := make([]string, len(stmt.Columns))
 	for i, col := range stmt.Columns {
 		columns[i] = col.Column
 	}
 
-	// Create the index
 	index := &Index{
 		Name:     stmt.Name,
 		Table:    stmt.Table,
-		RootPage: 0, // Will be assigned when written to disk
+		RootPage: 0,
 		SQL:      stmt.String(),
 		Columns:  columns,
 		Unique:   stmt.Unique,
@@ -480,9 +519,7 @@ func (s *Schema) CreateIndex(stmt *parser.CreateIndexStmt) (*Index, error) {
 	if stmt.Where != nil {
 		index.Where = stmt.Where.String()
 	}
-
-	s.Indexes[stmt.Name] = index
-	return index, nil
+	return index
 }
 
 // uniqueStrings removes duplicates from a slice while preserving order.

@@ -294,81 +294,89 @@ func parse(path string) (*ir.Corpus, error) {
 }
 
 func extractBibleIR(db *sql.DB, corpus *ir.Corpus) {
-	// MySword can use either "Books" or "Bible" table
-	tableName := "Books"
-	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM Books").Scan(&count); err != nil {
-		tableName = "Bible"
-	}
-
-	// Query Bible table: Book, Chapter, Verse, Scripture
+	tableName := detectBibleTable(db)
 	rows, err := db.Query(fmt.Sprintf("SELECT Book, Chapter, Verse, Scripture FROM %s ORDER BY Book, Chapter, Verse", tableName))
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
-	// Group by book
 	bookDocs := make(map[int]*ir.Document)
 	sequence := 0
 
 	for rows.Next() {
-		var bookNum, chapter, verse int
-		var scripture string
-		if err := rows.Scan(&bookNum, &chapter, &verse, &scripture); err != nil {
-			continue
-		}
-
-		// Get or create document for this book
-		doc, ok := bookDocs[bookNum]
-		if !ok {
-			osisID := bookNumToOSIS[bookNum]
-			if osisID == "" {
-				osisID = fmt.Sprintf("Book%d", bookNum)
-			}
-			doc = ir.NewDocument(osisID, osisID, bookNum)
-			doc.Attributes = map[string]string{"book_num": fmt.Sprintf("%d", bookNum)}
-			bookDocs[bookNum] = doc
-		}
-
-		// Clean HTML from scripture text (MySword uses HTML, not RTF)
-		text := stripHTML(scripture)
-
-		sequence++
-		osisID := bookNumToOSIS[bookNum]
-		if osisID == "" {
-			osisID = fmt.Sprintf("Book%d", bookNum)
-		}
-		refID := fmt.Sprintf("%s.%d.%d", osisID, chapter, verse)
-
-		// Create content block for verse
-		hash := sha256.Sum256([]byte(text))
-		cb := &ir.ContentBlock{
-			ID:       fmt.Sprintf("cb-%d", sequence),
-			Sequence: sequence,
-			Text:     text,
-			Hash:     hex.EncodeToString(hash[:]),
-			Anchors: []*ir.Anchor{{
-				ID:       fmt.Sprintf("a-%d-0", sequence),
-				Position: 0,
-				Spans: []*ir.Span{{
-					ID:            fmt.Sprintf("s-%s", refID),
-					Type:          "VERSE",
-					StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
-					Ref: &ir.Ref{
-						Book:    osisID,
-						Chapter: chapter,
-						Verse:   verse,
-						OSISID:  refID,
-					},
-				}},
-			}},
-		}
-
-		doc.ContentBlocks = append(doc.ContentBlocks, cb)
+		sequence = processVerseRow(rows, bookDocs, sequence)
 	}
 
-	// Add documents to corpus in order
+	appendBooksToCorpus(corpus, bookDocs)
+}
+
+func detectBibleTable(db *sql.DB) string {
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM Books").Scan(&count); err != nil {
+		return "Bible"
+	}
+	return "Books"
+}
+
+func processVerseRow(rows *sql.Rows, bookDocs map[int]*ir.Document, sequence int) int {
+	var bookNum, chapter, verse int
+	var scripture string
+	if err := rows.Scan(&bookNum, &chapter, &verse, &scripture); err != nil {
+		return sequence
+	}
+
+	doc := getOrCreateBookDoc(bookDocs, bookNum)
+	text := stripHTML(scripture)
+	sequence++
+
+	cb := createVerseContentBlock(bookNum, chapter, verse, text, sequence)
+	doc.ContentBlocks = append(doc.ContentBlocks, cb)
+	return sequence
+}
+
+func getOrCreateBookDoc(bookDocs map[int]*ir.Document, bookNum int) *ir.Document {
+	if doc, ok := bookDocs[bookNum]; ok {
+		return doc
+	}
+	osisID := getOSISID(bookNum)
+	doc := ir.NewDocument(osisID, osisID, bookNum)
+	doc.Attributes = map[string]string{"book_num": fmt.Sprintf("%d", bookNum)}
+	bookDocs[bookNum] = doc
+	return doc
+}
+
+func getOSISID(bookNum int) string {
+	if osisID := bookNumToOSIS[bookNum]; osisID != "" {
+		return osisID
+	}
+	return fmt.Sprintf("Book%d", bookNum)
+}
+
+func createVerseContentBlock(bookNum, chapter, verse int, text string, sequence int) *ir.ContentBlock {
+	osisID := getOSISID(bookNum)
+	refID := fmt.Sprintf("%s.%d.%d", osisID, chapter, verse)
+	hash := sha256.Sum256([]byte(text))
+
+	return &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", sequence),
+		Sequence: sequence,
+		Text:     text,
+		Hash:     hex.EncodeToString(hash[:]),
+		Anchors: []*ir.Anchor{{
+			ID:       fmt.Sprintf("a-%d-0", sequence),
+			Position: 0,
+			Spans: []*ir.Span{{
+				ID:            fmt.Sprintf("s-%s", refID),
+				Type:          "VERSE",
+				StartAnchorID: fmt.Sprintf("a-%d-0", sequence),
+				Ref:           &ir.Ref{Book: osisID, Chapter: chapter, Verse: verse, OSISID: refID},
+			}},
+		}},
+	}
+}
+
+func appendBooksToCorpus(corpus *ir.Corpus, bookDocs map[int]*ir.Document) {
 	for i := 1; i <= 66; i++ {
 		if doc, ok := bookDocs[i]; ok {
 			corpus.Documents = append(corpus.Documents, doc)
@@ -580,30 +588,47 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	return outputPath, nil
 }
 
+func resolveBookNum(doc *ir.Document) int {
+	if num, ok := doc.Attributes["book_num"]; ok {
+		var bookNum int
+		fmt.Sscanf(num, "%d", &bookNum)
+		return bookNum
+	}
+	return osisToBookNum[doc.ID]
+}
+
+func insertVerseSpan(db *sql.DB, docID string, bookNum int, cb *ir.ContentBlock, span *ir.Span) error {
+	if span.Ref == nil || span.Type != "VERSE" {
+		return nil
+	}
+	if _, err := db.Exec("INSERT INTO Books (Book, Chapter, Verse, Scripture) VALUES (?, ?, ?, ?)",
+		bookNum, span.Ref.Chapter, span.Ref.Verse, cb.Text); err != nil {
+		return fmt.Errorf("insert Books verse %s.%d.%d: %w", docID, span.Ref.Chapter, span.Ref.Verse, err)
+	}
+	return nil
+}
+
+func insertBlockVerses(db *sql.DB, docID string, bookNum int, cb *ir.ContentBlock) error {
+	for _, anchor := range cb.Anchors {
+		for _, span := range anchor.Spans {
+			if err := insertVerseSpan(db, docID, bookNum, cb, span); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func emitBibleNative(db *sql.DB, corpus *ir.Corpus) error {
-	// MySword uses "Books" table (lowercase columns)
 	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Books (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)"); err != nil {
 		return fmt.Errorf("create Books table: %w", err)
 	}
 
 	for _, doc := range corpus.Documents {
-		bookNum := 0
-		if num, ok := doc.Attributes["book_num"]; ok {
-			fmt.Sscanf(num, "%d", &bookNum)
-		} else if num, ok := osisToBookNum[doc.ID]; ok {
-			bookNum = num
-		}
-
+		bookNum := resolveBookNum(doc)
 		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						if _, err := db.Exec("INSERT INTO Books (Book, Chapter, Verse, Scripture) VALUES (?, ?, ?, ?)",
-							bookNum, span.Ref.Chapter, span.Ref.Verse, cb.Text); err != nil {
-							return fmt.Errorf("insert Books verse %s.%d.%d: %w", doc.ID, span.Ref.Chapter, span.Ref.Verse, err)
-						}
-					}
-				}
+			if err := insertBlockVerses(db, doc.ID, bookNum, cb); err != nil {
+				return err
 			}
 		}
 	}
@@ -611,27 +636,41 @@ func emitBibleNative(db *sql.DB, corpus *ir.Corpus) error {
 }
 
 func emitCommentaryNative(db *sql.DB, corpus *ir.Corpus) error {
-	// MySword commentary table
 	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS commentaries (book_number INTEGER, chapter_number_from INTEGER, chapter_number_to INTEGER, verse_number_from INTEGER, verse_number_to INTEGER, text TEXT)"); err != nil {
 		return fmt.Errorf("create commentaries table: %w", err)
 	}
-
 	for _, doc := range corpus.Documents {
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil {
-						bookNum := osisToBookNum[span.Ref.Book]
-						verseEnd := span.Ref.Verse
-						if span.Ref.VerseEnd > 0 {
-							verseEnd = span.Ref.VerseEnd
-						}
-						if _, err := db.Exec("INSERT INTO commentaries (book_number, chapter_number_from, chapter_number_to, verse_number_from, verse_number_to, text) VALUES (?, ?, ?, ?, ?, ?)",
-							bookNum, span.Ref.Chapter, span.Ref.Chapter, span.Ref.Verse, verseEnd, cb.Text); err != nil {
-							return fmt.Errorf("insert commentaries entry: %w", err)
-						}
-					}
-				}
+		if err := emitDocumentCommentaries(db, doc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// emitDocumentCommentaries writes commentary entries for a document
+func emitDocumentCommentaries(db *sql.DB, doc *ir.Document) error {
+	for _, cb := range doc.ContentBlocks {
+		if err := emitContentBlockCommentaries(db, cb); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// emitContentBlockCommentaries writes commentary entries for a content block
+func emitContentBlockCommentaries(db *sql.DB, cb *ir.ContentBlock) error {
+	for _, anchor := range cb.Anchors {
+		for _, span := range anchor.Spans {
+			if span.Ref == nil {
+				continue
+			}
+			verseEnd := span.Ref.Verse
+			if span.Ref.VerseEnd > 0 {
+				verseEnd = span.Ref.VerseEnd
+			}
+			if _, err := db.Exec("INSERT INTO commentaries (book_number, chapter_number_from, chapter_number_to, verse_number_from, verse_number_to, text) VALUES (?, ?, ?, ?, ?, ?)",
+				osisToBookNum[span.Ref.Book], span.Ref.Chapter, span.Ref.Chapter, span.Ref.Verse, verseEnd, cb.Text); err != nil {
+				return fmt.Errorf("insert commentaries entry: %w", err)
 			}
 		}
 	}

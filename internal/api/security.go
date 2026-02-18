@@ -38,52 +38,57 @@ var (
 //   - CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
 //   - OWASP A01:2021: Broken Access Control
 func ValidatePath(baseDir, userPath string) (string, error) {
-	// Early rejection of empty paths
-	if userPath == "" {
-		return "", fmt.Errorf("%w: path cannot be empty", ErrInvalidPath)
+	if err := validatePathBasic(userPath); err != nil {
+		return "", err
 	}
 
-	// First pass: explicit check for ".." to catch obvious traversal attempts
-	// This provides fast rejection before expensive operations
-	if strings.Contains(userPath, "..") {
-		return "", fmt.Errorf("%w: path contains '..'", ErrPathTraversal)
-	}
-
-	// Clean the path to normalize it (remove redundant separators, resolve . and ..)
-	// This is critical for preventing obfuscated traversal attempts like:
-	// - "foo/./../../bar"
-	// - "foo///../bar"
-	// - "foo/bar/../../etc/passwd"
 	cleanPath := filepath.Clean(userPath)
+	if err := validateCleanedPath(cleanPath); err != nil {
+		return "", err
+	}
 
-	// Second check after cleaning - attackers might try encoded or obfuscated paths
+	safePath, err := sanitizeAndValidate(baseDir, cleanPath)
+	if err != nil {
+		return "", err
+	}
+
+	return verifyPathContainment(baseDir, safePath)
+}
+
+func validatePathBasic(userPath string) error {
+	if userPath == "" {
+		return fmt.Errorf("%w: path cannot be empty", ErrInvalidPath)
+	}
+	if strings.Contains(userPath, "..") {
+		return fmt.Errorf("%w: path contains '..'", ErrPathTraversal)
+	}
+	return nil
+}
+
+func validateCleanedPath(cleanPath string) error {
 	if strings.Contains(cleanPath, "..") {
-		return "", fmt.Errorf("%w: path contains '..' after cleaning", ErrPathTraversal)
+		return fmt.Errorf("%w: path contains '..' after cleaning", ErrPathTraversal)
 	}
-
-	// Reject absolute paths - all paths should be relative to baseDir
 	if filepath.IsAbs(cleanPath) {
-		return "", fmt.Errorf("%w: absolute paths not allowed", ErrInvalidPath)
+		return fmt.Errorf("%w: absolute paths not allowed", ErrInvalidPath)
 	}
+	return nil
+}
 
-	// Use the validation package's comprehensive sanitization
-	// This checks:
-	// - Path length limits
-	// - Null bytes and control characters
-	// - Verifies path resolves within baseDir after joining
+func sanitizeAndValidate(baseDir, cleanPath string) (string, error) {
 	safePath, err := validation.SanitizePath(baseDir, cleanPath)
 	if err != nil {
-		// Translate validation errors to our API-specific errors
 		if errors.Is(err, validation.ErrPathTraversal) {
 			return "", fmt.Errorf("%w: %v", ErrPathTraversal, err)
 		}
 		return "", fmt.Errorf("%w: %v", ErrInvalidPath, err)
 	}
+	return safePath, nil
+}
 
-	// Additional verification: build full path and ensure it's within baseDir
+func verifyPathContainment(baseDir, safePath string) (string, error) {
 	fullPath := filepath.Join(baseDir, safePath)
 
-	// Get absolute paths for comparison
 	absBase, err := filepath.Abs(baseDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve base directory: %w", err)
@@ -94,15 +99,11 @@ func ValidatePath(baseDir, userPath string) (string, error) {
 		return "", fmt.Errorf("failed to resolve path: %w", err)
 	}
 
-	// Verify the resolved path is within baseDir using path prefix check
-	// We use filepath.Rel to check containment rather than string prefix
-	// to avoid issues with similar directory names
 	relPath, err := filepath.Rel(absBase, absPath)
 	if err != nil {
 		return "", fmt.Errorf("%w: path resolution failed", ErrPathOutsideBase)
 	}
 
-	// If the relative path starts with "..", it's trying to escape
 	if strings.HasPrefix(relPath, "..") {
 		return "", fmt.Errorf("%w: path escapes base directory", ErrPathOutsideBase)
 	}

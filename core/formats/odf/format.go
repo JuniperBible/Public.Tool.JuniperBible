@@ -36,55 +36,55 @@ var Config = &format.Config{
 	},
 }
 
-// detectODF performs ODF-specific detection.
-func detectODF(path string) (*ipc.DetectResult, error) {
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext != ".odt" && ext != ".ods" && ext != ".odp" {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "not an ODF file",
-		}, nil
-	}
+var odfExtensions = map[string]bool{
+	".odt": true,
+	".ods": true,
+	".odp": true,
+}
 
-	// Try to open as ZIP and verify ODF structure
-	r, err := zip.OpenReader(path)
+func isODFExtension(path string) bool {
+	return odfExtensions[strings.ToLower(filepath.Ext(path))]
+}
+
+func isMimetypeODF(f *zip.File) bool {
+	rc, err := f.Open()
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot open as ZIP: %v", err),
-		}, nil
+		return false
 	}
-	defer r.Close()
+	defer rc.Close()
+	data, _ := io.ReadAll(rc)
+	return strings.Contains(string(data), "opendocument")
+}
 
-	hasMimetype := false
-	hasContent := false
-
+func scanODFZip(r *zip.ReadCloser) (hasMimetype, hasContent bool) {
 	for _, f := range r.File {
-		if f.Name == "mimetype" {
-			rc, _ := f.Open()
-			data, _ := io.ReadAll(rc)
-			rc.Close()
-			if strings.Contains(string(data), "opendocument") {
-				hasMimetype = true
-			}
-		}
-		if f.Name == "content.xml" {
+		switch f.Name {
+		case "mimetype":
+			hasMimetype = isMimetypeODF(f)
+		case "content.xml":
 			hasContent = true
 		}
 	}
+	return
+}
 
-	if hasMimetype && hasContent {
-		return &ipc.DetectResult{
-			Detected: true,
-			Format:   "ODF",
-			Reason:   "Open Document Format detected",
-		}, nil
+func detectODF(path string) (*ipc.DetectResult, error) {
+	if !isODFExtension(path) {
+		return &ipc.DetectResult{Detected: false, Reason: "not an ODF file"}, nil
 	}
 
-	return &ipc.DetectResult{
-		Detected: false,
-		Reason:   "Missing ODF required files",
-	}, nil
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot open as ZIP: %v", err)}, nil
+	}
+	defer r.Close()
+
+	hasMimetype, hasContent := scanODFZip(r)
+	if hasMimetype && hasContent {
+		return &ipc.DetectResult{Detected: true, Format: "ODF", Reason: "Open Document Format detected"}, nil
+	}
+
+	return &ipc.DetectResult{Detected: false, Reason: "Missing ODF required files"}, nil
 }
 
 // enumerateODF lists all entries in an ODF file.

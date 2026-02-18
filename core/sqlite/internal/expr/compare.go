@@ -214,31 +214,34 @@ func CompareValues(left, right interface{}, aff Affinity, coll *CollSeq) Compare
 	left = ApplyAffinity(left, aff)
 	right = ApplyAffinity(right, aff)
 
-	// Identical concrete types: fast paths.
-	if lv, ok := left.(int64); ok {
-		if rv, ok := right.(int64); ok {
-			return compareIntegers(lv, rv)
-		}
-	}
-	if lv, ok := left.(string); ok {
-		if rv, ok := right.(string); ok {
-			return compareStrings(lv, rv, coll)
-		}
-	}
-	if lv, ok := left.([]byte); ok {
-		if rv, ok := right.([]byte); ok {
-			return compareBlobs(lv, rv)
-		}
+	if result, ok := compareSameType(left, right, coll); ok {
+		return result
 	}
 
-	// Mixed numeric (int64 / float64) comparison.
 	if isNumeric(left) && isNumeric(right) {
 		return compareNumerics(left, right)
 	}
 
-	// Mixed type: use SQLite type-precedence ordering.
-	// NULL < INTEGER < REAL < TEXT < BLOB
 	return intToCompareResult(valueType(left) - valueType(right))
+}
+
+func compareSameType(left, right interface{}, coll *CollSeq) (CompareResult, bool) {
+	if lv, ok := left.(int64); ok {
+		if rv, ok := right.(int64); ok {
+			return compareIntegers(lv, rv), true
+		}
+	}
+	if lv, ok := left.(string); ok {
+		if rv, ok := right.(string); ok {
+			return compareStrings(lv, rv, coll), true
+		}
+	}
+	if lv, ok := left.([]byte); ok {
+		if rv, ok := right.([]byte); ok {
+			return compareBlobs(lv, rv), true
+		}
+	}
+	return CmpNull, false
 }
 
 // valueType returns a type order for mixed comparisons.

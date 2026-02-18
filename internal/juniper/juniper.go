@@ -68,48 +68,67 @@ func List(cfg ListConfig) error {
 		return err
 	}
 
-	// Check if mods.d exists
 	modsDir := filepath.Join(swordPath, "mods.d")
-	if _, err := os.Stat(modsDir); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("SWORD installation not found at %s (missing mods.d)", swordPath)
+	entries, err := readModsDir(modsDir, swordPath)
+	if err != nil {
+		return err
 	}
 
-	// Find all .conf files
+	printModuleHeader(swordPath)
+	count := printBibleModules(entries, modsDir)
+	fmt.Printf("\nTotal: %d Bible modules\n", count)
+	return nil
+}
+
+func readModsDir(modsDir, swordPath string) ([]os.DirEntry, error) {
+	if _, err := os.Stat(modsDir); errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("SWORD installation not found at %s (missing mods.d)", swordPath)
+	}
 	entries, err := os.ReadDir(modsDir)
 	if err != nil {
-		return fmt.Errorf("failed to read mods.d: %w", err)
+		return nil, fmt.Errorf("failed to read mods.d: %w", err)
 	}
+	return entries, nil
+}
 
+func printModuleHeader(swordPath string) {
 	fmt.Printf("Bible modules in %s:\n\n", swordPath)
 	fmt.Printf("%-15s %-8s %-40s\n", "MODULE", "LANG", "DESCRIPTION")
 	fmt.Printf("%-15s %-8s %-40s\n", "------", "----", "-----------")
+}
 
+func printBibleModules(entries []os.DirEntry, modsDir string) int {
 	count := 0
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".conf") {
 			continue
 		}
-
-		confPath := filepath.Join(modsDir, e.Name())
-		module := ParseConf(confPath)
-		if module == nil || module.ModType != "Bible" {
-			continue
+		if printModuleIfBible(filepath.Join(modsDir, e.Name())) {
+			count++
 		}
-
-		desc := module.Description
-		if len(desc) > 40 {
-			desc = desc[:37] + "..."
-		}
-		encrypted := ""
-		if module.Encrypted {
-			encrypted = " [encrypted]"
-		}
-		fmt.Printf("%-15s %-8s %-40s%s\n", module.Name, module.Lang, desc, encrypted)
-		count++
 	}
+	return count
+}
 
-	fmt.Printf("\nTotal: %d Bible modules\n", count)
-	return nil
+func printModuleIfBible(confPath string) bool {
+	module := ParseConf(confPath)
+	if module == nil || module.ModType != "Bible" {
+		return false
+	}
+	desc := truncateDesc(module.Description, 40)
+	encrypted := ""
+	if module.Encrypted {
+		encrypted = " [encrypted]"
+	}
+	fmt.Printf("%-15s %-8s %-40s%s\n", module.Name, module.Lang, desc, encrypted)
+	return true
+}
+
+func truncateDesc(desc string, maxLen int) string {
+	if len(desc) > maxLen {
+		return desc[:maxLen-3] + "..."
+	}
+	return desc
 }
 
 // ListModules returns all Bible modules in a SWORD installation.
@@ -223,47 +242,53 @@ func Ingest(cfg IngestConfig) error {
 
 // IngestModule creates a capsule from a single SWORD module.
 func IngestModule(swordPath string, module *Module, outputPath string) error {
-	// Read conf file
 	confData, err := safefile.ReadFile(module.ConfPath)
 	if err != nil {
 		return fmt.Errorf("failed to read conf: %w", err)
 	}
 
-	// Determine data path
-	dataPath := module.DataPath
-	if dataPath == "" {
-		return fmt.Errorf("no DataPath in conf file")
+	dataPath, fullDataPath, err := resolveDataPath(swordPath, module.DataPath)
+	if err != nil {
+		return err
 	}
 
-	// Clean up data path
-	dataPath = strings.TrimPrefix(dataPath, "./")
-	fullDataPath := filepath.Join(swordPath, dataPath)
-
-	if _, err := os.Stat(fullDataPath); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("data path not found: %s", fullDataPath)
-	}
-
-	// Create temp directory for capsule contents
 	tempDir, err := os.MkdirTemp("", "sword-capsule-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Create capsule structure
 	capsuleDir := filepath.Join(tempDir, "capsule")
+	if err := setupCapsuleStructure(capsuleDir, module, confData, dataPath, fullDataPath); err != nil {
+		return err
+	}
+
+	return archive.CreateCapsuleTarGz(capsuleDir, outputPath)
+}
+
+func resolveDataPath(swordPath, dataPath string) (string, string, error) {
+	if dataPath == "" {
+		return "", "", fmt.Errorf("no DataPath in conf file")
+	}
+	dataPath = strings.TrimPrefix(dataPath, "./")
+	fullDataPath := filepath.Join(swordPath, dataPath)
+	if _, err := os.Stat(fullDataPath); errors.Is(err, os.ErrNotExist) {
+		return "", "", fmt.Errorf("data path not found: %s", fullDataPath)
+	}
+	return dataPath, fullDataPath, nil
+}
+
+func setupCapsuleStructure(capsuleDir string, module *Module, confData []byte, dataPath, fullDataPath string) error {
 	modsDir := filepath.Join(capsuleDir, "mods.d")
 	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create mods.d: %w", err)
 	}
 
-	// Write conf file
 	confName := strings.ToLower(module.Name) + ".conf"
 	if err := os.WriteFile(filepath.Join(modsDir, confName), confData, 0600); err != nil {
 		return fmt.Errorf("failed to write conf: %w", err)
 	}
 
-	// Copy module data
 	destDataPath := filepath.Join(capsuleDir, dataPath)
 	if err := os.MkdirAll(filepath.Dir(destDataPath), 0700); err != nil {
 		return fmt.Errorf("failed to create data dir: %w", err)
@@ -272,7 +297,10 @@ func IngestModule(swordPath string, module *Module, outputPath string) error {
 		return fmt.Errorf("failed to copy data: %w", err)
 	}
 
-	// Create manifest.json
+	return writeModuleManifest(capsuleDir, module)
+}
+
+func writeModuleManifest(capsuleDir string, module *Module) error {
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 		"module_type":     "bible",
@@ -285,12 +313,7 @@ func IngestModule(swordPath string, module *Module, outputPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600); err != nil {
-		return fmt.Errorf("failed to write manifest: %w", err)
-	}
-
-	// Create tar.gz archive
-	return archive.CreateCapsuleTarGz(capsuleDir, outputPath)
+	return os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600)
 }
 
 // InstallConfig holds configuration for installing SWORD modules as capsules with IR.
@@ -718,39 +741,41 @@ func ParseConf(path string) *Module {
 
 // Helper functions for IR generation
 
-// findConvertibleContent finds content in a capsule that can be converted to IR.
-func findConvertibleContent(extractDir string) (contentPath, format string) {
-	// Check for SWORD module (mods.d/*.conf)
+var globFormatPatterns = []struct {
+	pattern string
+	format  string
+}{
+	{"*.osis", "osis"},
+	{"*.osis.xml", "osis"},
+	{"*.usfm", "usfm"},
+	{"*.sfm", "usfm"},
+	{"*.usx", "usx"},
+}
+
+func findSWORDConf(extractDir string) string {
 	modsDir := filepath.Join(extractDir, "mods.d")
-	if entries, err := os.ReadDir(modsDir); err == nil {
-		for _, e := range entries {
-			if !e.IsDir() && strings.HasSuffix(e.Name(), ".conf") {
-				return filepath.Join(modsDir, e.Name()), "sword-pure"
-			}
+	entries, err := os.ReadDir(modsDir)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".conf") {
+			return filepath.Join(modsDir, e.Name())
 		}
 	}
+	return ""
+}
 
-	// Check for OSIS
-	if files, _ := filepath.Glob(filepath.Join(extractDir, "*.osis")); len(files) > 0 {
-		return files[0], "osis"
+func findConvertibleContent(extractDir string) (contentPath, format string) {
+	if path := findSWORDConf(extractDir); path != "" {
+		return path, "sword-pure"
 	}
-	if files, _ := filepath.Glob(filepath.Join(extractDir, "*.osis.xml")); len(files) > 0 {
-		return files[0], "osis"
+	for _, p := range globFormatPatterns {
+		files, _ := filepath.Glob(filepath.Join(extractDir, p.pattern))
+		if len(files) > 0 {
+			return files[0], p.format
+		}
 	}
-
-	// Check for USFM
-	if files, _ := filepath.Glob(filepath.Join(extractDir, "*.usfm")); len(files) > 0 {
-		return files[0], "usfm"
-	}
-	if files, _ := filepath.Glob(filepath.Join(extractDir, "*.sfm")); len(files) > 0 {
-		return files[0], "usfm"
-	}
-
-	// Check for USX
-	if files, _ := filepath.Glob(filepath.Join(extractDir, "*.usx")); len(files) > 0 {
-		return files[0], "usx"
-	}
-
 	return "", ""
 }
 

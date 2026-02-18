@@ -3,6 +3,7 @@ package driver
 import (
 	"database/sql/driver"
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -24,26 +25,21 @@ func convertUint64(val uint64) (driver.Value, error) {
 	return int64(val), nil
 }
 
+// int64Kinds is the set of kinds that can be converted to int64.
+var int64Kinds = map[reflect.Kind]bool{
+	reflect.Int: true, reflect.Int8: true, reflect.Int16: true, reflect.Int32: true,
+	reflect.Uint: true, reflect.Uint8: true, reflect.Uint16: true, reflect.Uint32: true,
+}
+
 func convertToInt64(v interface{}) (int64, bool) {
-	switch val := v.(type) {
-	case int:
-		return int64(val), true
-	case int8:
-		return int64(val), true
-	case int16:
-		return int64(val), true
-	case int32:
-		return int64(val), true
-	case uint:
-		return int64(val), true
-	case uint8:
-		return int64(val), true
-	case uint16:
-		return int64(val), true
-	case uint32:
-		return int64(val), true
+	rv := reflect.ValueOf(v)
+	if !int64Kinds[rv.Kind()] {
+		return 0, false
 	}
-	return 0, false
+	if rv.Kind() >= reflect.Uint && rv.Kind() <= reflect.Uint32 {
+		return int64(rv.Uint()), true
+	}
+	return rv.Int(), true
 }
 
 func (vc ValueConverter) ConvertValue(v interface{}) (driver.Value, error) {

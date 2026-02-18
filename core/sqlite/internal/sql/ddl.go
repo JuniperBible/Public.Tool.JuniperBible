@@ -380,33 +380,67 @@ func createTableFromAST(stmt *parser.CreateTableStmt, bt *btree.Btree) (*Table, 
 
 	// Process columns
 	for i, colDef := range stmt.Columns {
-		col := Column{
-			Name:     colDef.Name,
-			DeclType: colDef.Type,
-			Affinity: typeNameToAffinity(colDef.Type),
-		}
-
-		// Process constraints
-		for _, constraint := range colDef.Constraints {
-			switch constraint.Type {
-			case parser.ConstraintPrimaryKey:
-				col.PrimaryKey = true
-				table.PrimaryKey = i
-				if constraint.PrimaryKey != nil && constraint.PrimaryKey.Autoincrement {
-					table.RowidColumn = i
-				}
-			case parser.ConstraintNotNull:
-				col.NotNull = true
-			case parser.ConstraintDefault:
-				// Store default value expression
-				col.DefaultValue = convertExpr(constraint.Default)
-			}
-		}
-
-		table.Columns[i] = col
+		table.Columns[i] = createColumnFromDef(colDef)
+		applyConstraintsToTable(table, i, colDef.Constraints)
 	}
 
 	return table, nil
+}
+
+// createColumnFromDef creates a Column from a parser.ColumnDef.
+func createColumnFromDef(colDef parser.ColumnDef) Column {
+	col := Column{
+		Name:     colDef.Name,
+		DeclType: colDef.Type,
+		Affinity: typeNameToAffinity(colDef.Type),
+	}
+	applyConstraintsToColumn(&col, colDef.Constraints)
+	return col
+}
+
+// constraintHandler applies a constraint to a column and/or table.
+type constraintHandler func(col *Column, table *Table, colIdx int, constraint parser.ColumnConstraint)
+
+var constraintHandlers = map[parser.ConstraintType]constraintHandler{
+	parser.ConstraintPrimaryKey: applyPrimaryKey,
+	parser.ConstraintNotNull:    applyNotNull,
+	parser.ConstraintDefault:    applyDefault,
+}
+
+func applyPrimaryKey(col *Column, table *Table, colIdx int, constraint parser.ColumnConstraint) {
+	col.PrimaryKey = true
+	if table != nil {
+		table.PrimaryKey = colIdx
+		if constraint.PrimaryKey != nil && constraint.PrimaryKey.Autoincrement {
+			table.RowidColumn = colIdx
+		}
+	}
+}
+
+func applyNotNull(col *Column, table *Table, colIdx int, constraint parser.ColumnConstraint) {
+	col.NotNull = true
+}
+
+func applyDefault(col *Column, table *Table, colIdx int, constraint parser.ColumnConstraint) {
+	col.DefaultValue = convertExpr(constraint.Default)
+}
+
+// applyConstraintsToColumn applies constraints to a column without table context.
+func applyConstraintsToColumn(col *Column, constraints []parser.ColumnConstraint) {
+	for _, constraint := range constraints {
+		if handler, ok := constraintHandlers[constraint.Type]; ok {
+			handler(col, nil, 0, constraint)
+		}
+	}
+}
+
+// applyConstraintsToTable applies constraints that affect the table.
+func applyConstraintsToTable(table *Table, colIdx int, constraints []parser.ColumnConstraint) {
+	for _, constraint := range constraints {
+		if handler, ok := constraintHandlers[constraint.Type]; ok {
+			handler(&table.Columns[colIdx], table, colIdx, constraint)
+		}
+	}
 }
 
 // typeNameToAffinity converts a type name to type affinity.
@@ -414,31 +448,32 @@ func typeNameToAffinity(typeName string) Affinity {
 	if typeName == "" {
 		return SQLITE_AFF_BLOB
 	}
+	return affinityFromUpperTypeName(strings.ToUpper(typeName))
+}
 
-	upper := strings.ToUpper(typeName)
-
-	// INTEGER affinity
+func affinityFromUpperTypeName(upper string) Affinity {
 	if strings.Contains(upper, "INT") {
 		return SQLITE_AFF_INTEGER
 	}
-
-	// TEXT affinity
-	if strings.Contains(upper, "CHAR") || strings.Contains(upper, "CLOB") || strings.Contains(upper, "TEXT") {
+	if containsAnyDDL(upper, "CHAR", "CLOB", "TEXT") {
 		return SQLITE_AFF_TEXT
 	}
-
-	// BLOB affinity
 	if strings.Contains(upper, "BLOB") {
 		return SQLITE_AFF_BLOB
 	}
-
-	// REAL affinity
-	if strings.Contains(upper, "REAL") || strings.Contains(upper, "FLOA") || strings.Contains(upper, "DOUB") {
+	if containsAnyDDL(upper, "REAL", "FLOA", "DOUB") {
 		return SQLITE_AFF_REAL
 	}
-
-	// NUMERIC affinity (default for everything else)
 	return SQLITE_AFF_NUMERIC
+}
+
+func containsAnyDDL(s string, substrs ...string) bool {
+	for _, sub := range substrs {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
 }
 
 // convertExpr converts parser.Expression to sql.Expr.

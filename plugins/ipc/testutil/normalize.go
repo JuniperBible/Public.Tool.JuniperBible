@@ -142,12 +142,27 @@ func normalizePathSeparators(s string) string {
 	return s
 }
 
+// pathCharSet contains characters typically found in file paths.
+var pathCharSet = func() map[rune]bool {
+	m := make(map[rune]bool)
+	for r := 'a'; r <= 'z'; r++ {
+		m[r] = true
+	}
+	for r := 'A'; r <= 'Z'; r++ {
+		m[r] = true
+	}
+	for r := '0'; r <= '9'; r++ {
+		m[r] = true
+	}
+	for _, r := range []rune{'_', '-', '.', '/'} {
+		m[r] = true
+	}
+	return m
+}()
+
 // isPathChar returns true if the rune is typically found in file paths.
 func isPathChar(r rune) bool {
-	return (r >= 'a' && r <= 'z') ||
-		(r >= 'A' && r <= 'Z') ||
-		(r >= '0' && r <= '9') ||
-		r == '_' || r == '-' || r == '.' || r == '/'
+	return pathCharSet[r]
 }
 
 // NormalizePath normalizes a file path for cross-platform comparison.

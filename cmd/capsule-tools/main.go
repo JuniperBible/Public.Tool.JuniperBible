@@ -112,59 +112,72 @@ func runRun(args []string) {
 	fs.Parse(args)
 
 	if len(fs.Args()) < 2 {
-		fmt.Fprintf(os.Stderr, "Error: tool and profile required\n")
-		fmt.Fprintf(os.Stderr, "Usage: capsule-tools run <tool> <profile> [--input <file>] [--out <dir>]\n")
-		os.Exit(1)
+		exitError("tool and profile required\nUsage: capsule-tools run <tool> <profile> [--input <file>] [--out <dir>]")
 	}
 
-	toolID := fs.Args()[0]
-	profile := fs.Args()[1]
+	toolID, profile := fs.Args()[0], fs.Args()[1]
+	inputPath := resolveInputPath(*input)
+	workDir, cleanup := prepareWorkDir(*outDir)
+	if cleanup != nil {
+		defer cleanup()
+	}
 
-	inputPath := *input
-	if inputPath != "" {
-		var err error
-		inputPath, err = filepath.Abs(inputPath)
+	printRunInfo(toolID, profile, inputPath, workDir)
+	prepareAndPrintRequest(toolID, profile, inputPath, workDir)
+}
+
+// resolveInputPath converts input path to absolute if non-empty
+func resolveInputPath(input string) string {
+	if input == "" {
+		return ""
+	}
+	absPath, err := filepath.Abs(input)
+	if err != nil {
+		exitError(err.Error())
+	}
+	return absPath
+}
+
+// prepareWorkDir creates or uses the work directory
+func prepareWorkDir(outDir string) (string, func()) {
+	if outDir == "" {
+		workDir, err := os.MkdirTemp("", "capsule-run-*")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			exitError("failed to create temp directory: " + err.Error())
 		}
+		return workDir, func() { os.RemoveAll(workDir) }
 	}
-
-	workDir := *outDir
-	if workDir == "" {
-		var err error
-		workDir, err = os.MkdirTemp("", "capsule-run-*")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to create temp directory: %v\n", err)
-			os.Exit(1)
-		}
-		defer os.RemoveAll(workDir)
-	} else {
-		if err := os.MkdirAll(workDir, 0700); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to create output directory: %v\n", err)
-			os.Exit(1)
-		}
+	if err := os.MkdirAll(outDir, 0700); err != nil {
+		exitError("failed to create output directory: " + err.Error())
 	}
+	return outDir, nil
+}
 
+// printRunInfo prints the run info header
+func printRunInfo(toolID, profile, inputPath, workDir string) {
 	fmt.Printf("Running tool: %s, profile: %s\n", toolID, profile)
 	fmt.Printf("  Input: %s\n", inputPath)
 	fmt.Printf("  Output: %s\n", workDir)
+}
 
-	// Create request
+// prepareAndPrintRequest prepares the work directory and prints instructions
+func prepareAndPrintRequest(toolID, profile, inputPath, workDir string) {
 	req := runner.NewRequest(toolID, profile)
 	if inputPath != "" {
 		req.Inputs = []string{inputPath}
 	}
-
-	// Prepare work directory
 	if err := runner.PrepareWorkDir(workDir, req); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		exitError(err.Error())
 	}
-
 	fmt.Printf("\nWork directory prepared: %s\n", workDir)
 	fmt.Println("Use Nix VM executor to run the tool:")
 	fmt.Printf("  nix run .#capsule-vm -- %s/in\n", workDir)
+}
+
+// exitError prints an error and exits
+func exitError(msg string) {
+	fmt.Fprintf(os.Stderr, "Error: %s\n", msg)
+	os.Exit(1)
 }
 
 func runExecute(args []string) {
@@ -172,71 +185,53 @@ func runExecute(args []string) {
 	fs.Parse(args)
 
 	if len(fs.Args()) < 4 {
-		fmt.Fprintf(os.Stderr, "Error: capsule, artifact, tool, and profile required\n")
-		fmt.Fprintf(os.Stderr, "Usage: capsule-tools execute <capsule> <artifact> <tool> <profile>\n")
-		os.Exit(1)
+		exitError("capsule, artifact, tool, and profile required\nUsage: capsule-tools execute <capsule> <artifact> <tool> <profile>")
 	}
 
-	capsulePath := fs.Args()[0]
-	artifactID := fs.Args()[1]
-	toolID := fs.Args()[2]
-	profile := fs.Args()[3]
+	capsulePath, artifactID := fs.Args()[0], fs.Args()[1]
+	toolID, profile := fs.Args()[2], fs.Args()[3]
 
-	// Create temporary directory for unpacking
-	tempDir, err := os.MkdirTemp("", "capsule-tool-run-*")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to create temp directory: %v\n", err)
-		os.Exit(1)
-	}
+	tempDir := createTempDir("capsule-tool-run-*")
 	defer os.RemoveAll(tempDir)
 
-	// Unpack the capsule
-	cap, err := capsule.Unpack(capsulePath, tempDir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to unpack capsule: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Find the artifact
-	var artifactPath string
-	for _, art := range cap.Manifest.Artifacts {
-		if art.ID == artifactID {
-			artifactPath = filepath.Join(tempDir, "artifacts", art.ID)
-			break
-		}
-	}
-
-	if artifactPath == "" {
-		fmt.Fprintf(os.Stderr, "Error: artifact not found: %s\n", artifactID)
-		os.Exit(1)
-	}
-
-	// Create work directory for tool run
-	workDir, err := os.MkdirTemp("", "capsule-run-*")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to create work directory: %v\n", err)
-		os.Exit(1)
-	}
+	artifactPath := unpackAndFindArtifact(capsulePath, artifactID, tempDir)
+	workDir := createTempDir("capsule-run-*")
 	defer os.RemoveAll(workDir)
 
+	printExecuteInfo(artifactID, capsulePath, toolID, profile)
+	prepareAndPrintRequest(toolID, profile, artifactPath, workDir)
+}
+
+// createTempDir creates a temporary directory or exits on error
+func createTempDir(pattern string) string {
+	tempDir, err := os.MkdirTemp("", pattern)
+	if err != nil {
+		exitError("failed to create temp directory: " + err.Error())
+	}
+	return tempDir
+}
+
+// unpackAndFindArtifact unpacks the capsule and finds the artifact path
+func unpackAndFindArtifact(capsulePath, artifactID, tempDir string) string {
+	cap, err := capsule.Unpack(capsulePath, tempDir)
+	if err != nil {
+		exitError("failed to unpack capsule: " + err.Error())
+	}
+	for _, art := range cap.Manifest.Artifacts {
+		if art.ID == artifactID {
+			return filepath.Join(tempDir, "artifacts", art.ID)
+		}
+	}
+	exitError("artifact not found: " + artifactID)
+	return "" // unreachable
+}
+
+// printExecuteInfo prints the execute info header
+func printExecuteInfo(artifactID, capsulePath, toolID, profile string) {
 	fmt.Printf("Executing tool on artifact: %s\n", artifactID)
 	fmt.Printf("  Capsule: %s\n", capsulePath)
 	fmt.Printf("  Tool: %s\n", toolID)
 	fmt.Printf("  Profile: %s\n", profile)
-
-	// Create request
-	req := runner.NewRequest(toolID, profile)
-	req.Inputs = []string{artifactPath}
-
-	// Prepare work directory
-	if err := runner.PrepareWorkDir(workDir, req); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("\nWork directory prepared: %s\n", workDir)
-	fmt.Println("Use Nix VM executor to run the tool:")
-	fmt.Printf("  nix run .#capsule-vm -- %s/in\n", workDir)
 }
 
 func printUsage() {

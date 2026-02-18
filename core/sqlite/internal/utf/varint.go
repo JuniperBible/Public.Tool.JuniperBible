@@ -172,22 +172,27 @@ func GetVarint32(buf []byte) (uint32, int) {
 		return 0, 0
 	}
 
-	// Fast path for 1-byte varints
+	if v, n, ok := tryFastVarint32(buf); ok {
+		return v, n
+	}
+
+	return slowVarint32(buf)
+}
+
+func tryFastVarint32(buf []byte) (uint32, int, bool) {
 	if buf[0] < 0x80 {
-		return uint32(buf[0]), 1
+		return uint32(buf[0]), 1, true
 	}
-
-	// Fast path for 2-byte varints
 	if len(buf) >= 2 && buf[1] < 0x80 {
-		return uint32(buf[0]&0x7f)<<7 | uint32(buf[1]), 2
+		return uint32(buf[0]&0x7f)<<7 | uint32(buf[1]), 2, true
 	}
-
-	// Fast path for 3-byte varints
 	if len(buf) >= 3 && buf[2] < 0x80 {
-		return uint32(buf[0]&0x7f)<<14 | uint32(buf[1]&0x7f)<<7 | uint32(buf[2]), 3
+		return uint32(buf[0]&0x7f)<<14 | uint32(buf[1]&0x7f)<<7 | uint32(buf[2]), 3, true
 	}
+	return 0, 0, false
+}
 
-	// Four or more bytes
+func slowVarint32(buf []byte) (uint32, int) {
 	v64, n := GetVarint(buf)
 	if n > 3 && n <= 9 {
 		if v64 > 0xffffffff {
@@ -195,7 +200,6 @@ func GetVarint32(buf []byte) (uint32, int) {
 		}
 		return uint32(v64), n
 	}
-
 	return 0, 0
 }
 

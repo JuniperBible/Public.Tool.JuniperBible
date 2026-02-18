@@ -346,83 +346,88 @@ func extractAttr(tag, attr string) string {
 // Handles formats like: "strong:H1234", "strong:G2532", "H1234 H5678"
 func parseStrongs(lemma string) []string {
 	var strongs []string
-
-	// Split by spaces for multiple numbers
-	parts := strings.Fields(lemma)
-	for _, part := range parts {
-		// Remove "strong:" prefix if present
+	for _, part := range strings.Fields(lemma) {
 		part = strings.TrimPrefix(part, "strong:")
-
-		// Check if it looks like a Strong's number (H/G followed by digits)
-		if len(part) >= 2 && (part[0] == 'H' || part[0] == 'G') {
-			// Verify rest is digits
-			isNum := true
-			for j := 1; j < len(part); j++ {
-				if part[j] < '0' || part[j] > '9' {
-					isNum = false
-					break
-				}
-			}
-			if isNum {
-				strongs = append(strongs, part)
-			}
+		if isStrongsNumber(part) {
+			strongs = append(strongs, part)
 		}
 	}
-
 	return strongs
+}
+
+// isStrongsNumber checks if a string is a valid Strong's number (H/G followed by digits)
+func isStrongsNumber(s string) bool {
+	if len(s) < 2 || (s[0] != 'H' && s[0] != 'G') {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // tokenizePlainText tokenizes plain text into words.
 // Uses unicode.IsLetter and unicode.IsDigit for proper multi-byte character handling.
 func tokenizePlainText(text string) []*IRToken {
-	var tokens []*IRToken
-	var tokenStart int
-	var tokenText strings.Builder
-	tokenIdx := 0
+	t := &tokenizer{text: text}
+	return t.tokenize()
+}
 
-	inWord := false
-	// Use range to iterate over runes, not bytes
-	for i, r := range text {
-		// Use unicode package for proper character classification
-		isWordChar := unicode.IsLetter(r) || unicode.IsDigit(r) || r == '\''
+// tokenizer holds state for text tokenization.
+type tokenizer struct {
+	text       string
+	tokens     []*IRToken
+	tokenStart int
+	tokenText  strings.Builder
+	tokenIdx   int
+	inWord     bool
+}
 
-		if isWordChar {
-			if !inWord {
-				tokenStart = i
-				inWord = true
-			}
-			tokenText.WriteRune(r)
-		} else if inWord {
-			// End of word
-			word := tokenText.String()
-			tokens = append(tokens, &IRToken{
-				ID:        fmt.Sprintf("t%d", tokenIdx),
-				Index:     tokenIdx,
-				CharStart: tokenStart,
-				CharEnd:   i,
-				Text:      word,
-				Type:      "word",
-			})
-			tokenIdx++
-			tokenText.Reset()
-			inWord = false
+// tokenize processes the text and returns tokens.
+func (t *tokenizer) tokenize() []*IRToken {
+	for i, r := range t.text {
+		t.processRune(i, r)
+	}
+	t.finalizeLastWord()
+	return t.tokens
+}
+
+// processRune handles a single rune during tokenization.
+func (t *tokenizer) processRune(i int, r rune) {
+	isWordChar := unicode.IsLetter(r) || unicode.IsDigit(r) || r == '\''
+	if isWordChar {
+		if !t.inWord {
+			t.tokenStart = i
+			t.inWord = true
 		}
+		t.tokenText.WriteRune(r)
+	} else if t.inWord {
+		t.emitToken(i)
 	}
+}
 
-	// Handle last word
-	if inWord {
-		word := tokenText.String()
-		tokens = append(tokens, &IRToken{
-			ID:        fmt.Sprintf("t%d", tokenIdx),
-			Index:     tokenIdx,
-			CharStart: tokenStart,
-			CharEnd:   len(text),
-			Text:      word,
-			Type:      "word",
-		})
+// emitToken creates a token and resets state.
+func (t *tokenizer) emitToken(endPos int) {
+	t.tokens = append(t.tokens, &IRToken{
+		ID:        fmt.Sprintf("t%d", t.tokenIdx),
+		Index:     t.tokenIdx,
+		CharStart: t.tokenStart,
+		CharEnd:   endPos,
+		Text:      t.tokenText.String(),
+		Type:      "word",
+	})
+	t.tokenIdx++
+	t.tokenText.Reset()
+	t.inWord = false
+}
+
+// finalizeLastWord handles any remaining word at end of text.
+func (t *tokenizer) finalizeLastWord() {
+	if t.inWord {
+		t.emitToken(len(t.text))
 	}
-
-	return tokens
 }
 
 // parseAnnotationsFromMarkup extracts annotations (footnotes, cross-refs) from OSIS/ThML.
@@ -491,30 +496,13 @@ func extractNotes(text string, idx *int) []*IRAnnotation {
 // extractReferences extracts <reference>...</reference> cross-references.
 func extractReferences(text string, idx *int) []*IRAnnotation {
 	var annotations []*IRAnnotation
-
 	i := 0
 	for i < len(text) {
-		// Look for <reference
-		refStart := strings.Index(text[i:], "<reference")
-		if refStart < 0 {
-			break
-		}
-		refStart += i
-
-		// Find end of opening tag
-		tagEnd := refStart
-		for tagEnd < len(text) && text[tagEnd] != '>' {
-			tagEnd++
-		}
-		if tagEnd >= len(text) {
+		refStart, tagEnd, found := findReferenceTag(text, i)
+		if !found {
 			break
 		}
 
-		// Extract osisRef attribute
-		tag := text[refStart : tagEnd+1]
-		osisRef := extractAttr(tag, "osisRef")
-
-		// Find </reference>
 		closeTag := strings.Index(text[tagEnd:], "</reference>")
 		if closeTag < 0 {
 			i = tagEnd + 1
@@ -522,26 +510,51 @@ func extractReferences(text string, idx *int) []*IRAnnotation {
 		}
 		closeTag += tagEnd
 
-		// Use osisRef if available, otherwise use content
-		value := osisRef
-		if value == "" {
-			refContent := text[tagEnd+1 : closeTag]
-			value = stripMarkup(refContent)
-		}
-
-		annotations = append(annotations, &IRAnnotation{
-			ID:       fmt.Sprintf("r%d", *idx),
-			Type:     "CROSS_REF",
-			StartPos: refStart,
-			EndPos:   closeTag + 12,
-			Value:    value,
-		})
-		*idx++
-
+		annotation := buildReferenceAnnotation(text, refStart, tagEnd, closeTag, idx)
+		annotations = append(annotations, annotation)
 		i = closeTag + 12
 	}
-
 	return annotations
+}
+
+// findReferenceTag finds the next <reference> tag position.
+func findReferenceTag(text string, start int) (refStart, tagEnd int, found bool) {
+	refStart = strings.Index(text[start:], "<reference")
+	if refStart < 0 {
+		return 0, 0, false
+	}
+	refStart += start
+
+	tagEnd = refStart
+	for tagEnd < len(text) && text[tagEnd] != '>' {
+		tagEnd++
+	}
+	if tagEnd >= len(text) {
+		return 0, 0, false
+	}
+	return refStart, tagEnd, true
+}
+
+// buildReferenceAnnotation creates an annotation from reference tag positions.
+func buildReferenceAnnotation(text string, refStart, tagEnd, closeTag int, idx *int) *IRAnnotation {
+	tag := text[refStart : tagEnd+1]
+	osisRef := extractAttr(tag, "osisRef")
+
+	value := osisRef
+	if value == "" {
+		refContent := text[tagEnd+1 : closeTag]
+		value = stripMarkup(refContent)
+	}
+
+	annotation := &IRAnnotation{
+		ID:       fmt.Sprintf("r%d", *idx),
+		Type:     "CROSS_REF",
+		StartPos: refStart,
+		EndPos:   closeTag + 12,
+		Value:    value,
+	}
+	*idx++
+	return annotation
 }
 
 // writeCorpusJSON writes the corpus to a JSON file.

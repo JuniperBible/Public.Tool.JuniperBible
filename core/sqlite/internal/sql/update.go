@@ -80,133 +80,113 @@ type OrderByColumn struct {
 //	OP_Close        0
 //	OP_Halt
 func CompileUpdate(stmt *UpdateStmt, tableRoot int, numColumns int) (*Program, error) {
+	if err := validateUpdateStmt(stmt); err != nil {
+		return nil, err
+	}
+	ctx := newUpdateCompiler(stmt, tableRoot, numColumns)
+	return ctx.compile()
+}
+
+// validateUpdateStmt checks the update statement for basic validity.
+func validateUpdateStmt(stmt *UpdateStmt) error {
 	if stmt == nil {
-		return nil, errors.New("nil update statement")
+		return errors.New("nil update statement")
 	}
-
 	if len(stmt.Columns) == 0 {
-		return nil, errors.New("no columns to update")
+		return errors.New("no columns to update")
 	}
-
 	if len(stmt.Columns) != len(stmt.Values) {
-		return nil, fmt.Errorf("column count (%d) does not match value count (%d)",
-			len(stmt.Columns), len(stmt.Values))
+		return fmt.Errorf("column count (%d) does not match value count (%d)", len(stmt.Columns), len(stmt.Values))
 	}
+	return nil
+}
 
-	prog := &Program{
-		Instructions: make([]Instruction, 0),
-		NumRegisters: 0,
-		NumCursors:   1,
+// updateCompiler holds state for compiling an UPDATE statement.
+type updateCompiler struct {
+	stmt       *UpdateStmt
+	tableRoot  int
+	numColumns int
+	prog       *Program
+	cursorNum  int
+	regRowid   int
+	regNewRowid int
+	regOldCols int
+	regNewCols int
+	regRecord  int
+	regWhere   int
+}
+
+func newUpdateCompiler(stmt *UpdateStmt, tableRoot, numColumns int) *updateCompiler {
+	prog := &Program{Instructions: make([]Instruction, 0), NumRegisters: 0, NumCursors: 1}
+	ctx := &updateCompiler{stmt: stmt, tableRoot: tableRoot, numColumns: numColumns, prog: prog}
+	ctx.regRowid = prog.allocReg()
+	_ = prog.allocReg() // reserved
+	ctx.regNewRowid = prog.allocReg()
+	ctx.regOldCols = prog.allocRegs(numColumns)
+	ctx.regNewCols = prog.allocRegs(numColumns)
+	ctx.regRecord = prog.allocReg()
+	ctx.regWhere = prog.allocReg()
+	return ctx
+}
+
+func (c *updateCompiler) compile() (*Program, error) {
+	c.prog.add(OpInit, 0, 0, 0, nil, 0, "Initialize program")
+	c.prog.add(OpOpenWrite, c.cursorNum, c.tableRoot, 0, nil, 0, fmt.Sprintf("Open table %s for update", c.stmt.Table))
+	c.prog.add(OpRewind, c.cursorNum, 0, 0, nil, 0, "Rewind to start")
+	rewindInst := len(c.prog.Instructions) - 1
+	loopLabel := len(c.prog.Instructions)
+	c.prog.add(OpRowid, c.cursorNum, c.regRowid, 0, nil, 0, "Get current rowid")
+	whereJumpInst, err := c.compileWhere()
+	if err != nil {
+		return nil, err
 	}
-
-	cursorNum := 0
-
-	// Allocate registers
-	regRowid := prog.allocReg()
-	_ = prog.allocReg() // regOldRowid - reserved for future use
-	regNewRowid := prog.allocReg()
-	regOldCols := prog.allocRegs(numColumns)
-	regNewCols := prog.allocRegs(numColumns)
-	regRecord := prog.allocReg()
-	regWhere := prog.allocReg()
-
-	// Calculate labels
-	endLabel := -1
-	loopLabel := -1
-	nextLabel := -1
-
-	// OP_Init: Initialize program
-	prog.add(OpInit, 0, 0, 0, nil, 0, "Initialize program")
-
-	// OP_OpenWrite: Open table for read/write
-	prog.add(OpOpenWrite, cursorNum, tableRoot, 0, nil, 0,
-		fmt.Sprintf("Open table %s for update", stmt.Table))
-
-	// OP_Rewind: Start at beginning of table
-	prog.add(OpRewind, cursorNum, 0, 0, nil, 0, "Rewind to start")
-	rewindInst := len(prog.Instructions) - 1
-
-	// Loop starts here
-	loopLabel = len(prog.Instructions)
-
-	// OP_Rowid: Get current rowid
-	prog.add(OpRowid, cursorNum, regRowid, 0, nil, 0, "Get current rowid")
-
-	// WHERE clause evaluation
-	whereJumpInst := -1
-	if stmt.Where != nil {
-		// Evaluate WHERE expression
-		if err := prog.compileExpression(stmt.Where.Expr, cursorNum, regOldCols, regWhere); err != nil {
-			return nil, fmt.Errorf("WHERE clause: %v", err)
-		}
-
-		// OP_IfNot: Skip this row if WHERE is false
-		prog.add(OpIfNot, regWhere, 0, 0, nil, 0, "Skip if WHERE is false")
-		whereJumpInst = len(prog.Instructions) - 1
+	c.loadOldColumns()
+	if err := c.buildNewRow(); err != nil {
+		return nil, err
 	}
-
-	// Load old column values
-	for i := 0; i < numColumns; i++ {
-		prog.add(OpColumn, cursorNum, i, regOldCols+i, nil, 0,
-			fmt.Sprintf("Load old column %d", i))
-	}
-
-	// Build new row with updated values
-	// Copy old values first
-	prog.add(OpCopy, regOldCols, regNewCols, numColumns, nil, 0,
-		"Copy old values to new")
-
-	// Update specified columns with new values
-	for i, colName := range stmt.Columns {
-		// Find column index (simplified - in real implementation would use table metadata)
-		colIdx := i // Placeholder
-		reg := regNewCols + colIdx
-
-		if err := prog.addValueLoad(stmt.Values[i], reg); err != nil {
-			return nil, fmt.Errorf("column %s: %v", colName, err)
-		}
-	}
-
-	// Copy rowid (unchanged in simple update)
-	prog.add(OpCopy, regRowid, regNewRowid, 0, nil, 0, "Copy rowid")
-
-	// OP_MakeRecord: Create new record
-	prog.add(OpMakeRecord, regNewCols, numColumns, regRecord, nil, 0,
-		"Make updated record")
-
-	// Delete old record
-	prog.add(OpDelete, cursorNum, 0, 0, nil, 0, "Delete old record")
-
-	// Insert new record
-	prog.add(OpInsert, cursorNum, regRecord, regNewRowid, nil, 0,
-		"Insert updated record")
-
-	// Next iteration
-	nextLabel = len(prog.Instructions)
-
-	// Update WHERE jump target if present
+	c.prog.add(OpDelete, c.cursorNum, 0, 0, nil, 0, "Delete old record")
+	c.prog.add(OpInsert, c.cursorNum, c.regRecord, c.regNewRowid, nil, 0, "Insert updated record")
+	nextLabel := len(c.prog.Instructions)
 	if whereJumpInst >= 0 {
-		prog.Instructions[whereJumpInst].P2 = nextLabel
+		c.prog.Instructions[whereJumpInst].P2 = nextLabel
 	}
+	c.prog.add(OpNext, c.cursorNum, loopLabel, 0, nil, 0, "Next row")
+	endLabel := len(c.prog.Instructions)
+	c.prog.Instructions[0].P2 = endLabel
+	c.prog.Instructions[rewindInst].P2 = endLabel
+	c.prog.add(OpClose, c.cursorNum, 0, 0, nil, 0, fmt.Sprintf("Close table %s", c.stmt.Table))
+	c.prog.add(OpHalt, 0, 0, 0, nil, 0, "End program")
+	return c.prog, nil
+}
 
-	// OP_Next: Move to next row
-	prog.add(OpNext, cursorNum, loopLabel, 0, nil, 0, "Next row")
+func (c *updateCompiler) compileWhere() (int, error) {
+	if c.stmt.Where == nil {
+		return -1, nil
+	}
+	if err := c.prog.compileExpression(c.stmt.Where.Expr, c.cursorNum, c.regOldCols, c.regWhere); err != nil {
+		return -1, fmt.Errorf("WHERE clause: %v", err)
+	}
+	c.prog.add(OpIfNot, c.regWhere, 0, 0, nil, 0, "Skip if WHERE is false")
+	return len(c.prog.Instructions) - 1, nil
+}
 
-	// End of loop
-	endLabel = len(prog.Instructions)
+func (c *updateCompiler) loadOldColumns() {
+	for i := 0; i < c.numColumns; i++ {
+		c.prog.add(OpColumn, c.cursorNum, i, c.regOldCols+i, nil, 0, fmt.Sprintf("Load old column %d", i))
+	}
+}
 
-	// Update Init and Rewind instructions
-	prog.Instructions[0].P2 = endLabel
-	prog.Instructions[rewindInst].P2 = endLabel
-
-	// OP_Close: Close table cursor
-	prog.add(OpClose, cursorNum, 0, 0, nil, 0,
-		fmt.Sprintf("Close table %s", stmt.Table))
-
-	// OP_Halt: End program
-	prog.add(OpHalt, 0, 0, 0, nil, 0, "End program")
-
-	return prog, nil
+func (c *updateCompiler) buildNewRow() error {
+	c.prog.add(OpCopy, c.regOldCols, c.regNewCols, c.numColumns, nil, 0, "Copy old values to new")
+	for i, colName := range c.stmt.Columns {
+		reg := c.regNewCols + i
+		if err := c.prog.addValueLoad(c.stmt.Values[i], reg); err != nil {
+			return fmt.Errorf("column %s: %v", colName, err)
+		}
+	}
+	c.prog.add(OpCopy, c.regRowid, c.regNewRowid, 0, nil, 0, "Copy rowid")
+	c.prog.add(OpMakeRecord, c.regNewCols, c.numColumns, c.regRecord, nil, 0, "Make updated record")
+	return nil
 }
 
 // binaryOpTable maps SQL operator strings to their corresponding opcodes.

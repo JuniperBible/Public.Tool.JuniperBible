@@ -108,21 +108,22 @@ func (s *Stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driv
 
 // compile compiles the SQL statement into VDBE bytecode.
 func (s *Stmt) compile(args []driver.NamedValue) (*vdbe.VDBE, error) {
-	// Create a new VDBE
-	vm := vdbe.New()
+	vm := s.newVDBE()
+	return s.dispatchCompile(vm, args)
+}
 
-	// Set the execution context with btree access
+// newVDBE creates a new VDBE with the connection's context.
+func (s *Stmt) newVDBE() *vdbe.VDBE {
+	vm := vdbe.New()
 	vm.Ctx = &vdbe.VDBEContext{
 		Btree:  s.conn.btree,
 		Schema: s.conn.schema,
 	}
+	return vm
+}
 
-	// For now, this is a simplified compilation process
-	// In a real implementation, this would:
-	// 1. Use the planner to generate a query plan
-	// 2. Use a code generator to emit VDBE opcodes
-	// 3. Bind parameters
-
+// dispatchCompile routes compilation to the appropriate handler.
+func (s *Stmt) dispatchCompile(vm *vdbe.VDBE, args []driver.NamedValue) (*vdbe.VDBE, error) {
 	switch stmt := s.ast.(type) {
 	case *parser.SelectStmt:
 		return s.compileSelect(vm, stmt, args)
@@ -132,6 +133,14 @@ func (s *Stmt) compile(args []driver.NamedValue) (*vdbe.VDBE, error) {
 		return s.compileUpdate(vm, stmt, args)
 	case *parser.DeleteStmt:
 		return s.compileDelete(vm, stmt, args)
+	default:
+		return s.dispatchDDLOrTxn(vm, args)
+	}
+}
+
+// dispatchDDLOrTxn handles DDL and transaction statements.
+func (s *Stmt) dispatchDDLOrTxn(vm *vdbe.VDBE, args []driver.NamedValue) (*vdbe.VDBE, error) {
+	switch stmt := s.ast.(type) {
 	case *parser.CreateTableStmt:
 		return s.compileCreateTable(vm, stmt, args)
 	case *parser.DropTableStmt:

@@ -24,46 +24,60 @@ var skipIRExtraction = false
 
 // runListCmd is the core logic for the list command, testable with custom I/O.
 func runListCmd(args []string, stdout, stderr io.Writer) error {
-	// Determine SWORD path
-	swordPath := getDefaultSwordPath()
-	if len(args) > 2 {
-		swordPath = args[2]
-	}
+	swordPath := getListSwordPath(args)
 
 	modules, err := ListModules(swordPath)
 	if err != nil {
 		return fmt.Errorf("failed to list modules: %w", err)
 	}
 
-	// Filter to only Bible modules
+	bibles := filterBibleModules(modules)
+	if len(bibles) == 0 {
+		fmt.Fprintf(stdout, "No Bible modules found in %s\n", swordPath)
+		return nil
+	}
+
+	printBibleList(stdout, swordPath, bibles)
+	return nil
+}
+
+func getListSwordPath(args []string) string {
+	if len(args) > 2 {
+		return args[2]
+	}
+	return getDefaultSwordPath()
+}
+
+func filterBibleModules(modules []ModuleInfo) []ModuleInfo {
 	var bibles []ModuleInfo
 	for _, m := range modules {
 		if m.Type == "Bible" {
 			bibles = append(bibles, m)
 		}
 	}
+	return bibles
+}
 
-	if len(bibles) == 0 {
-		fmt.Fprintf(stdout, "No Bible modules found in %s\n", swordPath)
-		return nil
-	}
-
+func printBibleList(stdout io.Writer, swordPath string, bibles []ModuleInfo) {
 	fmt.Fprintf(stdout, "Bible modules in %s:\n\n", swordPath)
 	fmt.Fprintf(stdout, "%-15s %-8s %-40s\n", "MODULE", "LANG", "DESCRIPTION")
 	fmt.Fprintf(stdout, "%-15s %-8s %-40s\n", "------", "----", "-----------")
 	for _, m := range bibles {
-		desc := m.Description
-		if len(desc) > 40 {
-			desc = desc[:37] + "..."
-		}
-		encrypted := ""
-		if m.Encrypted {
-			encrypted = " [encrypted]"
-		}
-		fmt.Fprintf(stdout, "%-15s %-8s %-40s%s\n", m.Name, m.Language, desc, encrypted)
+		printBibleModule(stdout, m)
 	}
 	fmt.Fprintf(stdout, "\nTotal: %d Bible modules\n", len(bibles))
-	return nil
+}
+
+func printBibleModule(stdout io.Writer, m ModuleInfo) {
+	desc := m.Description
+	if len(desc) > 40 {
+		desc = desc[:37] + "..."
+	}
+	encrypted := ""
+	if m.Encrypted {
+		encrypted = " [encrypted]"
+	}
+	fmt.Fprintf(stdout, "%-15s %-8s %-40s%s\n", m.Name, m.Language, desc, encrypted)
 }
 
 // cmdList implements the "list" command to list Bible modules.
@@ -88,27 +102,38 @@ func parseIngestArgs(args []string) ingestConfig {
 		swordPath: getDefaultSwordPath(),
 		outputDir: "capsules",
 	}
-
 	for i := 2; i < len(args); i++ {
-		arg := args[i]
-		switch {
-		case arg == "--all" || arg == "-a":
-			cfg.ingestAll = true
-		case arg == "--output" || arg == "-o":
-			if i+1 < len(args) {
-				i++
-				cfg.outputDir = args[i]
-			}
-		case arg == "--path" || arg == "-p":
-			if i+1 < len(args) {
-				i++
-				cfg.swordPath = args[i]
-			}
-		default:
-			cfg.selectedModules = append(cfg.selectedModules, arg)
-		}
+		i = parseIngestArg(args, i, &cfg)
 	}
 	return cfg
+}
+
+// parseIngestArg parses a single argument, returning the updated index.
+func parseIngestArg(args []string, i int, cfg *ingestConfig) int {
+	arg := args[i]
+	if arg == "--all" || arg == "-a" {
+		cfg.ingestAll = true
+		return i
+	}
+	if advance := parseArgWithValue(args, i, "--output", "-o", &cfg.outputDir); advance > 0 {
+		return i + advance
+	}
+	if advance := parseArgWithValue(args, i, "--path", "-p", &cfg.swordPath); advance > 0 {
+		return i + advance
+	}
+	cfg.selectedModules = append(cfg.selectedModules, arg)
+	return i
+}
+
+func parseArgWithValue(args []string, i int, long, short string, dest *string) int {
+	if args[i] != long && args[i] != short {
+		return 0
+	}
+	if i+1 < len(args) {
+		*dest = args[i+1]
+		return 1
+	}
+	return 0
 }
 
 // selectModulesToIngest determines which modules to ingest based on configuration.
@@ -200,17 +225,6 @@ func parseModuleSelection(input string, bibles []ModuleInfo) []ModuleInfo {
 	return selected
 }
 
-// filterBibleModules returns only Bible modules from the given list.
-func filterBibleModules(modules []ModuleInfo) []ModuleInfo {
-	var bibles []ModuleInfo
-	for _, m := range modules {
-		if m.Type == "Bible" {
-			bibles = append(bibles, m)
-		}
-	}
-	return bibles
-}
-
 // ingestModules processes each module and creates capsules.
 func ingestModules(toIngest []ModuleInfo, swordPath, outputDir string, stdout, stderr io.Writer) {
 	fmt.Fprintf(stdout, "\nIngesting %d module(s) to %s/\n\n", len(toIngest), outputDir)
@@ -284,30 +298,37 @@ func getDefaultSwordPath() string {
 
 // splitAndTrim splits a string and trims whitespace from each part.
 func splitAndTrim(s, sep string) []string {
-	parts := make([]string, 0)
+	parts := splitListTrimmed(s)
+	result := expandCommas(parts)
+	if len(result) == 0 {
+		return splitCommaTrimmed(s)
+	}
+	return result
+}
+
+func splitListTrimmed(s string) []string {
+	var parts []string
 	for _, p := range filepath.SplitList(s) {
-		p = trimSpace(p)
-		if p != "" {
+		if p = trimSpace(p); p != "" {
 			parts = append(parts, p)
 		}
 	}
-	// Also handle comma separation
-	result := make([]string, 0)
+	return parts
+}
+
+func expandCommas(parts []string) []string {
+	var result []string
 	for _, p := range parts {
-		for _, q := range splitByComma(p) {
-			q = trimSpace(q)
-			if q != "" {
-				result = append(result, q)
-			}
-		}
+		result = append(result, splitCommaTrimmed(p)...)
 	}
-	if len(result) == 0 {
-		// Fall back to simple comma split
-		for _, p := range splitByComma(s) {
-			p = trimSpace(p)
-			if p != "" {
-				result = append(result, p)
-			}
+	return result
+}
+
+func splitCommaTrimmed(s string) []string {
+	var result []string
+	for _, p := range splitByComma(s) {
+		if p = trimSpace(p); p != "" {
+			result = append(result, p)
 		}
 	}
 	return result

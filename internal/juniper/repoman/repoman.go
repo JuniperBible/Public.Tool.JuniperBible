@@ -265,27 +265,33 @@ func ListInstalled(swordPath string) ([]ModuleInfo, error) {
 		return nil, fmt.Errorf("reading mods.d: %w", err)
 	}
 
+	return parseConfEntries(entries, modsDir), nil
+}
+
+func parseConfEntries(entries []os.DirEntry, modsDir string) []ModuleInfo {
 	var modules []ModuleInfo
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".conf") {
-			continue
+		if module, ok := parseConfEntry(entry, modsDir); ok {
+			modules = append(modules, module)
 		}
-
-		confPath := filepath.Join(modsDir, entry.Name())
-		data, err := safefile.ReadFile(confPath)
-		if err != nil {
-			continue
-		}
-
-		module, err := ParseModuleConf(data)
-		if err != nil {
-			continue
-		}
-
-		modules = append(modules, module)
 	}
+	return modules
+}
 
-	return modules, nil
+func parseConfEntry(entry os.DirEntry, modsDir string) (ModuleInfo, bool) {
+	if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".conf") {
+		return ModuleInfo{}, false
+	}
+	confPath := filepath.Join(modsDir, entry.Name())
+	data, err := safefile.ReadFile(confPath)
+	if err != nil {
+		return ModuleInfo{}, false
+	}
+	module, err := ParseModuleConf(data)
+	if err != nil {
+		return ModuleInfo{}, false
+	}
+	return module, true
 }
 
 // Uninstall removes an installed module.
@@ -294,38 +300,90 @@ func Uninstall(moduleID, swordPath string) error {
 		swordPath = "."
 	}
 
-	// Find and remove conf file
 	confPath := filepath.Join(swordPath, "mods.d", strings.ToLower(moduleID)+".conf")
-	if _, err := os.Stat(confPath); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("module %s not installed", moduleID)
-	}
-
-	// Read conf to find data path
-	data, err := os.ReadFile(confPath)
+	module, err := readUninstallModule(moduleID, confPath)
 	if err != nil {
-		return fmt.Errorf("reading conf: %w", err)
+		return err
 	}
 
-	module, err := ParseModuleConf(data)
-	if err != nil {
-		return fmt.Errorf("parsing conf: %w", err)
+	if err := removeModuleData(swordPath, module.DataPath); err != nil {
+		return err
 	}
 
-	// Remove data directory
-	if module.DataPath != "" {
-		dataPath := filepath.Join(swordPath, module.DataPath)
-		dataPath = strings.TrimPrefix(dataPath, "./")
-		if err := os.RemoveAll(dataPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("removing data: %w", err)
-		}
-	}
-
-	// Remove conf file
 	if err := os.Remove(confPath); err != nil {
 		return fmt.Errorf("removing conf: %w", err)
 	}
-
 	return nil
+}
+
+func readUninstallModule(moduleID, confPath string) (ModuleInfo, error) {
+	if _, err := os.Stat(confPath); errors.Is(err, os.ErrNotExist) {
+		return ModuleInfo{}, fmt.Errorf("module %s not installed", moduleID)
+	}
+	data, err := os.ReadFile(confPath)
+	if err != nil {
+		return ModuleInfo{}, fmt.Errorf("reading conf: %w", err)
+	}
+	module, err := ParseModuleConf(data)
+	if err != nil {
+		return ModuleInfo{}, fmt.Errorf("parsing conf: %w", err)
+	}
+	return module, nil
+}
+
+func removeModuleData(swordPath, dataPath string) error {
+	if dataPath == "" {
+		return nil
+	}
+	fullPath := filepath.Join(swordPath, dataPath)
+	fullPath = strings.TrimPrefix(fullPath, "./")
+	if err := os.RemoveAll(fullPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("removing data: %w", err)
+	}
+	return nil
+}
+
+func loadModuleConf(moduleID, swordPath string, result *VerifyResult) (*ModuleInfo, bool) {
+	confPath := filepath.Join(swordPath, "mods.d", strings.ToLower(moduleID)+".conf")
+	if _, err := os.Stat(confPath); errors.Is(err, os.ErrNotExist) {
+		result.Errors = append(result.Errors, "module not installed")
+		return nil, false
+	}
+	data, err := os.ReadFile(confPath)
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("cannot read conf: %v", err))
+		return nil, false
+	}
+	module, err := ParseModuleConf(data)
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("invalid conf: %v", err))
+		return nil, false
+	}
+	return &module, true
+}
+
+func verifyDataPath(dataPath string, result *VerifyResult) {
+	info, err := os.Stat(dataPath)
+	if errors.Is(err, os.ErrNotExist) {
+		result.Errors = append(result.Errors, "data directory missing")
+		return
+	}
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("cannot stat data: %v", err))
+		return
+	}
+	if !info.IsDir() {
+		result.Errors = append(result.Errors, "data path is not a directory")
+		return
+	}
+	entries, err := os.ReadDir(dataPath)
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("cannot read data dir: %v", err))
+		return
+	}
+	if len(entries) == 0 {
+		result.Warnings = append(result.Warnings, "data directory is empty")
+	}
 }
 
 // Verify verifies a module's integrity.
@@ -333,61 +391,15 @@ func Verify(moduleID, swordPath string) (*VerifyResult, error) {
 	if swordPath == "" {
 		swordPath = "."
 	}
-
-	result := &VerifyResult{
-		Module: moduleID,
-		Valid:  false,
-	}
-
-	// Check conf file exists
-	confPath := filepath.Join(swordPath, "mods.d", strings.ToLower(moduleID)+".conf")
-	if _, err := os.Stat(confPath); errors.Is(err, os.ErrNotExist) {
-		result.Errors = append(result.Errors, "module not installed")
+	result := &VerifyResult{Module: moduleID}
+	module, ok := loadModuleConf(moduleID, swordPath, result)
+	if !ok {
 		return result, nil
 	}
-
-	// Read and parse conf
-	data, err := os.ReadFile(confPath)
-	if err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("cannot read conf: %v", err))
-		return result, nil
-	}
-
-	module, err := ParseModuleConf(data)
-	if err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("invalid conf: %v", err))
-		return result, nil
-	}
-
-	// Check data path exists
 	if module.DataPath != "" {
-		dataPath := filepath.Join(swordPath, module.DataPath)
-		dataPath = strings.TrimPrefix(dataPath, "./")
-		info, err := os.Stat(dataPath)
-		if errors.Is(err, os.ErrNotExist) {
-			result.Errors = append(result.Errors, "data directory missing")
-			return result, nil
-		}
-		if err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("cannot stat data: %v", err))
-			return result, nil
-		}
-		if !info.IsDir() {
-			result.Errors = append(result.Errors, "data path is not a directory")
-			return result, nil
-		}
-
-		// Check for data files
-		entries, err := os.ReadDir(dataPath)
-		if err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("cannot read data dir: %v", err))
-			return result, nil
-		}
-		if len(entries) == 0 {
-			result.Warnings = append(result.Warnings, "data directory is empty")
-		}
+		dataPath := strings.TrimPrefix(filepath.Join(swordPath, module.DataPath), "./")
+		verifyDataPath(dataPath, result)
 	}
-
 	result.Valid = len(result.Errors) == 0
 	return result, nil
 }
@@ -400,41 +412,38 @@ func ParseModsArchive(data []byte) ([]ModuleInfo, error) {
 	}
 	defer gzr.Close()
 
-	tr := tar.NewReader(gzr)
-	var modules []ModuleInfo
+	return parseModsFromTar(tar.NewReader(gzr))
+}
 
+// parseModsFromTar reads module configs from a tar reader
+func parseModsFromTar(tr *tar.Reader) ([]ModuleInfo, error) {
+	var modules []ModuleInfo
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			break // May be corrupted entries
+			break
 		}
-
-		// Skip directories and non-.conf files
-		if hdr.Typeflag == tar.TypeDir {
-			continue
+		if module, ok := parseModuleFromTarEntry(tr, hdr); ok {
+			modules = append(modules, module)
 		}
-		if !strings.HasSuffix(hdr.Name, ".conf") {
-			continue
-		}
-
-		// Read conf file content
-		content := make([]byte, hdr.Size)
-		if _, err := io.ReadFull(tr, content); err != nil {
-			continue
-		}
-
-		module, err := ParseModuleConf(content)
-		if err != nil {
-			continue // Skip invalid conf files
-		}
-
-		modules = append(modules, module)
 	}
-
 	return modules, nil
+}
+
+// parseModuleFromTarEntry parses a single tar entry as a module conf
+func parseModuleFromTarEntry(tr *tar.Reader, hdr *tar.Header) (ModuleInfo, bool) {
+	if hdr.Typeflag == tar.TypeDir || !strings.HasSuffix(hdr.Name, ".conf") {
+		return ModuleInfo{}, false
+	}
+	content := make([]byte, hdr.Size)
+	if _, err := io.ReadFull(tr, content); err != nil {
+		return ModuleInfo{}, false
+	}
+	module, err := ParseModuleConf(content)
+	return module, err == nil
 }
 
 // confFieldSetters maps known .conf keys to the corresponding ModuleInfo field setter.
@@ -521,56 +530,57 @@ func moduleTypeFromDriver(driver string) string {
 	}
 }
 
-// ExtractZipArchive extracts a .zip archive to a directory.
+func zipPathIsSafe(destDir, destPath string) bool {
+	cleanDest := filepath.Clean(destDir) + string(os.PathSeparator)
+	cleanPath := filepath.Clean(destPath)
+	return strings.HasPrefix(cleanPath, cleanDest) || cleanPath == filepath.Clean(destDir)
+}
+
+func writeZipFile(f *zip.File, destPath string) error {
+	rc, err := f.Open()
+	if err != nil {
+		return fmt.Errorf("opening file in zip: %w", err)
+	}
+	defer rc.Close()
+
+	outFile, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("creating file: %w", err)
+	}
+	defer outFile.Close()
+
+	if _, err := io.Copy(outFile, rc); err != nil {
+		return fmt.Errorf("writing file: %w", err)
+	}
+	return nil
+}
+
+func extractZipEntry(f *zip.File, destDir string) error {
+	destPath := filepath.Join(destDir, f.Name)
+	if !zipPathIsSafe(destDir, destPath) {
+		return fmt.Errorf("invalid file path in zip: %s", f.Name)
+	}
+	if f.FileInfo().IsDir() {
+		if err := os.MkdirAll(destPath, 0700); err != nil {
+			return fmt.Errorf("creating directory: %w", err)
+		}
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(destPath), 0700); err != nil {
+		return fmt.Errorf("creating parent directory: %w", err)
+	}
+	return writeZipFile(f, destPath)
+}
+
 func ExtractZipArchive(data []byte, destDir string) error {
 	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return fmt.Errorf("opening zip: %w", err)
 	}
-
 	for _, f := range r.File {
-		destPath := filepath.Join(destDir, f.Name)
-
-		// Check for directory traversal attack
-		cleanDest := filepath.Clean(destDir) + string(os.PathSeparator)
-		cleanPath := filepath.Clean(destPath)
-		if !strings.HasPrefix(cleanPath, cleanDest) && cleanPath != filepath.Clean(destDir) {
-			return fmt.Errorf("invalid file path in zip: %s", f.Name)
+		if err := extractZipEntry(f, destDir); err != nil {
+			return err
 		}
-
-		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(destPath, 0700); err != nil {
-				return fmt.Errorf("creating directory: %w", err)
-			}
-			continue
-		}
-
-		// Create parent directory
-		if err := os.MkdirAll(filepath.Dir(destPath), 0700); err != nil {
-			return fmt.Errorf("creating parent directory: %w", err)
-		}
-
-		// Extract file
-		rc, err := f.Open()
-		if err != nil {
-			return fmt.Errorf("opening file in zip: %w", err)
-		}
-
-		outFile, err := os.Create(destPath)
-		if err != nil {
-			rc.Close()
-			return fmt.Errorf("creating file: %w", err)
-		}
-
-		if _, err := io.Copy(outFile, rc); err != nil {
-			outFile.Close()
-			rc.Close()
-			return fmt.Errorf("writing file: %w", err)
-		}
-
-		outFile.Close()
-		rc.Close()
 	}
-
 	return nil
 }

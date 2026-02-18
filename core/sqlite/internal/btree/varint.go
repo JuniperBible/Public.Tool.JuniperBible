@@ -119,22 +119,26 @@ func GetVarint(p []byte) (uint64, int) {
 // the value and the number of bytes read. If the varint is larger than
 // 32 bits, it returns 0xffffffff.
 func GetVarint32(p []byte) (uint32, int) {
-	// Fast path for 1-byte case
+	if v, n, ok := tryFastBtreeVarint32(p); ok {
+		return v, n
+	}
+	return slowBtreeVarint32(p)
+}
+
+func tryFastBtreeVarint32(p []byte) (uint32, int, bool) {
 	if len(p) > 0 && p[0] < 0x80 {
-		return uint32(p[0]), 1
+		return uint32(p[0]), 1, true
 	}
-
-	// Fast path for 2-byte case
 	if len(p) > 1 && p[1] < 0x80 {
-		return (uint32(p[0]&0x7f) << 7) | uint32(p[1]), 2
+		return (uint32(p[0]&0x7f) << 7) | uint32(p[1]), 2, true
 	}
-
-	// Fast path for 3-byte case
 	if len(p) > 2 && p[2] < 0x80 {
-		return (uint32(p[0]&0x7f) << 14) | (uint32(p[1]&0x7f) << 7) | uint32(p[2]), 3
+		return (uint32(p[0]&0x7f) << 14) | (uint32(p[1]&0x7f) << 7) | uint32(p[2]), 3, true
 	}
+	return 0, 0, false
+}
 
-	// Use full 64-bit decoder
+func slowBtreeVarint32(p []byte) (uint32, int) {
 	v64, n := GetVarint(p)
 	if n > 3 && n <= 9 {
 		if v64 > 0xffffffff {
@@ -145,31 +149,18 @@ func GetVarint32(p []byte) (uint32, int) {
 	return 0, 0
 }
 
+// varintLenThresholds defines the upper bounds for each varint size.
+var varintLenThresholds = [8]uint64{
+	0x7f, 0x3fff, 0x1fffff, 0xfffffff,
+	0x7ffffffff, 0x3ffffffffff, 0x1ffffffffffff, 0xffffffffffffff,
+}
+
 // VarintLen returns the number of bytes required to encode v as a varint
 func VarintLen(v uint64) int {
-	if v <= 0x7f {
-		return 1
-	}
-	if v <= 0x3fff {
-		return 2
-	}
-	if v <= 0x1fffff {
-		return 3
-	}
-	if v <= 0xfffffff {
-		return 4
-	}
-	if v <= 0x7ffffffff {
-		return 5
-	}
-	if v <= 0x3ffffffffff {
-		return 6
-	}
-	if v <= 0x1ffffffffffff {
-		return 7
-	}
-	if v <= 0xffffffffffffff {
-		return 8
+	for i, thresh := range varintLenThresholds {
+		if v <= thresh {
+			return i + 1
+		}
 	}
 	return 9
 }

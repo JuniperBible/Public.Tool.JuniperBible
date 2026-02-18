@@ -8,6 +8,7 @@ package sqlite
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -32,55 +33,45 @@ var Config = &format.Config{
 }
 
 func detect(path string) (*ipc.DetectResult, error) {
+	if result := checkSQLiteFile(path); result != nil {
+		return result, nil
+	}
+	return validateSQLiteSchema(path)
+}
+
+// sqliteExtensions contains valid SQLite file extensions.
+var sqliteExtensions = map[string]bool{".db": true, ".sqlite": true, ".sqlite3": true}
+
+// checkSQLiteFile checks if path is a valid SQLite file candidate.
+func checkSQLiteFile(path string) *ipc.DetectResult {
 	info, err := os.Stat(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot stat: %v", err),
-		}, nil
+		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot stat: %v", err)}
 	}
-
 	if info.IsDir() {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "path is a directory",
-		}, nil
+		return &ipc.DetectResult{Detected: false, Reason: "path is a directory"}
 	}
-
-	// Check extension
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext != ".db" && ext != ".sqlite" && ext != ".sqlite3" {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "not a SQLite file extension",
-		}, nil
+	if ext := strings.ToLower(filepath.Ext(path)); !sqliteExtensions[ext] {
+		return &ipc.DetectResult{Detected: false, Reason: "not a SQLite file extension"}
 	}
+	return nil
+}
 
-	// Try to open as SQLite
+// validateSQLiteSchema checks if the database has the expected schema.
+func validateSQLiteSchema(path string) (*ipc.DetectResult, error) {
 	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot open as SQLite: %v", err),
-		}, nil
+		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot open as SQLite: %v", err)}, nil
 	}
 	defer db.Close()
 
-	// Check for our schema (verses table with book, chapter, verse, text columns)
 	var count int
 	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='verses'").Scan(&count)
 	if err != nil || count == 0 {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "no 'verses' table found",
-		}, nil
+		return &ipc.DetectResult{Detected: false, Reason: "no 'verses' table found"}, nil
 	}
 
-	return &ipc.DetectResult{
-		Detected: true,
-		Format:   "SQLite",
-		Reason:   "Capsule SQLite Bible format detected",
-	}, nil
+	return &ipc.DetectResult{Detected: true, Format: "SQLite", Reason: "Capsule SQLite Bible format detected"}, nil
 }
 
 func parse(path string) (*ir.Corpus, error) {
@@ -185,63 +176,82 @@ func parse(path string) (*ir.Corpus, error) {
 func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	outputPath := filepath.Join(outputDir, corpus.ID+".db")
 
-	// Create new SQLite database
 	db, err := sqlite.Open(outputPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create database: %w", err)
 	}
 	defer db.Close()
 
-	// Create schema
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS meta (
-			id TEXT PRIMARY KEY,
-			title TEXT,
-			language TEXT,
-			description TEXT,
-			version TEXT
-		);
-		CREATE TABLE IF NOT EXISTS books (
-			id TEXT PRIMARY KEY,
-			name TEXT,
-			book_order INTEGER
-		);
-		CREATE TABLE IF NOT EXISTS verses (
-			id TEXT PRIMARY KEY,
-			book TEXT,
-			chapter INTEGER,
-			verse INTEGER,
-			text TEXT,
-			FOREIGN KEY (book) REFERENCES books(id)
-		);
-		CREATE INDEX IF NOT EXISTS idx_verses_ref ON verses(book, chapter, verse);
-	`)
-	if err != nil {
-		return "", fmt.Errorf("failed to create schema: %w", err)
+	if err := createSQLiteSchema(db); err != nil {
+		return "", err
 	}
 
-	// Insert metadata
+	insertMetadata(db, corpus)
+	insertCorpusData(db, corpus)
+
+	return outputPath, nil
+}
+
+const sqliteSchema = `
+	CREATE TABLE IF NOT EXISTS meta (
+		id TEXT PRIMARY KEY,
+		title TEXT,
+		language TEXT,
+		description TEXT,
+		version TEXT
+	);
+	CREATE TABLE IF NOT EXISTS books (
+		id TEXT PRIMARY KEY,
+		name TEXT,
+		book_order INTEGER
+	);
+	CREATE TABLE IF NOT EXISTS verses (
+		id TEXT PRIMARY KEY,
+		book TEXT,
+		chapter INTEGER,
+		verse INTEGER,
+		text TEXT,
+		FOREIGN KEY (book) REFERENCES books(id)
+	);
+	CREATE INDEX IF NOT EXISTS idx_verses_ref ON verses(book, chapter, verse);
+`
+
+func createSQLiteSchema(db *sql.DB) error {
+	_, err := db.Exec(sqliteSchema)
+	if err != nil {
+		return fmt.Errorf("failed to create schema: %w", err)
+	}
+	return nil
+}
+
+func insertMetadata(db *sql.DB, corpus *ir.Corpus) {
 	db.Exec("INSERT INTO meta (id, title, language, description, version) VALUES (?, ?, ?, ?, ?)",
 		corpus.ID, corpus.Title, corpus.Language, corpus.Description, corpus.Version)
+}
 
-	// Insert books and verses
+func insertCorpusData(db *sql.DB, corpus *ir.Corpus) {
 	for _, doc := range corpus.Documents {
 		db.Exec("INSERT INTO books (id, name, book_order) VALUES (?, ?, ?)",
 			doc.ID, doc.Title, doc.Order)
+		insertDocumentVerses(db, doc)
+	}
+}
 
-		for _, cb := range doc.ContentBlocks {
-			for _, anchor := range cb.Anchors {
-				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						db.Exec("INSERT INTO verses (id, book, chapter, verse, text) VALUES (?, ?, ?, ?, ?)",
-							span.Ref.OSISID, doc.ID, span.Ref.Chapter, span.Ref.Verse, cb.Text)
-					}
-				}
+func insertDocumentVerses(db *sql.DB, doc *ir.Document) {
+	for _, cb := range doc.ContentBlocks {
+		insertContentBlockVerses(db, cb, doc.ID)
+	}
+}
+
+func insertContentBlockVerses(db *sql.DB, cb *ir.ContentBlock, docID string) {
+	for _, anchor := range cb.Anchors {
+		for _, span := range anchor.Spans {
+			if span.Ref != nil && span.Type == "VERSE" {
+				db.Exec("INSERT INTO verses (id, book, chapter, verse, text) VALUES (?, ?, ?, ?, ?)",
+					span.Ref.OSISID, docID, span.Ref.Chapter, span.Ref.Verse, cb.Text)
 			}
 		}
 	}
-
-	return outputPath, nil
 }
 
 func enumerate(path string) (*ipc.EnumerateResult, error) {

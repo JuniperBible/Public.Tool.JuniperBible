@@ -52,91 +52,56 @@ func EvaluateArithmetic(op OpCode, left, right interface{}) interface{} {
 	return fn(ops)
 }
 
+func toFloat(isInt bool, i int64, f float64) float64 {
+	if isInt {
+		return float64(i)
+	}
+	return f
+}
+
+func addOverflows(li, ri, result int64) bool {
+	return (li > 0 && ri > 0 && result < 0) || (li < 0 && ri < 0 && result > 0)
+}
+
+func subtractOverflows(li, ri, result int64) bool {
+	return (li > 0 && ri < 0 && result < 0) || (li < 0 && ri > 0 && result > 0)
+}
+
 // add performs addition.
 func add(li int64, lis bool, ri int64, ris bool, lf, rf float64) interface{} {
-	// If both are integers, try integer addition
 	if lis && ris {
-		// Check for overflow
 		result := li + ri
-		// Overflow check: if signs are same and result has different sign
-		if (li > 0 && ri > 0 && result < 0) || (li < 0 && ri < 0 && result > 0) {
-			// Overflow, return float
+		if addOverflows(li, ri, result) {
 			return float64(li) + float64(ri)
 		}
 		return result
 	}
-
-	// Float addition
-	var leftVal, rightVal float64
-	if lis {
-		leftVal = float64(li)
-	} else {
-		leftVal = lf
-	}
-	if ris {
-		rightVal = float64(ri)
-	} else {
-		rightVal = rf
-	}
-	return leftVal + rightVal
+	return toFloat(lis, li, lf) + toFloat(ris, ri, rf)
 }
 
 // subtract performs subtraction.
 func subtract(li int64, lis bool, ri int64, ris bool, lf, rf float64) interface{} {
-	// If both are integers, try integer subtraction
 	if lis && ris {
-		// Check for overflow
 		result := li - ri
-		// Overflow check
-		if (li > 0 && ri < 0 && result < 0) || (li < 0 && ri > 0 && result > 0) {
-			// Overflow, return float
+		if subtractOverflows(li, ri, result) {
 			return float64(li) - float64(ri)
 		}
 		return result
 	}
-
-	// Float subtraction
-	var leftVal, rightVal float64
-	if lis {
-		leftVal = float64(li)
-	} else {
-		leftVal = lf
-	}
-	if ris {
-		rightVal = float64(ri)
-	} else {
-		rightVal = rf
-	}
-	return leftVal - rightVal
+	return toFloat(lis, li, lf) - toFloat(ris, ri, rf)
 }
 
 // multiply performs multiplication.
 func multiply(li int64, lis bool, ri int64, ris bool, lf, rf float64) interface{} {
-	// If both are integers, try integer multiplication
 	if lis && ris {
-		// Check for overflow using float conversion
 		result := li * ri
 		check := float64(li) * float64(ri)
 		if float64(result) != check || math.IsInf(check, 0) {
-			// Overflow, return float
 			return check
 		}
 		return result
 	}
-
-	// Float multiplication
-	var leftVal, rightVal float64
-	if lis {
-		leftVal = float64(li)
-	} else {
-		leftVal = lf
-	}
-	if ris {
-		rightVal = float64(ri)
-	} else {
-		rightVal = rf
-	}
-	return leftVal * rightVal
+	return toFloat(lis, li, lf) * toFloat(ris, ri, rf)
 }
 
 func isDivideByZero(ris bool, ri int64, rf float64) bool {
@@ -180,29 +145,18 @@ func divide(li int64, lis bool, ri int64, ris bool, lf, rf float64) interface{} 
 
 // remainder performs modulo operation.
 func remainder(li int64, lis bool, ri int64, ris bool, lf, rf float64) interface{} {
-	// Check for division by zero
-	if (ris && ri == 0) || (!ris && rf == 0.0) {
+	if isModZero(ri, ris, rf) {
 		return nil
 	}
-
-	// If both are integers, use integer modulo
 	if lis && ris {
 		return li % ri
 	}
+	return math.Mod(resolveFloatVal(lis, li, lf), resolveFloatVal(ris, ri, rf))
+}
 
-	// For floats, use math.Mod
-	var leftVal, rightVal float64
-	if lis {
-		leftVal = float64(li)
-	} else {
-		leftVal = lf
-	}
-	if ris {
-		rightVal = float64(ri)
-	} else {
-		rightVal = rf
-	}
-	return math.Mod(leftVal, rightVal)
+// isModZero checks if the right operand is zero for modulo.
+func isModZero(ri int64, ris bool, rf float64) bool {
+	return (ris && ri == 0) || (!ris && rf == 0.0)
 }
 
 // EvaluateUnary evaluates a unary arithmetic expression.

@@ -226,48 +226,45 @@ func (bt *Btree) DropTable(rootPage uint32) error {
 		return fmt.Errorf("invalid root page 0")
 	}
 
-	// Get the root page
 	pageData, err := bt.GetPage(rootPage)
 	if err != nil {
 		return err
 	}
 
-	// Parse the page header
 	header, err := ParsePageHeader(pageData, rootPage)
 	if err != nil {
 		return err
 	}
 
-	// If it's an interior page, recursively drop child pages
 	if header.IsInterior {
-		// Drop all child pages
-		for i := 0; i < int(header.NumCells); i++ {
-			cellOffset, err := header.GetCellPointer(pageData, i)
-			if err != nil {
-				continue
-			}
+		bt.dropInteriorChildren(pageData, header)
+	}
 
-			cell, err := ParseCell(header.PageType, pageData[cellOffset:], bt.UsableSize)
-			if err != nil {
-				continue
-			}
+	delete(bt.Pages, rootPage)
+	return nil
+}
 
-			// Recursively drop child page
-			if cell.ChildPage != 0 {
-				bt.DropTable(cell.ChildPage)
-			}
+// dropInteriorChildren recursively drops all child pages of an interior page.
+func (bt *Btree) dropInteriorChildren(pageData []byte, header *PageHeader) {
+	for i := 0; i < int(header.NumCells); i++ {
+		cellOffset, err := header.GetCellPointer(pageData, i)
+		if err != nil {
+			continue
 		}
 
-		// Drop the right-most child
-		if header.RightChild != 0 {
-			bt.DropTable(header.RightChild)
+		cell, err := ParseCell(header.PageType, pageData[cellOffset:], bt.UsableSize)
+		if err != nil {
+			continue
+		}
+
+		if cell.ChildPage != 0 {
+			bt.DropTable(cell.ChildPage)
 		}
 	}
 
-	// Free the root page itself
-	delete(bt.Pages, rootPage)
-
-	return nil
+	if header.RightChild != 0 {
+		bt.DropTable(header.RightChild)
+	}
 }
 
 // NewRowid generates a new unique rowid for a table

@@ -117,47 +117,62 @@ func extractAccordanceContent(db *sql.DB, artifactID string) []*ir.Document {
 	}
 
 	tables := []string{"verses", "content", "text", "AccVerses", "AccContent"}
+	sequence := 0
 	for _, table := range tables {
-		rows, err := db.Query(fmt.Sprintf("SELECT * FROM %s LIMIT 100", table))
-		if err != nil {
-			continue
-		}
-		defer rows.Close()
-
-		cols, _ := rows.Columns()
-		if len(cols) > 0 {
-			sequence := 0
-			for rows.Next() {
-				values := make([]interface{}, len(cols))
-				valuePtrs := make([]interface{}, len(cols))
-				for i := range values {
-					valuePtrs[i] = &values[i]
-				}
-
-				if err := rows.Scan(valuePtrs...); err != nil {
-					continue
-				}
-
-				for _, v := range values {
-					if text, ok := v.(string); ok && len(text) > 10 {
-						sequence++
-						hash := sha256.Sum256([]byte(text))
-
-						cb := &ir.ContentBlock{
-							ID:       fmt.Sprintf("cb-%d", sequence),
-							Sequence: sequence,
-							Text:     text,
-							Hash:     hex.EncodeToString(hash[:]),
-						}
-						doc.ContentBlocks = append(doc.ContentBlocks, cb)
-						break
-					}
-				}
-			}
-		}
+		sequence = extractFromTable(db, doc, table, sequence)
 	}
 
 	return []*ir.Document{doc}
+}
+
+func extractFromTable(db *sql.DB, doc *ir.Document, table string, sequence int) int {
+	rows, err := db.Query(fmt.Sprintf("SELECT * FROM %s LIMIT 100", table))
+	if err != nil {
+		return sequence
+	}
+	defer rows.Close()
+
+	cols, _ := rows.Columns()
+	if len(cols) == 0 {
+		return sequence
+	}
+
+	for rows.Next() {
+		if text := extractTextFromRow(rows, cols); text != "" {
+			sequence++
+			doc.ContentBlocks = append(doc.ContentBlocks, createContentBlock(sequence, text))
+		}
+	}
+	return sequence
+}
+
+func extractTextFromRow(rows *sql.Rows, cols []string) string {
+	values := make([]interface{}, len(cols))
+	valuePtrs := make([]interface{}, len(cols))
+	for i := range values {
+		valuePtrs[i] = &values[i]
+	}
+
+	if err := rows.Scan(valuePtrs...); err != nil {
+		return ""
+	}
+
+	for _, v := range values {
+		if text, ok := v.(string); ok && len(text) > 10 {
+			return text
+		}
+	}
+	return ""
+}
+
+func createContentBlock(sequence int, text string) *ir.ContentBlock {
+	hash := sha256.Sum256([]byte(text))
+	return &ir.ContentBlock{
+		ID:       fmt.Sprintf("cb-%d", sequence),
+		Sequence: sequence,
+		Text:     text,
+		Hash:     hex.EncodeToString(hash[:]),
+	}
 }
 
 func writeRawAccordance(corpus *ir.Corpus, outputPath string) (bool, error) {

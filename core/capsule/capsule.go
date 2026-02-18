@@ -406,27 +406,32 @@ func extractTarEntries(tarReader *tar.Reader, destDir string) (*Manifest, error)
 			return nil, fmt.Errorf("failed to read tar header: %w", err)
 		}
 
-		cleanPath := filepath.Clean(header.Name)
-		if strings.HasPrefix(cleanPath, "..") {
-			continue // skip potentially malicious paths
+		parsed, err := processTarEntry(tarReader, header, destDir)
+		if err != nil {
+			return nil, err
 		}
-
-		destPath := filepath.Join(destDir, cleanPath)
-
-		switch header.Typeflag {
-		case tar.TypeDir:
-			if err := handleTarDir(destPath); err != nil {
-				return nil, err
-			}
-		case tar.TypeReg:
-			parsed, err := handleTarRegFile(tarReader, destPath, header.Name)
-			if err != nil {
-				return nil, err
-			}
-			if parsed != nil {
-				manifest = parsed
-			}
+		if parsed != nil {
+			manifest = parsed
 		}
+	}
+}
+
+// processTarEntry processes a single tar entry.
+func processTarEntry(tarReader *tar.Reader, header *tar.Header, destDir string) (*Manifest, error) {
+	cleanPath := filepath.Clean(header.Name)
+	if strings.HasPrefix(cleanPath, "..") {
+		return nil, nil // skip potentially malicious paths
+	}
+
+	destPath := filepath.Join(destDir, cleanPath)
+
+	switch header.Typeflag {
+	case tar.TypeDir:
+		return nil, handleTarDir(destPath)
+	case tar.TypeReg:
+		return handleTarRegFile(tarReader, destPath, header.Name)
+	default:
+		return nil, nil
 	}
 }
 

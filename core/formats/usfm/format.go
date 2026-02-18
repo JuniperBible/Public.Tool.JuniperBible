@@ -63,58 +63,45 @@ type parseState struct {
 	blockSeq       int
 }
 
-// detectUSFM performs custom USFM format detection
+var usfmMarkers = []string{"\\id ", "\\c ", "\\v ", "\\p"}
+
+var usfmExtensions = map[string]bool{".usfm": true, ".sfm": true, ".ptx": true}
+
+func containsUSFMMarkers(content string) bool {
+	for _, m := range usfmMarkers {
+		if strings.Contains(content, m) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasUSFMExtension(path string) bool {
+	return usfmExtensions[strings.ToLower(filepath.Ext(path))]
+}
+
 func detectUSFM(path string) (*ipc.DetectResult, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot stat: %v", err),
-		}, nil
+		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot stat: %v", err)}, nil
 	}
-
 	if info.IsDir() {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "path is a directory, not a file",
-		}, nil
+		return &ipc.DetectResult{Detected: false, Reason: "path is a directory, not a file"}, nil
 	}
 
-	// Read file and check for USFM markers
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot read: %v", err),
-		}, nil
+		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot read: %v", err)}, nil
 	}
 
-	content := string(data)
-
-	// Check for USFM markers
-	if strings.Contains(content, "\\id ") || strings.Contains(content, "\\c ") ||
-		strings.Contains(content, "\\v ") || strings.Contains(content, "\\p") {
-		return &ipc.DetectResult{
-			Detected: true,
-			Format:   "USFM",
-			Reason:   "USFM markers detected",
-		}, nil
+	if containsUSFMMarkers(string(data)) {
+		return &ipc.DetectResult{Detected: true, Format: "USFM", Reason: "USFM markers detected"}, nil
+	}
+	if hasUSFMExtension(path) {
+		return &ipc.DetectResult{Detected: true, Format: "USFM", Reason: "USFM file extension detected"}, nil
 	}
 
-	// Check file extension
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext == ".usfm" || ext == ".sfm" || ext == ".ptx" {
-		return &ipc.DetectResult{
-			Detected: true,
-			Format:   "USFM",
-			Reason:   "USFM file extension detected",
-		}, nil
-	}
-
-	return &ipc.DetectResult{
-		Detected: false,
-		Reason:   "not a USFM file",
-	}, nil
+	return &ipc.DetectResult{Detected: false, Reason: "not a USFM file"}, nil
 }
 
 // parseUSFM parses a USFM file and returns an IR Corpus

@@ -221,29 +221,36 @@ func testExtractIR(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 		t.Fatalf("extract-ir failed: %v", err)
 	}
 
+	validateExtractIRResult(t, tc, result)
+	corpus := readAndParseIR(t, result.IRPath)
+	if tc.ExpectedIR != nil {
+		validateIRExpectations(t, tc.ExpectedIR, corpus)
+	}
+}
+
+// validateExtractIRResult validates the extract-ir result
+func validateExtractIRResult(t *testing.T, tc FormatTestCase, result *ipc.ExtractIRResult) {
+	t.Helper()
 	if result.IRPath == "" {
 		t.Error("expected non-empty ir_path")
 	}
-
 	if tc.ExpectedLossClass != "" && result.LossClass != tc.ExpectedLossClass {
 		t.Errorf("expected loss_class %s, got %s", tc.ExpectedLossClass, result.LossClass)
 	}
+}
 
-	// Read and validate IR
-	irData, err := os.ReadFile(result.IRPath)
+// readAndParseIR reads and parses an IR file
+func readAndParseIR(t *testing.T, irPath string) *ipc.Corpus {
+	t.Helper()
+	irData, err := os.ReadFile(irPath)
 	if err != nil {
 		t.Fatalf("failed to read IR file: %v", err)
 	}
-
 	var corpus ipc.Corpus
 	if err := json.Unmarshal(irData, &corpus); err != nil {
 		t.Fatalf("failed to parse IR: %v", err)
 	}
-
-	// Validate expectations
-	if tc.ExpectedIR != nil {
-		validateIRExpectations(t, tc.ExpectedIR, &corpus)
-	}
+	return &corpus
 }
 
 // testEmitNative tests the emit-native functionality.
@@ -286,17 +293,30 @@ func testEmitNative(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 	}
 }
 
-// testRoundTrip tests L0 lossless round-trip conversion.
 func testRoundTrip(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 	t.Helper()
 
-	// Read original
 	originalData, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read original: %v", err)
 	}
 
-	// Extract IR
+	emitResult := runRoundTripPipeline(t, tc, path, tmpDir)
+	outputData, err := os.ReadFile(emitResult.OutputPath)
+	if err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
+
+	assertHashesMatch(t, originalData, outputData)
+
+	if emitResult.LossClass != "L0" {
+		t.Errorf("expected loss_class L0 for round-trip, got %s", emitResult.LossClass)
+	}
+}
+
+func runRoundTripPipeline(t *testing.T, tc FormatTestCase, path, tmpDir string) *ipc.EmitNativeResult {
+	t.Helper()
+
 	irDir := filepath.Join(tmpDir, "ir-roundtrip")
 	if err := os.MkdirAll(irDir, 0700); err != nil {
 		t.Fatalf("failed to create ir dir: %v", err)
@@ -307,7 +327,6 @@ func testRoundTrip(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 		t.Fatalf("extract-ir failed: %v", err)
 	}
 
-	// Emit native
 	outputDir := filepath.Join(tmpDir, "roundtrip-output")
 	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		t.Fatalf("failed to create output dir: %v", err)
@@ -318,63 +337,63 @@ func testRoundTrip(t *testing.T, tc FormatTestCase, path, tmpDir string) {
 		t.Fatalf("emit-native failed: %v", err)
 	}
 
-	// Read output
-	outputData, err := os.ReadFile(emitResult.OutputPath)
-	if err != nil {
-		t.Fatalf("failed to read output: %v", err)
-	}
+	return emitResult
+}
 
-	// Compare hashes
+func assertHashesMatch(t *testing.T, originalData, outputData []byte) {
+	t.Helper()
+
 	originalHash := sha256.Sum256(originalData)
 	outputHash := sha256.Sum256(outputData)
 
-	if originalHash != outputHash {
-		t.Errorf("L0 round-trip failed: hashes differ\noriginal: %s\noutput:   %s",
-			hex.EncodeToString(originalHash[:]),
-			hex.EncodeToString(outputHash[:]))
-
-		// Show a snippet for debugging (first 200 bytes)
-		maxLen := 200
-		if len(originalData) < maxLen {
-			maxLen = len(originalData)
-		}
-		t.Logf("Original (first %d bytes): %q", maxLen, string(originalData[:maxLen]))
-
-		if len(outputData) < maxLen {
-			maxLen = len(outputData)
-		}
-		t.Logf("Output (first %d bytes): %q", maxLen, string(outputData[:maxLen]))
+	if originalHash == outputHash {
+		return
 	}
 
-	// Verify loss class is L0
-	if emitResult.LossClass != "L0" {
-		t.Errorf("expected loss_class L0 for round-trip, got %s", emitResult.LossClass)
+	t.Errorf("L0 round-trip failed: hashes differ\noriginal: %s\noutput:   %s",
+		hex.EncodeToString(originalHash[:]),
+		hex.EncodeToString(outputHash[:]))
+
+	t.Logf("Original (first %d bytes): %q", snippetLen(originalData), snippet(originalData))
+	t.Logf("Output (first %d bytes): %q", snippetLen(outputData), snippet(outputData))
+}
+
+func snippetLen(data []byte) int {
+	if len(data) < 200 {
+		return len(data)
+	}
+	return 200
+}
+
+func snippet(data []byte) string {
+	return string(data[:snippetLen(data)])
+}
+
+func validateStringField(t *testing.T, label, expected, actual string) {
+	t.Helper()
+	if expected != "" && actual != expected {
+		t.Errorf("expected %s %s, got %s", label, expected, actual)
 	}
 }
 
-// validateIRExpectations checks that the corpus meets expectations.
+func validateMinContentBlocks(t *testing.T, exp *IRExpectations, corpus *ipc.Corpus) {
+	t.Helper()
+	if exp.MinContentBlocks <= 0 || len(corpus.Documents) == 0 {
+		return
+	}
+	if blocks := len(corpus.Documents[0].ContentBlocks); blocks < exp.MinContentBlocks {
+		t.Errorf("expected at least %d content blocks, got %d", exp.MinContentBlocks, blocks)
+	}
+}
+
 func validateIRExpectations(t *testing.T, exp *IRExpectations, corpus *ipc.Corpus) {
 	t.Helper()
-
-	if exp.ID != "" && corpus.ID != exp.ID {
-		t.Errorf("expected ID %s, got %s", exp.ID, corpus.ID)
-	}
-
-	if exp.Title != "" && corpus.Title != exp.Title {
-		t.Errorf("expected title %s, got %s", exp.Title, corpus.Title)
-	}
-
+	validateStringField(t, "ID", exp.ID, corpus.ID)
+	validateStringField(t, "title", exp.Title, corpus.Title)
 	if exp.MinDocuments > 0 && len(corpus.Documents) < exp.MinDocuments {
 		t.Errorf("expected at least %d documents, got %d", exp.MinDocuments, len(corpus.Documents))
 	}
-
-	if exp.MinContentBlocks > 0 && len(corpus.Documents) > 0 {
-		blocks := len(corpus.Documents[0].ContentBlocks)
-		if blocks < exp.MinContentBlocks {
-			t.Errorf("expected at least %d content blocks, got %d", exp.MinContentBlocks, blocks)
-		}
-	}
-
+	validateMinContentBlocks(t, exp, corpus)
 	if exp.CustomValidation != nil {
 		exp.CustomValidation(t, corpus)
 	}
@@ -475,54 +494,63 @@ func makeTestDetectHandler(cfg *format.Config) func(map[string]interface{}) (int
 // makeTestIngestHandler creates an ingest handler for testing.
 func makeTestIngestHandler(cfg *format.Config) func(map[string]interface{}) (interface{}, error) {
 	return func(args map[string]interface{}) (interface{}, error) {
-		path, ok := args["path"].(string)
-		if !ok || path == "" {
-			return nil, errors.MissingArg("path")
-		}
-
-		outputDir, ok := args["output_dir"].(string)
-		if !ok || outputDir == "" {
-			return nil, errors.MissingArg("output_dir")
-		}
-
-		// Read file
-		data, err := os.ReadFile(path)
+		path, outputDir, err := extractIngestArgs(args)
 		if err != nil {
 			return nil, err
 		}
 
-		// Apply transform if available
-		var metadata map[string]string
-		if cfg.IngestTransform != nil {
-			data, metadata, err = cfg.IngestTransform(path)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// Calculate hash
-		hash := sha256.Sum256(data)
-		hashStr := hex.EncodeToString(hash[:])
-
-		// Store blob
-		blobDir := filepath.Join(outputDir, hashStr[:2])
-		if err := os.MkdirAll(blobDir, 0700); err != nil {
+		data, metadata, err := readIngestData(cfg, path)
+		if err != nil {
 			return nil, err
 		}
 
-		blobPath := filepath.Join(blobDir, hashStr)
-		if err := os.WriteFile(blobPath, data, 0600); err != nil {
+		hashStr, err := storeIngestBlob(data, outputDir)
+		if err != nil {
 			return nil, err
 		}
 
-		result := &ipc.IngestResult{
+		return &ipc.IngestResult{
 			BlobSHA256: hashStr,
 			SizeBytes:  int64(len(data)),
 			Metadata:   metadata,
-		}
-
-		return result, nil
+		}, nil
 	}
+}
+
+func extractIngestArgs(args map[string]interface{}) (string, string, error) {
+	path, ok := args["path"].(string)
+	if !ok || path == "" {
+		return "", "", errors.MissingArg("path")
+	}
+	outputDir, ok := args["output_dir"].(string)
+	if !ok || outputDir == "" {
+		return "", "", errors.MissingArg("output_dir")
+	}
+	return path, outputDir, nil
+}
+
+func readIngestData(cfg *format.Config, path string) ([]byte, map[string]string, error) {
+	if cfg.IngestTransform != nil {
+		return cfg.IngestTransform(path)
+	}
+	data, err := os.ReadFile(path)
+	return data, nil, err
+}
+
+func storeIngestBlob(data []byte, outputDir string) (string, error) {
+	hash := sha256.Sum256(data)
+	hashStr := hex.EncodeToString(hash[:])
+
+	blobDir := filepath.Join(outputDir, hashStr[:2])
+	if err := os.MkdirAll(blobDir, 0700); err != nil {
+		return "", err
+	}
+
+	blobPath := filepath.Join(blobDir, hashStr)
+	if err := os.WriteFile(blobPath, data, 0600); err != nil {
+		return "", err
+	}
+	return hashStr, nil
 }
 
 // makeTestEnumerateHandler creates an enumerate handler for testing.
@@ -547,90 +575,91 @@ func makeTestEnumerateHandler(cfg *format.Config) func(map[string]interface{}) (
 // makeTestExtractIRHandler creates an extract-ir handler for testing.
 func makeTestExtractIRHandler(cfg *format.Config) func(map[string]interface{}) (interface{}, error) {
 	return func(args map[string]interface{}) (interface{}, error) {
-		path, ok := args["path"].(string)
-		if !ok || path == "" {
-			return nil, errors.MissingArg("path")
+		path, outputDir, err := extractIRArgs(args)
+		if err != nil {
+			return nil, err
 		}
-
-		outputDir, ok := args["output_dir"].(string)
-		if !ok || outputDir == "" {
-			return nil, errors.MissingArg("output_dir")
-		}
-
 		if cfg.Parse == nil {
 			return nil, errors.New(errors.CodeInternal, "extract-ir not supported")
 		}
-
-		// Parse to IR
-		corpus, err := cfg.Parse(path)
-		if err != nil {
-			return nil, err
-		}
-
-		// Convert ir.Corpus to ipc.Corpus
-		ipcCorpus := convertToIPCCorpus(corpus)
-
-		// Write IR to file
-		irPath := filepath.Join(outputDir, filepath.Base(path)+".ir.json")
-		irData, err := json.MarshalIndent(ipcCorpus, "", "  ")
-		if err != nil {
-			return nil, err
-		}
-
-		if err := os.WriteFile(irPath, irData, 0600); err != nil {
-			return nil, err
-		}
-
-		return &ipc.ExtractIRResult{
-			IRPath:    irPath,
-			LossClass: ipcCorpus.LossClass,
-		}, nil
+		return executeExtractIR(cfg, path, outputDir)
 	}
+}
+
+// extractIRArgs extracts path and output_dir from args
+func extractIRArgs(args map[string]interface{}) (string, string, error) {
+	path, ok := args["path"].(string)
+	if !ok || path == "" {
+		return "", "", errors.MissingArg("path")
+	}
+	outputDir, ok := args["output_dir"].(string)
+	if !ok || outputDir == "" {
+		return "", "", errors.MissingArg("output_dir")
+	}
+	return path, outputDir, nil
+}
+
+// executeExtractIR performs the extract-ir operation
+func executeExtractIR(cfg *format.Config, path, outputDir string) (*ipc.ExtractIRResult, error) {
+	corpus, err := cfg.Parse(path)
+	if err != nil {
+		return nil, err
+	}
+	ipcCorpus := convertToIPCCorpus(corpus)
+	irPath := filepath.Join(outputDir, filepath.Base(path)+".ir.json")
+	irData, err := json.MarshalIndent(ipcCorpus, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(irPath, irData, 0600); err != nil {
+		return nil, err
+	}
+	return &ipc.ExtractIRResult{IRPath: irPath, LossClass: ipcCorpus.LossClass}, nil
 }
 
 // makeTestEmitNativeHandler creates an emit-native handler for testing.
 func makeTestEmitNativeHandler(cfg *format.Config) func(map[string]interface{}) (interface{}, error) {
 	return func(args map[string]interface{}) (interface{}, error) {
-		irPath, ok := args["ir_path"].(string)
-		if !ok || irPath == "" {
-			return nil, errors.MissingArg("ir_path")
+		irPath, outputDir, err := emitNativeArgs(args)
+		if err != nil {
+			return nil, err
 		}
-
-		outputDir, ok := args["output_dir"].(string)
-		if !ok || outputDir == "" {
-			return nil, errors.MissingArg("output_dir")
-		}
-
 		if cfg.Emit == nil {
 			return nil, errors.New(errors.CodeInternal, "emit-native not supported")
 		}
-
-		// Read IR
-		irData, err := os.ReadFile(irPath)
-		if err != nil {
-			return nil, err
-		}
-
-		var ipcCorpus ipc.Corpus
-		if err := json.Unmarshal(irData, &ipcCorpus); err != nil {
-			return nil, err
-		}
-
-		// Convert ipc.Corpus to ir.Corpus (they're the same type via type alias)
-		corpus := (*ir.Corpus)(&ipcCorpus)
-
-		// Emit native
-		outputPath, err := cfg.Emit(corpus, outputDir)
-		if err != nil {
-			return nil, err
-		}
-
-		return &ipc.EmitNativeResult{
-			OutputPath: outputPath,
-			Format:     cfg.Name,
-			LossClass:  ipcCorpus.LossClass,
-		}, nil
+		return executeEmitNative(cfg, irPath, outputDir)
 	}
+}
+
+// emitNativeArgs extracts ir_path and output_dir from args
+func emitNativeArgs(args map[string]interface{}) (string, string, error) {
+	irPath, ok := args["ir_path"].(string)
+	if !ok || irPath == "" {
+		return "", "", errors.MissingArg("ir_path")
+	}
+	outputDir, ok := args["output_dir"].(string)
+	if !ok || outputDir == "" {
+		return "", "", errors.MissingArg("output_dir")
+	}
+	return irPath, outputDir, nil
+}
+
+// executeEmitNative performs the emit-native operation
+func executeEmitNative(cfg *format.Config, irPath, outputDir string) (*ipc.EmitNativeResult, error) {
+	irData, err := os.ReadFile(irPath)
+	if err != nil {
+		return nil, err
+	}
+	var ipcCorpus ipc.Corpus
+	if err := json.Unmarshal(irData, &ipcCorpus); err != nil {
+		return nil, err
+	}
+	corpus := (*ir.Corpus)(&ipcCorpus)
+	outputPath, err := cfg.Emit(corpus, outputDir)
+	if err != nil {
+		return nil, err
+	}
+	return &ipc.EmitNativeResult{OutputPath: outputPath, Format: cfg.Name, LossClass: ipcCorpus.LossClass}, nil
 }
 
 // convertToIPCCorpus converts ir.Corpus to ipc.Corpus.

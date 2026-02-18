@@ -446,50 +446,60 @@ func (dt *DateTime) startOf(unit string) error {
 	return nil
 }
 
+// timeUnitMs maps time units to their millisecond multipliers.
+var timeUnitMs = map[string]float64{
+	"second": 1000,
+	"minute": 60000,
+	"hour":   3600000,
+	"day":    float64(msPerDay),
+}
+
 // add adds an amount of time to the DateTime.
 func (dt *DateTime) add(amount float64, unit string) error {
 	dt.computeJD()
 
-	var ms int64
-
-	switch unit {
-	case "second":
-		ms = int64(amount * 1000)
-	case "minute":
-		ms = int64(amount * 60000)
-	case "hour":
-		ms = int64(amount * 3600000)
-	case "day":
-		ms = int64(amount * msPerDay)
-	case "month":
-		// Month arithmetic is special
-		dt.computeYMD()
-		months := int(amount)
-		dt.month += months
-		for dt.month > 12 {
-			dt.month -= 12
-			dt.year++
-		}
-		for dt.month < 1 {
-			dt.month += 12
-			dt.year--
-		}
-		dt.validJD = false
-		return nil
-	case "year":
-		dt.computeYMD()
-		dt.year += int(amount)
-		dt.validJD = false
-		return nil
-	default:
-		return fmt.Errorf("unknown time unit: %s", unit)
+	if unit == "month" {
+		return dt.addMonths(int(amount))
 	}
+	if unit == "year" {
+		return dt.addYears(int(amount))
+	}
+	if mult, ok := timeUnitMs[unit]; ok {
+		dt.jd += int64(amount * mult)
+		dt.validYMD = false
+		dt.validHMS = false
+		return nil
+	}
+	return fmt.Errorf("unknown time unit: %s", unit)
+}
 
-	dt.jd += ms
-	dt.validYMD = false
-	dt.validHMS = false
-
+// addMonths adds months to the DateTime.
+func (dt *DateTime) addMonths(months int) error {
+	dt.computeYMD()
+	dt.month += months
+	dt.normalizeMonth()
+	dt.validJD = false
 	return nil
+}
+
+// addYears adds years to the DateTime.
+func (dt *DateTime) addYears(years int) error {
+	dt.computeYMD()
+	dt.year += years
+	dt.validJD = false
+	return nil
+}
+
+// normalizeMonth normalizes month to be within 1-12.
+func (dt *DateTime) normalizeMonth() {
+	for dt.month > 12 {
+		dt.month -= 12
+		dt.year++
+	}
+	for dt.month < 1 {
+		dt.month += 12
+		dt.year--
+	}
 }
 
 // formatDate formats as YYYY-MM-DD.
@@ -628,40 +638,57 @@ func juliandayFunc(args []Value) (Value, error) {
 }
 
 func unixepochFunc(args []Value) (Value, error) {
+	dt, err := getDateTimeForUnixEpoch(args)
+	if err != nil {
+		return NewNullValue(), nil
+	}
+	return formatEpochResult(dt), nil
+}
+
+// getDateTimeForUnixEpoch parses args and applies modifiers for unixepoch.
+func getDateTimeForUnixEpoch(args []Value) (*DateTime, error) {
 	if len(args) == 0 {
 		dt := &DateTime{}
 		dt.setNow()
-		epoch := dt.getUnixEpoch()
-		if dt.useSubsec {
-			return NewFloatValue(epoch), nil
-		}
-		return NewIntValue(int64(epoch)), nil
+		return dt, nil
 	}
 
 	dt, err := parseDateTime(args[0])
 	if err != nil {
-		return NewNullValue(), nil
+		return nil, err
 	}
 
-	// Apply modifiers
-	for i := 1; i < len(args); i++ {
-		if args[i].IsNull() {
-			return NewNullValue(), nil
+	if err := applyUnixEpochModifiers(dt, args[1:]); err != nil {
+		return nil, err
+	}
+	return dt, nil
+}
+
+// applyUnixEpochModifiers applies modifiers including subsec handling.
+func applyUnixEpochModifiers(dt *DateTime, modifiers []Value) error {
+	for _, arg := range modifiers {
+		if arg.IsNull() {
+			return fmt.Errorf("null modifier")
 		}
-		mod := args[i].AsString()
-		if strings.ToLower(mod) == "subsec" || strings.ToLower(mod) == "subsecond" {
+		mod := arg.AsString()
+		lowerMod := strings.ToLower(mod)
+		if lowerMod == "subsec" || lowerMod == "subsecond" {
 			dt.useSubsec = true
 		}
 		if err := dt.applyModifier(mod); err != nil {
-			return NewNullValue(), nil
+			return err
 		}
 	}
+	return nil
+}
 
+// formatEpochResult returns the epoch as float or int based on subsec flag.
+func formatEpochResult(dt *DateTime) Value {
 	epoch := dt.getUnixEpoch()
 	if dt.useSubsec {
-		return NewFloatValue(epoch), nil
+		return NewFloatValue(epoch)
 	}
-	return NewIntValue(int64(epoch)), nil
+	return NewIntValue(int64(epoch))
 }
 
 func strftimeFunc(args []Value) (Value, error) {

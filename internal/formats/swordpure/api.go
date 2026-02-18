@@ -89,60 +89,70 @@ func RenderVerse(path, module, refStr string) (string, error) {
 
 // RenderAll renders all verses in a module.
 func RenderAll(path, module string) ([]Verse, error) {
-	// Find the module
+	mod, conf, err := openZTextModule(path, module)
+	if err != nil {
+		return nil, err
+	}
+
+	vers := resolveVersification(conf.Versification)
+
+	return collectVerses(mod, vers), nil
+}
+
+func openZTextModule(path, module string) (*ZTextModule, *ConfFile, error) {
 	conf, err := findModuleByName(path, module)
 	if err != nil {
-		return nil, fmt.Errorf("module not found: %w", err)
+		return nil, nil, fmt.Errorf("module not found: %w", err)
 	}
 
-	// Only zText modules are currently supported
 	if !strings.HasPrefix(strings.ToLower(conf.ModDrv), "ztext") {
-		return nil, fmt.Errorf("unsupported module type: %s (only zText supported)", conf.ModDrv)
+		return nil, nil, fmt.Errorf("unsupported module type: %s (only zText supported)", conf.ModDrv)
 	}
 
-	// Open the module
 	mod, err := OpenZTextModule(conf, path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open module: %w", err)
+		return nil, nil, fmt.Errorf("failed to open module: %w", err)
 	}
 
-	// Get versification
-	vers, err := NewVersification(VersificationID(conf.Versification))
+	return mod, conf, nil
+}
+
+func resolveVersification(versID string) *Versification {
+	vers, err := NewVersification(VersificationID(versID))
 	if err != nil {
-		// Default to KJV if versification not found
 		vers, _ = NewVersification(VersKJV)
 	}
+	return vers
+}
 
+func collectVerses(mod *ZTextModule, vers *Versification) []Verse {
 	var verses []Verse
-
-	// Iterate through all books in the versification
 	for _, book := range vers.Books {
 		if book.Name == "" {
 			continue
 		}
+		verses = append(verses, collectBookVerses(mod, book)...)
+	}
+	return verses
+}
 
-		// Iterate through all chapters
-		for chapterIdx, verseCount := range book.Chapters {
-			chapter := chapterIdx + 1
-			// Iterate through all verses in the chapter
-			for verse := 1; verse <= verseCount; verse++ {
-				ref := &Ref{Book: book.Name, Chapter: chapter, Verse: verse}
-				text, err := mod.GetVerseText(ref)
-				if err != nil {
-					continue // Skip verses that fail
-				}
-				if text == "" {
-					continue // Skip empty verses
-				}
-				verses = append(verses, Verse{
-					Ref:  fmt.Sprintf("%s %d:%d", book.Name, chapter, verse),
-					Text: text,
-				})
+func collectBookVerses(mod *ZTextModule, book BookData) []Verse {
+	var verses []Verse
+	for chapterIdx, verseCount := range book.Chapters {
+		chapter := chapterIdx + 1
+		for verse := 1; verse <= verseCount; verse++ {
+			ref := &Ref{Book: book.Name, Chapter: chapter, Verse: verse}
+			text, err := mod.GetVerseText(ref)
+			if err != nil || text == "" {
+				continue
 			}
+			verses = append(verses, Verse{
+				Ref:  fmt.Sprintf("%s %d:%d", book.Name, chapter, verse),
+				Text: text,
+			})
 		}
 	}
-
-	return verses, nil
+	return verses
 }
 
 // findModuleByName finds a module by its name in a SWORD installation.

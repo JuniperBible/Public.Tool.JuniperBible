@@ -91,55 +91,48 @@ func ExecuteEmbeddedPlugin(pluginID string, req *IPCRequest) (*IPCResponse, erro
 	return nil, nil
 }
 
-// executeEmbeddedFormat executes a format plugin request.
+func formatResult(result interface{}, err error) (*IPCResponse, error) {
+	if err != nil {
+		return &IPCResponse{Status: "error", Error: err.Error()}, nil
+	}
+	return &IPCResponse{Status: "ok", Result: result}, nil
+}
+
+func formatCommandHandlers(h EmbeddedFormatHandler, args map[string]interface{}) map[string]func() (*IPCResponse, error) {
+	return map[string]func() (*IPCResponse, error){
+		"detect": func() (*IPCResponse, error) {
+			path, _ := args["path"].(string)
+			return formatResult(h.Detect(path))
+		},
+		"ingest": func() (*IPCResponse, error) {
+			path, _ := args["path"].(string)
+			outputDir, _ := args["output_dir"].(string)
+			return formatResult(h.Ingest(path, outputDir))
+		},
+		"enumerate": func() (*IPCResponse, error) {
+			path, _ := args["path"].(string)
+			return formatResult(h.Enumerate(path))
+		},
+		"extract-ir": func() (*IPCResponse, error) {
+			path, _ := args["path"].(string)
+			outputDir, _ := args["output_dir"].(string)
+			return formatResult(h.ExtractIR(path, outputDir))
+		},
+		"emit-native": func() (*IPCResponse, error) {
+			irPath, _ := args["ir_path"].(string)
+			outputDir, _ := args["output_dir"].(string)
+			return formatResult(h.EmitNative(irPath, outputDir))
+		},
+	}
+}
+
 func executeEmbeddedFormat(h EmbeddedFormatHandler, req *IPCRequest) (*IPCResponse, error) {
-	switch req.Command {
-	case "detect":
-		path, _ := req.Args["path"].(string)
-		result, err := h.Detect(path)
-		if err != nil {
-			return &IPCResponse{Status: "error", Error: err.Error()}, nil
-		}
-		return &IPCResponse{Status: "ok", Result: result}, nil
-
-	case "ingest":
-		path, _ := req.Args["path"].(string)
-		outputDir, _ := req.Args["output_dir"].(string)
-		result, err := h.Ingest(path, outputDir)
-		if err != nil {
-			return &IPCResponse{Status: "error", Error: err.Error()}, nil
-		}
-		return &IPCResponse{Status: "ok", Result: result}, nil
-
-	case "enumerate":
-		path, _ := req.Args["path"].(string)
-		result, err := h.Enumerate(path)
-		if err != nil {
-			return &IPCResponse{Status: "error", Error: err.Error()}, nil
-		}
-		return &IPCResponse{Status: "ok", Result: result}, nil
-
-	case "extract-ir":
-		path, _ := req.Args["path"].(string)
-		outputDir, _ := req.Args["output_dir"].(string)
-		result, err := h.ExtractIR(path, outputDir)
-		if err != nil {
-			return &IPCResponse{Status: "error", Error: err.Error()}, nil
-		}
-		return &IPCResponse{Status: "ok", Result: result}, nil
-
-	case "emit-native":
-		irPath, _ := req.Args["ir_path"].(string)
-		outputDir, _ := req.Args["output_dir"].(string)
-		result, err := h.EmitNative(irPath, outputDir)
-		if err != nil {
-			return &IPCResponse{Status: "error", Error: err.Error()}, nil
-		}
-		return &IPCResponse{Status: "ok", Result: result}, nil
-
-	default:
+	handlers := formatCommandHandlers(h, req.Args)
+	handler, ok := handlers[req.Command]
+	if !ok {
 		return &IPCResponse{Status: "error", Error: "unknown command: " + req.Command}, nil
 	}
+	return handler()
 }
 
 // executeEmbeddedTool executes a tool plugin request.

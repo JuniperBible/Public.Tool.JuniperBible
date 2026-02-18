@@ -129,26 +129,16 @@ func valueToMem(v functions.Value) *Mem {
 // P4 = function name (string)
 // P5 = number of arguments
 func (v *VDBE) opFunction(p1, p2, p3, p4, p5 int) error {
-	// P4 should contain the function name
-	instr := v.Program[v.PC-1]
-	if instr.P4Type != P4Static && instr.P4Type != P4Dynamic {
-		return fmt.Errorf("OP_Function requires function name in P4")
+	funcName, err := v.validateFunctionP4()
+	if err != nil {
+		return err
 	}
 
-	funcName := instr.P4.Z
-	numArgs := p5
-
-	// Collect arguments from registers P2 through P2+numArgs-1
-	args := make([]*Mem, numArgs)
-	for i := 0; i < numArgs; i++ {
-		mem, err := v.GetMem(p2 + i)
-		if err != nil {
-			return fmt.Errorf("failed to get argument register %d: %w", p2+i, err)
-		}
-		args[i] = mem
+	args, err := v.collectFunctionArgs(p2, p5)
+	if err != nil {
+		return err
 	}
 
-	// Execute the function
 	if v.funcCtx == nil {
 		v.funcCtx = NewFunctionContext()
 	}
@@ -158,12 +148,37 @@ func (v *VDBE) opFunction(p1, p2, p3, p4, p5 int) error {
 		return fmt.Errorf("function %s failed: %w", funcName, err)
 	}
 
-	// Store result in register P3
-	dst, err := v.GetMem(p3)
-	if err != nil {
-		return fmt.Errorf("failed to get result register %d: %w", p3, err)
-	}
+	return v.storeResult(p3, result)
+}
 
+// validateFunctionP4 validates and extracts function name from P4.
+func (v *VDBE) validateFunctionP4() (string, error) {
+	instr := v.Program[v.PC-1]
+	if instr.P4Type != P4Static && instr.P4Type != P4Dynamic {
+		return "", fmt.Errorf("OP_Function requires function name in P4")
+	}
+	return instr.P4.Z, nil
+}
+
+// collectFunctionArgs collects arguments from registers.
+func (v *VDBE) collectFunctionArgs(p2, numArgs int) ([]*Mem, error) {
+	args := make([]*Mem, numArgs)
+	for i := 0; i < numArgs; i++ {
+		mem, err := v.GetMem(p2 + i)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get argument register %d: %w", p2+i, err)
+		}
+		args[i] = mem
+	}
+	return args, nil
+}
+
+// storeResult stores a function result in a register.
+func (v *VDBE) storeResult(reg int, result *Mem) error {
+	dst, err := v.GetMem(reg)
+	if err != nil {
+		return fmt.Errorf("failed to get result register %d: %w", reg, err)
+	}
 	return dst.Copy(result)
 }
 

@@ -26,32 +26,30 @@ import (
 	_ "github.com/FocuswithJustin/JuniperBible/internal/embedded"
 )
 
+var commands = map[string]func([]string){
+	"detect":      runDetect,
+	"convert":     runConvert,
+	"ir-extract":  runIRExtract,
+	"ir-emit":     runIREmit,
+	"ir-generate": runIRGenerate,
+	"ir-info":     runIRInfo,
+	"help":        func(_ []string) { printUsage() },
+	"-h":          func(_ []string) { printUsage() },
+	"--help":      func(_ []string) { printUsage() },
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
 	}
-
-	switch os.Args[1] {
-	case "detect":
-		runDetect(os.Args[2:])
-	case "convert":
-		runConvert(os.Args[2:])
-	case "ir-extract":
-		runIRExtract(os.Args[2:])
-	case "ir-emit":
-		runIREmit(os.Args[2:])
-	case "ir-generate":
-		runIRGenerate(os.Args[2:])
-	case "ir-info":
-		runIRInfo(os.Args[2:])
-	case "help", "-h", "--help":
-		printUsage()
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
-		printUsage()
-		os.Exit(1)
+	if handler, ok := commands[os.Args[1]]; ok {
+		handler(os.Args[2:])
+		return
 	}
+	fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
+	printUsage()
+	os.Exit(1)
 }
 
 func runDetect(args []string) {
@@ -59,53 +57,61 @@ func runDetect(args []string) {
 	pluginDir := fs.String("plugin-dir", "", "Path to plugin directory (default: embedded plugins)")
 	fs.Parse(args)
 
+	path := validateDetectArgs(fs)
+	formatPlugins := loadFormatPlugins(*pluginDir)
+
+	fmt.Printf("Detecting format of: %s\n\n", path)
+	for _, p := range formatPlugins {
+		printDetectResult(p, path)
+	}
+}
+
+func validateDetectArgs(fs *flag.FlagSet) string {
 	if len(fs.Args()) < 1 {
 		fmt.Fprintf(os.Stderr, "Error: file path required\n")
 		fs.Usage()
 		os.Exit(1)
 	}
-
 	path, err := filepath.Abs(fs.Args()[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: invalid path: %v\n", err)
 		os.Exit(1)
 	}
+	return path
+}
 
+func loadFormatPlugins(pluginDir string) []*plugins.Plugin {
 	loader := plugins.NewLoader()
-	if *pluginDir != "" {
-		if err := loader.LoadFromDir(*pluginDir); err != nil {
+	if pluginDir != "" {
+		if err := loader.LoadFromDir(pluginDir); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to load plugins: %v\n", err)
 			os.Exit(1)
 		}
 	}
-
 	formatPlugins := loader.GetPluginsByKind("format")
 	if len(formatPlugins) == 0 {
 		fmt.Fprintf(os.Stderr, "Error: no format plugins found\n")
 		os.Exit(1)
 	}
+	return formatPlugins
+}
 
-	fmt.Printf("Detecting format of: %s\n\n", path)
-
-	for _, p := range formatPlugins {
-		req := plugins.NewDetectRequest(path)
-		resp, err := plugins.ExecutePlugin(p, req)
-		if err != nil {
-			fmt.Printf("  %s: error (%v)\n", p.Manifest.PluginID, err)
-			continue
-		}
-
-		result, err := plugins.ParseDetectResult(resp)
-		if err != nil {
-			fmt.Printf("  %s: parse error (%v)\n", p.Manifest.PluginID, err)
-			continue
-		}
-
-		if result.Detected {
-			fmt.Printf("  [MATCH] %s: %s\n", p.Manifest.PluginID, result.Reason)
-		} else {
-			fmt.Printf("  [no]    %s: %s\n", p.Manifest.PluginID, result.Reason)
-		}
+func printDetectResult(p *plugins.Plugin, path string) {
+	req := plugins.NewDetectRequest(path)
+	resp, err := plugins.ExecutePlugin(p, req)
+	if err != nil {
+		fmt.Printf("  %s: error (%v)\n", p.Manifest.PluginID, err)
+		return
+	}
+	result, err := plugins.ParseDetectResult(resp)
+	if err != nil {
+		fmt.Printf("  %s: parse error (%v)\n", p.Manifest.PluginID, err)
+		return
+	}
+	if result.Detected {
+		fmt.Printf("  [MATCH] %s: %s\n", p.Manifest.PluginID, result.Reason)
+	} else {
+		fmt.Printf("  [no]    %s: %s\n", p.Manifest.PluginID, result.Reason)
 	}
 }
 
@@ -190,6 +196,11 @@ func extractAndEmit(loader *plugins.Loader, sourcePlugin *plugins.Plugin, inputP
 	}
 	defer os.RemoveAll(tempDir)
 
+	irPath := extractIRPhase(sourcePlugin, inputPath, tempDir)
+	emitNativePhase(loader, toFormat, irPath, outputPath)
+}
+
+func extractIRPhase(sourcePlugin *plugins.Plugin, inputPath, tempDir string) string {
 	extractResp, err := plugins.ExecutePlugin(sourcePlugin, plugins.NewExtractIRRequest(inputPath, tempDir))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to extract IR: %v\n", err)
@@ -201,14 +212,17 @@ func extractAndEmit(loader *plugins.Loader, sourcePlugin *plugins.Plugin, inputP
 		os.Exit(1)
 	}
 	fmt.Printf("Extracted IR to: %s\n", extractResult.IRPath)
+	return extractResult.IRPath
+}
 
+func emitNativePhase(loader *plugins.Loader, toFormat, irPath, outputPath string) {
 	targetPlugin, err := loader.GetPlugin("format." + toFormat)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: target format plugin not found: %v\n", err)
 		os.Exit(1)
 	}
 
-	emitResp, err := plugins.ExecutePlugin(targetPlugin, plugins.NewEmitNativeRequest(extractResult.IRPath, filepath.Dir(outputPath)))
+	emitResp, err := plugins.ExecutePlugin(targetPlugin, plugins.NewEmitNativeRequest(irPath, filepath.Dir(outputPath)))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to emit native format: %v\n", err)
 		os.Exit(1)
@@ -219,13 +233,16 @@ func extractAndEmit(loader *plugins.Loader, sourcePlugin *plugins.Plugin, inputP
 		os.Exit(1)
 	}
 
+	finalizeOutput(emitResult, outputPath)
+}
+
+func finalizeOutput(emitResult *plugins.EmitNativeResult, outputPath string) {
 	if emitResult.OutputPath != outputPath {
 		if err := os.Rename(emitResult.OutputPath, outputPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to move output: %v\n", err)
 			os.Exit(1)
 		}
 	}
-
 	fmt.Printf("Conversion complete: %s\n", outputPath)
 	if emitResult.LossClass != "" {
 		fmt.Printf("Loss class: %s\n", emitResult.LossClass)
@@ -396,51 +413,56 @@ func runIRInfo(args []string) {
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	fs.Parse(args)
 
+	irPath := validateIRInfoArgs(fs)
+	ir := loadIRFile(irPath)
+
+	if *jsonOutput {
+		outputIRAsJSON(ir)
+		return
+	}
+	printIRSummary(irPath, ir)
+}
+
+func validateIRInfoArgs(fs *flag.FlagSet) string {
 	if len(fs.Args()) < 1 {
 		fmt.Fprintf(os.Stderr, "Error: IR JSON file path required\n")
 		fs.Usage()
 		os.Exit(1)
 	}
+	return fs.Args()[0]
+}
 
-	irPath := fs.Args()[0]
-
-	// Read IR file
+func loadIRFile(irPath string) map[string]interface{} {
 	data, err := os.ReadFile(irPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to read IR file: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Parse IR structure (generic JSON parsing)
 	var ir map[string]interface{}
 	if err := json.Unmarshal(data, &ir); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to parse IR file: %v\n", err)
 		os.Exit(1)
 	}
+	return ir
+}
 
-	if *jsonOutput {
-		// Output full IR as formatted JSON
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		enc.Encode(ir)
-		return
-	}
+func outputIRAsJSON(ir map[string]interface{}) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	enc.Encode(ir)
+}
 
-	// Human-readable summary
-	fmt.Printf("IR Information: %s\n\n", irPath)
-	fmt.Printf("Top-level keys:\n")
+func printIRSummary(irPath string, ir map[string]interface{}) {
+	fmt.Printf("IR Information: %s\n\nTop-level keys:\n", irPath)
 	for k := range ir {
 		fmt.Printf("  - %s\n", k)
 	}
-
-	// Try to extract common metadata
 	if meta, ok := ir["metadata"].(map[string]interface{}); ok {
 		fmt.Printf("\nMetadata:\n")
 		for k, v := range meta {
 			fmt.Printf("  %s: %v\n", k, v)
 		}
 	}
-
 	if books, ok := ir["books"].([]interface{}); ok {
 		fmt.Printf("\nBooks: %d\n", len(books))
 	}

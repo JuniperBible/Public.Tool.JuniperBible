@@ -35,63 +35,56 @@ var Config = &format.Config{
 func detectHTML(path string) (*ipc.DetectResult, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot stat: %v", err),
-		}, nil
+		return notDetected(fmt.Sprintf("cannot stat: %v", err)), nil
 	}
 
-	// Handle both files and directories
-	if info.IsDir() {
-		// Check for index.html or html files
-		indexPath := filepath.Join(path, "index.html")
-		if _, err := os.Stat(indexPath); err == nil {
-			path = indexPath
-		} else {
-			matches, _ := filepath.Glob(filepath.Join(path, "*.html"))
-			if len(matches) == 0 {
-				return &ipc.DetectResult{
-					Detected: false,
-					Reason:   "no .html files found",
-				}, nil
-			}
-			path = matches[0]
-		}
+	path, err = resolveHTMLPath(path, info)
+	if err != nil {
+		return notDetected(err.Error()), nil
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext != ".html" && ext != ".htm" {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "not an .html file",
-		}, nil
+		return notDetected("not an .html file"), nil
 	}
 
-	// Check for Bible-like content (verse markers)
+	return detectHTMLContent(path)
+}
+
+func resolveHTMLPath(path string, info os.FileInfo) (string, error) {
+	if !info.IsDir() {
+		return path, nil
+	}
+	indexPath := filepath.Join(path, "index.html")
+	if _, err := os.Stat(indexPath); err == nil {
+		return indexPath, nil
+	}
+	matches, _ := filepath.Glob(filepath.Join(path, "*.html"))
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no .html files found")
+	}
+	return matches[0], nil
+}
+
+func detectHTMLContent(path string) (*ipc.DetectResult, error) {
 	data, err := safefile.ReadFile(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot read file: %v", err),
-		}, nil
+		return notDetected(fmt.Sprintf("cannot read file: %v", err)), nil
 	}
+	if hasVerseMarkers(string(data)) {
+		return &ipc.DetectResult{Detected: true, Format: "HTML", Reason: "HTML Bible format detected"}, nil
+	}
+	return notDetected("no verse markers found"), nil
+}
 
-	content := string(data)
-	// Look for verse spans or data-verse attributes
-	if strings.Contains(content, "class=\"verse\"") ||
+func hasVerseMarkers(content string) bool {
+	return strings.Contains(content, "class=\"verse\"") ||
 		strings.Contains(content, "data-verse=") ||
-		strings.Contains(content, "<span class=\"v\">") {
-		return &ipc.DetectResult{
-			Detected: true,
-			Format:   "HTML",
-			Reason:   "HTML Bible format detected",
-		}, nil
-	}
+		strings.Contains(content, "<span class=\"v\">")
+}
 
-	return &ipc.DetectResult{
-		Detected: false,
-		Reason:   "no verse markers found",
-	}, nil
+func notDetected(reason string) *ipc.DetectResult {
+	return &ipc.DetectResult{Detected: false, Reason: reason}
 }
 
 func parseHTML(path string) (*ir.Corpus, error) {

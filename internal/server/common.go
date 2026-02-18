@@ -47,39 +47,14 @@ func CORSMiddleware(next http.Handler) http.Handler {
 func CORSMiddlewareWithConfig(cfg CORSConfig, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
+		allowedOrigin := determineAllowedOrigin(cfg, origin)
 
-		// Determine allowed origin
-		allowedOrigin := "*"
-		if len(cfg.AllowedOrigins) > 0 {
-			// Check if request origin is in allowed list
-			allowed := false
-			for _, allowedOrig := range cfg.AllowedOrigins {
-				if origin == allowedOrig {
-					allowed = true
-					allowedOrigin = origin
-					break
-				}
-			}
-			if !allowed {
-				// Origin not in allowed list - don't set CORS headers
-				// This causes the browser to block the response
-				if r.Method == http.MethodOptions {
-					w.WriteHeader(http.StatusForbidden)
-					return
-				}
-				next.ServeHTTP(w, r)
-				return
-			}
+		if allowedOrigin == "" {
+			handleUnallowedOrigin(w, r, next)
+			return
 		}
 
-		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
-
-		// Only set Allow-Credentials if origin is not "*"
-		if allowedOrigin != "*" {
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-		}
+		setCORSHeaders(w, allowedOrigin)
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
@@ -88,6 +63,38 @@ func CORSMiddlewareWithConfig(cfg CORSConfig, next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// determineAllowedOrigin checks if origin is allowed and returns the allowed value.
+func determineAllowedOrigin(cfg CORSConfig, origin string) string {
+	if len(cfg.AllowedOrigins) == 0 {
+		return "*"
+	}
+	for _, allowed := range cfg.AllowedOrigins {
+		if origin == allowed {
+			return origin
+		}
+	}
+	return ""
+}
+
+// handleUnallowedOrigin handles requests from non-allowed origins.
+func handleUnallowedOrigin(w http.ResponseWriter, r *http.Request, next http.Handler) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	next.ServeHTTP(w, r)
+}
+
+// setCORSHeaders sets the CORS headers on the response.
+func setCORSHeaders(w http.ResponseWriter, allowedOrigin string) {
+	w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
+	if allowedOrigin != "*" {
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
 }
 
 // SecurityHeadersMiddleware adds security headers to all responses.

@@ -478,42 +478,27 @@ func (e *Executor) executeExtractIRStep(step *ExtractIRStep) error {
 }
 
 // executeEmitNativeStep executes a native format emission step.
-func (e *Executor) executeEmitNativeStep(step *EmitNativeStep) error {
-	// Get IR input
-	irPath, ok := e.outputs[step.IRInputKey]
-	if !ok {
-		return fmt.Errorf("IR input not found: %s", step.IRInputKey)
+func (e *Executor) tryEmitNativeViaPlugin(step *EmitNativeStep, irPath, nativeOutputDir string) (string, bool, error) {
+	if e.pluginLoader == nil || step.PluginID == "" {
+		return "", false, nil
 	}
-
-	// Output directory for native format
-	nativeOutputDir := filepath.Join(e.tempDir, step.OutputKey+"_native")
-	if err := os.MkdirAll(nativeOutputDir, 0700); err != nil {
-		return fmt.Errorf("failed to create native output dir: %w", err)
+	plugin, err := e.pluginLoader.GetPlugin(step.PluginID)
+	if err != nil || !plugin.CanEmitIR() {
+		return "", false, nil
 	}
-
-	// Try to call the plugin if we have a plugin loader
-	if e.pluginLoader != nil && step.PluginID != "" {
-		plugin, err := e.pluginLoader.GetPlugin(step.PluginID)
-		if err == nil && plugin.CanEmitIR() {
-			// Call the plugin's emit-native command
-			req := plugins.NewEmitNativeRequest(irPath, nativeOutputDir)
-			resp, err := plugins.ExecutePlugin(plugin, req)
-			if err != nil {
-				return fmt.Errorf("plugin emit-native failed: %w", err)
-			}
-
-			result, err := plugins.ParseEmitNativeResult(resp)
-			if err != nil {
-				return fmt.Errorf("failed to parse emit-native result: %w", err)
-			}
-
-			e.outputs[step.OutputKey] = result.OutputPath
-			return nil
-		}
+	req := plugins.NewEmitNativeRequest(irPath, nativeOutputDir)
+	resp, err := plugins.ExecutePlugin(plugin, req)
+	if err != nil {
+		return "", false, fmt.Errorf("plugin emit-native failed: %w", err)
 	}
+	result, err := plugins.ParseEmitNativeResult(resp)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to parse emit-native result: %w", err)
+	}
+	return result.OutputPath, true, nil
+}
 
-	// Fallback: copy IR file as placeholder if no plugin available
-	outputPath := filepath.Join(e.tempDir, step.OutputKey)
+func (e *Executor) emitNativeFallback(irPath, outputPath string) error {
 	data, err := os.ReadFile(irPath)
 	if err != nil {
 		return fmt.Errorf("failed to read IR input: %w", err)
@@ -521,7 +506,31 @@ func (e *Executor) executeEmitNativeStep(step *EmitNativeStep) error {
 	if err := os.WriteFile(outputPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write native output: %w", err)
 	}
+	return nil
+}
 
+func (e *Executor) executeEmitNativeStep(step *EmitNativeStep) error {
+	irPath, ok := e.outputs[step.IRInputKey]
+	if !ok {
+		return fmt.Errorf("IR input not found: %s", step.IRInputKey)
+	}
+
+	nativeOutputDir := filepath.Join(e.tempDir, step.OutputKey+"_native")
+	if err := os.MkdirAll(nativeOutputDir, 0700); err != nil {
+		return fmt.Errorf("failed to create native output dir: %w", err)
+	}
+
+	if outputPath, ok, err := e.tryEmitNativeViaPlugin(step, irPath, nativeOutputDir); err != nil {
+		return err
+	} else if ok {
+		e.outputs[step.OutputKey] = outputPath
+		return nil
+	}
+
+	outputPath := filepath.Join(e.tempDir, step.OutputKey)
+	if err := e.emitNativeFallback(irPath, outputPath); err != nil {
+		return err
+	}
 	e.outputs[step.OutputKey] = outputPath
 	return nil
 }
@@ -637,49 +646,38 @@ func (e *Executor) executeByteEqualCheck(check *PlanCheck) (*CheckResult, error)
 func (e *Executor) executeTranscriptEqualCheck(check *PlanCheck) (*CheckResult, error) {
 	def := check.TranscriptEqual
 
-	// Get transcript A (from runs in manifest or from outputs)
-	var hashA, hashB string
-
-	// Try to get from capsule runs first
-	if run, ok := e.capsule.Manifest.Runs[def.RunA]; ok && run.Outputs != nil {
-		hashA = run.Outputs.TranscriptBlobSHA256
-	} else if path, ok := e.outputs[def.RunA]; ok {
-		// It's an output from a previous step
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read transcript A: %w", err)
-		}
-		hashA = cas.Hash(data)
-	} else {
-		return nil, fmt.Errorf("run/transcript not found: %s", def.RunA)
+	hashA, err := e.getTranscriptHash(def.RunA, "A")
+	if err != nil {
+		return nil, err
 	}
-
-	// Get transcript B
-	if run, ok := e.capsule.Manifest.Runs[def.RunB]; ok && run.Outputs != nil {
-		hashB = run.Outputs.TranscriptBlobSHA256
-	} else if path, ok := e.outputs[def.RunB]; ok {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read transcript B: %w", err)
-		}
-		hashB = cas.Hash(data)
-	} else {
-		return nil, fmt.Errorf("run/transcript not found: %s", def.RunB)
+	hashB, err := e.getTranscriptHash(def.RunB, "B")
+	if err != nil {
+		return nil, err
 	}
-
-	pass := hashA == hashB
 
 	return &CheckResult{
 		CheckType: CheckTranscriptEqual,
 		Label:     check.Label,
-		Pass:      pass,
+		Pass:      hashA == hashB,
 		Expected:  &HashInfo{SHA256: hashA},
 		Actual:    &HashInfo{SHA256: hashB},
-		Details: map[string]string{
-			"run_a": def.RunA,
-			"run_b": def.RunB,
-		},
+		Details:   map[string]string{"run_a": def.RunA, "run_b": def.RunB},
 	}, nil
+}
+
+// getTranscriptHash gets the transcript hash for a run
+func (e *Executor) getTranscriptHash(runID, label string) (string, error) {
+	if run, ok := e.capsule.Manifest.Runs[runID]; ok && run.Outputs != nil {
+		return run.Outputs.TranscriptBlobSHA256, nil
+	}
+	if path, ok := e.outputs[runID]; ok {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("failed to read transcript %s: %w", label, err)
+		}
+		return cas.Hash(data), nil
+	}
+	return "", fmt.Errorf("run/transcript not found: %s", runID)
 }
 
 // executeIRStructureEqualCheck executes an IR structure equality check.

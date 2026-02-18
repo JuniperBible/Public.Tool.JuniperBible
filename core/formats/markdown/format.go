@@ -84,38 +84,40 @@ func parseMarkdown(path string) (*ir.Corpus, error) {
 	corpus.LossClass = "L1"
 	corpus.Attributes = map[string]string{"_markdown_raw": string(data)}
 
-	// Parse frontmatter and content
 	content := string(data)
 	if strings.HasPrefix(content, "---") {
-		parts := strings.SplitN(content[3:], "---", 2)
-		if len(parts) == 2 {
-			frontmatter := parts[0]
-			body := parts[1]
-
-			// Parse simple YAML frontmatter
-			for _, line := range strings.Split(frontmatter, "\n") {
-				line = strings.TrimSpace(line)
-				if idx := strings.Index(line, ":"); idx > 0 {
-					key := strings.TrimSpace(line[:idx])
-					value := strings.TrimSpace(line[idx+1:])
-					value = strings.Trim(value, "\"'")
-					switch key {
-					case "title":
-						corpus.Title = value
-					case "language":
-						corpus.Language = value
-					case "book":
-						corpus.Attributes["book"] = value
-					}
-				}
-			}
-
-			// Parse verses from body
-			corpus.Documents = parseMarkdownContent(body, corpus.Attributes["book"])
-		}
+		parseMarkdownWithFrontmatter(content, corpus)
 	}
 
 	return corpus, nil
+}
+
+func parseMarkdownWithFrontmatter(content string, corpus *ir.Corpus) {
+	parts := strings.SplitN(content[3:], "---", 2)
+	if len(parts) != 2 {
+		return
+	}
+	parseFrontmatter(parts[0], corpus)
+	corpus.Documents = parseMarkdownContent(parts[1], corpus.Attributes["book"])
+}
+
+var frontmatterKeys = map[string]func(*ir.Corpus, string){
+	"title":    func(c *ir.Corpus, v string) { c.Title = v },
+	"language": func(c *ir.Corpus, v string) { c.Language = v },
+	"book":     func(c *ir.Corpus, v string) { c.Attributes["book"] = v },
+}
+
+func parseFrontmatter(frontmatter string, corpus *ir.Corpus) {
+	for _, line := range strings.Split(frontmatter, "\n") {
+		line = strings.TrimSpace(line)
+		if idx := strings.Index(line, ":"); idx > 0 {
+			key := strings.TrimSpace(line[:idx])
+			value := strings.Trim(strings.TrimSpace(line[idx+1:]), "\"'")
+			if setter, ok := frontmatterKeys[key]; ok {
+				setter(corpus, value)
+			}
+		}
+	}
 }
 
 func parseMarkdownContent(body, bookID string) []*ir.Document {

@@ -19,41 +19,43 @@ func ParseVersion(v string) (*Version, error) {
 	if v == "" {
 		return nil, fmt.Errorf("version string is empty")
 	}
-
-	// Remove 'v' prefix if present
 	v = strings.TrimPrefix(v, "v")
-
 	parts := strings.Split(v, ".")
 	if len(parts) < 1 || len(parts) > 3 {
 		return nil, fmt.Errorf("invalid version format: %s (expected X.Y.Z)", v)
 	}
+	return parseVersionParts(parts)
+}
 
+// parseVersionParts parses major, minor, patch from string parts.
+func parseVersionParts(parts []string) (*Version, error) {
 	ver := &Version{}
-	var err error
-
-	// Parse major version
-	ver.Major, err = strconv.Atoi(parts[0])
+	nums, err := parseVersionNums(parts)
 	if err != nil {
-		return nil, fmt.Errorf("invalid major version: %s", parts[0])
+		return nil, err
 	}
-
-	// Parse minor version (default to 0 if not present)
-	if len(parts) > 1 {
-		ver.Minor, err = strconv.Atoi(parts[1])
-		if err != nil {
-			return nil, fmt.Errorf("invalid minor version: %s", parts[1])
-		}
+	ver.Major = nums[0]
+	if len(nums) > 1 {
+		ver.Minor = nums[1]
 	}
-
-	// Parse patch version (default to 0 if not present)
-	if len(parts) > 2 {
-		ver.Patch, err = strconv.Atoi(parts[2])
-		if err != nil {
-			return nil, fmt.Errorf("invalid patch version: %s", parts[2])
-		}
+	if len(nums) > 2 {
+		ver.Patch = nums[2]
 	}
-
 	return ver, nil
+}
+
+// parseVersionNums converts string parts to integers.
+func parseVersionNums(parts []string) ([]int, error) {
+	labels := []string{"major", "minor", "patch"}
+	nums := make([]int, len(parts))
+	for i, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, fmt.Errorf("invalid %s version: %s", labels[i], p)
+		}
+		nums[i] = n
+	}
+	return nums, nil
 }
 
 // String returns the string representation of the version.

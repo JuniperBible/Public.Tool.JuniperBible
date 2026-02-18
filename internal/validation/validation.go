@@ -37,29 +37,39 @@ var (
 // It ensures the path does not escape the provided base directory.
 // Returns the cleaned path relative to the base directory, or an error if invalid.
 func SanitizePath(baseDir, userPath string) (string, error) {
-	if userPath == "" {
-		return "", ErrEmptyPath
+	if err := validatePathInput(userPath); err != nil {
+		return "", err
 	}
 
-	// Check path length
-	if len(userPath) > MaxPathLength {
-		return "", ErrPathTooLong
-	}
-
-	// Clean the path to remove redundant separators and resolve . and ..
 	cleanPath := filepath.Clean(userPath)
+	if err := checkPathSafety(cleanPath); err != nil {
+		return "", err
+	}
 
-	// Reject paths that try to escape the base directory
+	return verifyPathWithinBase(baseDir, cleanPath)
+}
+
+func validatePathInput(userPath string) error {
+	if userPath == "" {
+		return ErrEmptyPath
+	}
+	if len(userPath) > MaxPathLength {
+		return ErrPathTooLong
+	}
+	return nil
+}
+
+func checkPathSafety(cleanPath string) error {
 	if strings.Contains(cleanPath, "..") {
-		return "", ErrPathTraversal
+		return ErrPathTraversal
 	}
-
-	// Reject absolute paths (should be relative to baseDir)
 	if filepath.IsAbs(cleanPath) {
-		return "", fmt.Errorf("%w: absolute path not allowed", ErrPathTraversal)
+		return fmt.Errorf("%w: absolute path not allowed", ErrPathTraversal)
 	}
+	return nil
+}
 
-	// Build full path and verify it's within baseDir
+func verifyPathWithinBase(baseDir, cleanPath string) (string, error) {
 	fullPath := filepath.Join(baseDir, cleanPath)
 	absBase, err := filepath.Abs(baseDir)
 	if err != nil {
@@ -71,55 +81,61 @@ func SanitizePath(baseDir, userPath string) (string, error) {
 		return "", fmt.Errorf("failed to resolve path: %w", err)
 	}
 
-	// Ensure the resolved path is within the base directory
 	relPath, err := filepath.Rel(absBase, absPath)
 	if err != nil || strings.HasPrefix(relPath, "..") {
 		return "", ErrPathTraversal
 	}
-
 	return cleanPath, nil
 }
 
 // ValidateFilename checks if a filename is safe and does not contain malicious characters.
 // It rejects filenames with path separators, control characters, and dangerous patterns.
 func ValidateFilename(filename string) error {
+	if err := checkFilenameBasic(filename); err != nil {
+		return err
+	}
+	if err := checkFilenameCharacters(filename); err != nil {
+		return err
+	}
+	return nil
+}
+
+func checkFilenameBasic(filename string) error {
 	if filename == "" {
 		return ErrInvalidFilename
 	}
-
-	// Check length
 	if len(filename) > MaxFilenameLength {
 		return ErrFilenameTooLong
 	}
-
-	// Reject dangerous filenames
 	if filename == "." || filename == ".." {
 		return fmt.Errorf("%w: reserved name", ErrInvalidFilename)
 	}
-
-	// Check for path separators
 	if strings.ContainsAny(filename, "/\\") {
 		return fmt.Errorf("%w: path separator not allowed", ErrInvalidFilename)
 	}
+	return nil
+}
 
-	// Check for null bytes (common injection attack)
+func checkFilenameCharacters(filename string) error {
 	if strings.Contains(filename, "\x00") {
 		return fmt.Errorf("%w: null byte not allowed", ErrInvalidFilename)
 	}
-
-	// Check for control characters
-	for _, r := range filename {
-		if unicode.IsControl(r) {
-			return fmt.Errorf("%w: control character not allowed", ErrInvalidFilename)
-		}
+	if hasControlCharacter(filename) {
+		return fmt.Errorf("%w: control character not allowed", ErrInvalidFilename)
 	}
-
-	// Reject filenames starting with hyphen (can be confused with command flags)
 	if strings.HasPrefix(filename, "-") {
 		return fmt.Errorf("%w: filename cannot start with hyphen", ErrInvalidFilename)
 	}
-
 	return nil
+}
+
+func hasControlCharacter(s string) bool {
+	for _, r := range s {
+		if unicode.IsControl(r) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsPathSafe checks if a path is safe by validating it against common attack patterns.
@@ -206,11 +222,15 @@ func IsValidHexHash(hash string) bool {
 		return false
 	}
 	for _, c := range hash {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+		if !isHexChar(c) {
 			return false
 		}
 	}
 	return true
+}
+
+func isHexChar(c rune) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }
 
 // ValidateHexHash validates a hash string and returns an error if invalid.

@@ -34,35 +34,43 @@ var Config = &format.Config{
 	Enumerate:  enumerateGoBible,
 }
 
+func goBibleDetected(reason string) *ipc.DetectResult {
+	return &ipc.DetectResult{Detected: true, Format: "GoBible", Reason: reason}
+}
+
+func goBibleNotDetected(reason string) *ipc.DetectResult {
+	return &ipc.DetectResult{Detected: false, Reason: reason}
+}
+
 func detectGoBible(path string) (*ipc.DetectResult, error) {
-	ext := strings.ToLower(filepath.Ext(path))
-	if ext == ".gbk" {
-		return &ipc.DetectResult{Detected: true, Format: "GoBible", Reason: "GoBible file extension detected"}, nil
+	if strings.ToLower(filepath.Ext(path)) == ".gbk" {
+		return goBibleDetected("GoBible file extension detected"), nil
 	}
 
 	zr, err := zip.OpenReader(path)
 	if err != nil {
-		return &ipc.DetectResult{Detected: false, Reason: "not a GoBible file"}, nil
+		return goBibleNotDetected("not a GoBible file"), nil
 	}
 	defer zr.Close()
 
-	hasCollections := false
-	hasBibleData := false
-	for _, f := range zr.File {
+	if hasGoBibleStructure(zr.File) {
+		return goBibleDetected("GoBible JAR structure detected"), nil
+	}
+
+	return goBibleNotDetected("no GoBible structure found"), nil
+}
+
+func hasGoBibleStructure(files []*zip.File) bool {
+	for _, f := range files {
 		name := strings.ToLower(f.Name)
 		if name == "collections" || name == "bible/collections" {
-			hasCollections = true
+			return true
 		}
 		if strings.HasPrefix(name, "bible/") || strings.Contains(name, "verse") {
-			hasBibleData = true
+			return true
 		}
 	}
-
-	if hasCollections || hasBibleData {
-		return &ipc.DetectResult{Detected: true, Format: "GoBible", Reason: "GoBible JAR structure detected"}, nil
-	}
-
-	return &ipc.DetectResult{Detected: false, Reason: "no GoBible structure found"}, nil
+	return false
 }
 
 func enumerateGoBible(path string) (*ipc.EnumerateResult, error) {
@@ -187,28 +195,42 @@ func extractTextFromBinary(data []byte) []string {
 	var current strings.Builder
 
 	for i := 0; i < len(data); i++ {
-		b := data[i]
-		if b >= 32 && b < 127 {
-			current.WriteByte(b)
-		} else if b >= 0xC0 && i+1 < len(data) {
-			if b < 0xE0 && i+1 < len(data) {
-				current.WriteByte(b)
-				i++
-				current.WriteByte(data[i])
-			}
-		} else {
-			if current.Len() > 10 {
-				texts = append(texts, current.String())
-			}
-			current.Reset()
-		}
+		i = processTextByte(data, i, &current, &texts)
 	}
 
-	if current.Len() > 10 {
-		texts = append(texts, current.String())
-	}
-
+	flushTextIfLongEnough(&current, &texts)
 	return texts
+}
+
+func processTextByte(data []byte, i int, current *strings.Builder, texts *[]string) int {
+	b := data[i]
+	if isASCIIPrintable(b) {
+		current.WriteByte(b)
+		return i
+	}
+	if isUTF8TwoByteStart(b) && i+1 < len(data) {
+		current.WriteByte(b)
+		i++
+		current.WriteByte(data[i])
+		return i
+	}
+	flushTextIfLongEnough(current, texts)
+	current.Reset()
+	return i
+}
+
+func isASCIIPrintable(b byte) bool {
+	return b >= 32 && b < 127
+}
+
+func isUTF8TwoByteStart(b byte) bool {
+	return b >= 0xC0 && b < 0xE0
+}
+
+func flushTextIfLongEnough(current *strings.Builder, texts *[]string) {
+	if current.Len() > 10 {
+		*texts = append(*texts, current.String())
+	}
 }
 
 func emitGoBible(corpus *ir.Corpus, outputDir string) (string, error) {

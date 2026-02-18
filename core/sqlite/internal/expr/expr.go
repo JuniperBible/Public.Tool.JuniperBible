@@ -436,7 +436,12 @@ func (e *Expr) updateHeight() {
 	if e == nil {
 		return
 	}
+	height := e.maxChildHeight()
+	e.Height = height + 1
+}
 
+// maxChildHeight returns the maximum height among child expressions.
+func (e *Expr) maxChildHeight() int {
 	height := 0
 	if e.Left != nil && e.Left.Height > height {
 		height = e.Left.Height
@@ -444,14 +449,21 @@ func (e *Expr) updateHeight() {
 	if e.Right != nil && e.Right.Height > height {
 		height = e.Right.Height
 	}
-	if e.List != nil {
-		for _, item := range e.List.Items {
-			if item.Expr != nil && item.Expr.Height > height {
-				height = item.Expr.Height
-			}
+	height = maxListHeight(e.List, height)
+	return height
+}
+
+// maxListHeight returns the maximum height in an expression list.
+func maxListHeight(list *ExprList, current int) int {
+	if list == nil {
+		return current
+	}
+	for _, item := range list.Items {
+		if item.Expr != nil && item.Expr.Height > current {
+			current = item.Expr.Height
 		}
 	}
-	e.Height = height + 1
+	return current
 }
 
 // HasProperty checks if the expression has the given flags.
@@ -473,37 +485,60 @@ func (e *Expr) ClearProperty(flags ExprFlags) {
 	}
 }
 
+// isConstantLiteralOp returns true for literal value operators.
+var isConstantLiteralOp = map[OpCode]bool{
+	OpNull: true, OpInteger: true, OpFloat: true, OpString: true, OpBlob: true,
+}
+
+// isNonConstantOp returns true for operators that are never constant.
+var isNonConstantOp = map[OpCode]bool{
+	OpColumn: true, OpAggColumn: true, OpVariable: true,
+}
+
+// isUnaryOp returns true for unary operators.
+var isUnaryOp = map[OpCode]bool{
+	OpNegate: true, OpNot: true, OpBitNot: true, OpUnaryPlus: true,
+}
+
+// isBinaryOp returns true for binary operators.
+var isBinaryOp = map[OpCode]bool{
+	OpPlus: true, OpMinus: true, OpMultiply: true, OpDivide: true, OpRemainder: true,
+	OpConcat: true, OpBitAnd: true, OpBitOr: true, OpBitXor: true, OpLShift: true, OpRShift: true,
+	OpEq: true, OpNe: true, OpLt: true, OpLe: true, OpGt: true, OpGe: true, OpAnd: true, OpOr: true,
+}
+
 // IsConstant checks if the expression is a constant (does not reference tables).
 func (e *Expr) IsConstant() bool {
 	if e == nil {
 		return true
 	}
-
-	switch e.Op {
-	case OpNull, OpInteger, OpFloat, OpString, OpBlob:
+	if isConstantLiteralOp[e.Op] {
 		return true
-	case OpColumn, OpAggColumn, OpVariable:
-		return false
-	case OpNegate, OpNot, OpBitNot, OpUnaryPlus:
-		return e.Left.IsConstant()
-	case OpPlus, OpMinus, OpMultiply, OpDivide, OpRemainder,
-		OpConcat, OpBitAnd, OpBitOr, OpBitXor, OpLShift, OpRShift,
-		OpEq, OpNe, OpLt, OpLe, OpGt, OpGe, OpAnd, OpOr:
-		return e.Left.IsConstant() && e.Right.IsConstant()
-	case OpFunction:
-		// Functions might be constant if all args are constant
-		// and the function is marked as deterministic
-		if e.List != nil {
-			for _, item := range e.List.Items {
-				if !item.Expr.IsConstant() {
-					return false
-				}
-			}
-		}
-		return !e.HasProperty(EP_HasFunc | EP_VarSelect)
-	default:
+	}
+	if isNonConstantOp[e.Op] {
 		return false
 	}
+	if isUnaryOp[e.Op] {
+		return e.Left.IsConstant()
+	}
+	if isBinaryOp[e.Op] {
+		return e.Left.IsConstant() && e.Right.IsConstant()
+	}
+	if e.Op == OpFunction {
+		return e.isFunctionConstant()
+	}
+	return false
+}
+
+func (e *Expr) isFunctionConstant() bool {
+	if e.List != nil {
+		for _, item := range e.List.Items {
+			if !item.Expr.IsConstant() {
+				return false
+			}
+		}
+	}
+	return !e.HasProperty(EP_HasFunc | EP_VarSelect)
 }
 
 // exprUnaryPrefix maps unary OpCodes to their prefix symbols.

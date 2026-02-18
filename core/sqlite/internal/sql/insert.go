@@ -171,84 +171,88 @@ func (op OpCode) String() string {
 //
 //	OP_Halt
 func CompileInsert(stmt *InsertStmt, tableRoot int) (*Program, error) {
+	if err := validateInsertStmt(stmt); err != nil {
+		return nil, err
+	}
+
+	numCols := computeNumCols(stmt)
+	prog := newProgram()
+	cursorNum := 0
+
+	prog.add(OpInit, 0, 0, 0, nil, 0, "Initialize program")
+	prog.add(OpOpenWrite, cursorNum, tableRoot, 0, nil, 0,
+		fmt.Sprintf("Open table %s for writing", stmt.Table))
+
+	if err := compileInsertRows(prog, stmt, numCols, cursorNum); err != nil {
+		return nil, err
+	}
+
+	prog.add(OpClose, cursorNum, 0, 0, nil, 0, fmt.Sprintf("Close table %s", stmt.Table))
+	prog.Instructions[0].P2 = len(prog.Instructions)
+	prog.add(OpHalt, 0, 0, 0, nil, 0, "End program")
+
+	return prog, nil
+}
+
+func validateInsertStmt(stmt *InsertStmt) error {
 	if stmt == nil {
-		return nil, errors.New("nil insert statement")
+		return errors.New("nil insert statement")
 	}
-
 	if len(stmt.Values) == 0 {
-		return nil, errors.New("no values to insert")
+		return errors.New("no values to insert")
 	}
+	return nil
+}
 
-	numCols := len(stmt.Columns)
-	if numCols == 0 && len(stmt.Values) > 0 {
-		numCols = len(stmt.Values[0])
+func computeNumCols(stmt *InsertStmt) int {
+	if len(stmt.Columns) > 0 {
+		return len(stmt.Columns)
 	}
+	if len(stmt.Values) > 0 {
+		return len(stmt.Values[0])
+	}
+	return 0
+}
 
-	prog := &Program{
+func newProgram() *Program {
+	return &Program{
 		Instructions: make([]Instruction, 0),
 		NumRegisters: 0,
 		NumCursors:   1,
 	}
+}
 
-	// Calculate end label (will be the last instruction)
-	endLabel := -1 // Placeholder
-
-	// OP_Init: Initialize, jump to end on error
-	prog.add(OpInit, 0, 0, 0, nil, 0, "Initialize program")
-
-	cursorNum := 0 // Cursor 0 for the table
-
-	// OP_OpenWrite: Open table for writing
-	prog.add(OpOpenWrite, cursorNum, tableRoot, 0, nil, 0,
-		fmt.Sprintf("Open table %s for writing", stmt.Table))
-
-	// Process each row of values
+func compileInsertRows(prog *Program, stmt *InsertStmt, numCols, cursorNum int) error {
 	for rowIdx, row := range stmt.Values {
 		if len(row) != numCols {
-			return nil, fmt.Errorf("row %d has %d values, expected %d",
-				rowIdx, len(row), numCols)
+			return fmt.Errorf("row %d has %d values, expected %d", rowIdx, len(row), numCols)
 		}
-
-		// Allocate registers
-		regRowid := prog.allocReg()        // Register for rowid
-		regCols := prog.allocRegs(numCols) // Registers for column values
-		regRecord := prog.allocReg()       // Register for the record
-
-		// OP_NewRowid: Generate new rowid
-		prog.add(OpNewRowid, cursorNum, regRowid, 0, nil, 0,
-			fmt.Sprintf("Generate new rowid for row %d", rowIdx))
-
-		// Load column values into registers
-		for i, val := range row {
-			reg := regCols + i
-			if err := prog.addValueLoad(val, reg); err != nil {
-				return nil, fmt.Errorf("row %d, column %d: %v", rowIdx, i, err)
-			}
+		if err := compileInsertRow(prog, row, rowIdx, numCols, cursorNum); err != nil {
+			return err
 		}
+	}
+	return nil
+}
 
-		// OP_MakeRecord: Create record from column values
-		prog.add(OpMakeRecord, regCols, numCols, regRecord, nil, 0,
-			fmt.Sprintf("Make record from %d columns", numCols))
+func compileInsertRow(prog *Program, row []Value, rowIdx, numCols, cursorNum int) error {
+	regRowid := prog.allocReg()
+	regCols := prog.allocRegs(numCols)
+	regRecord := prog.allocReg()
 
-		// OP_Insert: Insert record into table
-		prog.add(OpInsert, cursorNum, regRecord, regRowid, nil, 0,
-			fmt.Sprintf("Insert row %d", rowIdx))
+	prog.add(OpNewRowid, cursorNum, regRowid, 0, nil, 0,
+		fmt.Sprintf("Generate new rowid for row %d", rowIdx))
+
+	for i, val := range row {
+		if err := prog.addValueLoad(val, regCols+i); err != nil {
+			return fmt.Errorf("row %d, column %d: %v", rowIdx, i, err)
+		}
 	}
 
-	// OP_Close: Close table cursor
-	prog.add(OpClose, cursorNum, 0, 0, nil, 0,
-		fmt.Sprintf("Close table %s", stmt.Table))
-
-	// Set end label to current position
-	endLabel = len(prog.Instructions)
-
-	// Update Init instruction to jump to end
-	prog.Instructions[0].P2 = endLabel
-
-	// OP_Halt: End of program
-	prog.add(OpHalt, 0, 0, 0, nil, 0, "End program")
-
-	return prog, nil
+	prog.add(OpMakeRecord, regCols, numCols, regRecord, nil, 0,
+		fmt.Sprintf("Make record from %d columns", numCols))
+	prog.add(OpInsert, cursorNum, regRecord, regRowid, nil, 0,
+		fmt.Sprintf("Insert row %d", rowIdx))
+	return nil
 }
 
 // add appends an instruction to the program

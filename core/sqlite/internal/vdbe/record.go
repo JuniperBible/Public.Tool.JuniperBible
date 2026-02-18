@@ -62,30 +62,46 @@ func decodeFixedInt(data []byte, offset int, st uint64) (interface{}, int, error
 	if offset+width > len(data) {
 		return nil, 0, fmt.Errorf("truncated int%d", width*8)
 	}
+	v := decodeIntValue(data, offset, st)
+	return v, width, nil
+}
+
+// decodeIntValue extracts the integer value based on serial type.
+func decodeIntValue(data []byte, offset int, st uint64) int64 {
 	switch st {
 	case 1:
-		return int64(int8(data[offset])), 1, nil
+		return int64(int8(data[offset]))
 	case 2:
-		return int64(int16(binary.BigEndian.Uint16(data[offset:]))), 2, nil
+		return int64(int16(binary.BigEndian.Uint16(data[offset:])))
 	case 3:
-		v := int32(data[offset])<<16 | int32(data[offset+1])<<8 | int32(data[offset+2])
-		if v&0x800000 != 0 {
-			v |= ^0xffffff // sign extend
-		}
-		return int64(v), 3, nil
+		return decodeInt24Value(data, offset)
 	case 4:
-		return int64(int32(binary.BigEndian.Uint32(data[offset:]))), 4, nil
+		return int64(int32(binary.BigEndian.Uint32(data[offset:])))
 	case 5:
-		v := int64(data[offset])<<40 | int64(data[offset+1])<<32 |
-			int64(data[offset+2])<<24 | int64(data[offset+3])<<16 |
-			int64(data[offset+4])<<8 | int64(data[offset+5])
-		if v&0x800000000000 != 0 {
-			v |= ^0xffffffffffff // sign extend
-		}
-		return v, 6, nil
-	default: // case 6
-		return int64(binary.BigEndian.Uint64(data[offset:])), 8, nil
+		return decodeInt48Value(data, offset)
+	default:
+		return int64(binary.BigEndian.Uint64(data[offset:]))
 	}
+}
+
+// decodeInt24Value decodes a 24-bit signed integer.
+func decodeInt24Value(data []byte, offset int) int64 {
+	v := int32(data[offset])<<16 | int32(data[offset+1])<<8 | int32(data[offset+2])
+	if v&0x800000 != 0 {
+		v |= ^0xffffff
+	}
+	return int64(v)
+}
+
+// decodeInt48Value decodes a 48-bit signed integer.
+func decodeInt48Value(data []byte, offset int) int64 {
+	v := int64(data[offset])<<40 | int64(data[offset+1])<<32 |
+		int64(data[offset+2])<<24 | int64(data[offset+3])<<16 |
+		int64(data[offset+4])<<8 | int64(data[offset+5])
+	if v&0x800000000000 != 0 {
+		v |= ^0xffffffffffff
+	}
+	return v
 }
 
 // decodeFloat64 reads an IEEE 754 float64 from data at offset.

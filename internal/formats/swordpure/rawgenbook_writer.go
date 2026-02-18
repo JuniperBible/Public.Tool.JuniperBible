@@ -209,11 +209,6 @@ func writeUint32(buf *bytes.Buffer, v uint32) {
 // EmitRawGenBook writes a complete SWORD general book module from IR corpus.
 // Creates mods.d/*.conf and modules/genbook/rawgenbook/*/ structure.
 func EmitRawGenBook(corpus *IRCorpus, outputDir string) (*EmitResult, error) {
-	result := &EmitResult{
-		ModuleID: corpus.ID,
-	}
-
-	// Create directory structure
 	modsDir := filepath.Join(outputDir, "mods.d")
 	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create mods.d: %w", err)
@@ -224,13 +219,39 @@ func EmitRawGenBook(corpus *IRCorpus, outputDir string) (*EmitResult, error) {
 		return nil, fmt.Errorf("failed to create data path: %w", err)
 	}
 
-	// Write RawGenBook data
-	writer := NewRawGenBookWriter(dataPath)
+	entriesWritten, err := writeGenBookData(corpus, dataPath)
+	if err != nil {
+		return nil, err
+	}
 
-	// Add entries from corpus
+	confPath, err := writeGenBookConf(corpus, modsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return &EmitResult{
+		ModuleID:      corpus.ID,
+		VersesWritten: entriesWritten,
+		ConfPath:      confPath,
+		DataPath:      dataPath,
+	}, nil
+}
+
+// writeGenBookData writes the RawGenBook data files.
+func writeGenBookData(corpus *IRCorpus, dataPath string) (int, error) {
+	writer := NewRawGenBookWriter(dataPath)
+	addCorpusEntries(writer, corpus)
+	entriesWritten, err := writer.WriteModule()
+	if err != nil {
+		return 0, fmt.Errorf("failed to write RawGenBook: %w", err)
+	}
+	return entriesWritten, nil
+}
+
+// addCorpusEntries adds all entries from corpus to the writer.
+func addCorpusEntries(writer *RawGenBookWriter, corpus *IRCorpus) {
 	for _, doc := range corpus.Documents {
 		for _, block := range doc.ContentBlocks {
-			// Use block ID as path, text as content
 			path := block.ID
 			if !strings.HasPrefix(path, "/") {
 				path = "/" + path
@@ -242,23 +263,16 @@ func EmitRawGenBook(corpus *IRCorpus, outputDir string) (*EmitResult, error) {
 			writer.AddEntry(path, text)
 		}
 	}
+}
 
-	entriesWritten, err := writer.WriteModule()
-	if err != nil {
-		return nil, fmt.Errorf("failed to write RawGenBook: %w", err)
-	}
-	result.VersesWritten = entriesWritten
-
-	// Generate and write .conf file
+// writeGenBookConf writes the .conf file for the genbook module.
+func writeGenBookConf(corpus *IRCorpus, modsDir string) (string, error) {
 	confContent := generateGenBookConf(corpus)
 	confPath := filepath.Join(modsDir, stringToLower(corpus.ID)+".conf")
 	if err := os.WriteFile(confPath, []byte(confContent), 0600); err != nil {
-		return nil, fmt.Errorf("failed to write conf: %w", err)
+		return "", fmt.Errorf("failed to write conf: %w", err)
 	}
-	result.ConfPath = confPath
-	result.DataPath = dataPath
-
-	return result, nil
+	return confPath, nil
 }
 
 // generateGenBookConf generates a SWORD .conf file for a general book module.

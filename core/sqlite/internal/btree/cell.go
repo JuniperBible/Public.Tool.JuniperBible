@@ -38,58 +38,73 @@ func parseTableLeafCell(cellData []byte, usableSize uint32) (*CellInfo, error) {
 	if len(cellData) == 0 {
 		return nil, fmt.Errorf("empty cell data")
 	}
+	info, offset, err := parseLeafCellHeader(cellData)
+	if err != nil {
+		return nil, err
+	}
+	return completeLeafCellParse(info, cellData, offset, usableSize)
+}
 
+// parseLeafCellHeader reads payload size and rowid from cell data.
+func parseLeafCellHeader(cellData []byte) (*CellInfo, int, error) {
 	info := &CellInfo{}
 	offset := 0
 
-	// Read payload size (varint)
 	payloadSize64, n := GetVarint(cellData[offset:])
 	if n == 0 {
-		return nil, fmt.Errorf("failed to read payload size")
+		return nil, 0, fmt.Errorf("failed to read payload size")
 	}
 	info.PayloadSize = uint32(payloadSize64)
 	offset += n
 
-	// Read rowid (varint)
 	rowid, n := GetVarint(cellData[offset:])
 	if n == 0 {
-		return nil, fmt.Errorf("failed to read rowid")
+		return nil, 0, fmt.Errorf("failed to read rowid")
 	}
 	info.Key = int64(rowid)
 	offset += n
 
-	// Calculate local payload size
+	return info, offset, nil
+}
+
+// completeLeafCellParse finishes parsing the cell with payload extraction.
+func completeLeafCellParse(info *CellInfo, cellData []byte, offset int, usableSize uint32) (*CellInfo, error) {
 	maxLocal := calculateMaxLocal(usableSize, true)
 	minLocal := calculateMinLocal(usableSize, true)
+	calculateCellSizeAndLocal(info, offset, maxLocal, minLocal, usableSize)
 
+	if offset+int(info.LocalPayload) > len(cellData) {
+		return nil, fmt.Errorf("cell data truncated")
+	}
+	info.Payload = cellData[offset : offset+int(info.LocalPayload)]
+
+	return extractOverflowPage(info, cellData, offset, maxLocal)
+}
+
+// calculateCellSizeAndLocal sets LocalPayload and CellSize.
+func calculateCellSizeAndLocal(info *CellInfo, offset int, maxLocal, minLocal, usableSize uint32) {
 	if info.PayloadSize <= maxLocal {
-		// Entire payload fits locally
 		info.LocalPayload = uint16(info.PayloadSize)
 		info.CellSize = uint16(offset + int(info.PayloadSize))
 		if info.CellSize < 4 {
 			info.CellSize = 4
 		}
 	} else {
-		// Payload spills to overflow pages
 		info.LocalPayload = calculateLocalPayload(info.PayloadSize, minLocal, maxLocal, usableSize)
-		info.CellSize = uint16(offset + int(info.LocalPayload) + 4) // +4 for overflow page number
+		info.CellSize = uint16(offset + int(info.LocalPayload) + 4)
 	}
+}
 
-	// Extract payload pointer
-	if offset+int(info.LocalPayload) > len(cellData) {
-		return nil, fmt.Errorf("cell data truncated")
+// extractOverflowPage reads the overflow page number if present.
+func extractOverflowPage(info *CellInfo, cellData []byte, offset int, maxLocal uint32) (*CellInfo, error) {
+	if info.PayloadSize <= maxLocal {
+		return info, nil
 	}
-	info.Payload = cellData[offset : offset+int(info.LocalPayload)]
-
-	// Read overflow page if present
-	if info.PayloadSize > maxLocal {
-		overflowOffset := offset + int(info.LocalPayload)
-		if overflowOffset+4 > len(cellData) {
-			return nil, fmt.Errorf("overflow page number truncated")
-		}
-		info.OverflowPage = binary.BigEndian.Uint32(cellData[overflowOffset:])
+	overflowOffset := offset + int(info.LocalPayload)
+	if overflowOffset+4 > len(cellData) {
+		return nil, fmt.Errorf("overflow page number truncated")
 	}
-
+	info.OverflowPage = binary.BigEndian.Uint32(cellData[overflowOffset:])
 	return info, nil
 }
 

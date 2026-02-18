@@ -93,17 +93,22 @@ func ScanCapsuleFlags(path string) (CapsuleFlags, error) {
 func scanFlagsFromTOC(toc []string) CapsuleFlags {
 	var flags CapsuleFlags
 	for _, name := range toc {
-		if !flags.IsCAS && strings.Contains(name, "blobs/") {
-			flags.IsCAS = true
-		}
-		if !flags.HasIR && strings.HasSuffix(name, ".ir.json") {
-			flags.HasIR = true
-		}
+		updateFlagsFromEntry(name, &flags)
 		if flags.IsCAS && flags.HasIR {
 			break
 		}
 	}
 	return flags
+}
+
+// updateFlagsFromEntry updates flags based on a single TOC entry.
+func updateFlagsFromEntry(name string, flags *CapsuleFlags) {
+	if !flags.IsCAS && strings.Contains(name, "blobs/") {
+		flags.IsCAS = true
+	}
+	if !flags.HasIR && strings.HasSuffix(name, ".ir.json") {
+		flags.HasIR = true
+	}
 }
 
 // IsCASCapsule checks if a capsule uses Content-Addressed Storage (has blobs/ directory).

@@ -58,19 +58,32 @@ type PageHeader struct {
 
 // ParsePageHeader parses the B-tree page header from raw page data
 func ParsePageHeader(data []byte, pageNum uint32) (*PageHeader, error) {
+	offset, err := validatePageData(data, pageNum)
+	if err != nil {
+		return nil, err
+	}
+
+	h := parseHeaderFields(data, offset)
+	if err := finalizeHeader(h, data, offset); err != nil {
+		return nil, err
+	}
+	return h, nil
+}
+
+func validatePageData(data []byte, pageNum uint32) (int, error) {
 	if len(data) < PageHeaderSizeLeaf {
-		return nil, fmt.Errorf("page data too small: %d bytes", len(data))
+		return 0, fmt.Errorf("page data too small: %d bytes", len(data))
 	}
-
-	// Handle page 1 which has a 100-byte file header
-	offset := 0
 	if pageNum == 1 {
-		offset = FileHeaderSize
 		if len(data) < FileHeaderSize+PageHeaderSizeLeaf {
-			return nil, fmt.Errorf("page 1 data too small: %d bytes", len(data))
+			return 0, fmt.Errorf("page 1 data too small: %d bytes", len(data))
 		}
+		return FileHeaderSize, nil
 	}
+	return 0, nil
+}
 
+func parseHeaderFields(data []byte, offset int) *PageHeader {
 	h := &PageHeader{
 		PageType:         data[offset+PageHeaderOffsetType],
 		FirstFreeblock:   binary.BigEndian.Uint16(data[offset+PageHeaderOffsetFreeblock:]),
@@ -78,35 +91,40 @@ func ParsePageHeader(data []byte, pageNum uint32) (*PageHeader, error) {
 		CellContentStart: binary.BigEndian.Uint16(data[offset+PageHeaderOffsetCellStart:]),
 		FragmentedBytes:  data[offset+PageHeaderOffsetFragmented],
 	}
-
-	// Determine page characteristics from type byte
 	h.IsLeaf = (h.PageType & PTF_LEAF) != 0
 	h.IsInterior = !h.IsLeaf
 	h.IsTable = (h.PageType & PTF_INTKEY) != 0
 	h.IsIndex = !h.IsTable
+	return h
+}
 
-	// Parse right child pointer for interior pages
+func finalizeHeader(h *PageHeader, data []byte, offset int) error {
 	if h.IsInterior {
 		if len(data) < offset+PageHeaderSizeInterior {
-			return nil, fmt.Errorf("interior page data too small: %d bytes", len(data))
+			return fmt.Errorf("interior page data too small: %d bytes", len(data))
 		}
 		h.RightChild = binary.BigEndian.Uint32(data[offset+PageHeaderOffsetRightChild:])
 		h.HeaderSize = PageHeaderSizeInterior
 	} else {
 		h.HeaderSize = PageHeaderSizeLeaf
 	}
-
 	h.CellPtrOffset = offset + h.HeaderSize
 
-	// Validate page type
-	if h.PageType != PageTypeInteriorIndex &&
-		h.PageType != PageTypeInteriorTable &&
-		h.PageType != PageTypeLeafIndex &&
-		h.PageType != PageTypeLeafTable {
-		return nil, fmt.Errorf("invalid page type: 0x%02x", h.PageType)
-	}
+	return validatePageType(h.PageType)
+}
 
-	return h, nil
+var validPageTypes = map[byte]bool{
+	PageTypeInteriorIndex: true,
+	PageTypeInteriorTable: true,
+	PageTypeLeafIndex:     true,
+	PageTypeLeafTable:     true,
+}
+
+func validatePageType(pt byte) error {
+	if !validPageTypes[pt] {
+		return fmt.Errorf("invalid page type: 0x%02x", pt)
+	}
+	return nil
 }
 
 // GetCellPointer returns the offset of the i-th cell in the page

@@ -204,47 +204,49 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 // Checks X-Forwarded-For and X-Real-IP headers before falling back to RemoteAddr.
 // SEC-001 FIX: Properly parses X-Forwarded-For header and validates IP format.
 func getClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header
-	// Format: X-Forwarded-For: client, proxy1, proxy2
-	// Take the leftmost (client) IP and validate it
+	if ip := extractForwardedIP(r); ip != "" {
+		return ip
+	}
+	if ip := extractRealIP(r); ip != "" {
+		return ip
+	}
+	return extractRemoteAddrIP(r)
+}
+
+// extractForwardedIP extracts IP from X-Forwarded-For header.
+func extractForwardedIP(r *http.Request) string {
 	forwarded := r.Header.Get("X-Forwarded-For")
-	if forwarded != "" {
-		// Split by comma and take the first (leftmost) IP
-		ips := strings.Split(forwarded, ",")
-		if len(ips) > 0 {
-			clientIP := strings.TrimSpace(ips[0])
-			// Validate IP format before using it
-			if isValidIP(clientIP) {
-				return clientIP
-			}
+	if forwarded == "" {
+		return ""
+	}
+	ips := strings.Split(forwarded, ",")
+	if len(ips) > 0 {
+		clientIP := strings.TrimSpace(ips[0])
+		if isValidIP(clientIP) {
+			return clientIP
 		}
 	}
+	return ""
+}
 
-	// Check X-Real-IP header
-	realIP := r.Header.Get("X-Real-IP")
-	if realIP != "" {
-		// Validate IP format
-		realIP = strings.TrimSpace(realIP)
-		if isValidIP(realIP) {
-			return realIP
-		}
+// extractRealIP extracts IP from X-Real-IP header.
+func extractRealIP(r *http.Request) string {
+	realIP := strings.TrimSpace(r.Header.Get("X-Real-IP"))
+	if realIP != "" && isValidIP(realIP) {
+		return realIP
 	}
+	return ""
+}
 
-	// Fall back to RemoteAddr
-	// RemoteAddr is in format "IP:port", strip the port
+// extractRemoteAddrIP extracts IP from RemoteAddr.
+func extractRemoteAddrIP(r *http.Request) string {
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		// If SplitHostPort fails, try to use RemoteAddr directly
-		// This handles cases where RemoteAddr is just an IP without port
 		ip = r.RemoteAddr
 	}
-
-	// Final validation
 	if isValidIP(ip) {
 		return ip
 	}
-
-	// If all else fails, return a safe default
 	return "unknown"
 }
 

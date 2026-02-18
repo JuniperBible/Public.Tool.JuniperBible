@@ -82,25 +82,30 @@ func (rc *ResultCompiler) ExpandResultColumns(sel *Select) error {
 
 	for i := 0; i < sel.EList.Len(); i++ {
 		item := sel.EList.Get(i)
-
-		if item.Expr.Op == TK_ASTERISK {
-			// Expand * to all columns from all tables
-			if err := rc.expandStar(sel, expanded); err != nil {
-				return err
-			}
-		} else if item.Expr.Op == TK_DOT && item.Expr.Right != nil && item.Expr.Right.Op == TK_ASTERISK {
-			// Expand table.* to all columns from specific table
-			if err := rc.expandTableStar(sel, item.Expr.Left, expanded); err != nil {
-				return err
-			}
-		} else {
-			// Regular column expression
-			expanded.Append(*item)
+		if err := rc.expandItem(sel, item, expanded); err != nil {
+			return err
 		}
 	}
 
 	sel.EList = expanded
 	return nil
+}
+
+// expandItem expands a single result item, handling wildcards.
+func (rc *ResultCompiler) expandItem(sel *Select, item *ExprListItem, expanded *ExprList) error {
+	if item.Expr.Op == TK_ASTERISK {
+		return rc.expandStar(sel, expanded)
+	}
+	if rc.isTableStar(item.Expr) {
+		return rc.expandTableStar(sel, item.Expr.Left, expanded)
+	}
+	expanded.Append(*item)
+	return nil
+}
+
+// isTableStar returns true if expr is a table.* wildcard.
+func (rc *ResultCompiler) isTableStar(expr *Expr) bool {
+	return expr.Op == TK_DOT && expr.Right != nil && expr.Right.Op == TK_ASTERISK
 }
 
 // expandStar expands * to all columns from all tables in FROM clause.
@@ -148,46 +153,39 @@ func (rc *ResultCompiler) expandTableStar(sel *Select, tableExpr *Expr, result *
 	if tableExpr == nil || tableExpr.Op != TK_ID {
 		return fmt.Errorf("invalid table reference in table.*")
 	}
+	srcItem := rc.findTableByName(sel, tableExpr.StringValue)
+	if srcItem == nil {
+		return fmt.Errorf("table %s not found in FROM clause", tableExpr.StringValue)
+	}
+	appendTableColumns(srcItem, result)
+	return nil
+}
 
-	tableName := tableExpr.StringValue
-
-	// Find table in FROM clause
-	var srcItem *SrcListItem
-	if sel.Src != nil {
-		for i := 0; i < sel.Src.Len(); i++ {
-			item := sel.Src.Get(i)
-			if item.Table != nil && item.Table.Name == tableName {
-				srcItem = item
-				break
-			}
-			if item.Alias == tableName {
-				srcItem = item
-				break
-			}
+// findTableByName finds a table in the FROM clause by name or alias.
+func (rc *ResultCompiler) findTableByName(sel *Select, tableName string) *SrcListItem {
+	if sel.Src == nil {
+		return nil
+	}
+	for i := 0; i < sel.Src.Len(); i++ {
+		item := sel.Src.Get(i)
+		if item.Table != nil && item.Table.Name == tableName {
+			return item
+		}
+		if item.Alias == tableName {
+			return item
 		}
 	}
+	return nil
+}
 
-	if srcItem == nil {
-		return fmt.Errorf("table %s not found in FROM clause", tableName)
-	}
-
+// appendTableColumns adds all columns from a table to the result list.
+func appendTableColumns(srcItem *SrcListItem, result *ExprList) {
 	table := srcItem.Table
 	for colIdx := 0; colIdx < table.NumColumns; colIdx++ {
 		col := table.GetColumn(colIdx)
-
-		expr := &Expr{
-			Op:     TK_COLUMN,
-			Table:  srcItem.Cursor,
-			Column: colIdx,
-		}
-
-		result.Append(ExprListItem{
-			Expr: expr,
-			Name: col.Name,
-		})
+		expr := &Expr{Op: TK_COLUMN, Table: srcItem.Cursor, Column: colIdx}
+		result.Append(ExprListItem{Expr: expr, Name: col.Name})
 	}
-
-	return nil
 }
 
 // GenerateColumnNames generates column names for the result set.
@@ -305,33 +303,37 @@ func (rc *ResultCompiler) resolveExprColumns(sel *Select, expr *Expr) error {
 	if expr == nil {
 		return nil
 	}
-
 	switch expr.Op {
 	case TK_COLUMN:
-		// Resolve column reference
 		return rc.resolveColumnRef(sel, expr)
-
 	case TK_DOT:
-		// Table.column reference
-		if expr.Left != nil && expr.Right != nil {
-			return rc.resolveQualifiedColumn(sel, expr)
-		}
-		return nil
-
+		return rc.resolveDotExpr(sel, expr)
 	default:
-		// Recursively resolve in child expressions
-		if expr.Left != nil {
-			if err := rc.resolveExprColumns(sel, expr.Left); err != nil {
-				return err
-			}
-		}
-		if expr.Right != nil {
-			if err := rc.resolveExprColumns(sel, expr.Right); err != nil {
-				return err
-			}
-		}
-		return nil
+		return rc.resolveChildExprs(sel, expr)
 	}
+}
+
+// resolveDotExpr resolves a table.column qualified reference.
+func (rc *ResultCompiler) resolveDotExpr(sel *Select, expr *Expr) error {
+	if expr.Left != nil && expr.Right != nil {
+		return rc.resolveQualifiedColumn(sel, expr)
+	}
+	return nil
+}
+
+// resolveChildExprs recursively resolves column references in child expressions.
+func (rc *ResultCompiler) resolveChildExprs(sel *Select, expr *Expr) error {
+	if expr.Left != nil {
+		if err := rc.resolveExprColumns(sel, expr.Left); err != nil {
+			return err
+		}
+	}
+	if expr.Right != nil {
+		if err := rc.resolveExprColumns(sel, expr.Right); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // resolveColumnRef resolves an unqualified column reference.
@@ -437,39 +439,36 @@ func findColumnInTable(table *Table, colName string) (*Column, int) {
 	return nil, -1
 }
 
+// affinityFromOp maps expression operators to their affinities.
+var affinityFromOp = map[int]Affinity{
+	TK_INTEGER: SQLITE_AFF_INTEGER,
+	TK_FLOAT:   SQLITE_AFF_REAL,
+	TK_STRING:  SQLITE_AFF_TEXT,
+	TK_BLOB:    SQLITE_AFF_BLOB,
+	TK_NULL:    SQLITE_AFF_NONE,
+}
+
 // ComputeColumnAffinity determines the affinity of a result column.
 func (rc *ResultCompiler) ComputeColumnAffinity(expr *Expr) Affinity {
 	if expr == nil {
 		return SQLITE_AFF_BLOB
 	}
-
-	switch expr.Op {
-	case TK_COLUMN:
-		if expr.ColumnRef != nil {
-			return expr.ColumnRef.Affinity
-		}
-		return SQLITE_AFF_BLOB
-
-	case TK_INTEGER:
-		return SQLITE_AFF_INTEGER
-
-	case TK_FLOAT:
-		return SQLITE_AFF_REAL
-
-	case TK_STRING:
-		return SQLITE_AFF_TEXT
-
-	case TK_BLOB:
-		return SQLITE_AFF_BLOB
-
-	case TK_NULL:
-		return SQLITE_AFF_NONE
-
-	default:
-		// For operators, recursively determine affinity
-		if expr.Left != nil {
-			return rc.ComputeColumnAffinity(expr.Left)
-		}
-		return SQLITE_AFF_BLOB
+	if expr.Op == TK_COLUMN {
+		return columnRefAffinity(expr)
 	}
+	if aff, ok := affinityFromOp[expr.Op]; ok {
+		return aff
+	}
+	if expr.Left != nil {
+		return rc.ComputeColumnAffinity(expr.Left)
+	}
+	return SQLITE_AFF_BLOB
+}
+
+// columnRefAffinity returns the affinity for a column reference expression.
+func columnRefAffinity(expr *Expr) Affinity {
+	if expr.ColumnRef != nil {
+		return expr.ColumnRef.Affinity
+	}
+	return SQLITE_AFF_BLOB
 }

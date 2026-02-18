@@ -139,32 +139,44 @@ func (q *TaskQueue) GetStatusByType(taskType TaskType) map[string]interface{} {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 
-	running := make([]*Task, 0)
-	queued := make([]*Task, 0)
-	history := make([]*Task, 0)
-
-	for _, id := range q.queue {
-		if task, ok := q.tasks[id]; ok && task.Type == taskType {
-			switch task.Status {
-			case "running":
-				running = append(running, task)
-			case "queued":
-				queued = append(queued, task)
-			}
-		}
-	}
-
-	for _, task := range q.history {
-		if task.Type == taskType {
-			history = append(history, task)
-		}
-	}
+	running, queued := q.collectQueuedTasks(taskType)
+	history := q.collectHistoryTasks(taskType)
 
 	return map[string]interface{}{
 		"running": running,
 		"queued":  queued,
 		"history": history,
 	}
+}
+
+// collectQueuedTasks collects running and queued tasks of a given type.
+func (q *TaskQueue) collectQueuedTasks(taskType TaskType) ([]*Task, []*Task) {
+	running := make([]*Task, 0)
+	queued := make([]*Task, 0)
+
+	for _, id := range q.queue {
+		task, ok := q.tasks[id]
+		if !ok || task.Type != taskType {
+			continue
+		}
+		if task.Status == "running" {
+			running = append(running, task)
+		} else if task.Status == "queued" {
+			queued = append(queued, task)
+		}
+	}
+	return running, queued
+}
+
+// collectHistoryTasks collects completed tasks of a given type.
+func (q *TaskQueue) collectHistoryTasks(taskType TaskType) []*Task {
+	history := make([]*Task, 0)
+	for _, task := range q.history {
+		if task.Type == taskType {
+			history = append(history, task)
+		}
+	}
+	return history
 }
 
 // worker processes tasks from the queue.
@@ -214,31 +226,36 @@ func (q *TaskQueue) updateTaskProgress(id string, progress int, message string) 
 // runTask executes a task based on its type.
 func (q *TaskQueue) runTask(task *Task) {
 	log.Printf("[TASK QUEUE] Starting %s: %s", task.Type, task.Name)
+	result, err := q.executeTask(task)
+	q.finalizeTask(task, result, err)
+}
 
-	var err error
-	var result interface{}
+// taskHandler maps task types to their execution functions.
+type taskHandler func(q *TaskQueue, task *Task) (interface{}, error)
 
-	switch task.Type {
-	case TaskInstall:
-		err = q.runInstallTask(task)
-	case TaskDelete:
-		err = q.runDeleteTask(task)
-	case TaskConvert:
-		result, err = q.runConvertTask(task)
-	case TaskExport:
-		result, err = q.runExportTask(task)
-	case TaskIngest:
-		result, err = q.runIngestTask(task)
-	case TaskVerify:
-		result, err = q.runVerifyTask(task)
-	case TaskSelfcheck:
-		result, err = q.runSelfcheckTask(task)
-	case TaskToolRun:
-		result, err = q.runToolTask(task)
-	default:
-		err = fmt.Errorf("unknown task type: %s", task.Type)
+// taskHandlers is the dispatch table for task execution.
+var taskHandlers = map[TaskType]taskHandler{
+	TaskInstall:   func(q *TaskQueue, t *Task) (interface{}, error) { return nil, q.runInstallTask(t) },
+	TaskDelete:    func(q *TaskQueue, t *Task) (interface{}, error) { return nil, q.runDeleteTask(t) },
+	TaskConvert:   func(q *TaskQueue, t *Task) (interface{}, error) { return q.runConvertTask(t) },
+	TaskExport:    func(q *TaskQueue, t *Task) (interface{}, error) { return q.runExportTask(t) },
+	TaskIngest:    func(q *TaskQueue, t *Task) (interface{}, error) { return q.runIngestTask(t) },
+	TaskVerify:    func(q *TaskQueue, t *Task) (interface{}, error) { return q.runVerifyTask(t) },
+	TaskSelfcheck: func(q *TaskQueue, t *Task) (interface{}, error) { return q.runSelfcheckTask(t) },
+	TaskToolRun:   func(q *TaskQueue, t *Task) (interface{}, error) { return q.runToolTask(t) },
+}
+
+// executeTask dispatches to the appropriate task handler.
+func (q *TaskQueue) executeTask(task *Task) (interface{}, error) {
+	handler, ok := taskHandlers[task.Type]
+	if !ok {
+		return nil, fmt.Errorf("unknown task type: %s", task.Type)
 	}
+	return handler(q, task)
+}
 
+// finalizeTask marks a task complete and moves it to history.
+func (q *TaskQueue) finalizeTask(task *Task, result interface{}, err error) {
 	q.mu.Lock()
 	task.FinishedAt = time.Now()
 	task.Progress = 100
@@ -445,6 +462,31 @@ func (q *TaskQueue) ClearHistory() {
 
 // HTTP Handlers
 
+// parseTaskAddForm parses and validates the task add form.
+func parseTaskAddForm(r *http.Request) (TaskType, string, map[string]string, error) {
+	if err := r.ParseForm(); err != nil {
+		return "", "", nil, fmt.Errorf("invalid form data")
+	}
+	taskType := TaskType(r.FormValue("type"))
+	name := r.FormValue("name")
+	if taskType == "" || name == "" {
+		return "", "", nil, fmt.Errorf("missing required fields: type, name")
+	}
+	params := extractTaskParams(r.Form)
+	return taskType, name, params, nil
+}
+
+// extractTaskParams collects non-standard form values as params.
+func extractTaskParams(form map[string][]string) map[string]string {
+	params := make(map[string]string)
+	for key, values := range form {
+		if key != "type" && key != "name" && len(values) > 0 {
+			params[key] = values[0]
+		}
+	}
+	return params
+}
+
 // handleTaskAdd handles POST requests to add a task.
 func handleTaskAdd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -452,29 +494,13 @@ func handleTaskAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseForm(); err != nil {
-		jsonErrorTask(w, "Invalid form data", http.StatusBadRequest)
+	taskType, name, params, err := parseTaskAddForm(r)
+	if err != nil {
+		jsonErrorTask(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	taskType := TaskType(r.FormValue("type"))
-	name := r.FormValue("name")
-
-	if taskType == "" || name == "" {
-		jsonErrorTask(w, "Missing required fields: type, name", http.StatusBadRequest)
-		return
-	}
-
-	// Collect all other form values as params
-	params := make(map[string]string)
-	for key, values := range r.Form {
-		if key != "type" && key != "name" && len(values) > 0 {
-			params[key] = values[0]
-		}
 	}
 
 	task := taskQueue.AddTask(taskType, name, params)
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(task)
 }

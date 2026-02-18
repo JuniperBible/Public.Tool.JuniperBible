@@ -92,46 +92,42 @@ func (f *SumFunc) Step(args []Value) error {
 	if args[0].IsNull() {
 		return nil
 	}
-
 	f.hasValue = true
-
-	switch args[0].Type() {
-	case TypeInteger:
-		if !f.isFloat {
-			// Try to add as integer
-			val := args[0].AsInt64()
-			newSum := f.intSum + val
-
-			// Check for overflow
-			if (val > 0 && newSum < f.intSum) || (val < 0 && newSum > f.intSum) {
-				// Overflow - switch to float
-				f.floatSum = float64(f.intSum) + float64(val)
-				f.isFloat = true
-			} else {
-				f.intSum = newSum
-			}
-		} else {
-			f.floatSum += float64(args[0].AsInt64())
-		}
-
-	case TypeFloat:
-		if !f.isFloat {
-			// Switch to float
-			f.floatSum = float64(f.intSum)
-			f.isFloat = true
-		}
-		f.floatSum += args[0].AsFloat64()
-
-	default:
-		// Try to convert to number
-		if !f.isFloat {
-			f.floatSum = float64(f.intSum)
-			f.isFloat = true
-		}
-		f.floatSum += args[0].AsFloat64()
-	}
-
+	f.addValue(args[0])
 	return nil
+}
+
+func (f *SumFunc) addValue(v Value) {
+	switch v.Type() {
+	case TypeInteger:
+		f.addInteger(v.AsInt64())
+	case TypeFloat:
+		f.addFloat(v.AsFloat64())
+	default:
+		f.addFloat(v.AsFloat64())
+	}
+}
+
+func (f *SumFunc) addInteger(val int64) {
+	if f.isFloat {
+		f.floatSum += float64(val)
+		return
+	}
+	newSum := f.intSum + val
+	if (val > 0 && newSum < f.intSum) || (val < 0 && newSum > f.intSum) {
+		f.floatSum = float64(f.intSum) + float64(val)
+		f.isFloat = true
+	} else {
+		f.intSum = newSum
+	}
+}
+
+func (f *SumFunc) addFloat(val float64) {
+	if !f.isFloat {
+		f.floatSum = float64(f.intSum)
+		f.isFloat = true
+	}
+	f.floatSum += val
 }
 
 func (f *SumFunc) Final() (Value, error) {

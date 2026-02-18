@@ -796,46 +796,46 @@ type SearchData struct {
 // - For browsing multiple capsules: use /library/bibles/
 func handleBibleIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/bible" && r.URL.Path != "/bible/" {
-		// Route to specific Bible
 		handleBibleRouting(w, r)
 		return
 	}
-
 	allBibles := getCachedBibles()
-
-	// If no capsules, show empty state
 	if len(allBibles) == 0 {
-		data := BibleIndexData{
-			PageData: PageData{Title: "Bible"},
-			Bibles:   nil,
-		}
-		if err := Templates.ExecuteTemplate(w, "bible_empty.html", data); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		showEmptyBibleState(w)
 		return
 	}
+	if url := findDefaultBibleURL(allBibles); url != "" {
+		http.Redirect(w, r, url, http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/library/bibles/", http.StatusFound)
+}
 
-	// Look for DRC capsule (case-insensitive)
+// showEmptyBibleState renders the empty Bible state page.
+func showEmptyBibleState(w http.ResponseWriter) {
+	data := BibleIndexData{
+		PageData: PageData{Title: "Bible"},
+		Bibles:   nil,
+	}
+	if err := Templates.ExecuteTemplate(w, "bible_empty.html", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// findDefaultBibleURL returns the URL for the default Bible to display.
+func findDefaultBibleURL(allBibles []BibleInfo) string {
 	for _, b := range allBibles {
 		if strings.EqualFold(b.ID, "DRC") {
-			// Redirect to DRC Genesis 1
-			http.Redirect(w, r, "/bible/DRC/Gen/1", http.StatusFound)
-			return
+			return "/bible/DRC/Gen/1"
 		}
 	}
-
-	// No DRC found, redirect to first Bible's first book
-	// Get the first Bible's books to find the first chapter
 	if len(allBibles) > 0 {
 		bible, books, err := loadBibleWithBooks(allBibles[0].ID)
 		if err == nil && len(books) > 0 {
-			http.Redirect(w, r, fmt.Sprintf("/bible/%s/%s/1", bible.ID, books[0].ID), http.StatusFound)
-			return
+			return fmt.Sprintf("/bible/%s/%s/1", bible.ID, books[0].ID)
 		}
 	}
-
-	// Fallback: redirect to library
-	http.Redirect(w, r, "/library/bibles/", http.StatusFound)
+	return ""
 }
 
 // paginationParams holds pagination configuration and results.
@@ -868,7 +868,14 @@ func collectTagsAndLanguages(installed, installable []ManageableBible) (tags, la
 	tagSet := make(map[string]bool)
 	langSet := make(map[string]bool)
 
-	for _, b := range installed {
+	collectFromBibles(installed, tagSet, langSet)
+	collectFromBibles(installable, tagSet, langSet)
+
+	return sortedKeys(tagSet), sortedKeys(langSet)
+}
+
+func collectFromBibles(bibles []ManageableBible, tagSet, langSet map[string]bool) {
+	for _, b := range bibles {
 		for _, tag := range b.Tags {
 			tagSet[tag] = true
 		}
@@ -876,26 +883,15 @@ func collectTagsAndLanguages(installed, installable []ManageableBible) (tags, la
 			langSet[b.Language] = true
 		}
 	}
-	for _, b := range installable {
-		for _, tag := range b.Tags {
-			tagSet[tag] = true
-		}
-		if b.Language != "" {
-			langSet[b.Language] = true
-		}
-	}
+}
 
-	for tag := range tagSet {
-		tags = append(tags, tag)
+func sortedKeys(m map[string]bool) []string {
+	var keys []string
+	for k := range m {
+		keys = append(keys, k)
 	}
-	sort.Strings(tags)
-
-	for lang := range langSet {
-		languages = append(languages, lang)
-	}
-	sort.Strings(languages)
-
-	return tags, languages
+	sort.Strings(keys)
+	return keys
 }
 
 // filterManageableBibles filters bibles by tag and language.
@@ -1492,69 +1488,65 @@ func handleBibleSearch(w http.ResponseWriter, r *http.Request) {
 // handleAPIBibles returns JSON list of Bibles.
 func handleAPIBibles(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
 	path := strings.TrimPrefix(r.URL.Path, "/api/bibles")
 	path = strings.Trim(path, "/")
-
 	if path == "" {
-		// List all Bibles
-		bibles := getCachedBibles()
-		json.NewEncoder(w).Encode(bibles)
+		json.NewEncoder(w).Encode(getCachedBibles())
 		return
 	}
-
 	parts := strings.Split(path, "/")
-	capsuleID := parts[0]
+	dispatchAPIBibles(w, parts)
+}
 
-	switch {
-	case len(parts) == 1:
-		// Get Bible info with books
-		bible, books, err := loadBibleWithBooks(capsuleID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"bible": bible,
-			"books": books,
-		})
-	case len(parts) == 2:
-		// Get book info
-		bookID := parts[1]
-		bible, books, err := loadBibleWithBooks(capsuleID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		for _, book := range books {
-			if strings.EqualFold(book.ID, bookID) {
-				json.NewEncoder(w).Encode(map[string]interface{}{
-					"bible": bible,
-					"book":  book,
-				})
-				return
-			}
-		}
-		http.Error(w, "Book not found", http.StatusNotFound)
-	case len(parts) >= 3:
-		// Get chapter verses
-		bookID := parts[1]
-		var chapter int
-		fmt.Sscanf(parts[2], "%d", &chapter)
-
-		verses, err := loadChapterVerses(capsuleID, bookID, chapter)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-
-		json.NewEncoder(w).Encode(ChapterData{
-			BibleID: capsuleID,
-			Book:    bookID,
-			Chapter: chapter,
-			Verses:  verses,
-		})
+// dispatchAPIBibles routes the API request based on path parts.
+func dispatchAPIBibles(w http.ResponseWriter, parts []string) {
+	switch len(parts) {
+	case 1:
+		handleAPIBibleInfo(w, parts[0])
+	case 2:
+		handleAPIBookInfo(w, parts[0], parts[1])
+	default:
+		handleAPIChapterVerses(w, parts)
 	}
+}
+
+// handleAPIBibleInfo returns Bible info with books.
+func handleAPIBibleInfo(w http.ResponseWriter, capsuleID string) {
+	bible, books, err := loadBibleWithBooks(capsuleID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"bible": bible, "books": books})
+}
+
+// handleAPIBookInfo returns book info for a Bible.
+func handleAPIBookInfo(w http.ResponseWriter, capsuleID, bookID string) {
+	bible, books, err := loadBibleWithBooks(capsuleID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	for _, book := range books {
+		if strings.EqualFold(book.ID, bookID) {
+			json.NewEncoder(w).Encode(map[string]interface{}{"bible": bible, "book": book})
+			return
+		}
+	}
+	http.Error(w, "Book not found", http.StatusNotFound)
+}
+
+// handleAPIChapterVerses returns verses for a chapter.
+func handleAPIChapterVerses(w http.ResponseWriter, parts []string) {
+	capsuleID, bookID := parts[0], parts[1]
+	var chapter int
+	fmt.Sscanf(parts[2], "%d", &chapter)
+	verses, err := loadChapterVerses(capsuleID, bookID, chapter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(ChapterData{BibleID: capsuleID, Book: bookID, Chapter: chapter, Verses: verses})
 }
 
 // handleAPIBibleSearch handles search API requests.
@@ -1771,52 +1763,56 @@ func loadChapterVerses(capsuleID, bookID string, chapter int) ([]VerseData, erro
 		return nil, err
 	}
 
-	// Find the book
-	var doc *ir.Document
-	for _, d := range corpus.Documents {
-		if strings.EqualFold(d.ID, bookID) {
-			doc = d
-			break
-		}
-	}
+	doc := findBookDocument(corpus, bookID)
 	if doc == nil {
 		return nil, fmt.Errorf("book not found: %s", bookID)
 	}
 
-	// Extract verses for the chapter
-	var verses []VerseData
-	// Use prefix matching + pre-compiled regex for better performance
-	// (avoid compiling regex on every chapter load)
-	docPrefix := doc.ID + "."
-
-	for _, cb := range doc.ContentBlocks {
-		// Fast prefix check before regex
-		if !strings.HasPrefix(cb.ID, docPrefix) {
-			continue
-		}
-		// Use pre-compiled regex on the suffix (after doc.ID.)
-		suffix := cb.ID[len(docPrefix):]
-		matches := chapterVerseRegex.FindStringSubmatch("." + suffix)
-		if len(matches) == 3 {
-			var cbChapter, cbVerse int
-			fmt.Sscanf(matches[1], "%d", &cbChapter)
-			fmt.Sscanf(matches[2], "%d", &cbVerse)
-
-			if cbChapter == chapter {
-				verses = append(verses, VerseData{
-					Number: cbVerse,
-					Text:   cb.Text,
-				})
-			}
-		}
-	}
-
-	// Sort by verse number
+	verses := extractChapterVerses(doc, chapter)
 	sort.Slice(verses, func(i, j int) bool {
 		return verses[i].Number < verses[j].Number
 	})
-
 	return verses, nil
+}
+
+func findBookDocument(corpus *ir.Corpus, bookID string) *ir.Document {
+	for _, d := range corpus.Documents {
+		if strings.EqualFold(d.ID, bookID) {
+			return d
+		}
+	}
+	return nil
+}
+
+func extractChapterVerses(doc *ir.Document, chapter int) []VerseData {
+	var verses []VerseData
+	docPrefix := doc.ID + "."
+
+	for _, cb := range doc.ContentBlocks {
+		if verse := parseChapterVerse(cb, docPrefix, chapter); verse != nil {
+			verses = append(verses, *verse)
+		}
+	}
+	return verses
+}
+
+func parseChapterVerse(cb *ir.ContentBlock, docPrefix string, targetChapter int) *VerseData {
+	if !strings.HasPrefix(cb.ID, docPrefix) {
+		return nil
+	}
+	suffix := cb.ID[len(docPrefix):]
+	matches := chapterVerseRegex.FindStringSubmatch("." + suffix)
+	if len(matches) != 3 {
+		return nil
+	}
+	var cbChapter, cbVerse int
+	fmt.Sscanf(matches[1], "%d", &cbChapter)
+	fmt.Sscanf(matches[2], "%d", &cbVerse)
+
+	if cbChapter != targetChapter {
+		return nil
+	}
+	return &VerseData{Number: cbVerse, Text: cb.Text}
 }
 
 func normalizeQuery(query string) (string, string, bool) {

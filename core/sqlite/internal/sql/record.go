@@ -74,33 +74,29 @@ type Record struct {
 // Returns the new buffer
 // SQLite varints use 7 bits per byte with continuation bit in high bit
 func PutVarint(buf []byte, v uint64) []byte {
-	if v <= 0x7f {
-		return append(buf, byte(v))
+	n := varintSize(v)
+	return putVarintN(buf, v, n)
+}
+
+// putVarintN encodes v as an n-byte SQLite varint and appends to buf.
+func putVarintN(buf []byte, v uint64, n int) []byte {
+	if n == 9 {
+		return append(buf,
+			byte((v>>57)&0x7f|0x80), byte((v>>50)&0x7f|0x80),
+			byte((v>>43)&0x7f|0x80), byte((v>>36)&0x7f|0x80),
+			byte((v>>29)&0x7f|0x80), byte((v>>22)&0x7f|0x80),
+			byte((v>>15)&0x7f|0x80), byte((v>>8)&0x7f|0x80),
+			byte(v))
 	}
-	if v <= 0x3fff {
-		return append(buf, byte((v>>7)|0x80), byte(v&0x7f))
+	tmp := make([]byte, n)
+	for i := n - 1; i >= 0; i-- {
+		tmp[i] = byte(v & 0x7f)
+		v >>= 7
 	}
-	if v <= 0x1fffff {
-		return append(buf, byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
+	for i := 0; i < n-1; i++ {
+		tmp[i] |= 0x80
 	}
-	if v <= 0xfffffff {
-		return append(buf, byte((v>>21)&0x7f|0x80), byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
-	}
-	if v <= 0x7ffffffff {
-		return append(buf, byte((v>>28)&0x7f|0x80), byte((v>>21)&0x7f|0x80), byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
-	}
-	if v <= 0x3ffffffffff {
-		return append(buf, byte((v>>35)&0x7f|0x80), byte((v>>28)&0x7f|0x80), byte((v>>21)&0x7f|0x80), byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
-	}
-	if v <= 0x1ffffffffffff {
-		return append(buf, byte((v>>42)&0x7f|0x80), byte((v>>35)&0x7f|0x80), byte((v>>28)&0x7f|0x80), byte((v>>21)&0x7f|0x80), byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
-	}
-	if v <= 0xffffffffffffff {
-		return append(buf, byte((v>>49)&0x7f|0x80), byte((v>>42)&0x7f|0x80), byte((v>>35)&0x7f|0x80), byte((v>>28)&0x7f|0x80), byte((v>>21)&0x7f|0x80), byte((v>>14)&0x7f|0x80), byte((v>>7)&0x7f|0x80), byte(v&0x7f))
-	}
-	// 9 byte case - first 8 bytes hold 7 bits each, last byte holds 8 bits
-	// Shifts: 57, 50, 43, 36, 29, 22, 15, 8, 0
-	return append(buf, byte((v>>57)&0x7f|0x80), byte((v>>50)&0x7f|0x80), byte((v>>43)&0x7f|0x80), byte((v>>36)&0x7f|0x80), byte((v>>29)&0x7f|0x80), byte((v>>22)&0x7f|0x80), byte((v>>15)&0x7f|0x80), byte((v>>8)&0x7f|0x80), byte(v))
+	return append(buf, tmp...)
 }
 
 // GetVarint reads a SQLite varint from buf starting at offset
@@ -109,18 +105,17 @@ func GetVarint(buf []byte, offset int) (uint64, int) {
 	if offset >= len(buf) {
 		return 0, 0
 	}
-
-	// Fast path for 1-byte case
 	if buf[offset] < 0x80 {
 		return uint64(buf[offset]), 1
 	}
-
-	// Fast path for 2-byte case
 	if offset+1 < len(buf) && buf[offset+1] < 0x80 {
 		return (uint64(buf[offset]&0x7f) << 7) | uint64(buf[offset+1]), 2
 	}
+	return getVarintGeneral(buf, offset)
+}
 
-	// General case - decode byte by byte
+// getVarintGeneral handles the general case for varints > 2 bytes.
+func getVarintGeneral(buf []byte, offset int) (uint64, int) {
 	var v uint64
 	for i := 0; i < 9 && offset+i < len(buf); i++ {
 		b := buf[offset+i]
@@ -130,7 +125,6 @@ func GetVarint(buf []byte, offset int) (uint64, int) {
 				return v, i + 1
 			}
 		} else {
-			// 9th byte uses all 8 bits
 			v = (v << 8) | uint64(b)
 			return v, 9
 		}
@@ -182,29 +176,15 @@ func SerialTypeFor(val Value) SerialType {
 	return SerialTypeNull
 }
 
+// serialTypeLenLookup maps serial types 0-11 to their byte lengths.
+var serialTypeLenLookup = [12]int{0, 1, 2, 3, 4, 6, 8, 8, 0, 0, 0, 0}
+
 // SerialTypeLen returns the number of bytes required to store a value with the given serial type
 func SerialTypeLen(serialType SerialType) int {
-	switch serialType {
-	case SerialTypeNull, SerialTypeZero, SerialTypeOne:
-		return 0
-	case SerialTypeInt8:
-		return 1
-	case SerialTypeInt16:
-		return 2
-	case SerialTypeInt24:
-		return 3
-	case SerialTypeInt32:
-		return 4
-	case SerialTypeInt48:
-		return 6
-	case SerialTypeInt64, SerialTypeFloat64:
-		return 8
-	default:
-		if serialType >= 12 {
-			return int(serialType-12) / 2
-		}
-		return 0
+	if serialType < 12 {
+		return serialTypeLenLookup[serialType]
 	}
+	return int(serialType-12) / 2
 }
 
 // MakeRecord creates a SQLite record from values
@@ -260,85 +240,86 @@ func MakeRecord(values []Value) ([]byte, error) {
 	return buf, nil
 }
 
+// varintSizeThresholds defines the upper bounds for each varint size.
+var varintSizeThresholds = [8]uint64{
+	0x7f, 0x3fff, 0x1fffff, 0xfffffff,
+	0x7ffffffff, 0x3ffffffffff, 0x1ffffffffffff, 0xffffffffffffff,
+}
+
 // varintSize returns the number of bytes needed to encode v as a varint
 func varintSize(v uint64) int {
-	if v <= 0x7f {
-		return 1
-	}
-	if v <= 0x3fff {
-		return 2
-	}
-	if v <= 0x1fffff {
-		return 3
-	}
-	if v <= 0xfffffff {
-		return 4
-	}
-	if v <= 0x7ffffffff {
-		return 5
-	}
-	if v <= 0x3ffffffffff {
-		return 6
-	}
-	if v <= 0x1ffffffffffff {
-		return 7
-	}
-	if v <= 0xffffffffffffff {
-		return 8
+	for i, thresh := range varintSizeThresholds {
+		if v <= thresh {
+			return i + 1
+		}
 	}
 	return 9
 }
 
 // appendValue appends a value to the buffer based on its serial type
 func appendValue(buf []byte, val Value, st SerialType) []byte {
-	switch st {
-	case SerialTypeNull, SerialTypeZero, SerialTypeOne:
-		// No data stored
+	if st == SerialTypeNull || st == SerialTypeZero || st == SerialTypeOne {
 		return buf
-
-	case SerialTypeInt8:
-		return append(buf, byte(val.Int))
-
-	case SerialTypeInt16:
-		var tmp [2]byte
-		binary.BigEndian.PutUint16(tmp[:], uint16(val.Int))
-		return append(buf, tmp[:]...)
-
-	case SerialTypeInt24:
-		v := uint32(val.Int)
-		return append(buf, byte(v>>16), byte(v>>8), byte(v))
-
-	case SerialTypeInt32:
-		var tmp [4]byte
-		binary.BigEndian.PutUint32(tmp[:], uint32(val.Int))
-		return append(buf, tmp[:]...)
-
-	case SerialTypeInt48:
-		v := uint64(val.Int)
-		return append(buf,
-			byte(v>>40), byte(v>>32), byte(v>>24),
-			byte(v>>16), byte(v>>8), byte(v))
-
-	case SerialTypeInt64:
-		var tmp [8]byte
-		binary.BigEndian.PutUint64(tmp[:], uint64(val.Int))
-		return append(buf, tmp[:]...)
-
-	case SerialTypeFloat64:
-		var tmp [8]byte
-		binary.BigEndian.PutUint64(tmp[:], math.Float64bits(val.Float))
-		return append(buf, tmp[:]...)
-
-	default:
-		// Blob or Text
-		if st%2 == 0 {
-			// Even: BLOB
-			return append(buf, val.Blob...)
-		} else {
-			// Odd: TEXT
-			return append(buf, []byte(val.Text)...)
-		}
 	}
+	if fn, ok := appendValueFuncs[st]; ok {
+		return fn(buf, val)
+	}
+	return appendBlobOrText(buf, val, st)
+}
+
+var appendValueFuncs = map[SerialType]func([]byte, Value) []byte{
+	SerialTypeInt8:    appendInt8,
+	SerialTypeInt16:   appendInt16,
+	SerialTypeInt24:   appendInt24,
+	SerialTypeInt32:   appendInt32,
+	SerialTypeInt48:   appendInt48,
+	SerialTypeInt64:   appendInt64,
+	SerialTypeFloat64: appendFloat64,
+}
+
+func appendInt8(buf []byte, val Value) []byte {
+	return append(buf, byte(val.Int))
+}
+
+func appendInt16(buf []byte, val Value) []byte {
+	var tmp [2]byte
+	binary.BigEndian.PutUint16(tmp[:], uint16(val.Int))
+	return append(buf, tmp[:]...)
+}
+
+func appendInt24(buf []byte, val Value) []byte {
+	v := uint32(val.Int)
+	return append(buf, byte(v>>16), byte(v>>8), byte(v))
+}
+
+func appendInt32(buf []byte, val Value) []byte {
+	var tmp [4]byte
+	binary.BigEndian.PutUint32(tmp[:], uint32(val.Int))
+	return append(buf, tmp[:]...)
+}
+
+func appendInt48(buf []byte, val Value) []byte {
+	v := uint64(val.Int)
+	return append(buf, byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+}
+
+func appendInt64(buf []byte, val Value) []byte {
+	var tmp [8]byte
+	binary.BigEndian.PutUint64(tmp[:], uint64(val.Int))
+	return append(buf, tmp[:]...)
+}
+
+func appendFloat64(buf []byte, val Value) []byte {
+	var tmp [8]byte
+	binary.BigEndian.PutUint64(tmp[:], math.Float64bits(val.Float))
+	return append(buf, tmp[:]...)
+}
+
+func appendBlobOrText(buf []byte, val Value, st SerialType) []byte {
+	if st%2 == 0 {
+		return append(buf, val.Blob...)
+	}
+	return append(buf, []byte(val.Text)...)
 }
 
 // ParseRecord parses a SQLite record from bytes
@@ -398,49 +379,64 @@ func parseFixedInt(data []byte, offset int, st SerialType) (Value, int, error) {
 	if offset+width > len(data) {
 		return Value{}, 0, errors.New("truncated int" + intWidthSuffix(st))
 	}
-	var v int64
+	v := decodeIntByType(data, offset, st)
+	return Value{Type: TypeInteger, Int: v}, width, nil
+}
+
+// decodeIntByType decodes an integer value based on serial type.
+func decodeIntByType(data []byte, offset int, st SerialType) int64 {
 	switch st {
 	case SerialTypeInt8:
-		v = int64(int8(data[offset]))
+		return int64(int8(data[offset]))
 	case SerialTypeInt16:
-		v = int64(int16(binary.BigEndian.Uint16(data[offset:])))
+		return int64(int16(binary.BigEndian.Uint16(data[offset:])))
 	case SerialTypeInt24:
-		raw := int32(data[offset])<<16 | int32(data[offset+1])<<8 | int32(data[offset+2])
-		if raw&0x800000 != 0 {
-			raw |= ^0xffffff // sign extend
-		}
-		v = int64(raw)
+		return decodeInt24(data, offset)
 	case SerialTypeInt32:
-		v = int64(int32(binary.BigEndian.Uint32(data[offset:])))
+		return int64(int32(binary.BigEndian.Uint32(data[offset:])))
 	case SerialTypeInt48:
-		v = int64(data[offset])<<40 | int64(data[offset+1])<<32 |
-			int64(data[offset+2])<<24 | int64(data[offset+3])<<16 |
-			int64(data[offset+4])<<8 | int64(data[offset+5])
-		if v&0x800000000000 != 0 {
-			v |= ^0xffffffffffff // sign extend
-		}
-	default: // SerialTypeInt64
-		v = int64(binary.BigEndian.Uint64(data[offset:]))
+		return decodeInt48(data, offset)
+	default:
+		return int64(binary.BigEndian.Uint64(data[offset:]))
 	}
-	return Value{Type: TypeInteger, Int: v}, width, nil
+}
+
+// decodeInt24 decodes a 24-bit signed integer.
+func decodeInt24(data []byte, offset int) int64 {
+	raw := int32(data[offset])<<16 | int32(data[offset+1])<<8 | int32(data[offset+2])
+	if raw&0x800000 != 0 {
+		raw |= ^0xffffff
+	}
+	return int64(raw)
+}
+
+// decodeInt48 decodes a 48-bit signed integer.
+func decodeInt48(data []byte, offset int) int64 {
+	v := int64(data[offset])<<40 | int64(data[offset+1])<<32 |
+		int64(data[offset+2])<<24 | int64(data[offset+3])<<16 |
+		int64(data[offset+4])<<8 | int64(data[offset+5])
+	if v&0x800000000000 != 0 {
+		v |= ^0xffffffffffff
+	}
+	return v
+}
+
+// intWidthSuffixTable maps serial types to their bit-width suffix strings.
+var intWidthSuffixTable = map[SerialType]string{
+	SerialTypeInt8:  "8",
+	SerialTypeInt16: "16",
+	SerialTypeInt24: "24",
+	SerialTypeInt32: "32",
+	SerialTypeInt48: "48",
+	SerialTypeInt64: "64",
 }
 
 // intWidthSuffix returns the bit-width suffix string for error messages.
 func intWidthSuffix(st SerialType) string {
-	switch st {
-	case SerialTypeInt8:
-		return "8"
-	case SerialTypeInt16:
-		return "16"
-	case SerialTypeInt24:
-		return "24"
-	case SerialTypeInt32:
-		return "32"
-	case SerialTypeInt48:
-		return "48"
-	default:
-		return "64"
+	if s, ok := intWidthSuffixTable[st]; ok {
+		return s
 	}
+	return "64"
 }
 
 // parseFloat64 decodes an IEEE 754 float64 from data at offset.

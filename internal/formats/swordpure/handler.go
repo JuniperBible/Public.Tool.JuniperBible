@@ -45,23 +45,38 @@ func init() {
 // Detect implements EmbeddedFormatHandler.Detect.
 // Detects SWORD module directories by looking for mods.d/*.conf files.
 func (h *Handler) Detect(path string) (*plugins.DetectResult, error) {
+	if err := checkIsDirectory(path); err != nil {
+		return err, nil
+	}
+
+	modsDir := filepath.Join(path, "mods.d")
+	if err := checkModsDir(modsDir); err != nil {
+		return err, nil
+	}
+
+	return checkConfFiles(modsDir)
+}
+
+func checkIsDirectory(path string) *plugins.DetectResult {
 	info, err := os.Stat(path)
 	if err != nil {
-		return &plugins.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot stat: %v", err)}, nil
+		return &plugins.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot stat: %v", err)}
 	}
-
-	// SWORD modules are directories with mods.d/*.conf files
 	if !info.IsDir() {
-		return &plugins.DetectResult{Detected: false, Reason: "not a directory"}, nil
+		return &plugins.DetectResult{Detected: false, Reason: "not a directory"}
 	}
+	return nil
+}
 
-	// Check for mods.d subdirectory
-	modsDir := filepath.Join(path, "mods.d")
-	if info, err := os.Stat(modsDir); err != nil || !info.IsDir() {
-		return &plugins.DetectResult{Detected: false, Reason: "no mods.d directory"}, nil
+func checkModsDir(modsDir string) *plugins.DetectResult {
+	info, err := os.Stat(modsDir)
+	if err != nil || !info.IsDir() {
+		return &plugins.DetectResult{Detected: false, Reason: "no mods.d directory"}
 	}
+	return nil
+}
 
-	// Check for .conf files in mods.d
+func checkConfFiles(modsDir string) (*plugins.DetectResult, error) {
 	entries, err := os.ReadDir(modsDir)
 	if err != nil {
 		return &plugins.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot read mods.d: %v", err)}, nil
@@ -150,88 +165,52 @@ func (h *Handler) Enumerate(path string) (*plugins.EnumerateResult, error) {
 
 // ExtractIR implements EmbeddedFormatHandler.ExtractIR.
 func (h *Handler) ExtractIR(path, outputDir string) (*plugins.ExtractIRResult, error) {
-	// Create output directory
 	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create output dir: %w", err)
 	}
-
-	// Load modules from path
 	confs, err := LoadModulesFromPath(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load modules: %w", err)
 	}
-
-	var results []map[string]interface{}
 	for _, conf := range confs {
-		// Skip encrypted modules
-		if conf.IsEncrypted() {
-			results = append(results, map[string]interface{}{
-				"module": conf.ModuleName,
-				"status": "skipped",
-				"reason": "encrypted",
-			})
-			continue
-		}
-
-		// Only handle zText Bible modules for now
-		if conf.ModuleType() != "Bible" || !conf.IsCompressed() {
-			results = append(results, map[string]interface{}{
-				"module": conf.ModuleName,
-				"status": "skipped",
-				"reason": fmt.Sprintf("unsupported type: %s/%s", conf.ModuleType(), conf.ModDrv),
-			})
-			continue
-		}
-
-		// Open the zText module
-		zt, err := OpenZTextModule(conf, path)
-		if err != nil {
-			results = append(results, map[string]interface{}{
-				"module": conf.ModuleName,
-				"status": "error",
-				"error":  err.Error(),
-			})
-			continue
-		}
-
-		// Extract corpus with full verse text
-		corpus, stats, err := extractCorpus(zt, conf)
-		if err != nil {
-			results = append(results, map[string]interface{}{
-				"module": conf.ModuleName,
-				"status": "error",
-				"error":  err.Error(),
-			})
-			continue
-		}
-
-		// Write IR JSON
-		irPath := filepath.Join(outputDir, conf.ModuleName+".ir.json")
-		if err := writeCorpusJSON(corpus, irPath); err != nil {
-			results = append(results, map[string]interface{}{
-				"module": conf.ModuleName,
-				"status": "error",
-				"error":  fmt.Sprintf("failed to write IR: %v", err),
-			})
-			continue
-		}
-
-		results = append(results, map[string]interface{}{
-			"module":      conf.ModuleName,
-			"status":      "ok",
-			"ir_path":     irPath,
-			"documents":   stats.Documents,
-			"verses":      stats.Verses,
-			"tokens":      stats.Tokens,
-			"annotations": stats.Annotations,
-			"loss_class":  string(corpus.LossClass),
-		})
+		processModule(conf, path, outputDir)
 	}
+	return &plugins.ExtractIRResult{IRPath: outputDir, LossClass: "L1"}, nil
+}
 
-	return &plugins.ExtractIRResult{
-		IRPath:    outputDir,
-		LossClass: "L1",
-	}, nil
+// processModule processes a single SWORD module for IR extraction.
+func processModule(conf *ConfFile, path, outputDir string) map[string]interface{} {
+	if skipReason := shouldSkipModule(conf); skipReason != "" {
+		return map[string]interface{}{"module": conf.ModuleName, "status": "skipped", "reason": skipReason}
+	}
+	zt, err := OpenZTextModule(conf, path)
+	if err != nil {
+		return map[string]interface{}{"module": conf.ModuleName, "status": "error", "error": err.Error()}
+	}
+	corpus, stats, err := extractCorpus(zt, conf)
+	if err != nil {
+		return map[string]interface{}{"module": conf.ModuleName, "status": "error", "error": err.Error()}
+	}
+	irPath := filepath.Join(outputDir, conf.ModuleName+".ir.json")
+	if err := writeCorpusJSON(corpus, irPath); err != nil {
+		return map[string]interface{}{"module": conf.ModuleName, "status": "error", "error": fmt.Sprintf("failed to write IR: %v", err)}
+	}
+	return map[string]interface{}{
+		"module": conf.ModuleName, "status": "ok", "ir_path": irPath,
+		"documents": stats.Documents, "verses": stats.Verses, "tokens": stats.Tokens,
+		"annotations": stats.Annotations, "loss_class": string(corpus.LossClass),
+	}
+}
+
+// shouldSkipModule returns a reason to skip the module, or empty string to process.
+func shouldSkipModule(conf *ConfFile) string {
+	if conf.IsEncrypted() {
+		return "encrypted"
+	}
+	if conf.ModuleType() != "Bible" || !conf.IsCompressed() {
+		return fmt.Sprintf("unsupported type: %s/%s", conf.ModuleType(), conf.ModDrv)
+	}
+	return ""
 }
 
 // EmitNative implements EmbeddedFormatHandler.EmitNative.

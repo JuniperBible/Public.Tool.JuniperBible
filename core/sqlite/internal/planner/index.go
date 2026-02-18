@@ -143,43 +143,50 @@ func (s *IndexSelector) AnalyzeIndexUsage(index *IndexInfo, neededColumns []stri
 		EndKey:     make([]interface{}, 0),
 	}
 
-	// Analyze each index column
 	for i, col := range index.Columns {
 		term := s.findTermForColumn(col.Index)
 		if term == nil {
-			// No term for this column
 			if i == 0 {
-				// First column must have constraint for index to be useful
-				return usage
+				return usage // First column must have constraint
 			}
-			break // Can't use later columns
-		}
-
-		if term.Operator == WO_EQ {
-			usage.EqTerms = append(usage.EqTerms, term)
-			usage.StartKey = append(usage.StartKey, term.RightValue)
-			usage.EndKey = append(usage.EndKey, term.RightValue)
-		} else if term.Operator == WO_IN {
-			usage.InTerms = append(usage.InTerms, term)
-			// IN terms complicate key ranges, handle separately
 			break
-		} else if term.Operator&(WO_LT|WO_LE|WO_GT|WO_GE) != 0 {
-			usage.RangeTerms = append(usage.RangeTerms, term)
-			// Set start/end key based on operator
-			if term.Operator&(WO_GT|WO_GE) != 0 {
-				usage.StartKey = append(usage.StartKey, term.RightValue)
-			}
-			if term.Operator&(WO_LT|WO_LE) != 0 {
-				usage.EndKey = append(usage.EndKey, term.RightValue)
-			}
-			break // Range constraint stops further column usage
+		}
+		if done := s.applyTermToUsage(term, usage); done {
+			break
 		}
 	}
 
-	// Check if index covers all needed columns
 	usage.Covering = s.checkCovering(index, neededColumns)
-
 	return usage
+}
+
+// applyTermToUsage applies a term to the usage and returns true if no more columns should be processed.
+func (s *IndexSelector) applyTermToUsage(term *WhereTerm, usage *IndexUsage) bool {
+	switch {
+	case term.Operator == WO_EQ:
+		usage.EqTerms = append(usage.EqTerms, term)
+		usage.StartKey = append(usage.StartKey, term.RightValue)
+		usage.EndKey = append(usage.EndKey, term.RightValue)
+		return false
+	case term.Operator == WO_IN:
+		usage.InTerms = append(usage.InTerms, term)
+		return true
+	case term.Operator&(WO_LT|WO_LE|WO_GT|WO_GE) != 0:
+		s.applyRangeTerm(term, usage)
+		return true
+	}
+	return false
+}
+
+// applyRangeTerm applies a range term to the usage.
+func (s *IndexSelector) applyRangeTerm(term *WhereTerm, usage *IndexUsage) {
+	usage.RangeTerms = append(usage.RangeTerms, term)
+	if term.Operator&(WO_GT|WO_GE) != 0 {
+		usage.StartKey = append(usage.StartKey, term.RightValue)
+	}
+	if term.Operator&(WO_LT|WO_LE) != 0 {
+		usage.EndKey = append(usage.EndKey, term.RightValue)
+	}
 }
 
 // findTermForColumn finds a WHERE term that constrains a specific column.
@@ -247,28 +254,24 @@ func (usage *IndexUsage) Explain() string {
 	return strings.Join(parts, " ")
 }
 
+// operatorStringMap maps operators to their string representations.
+var operatorStringMap = map[WhereOperator]string{
+	WO_EQ:     "=",
+	WO_LT:     "<",
+	WO_LE:     "<=",
+	WO_GT:     ">",
+	WO_GE:     ">=",
+	WO_IN:     " IN ",
+	WO_IS:     " IS ",
+	WO_ISNULL: " IS NULL",
+}
+
 // operatorString converts an operator to its string representation.
 func operatorString(op WhereOperator) string {
-	switch op {
-	case WO_EQ:
-		return "="
-	case WO_LT:
-		return "<"
-	case WO_LE:
-		return "<="
-	case WO_GT:
-		return ">"
-	case WO_GE:
-		return ">="
-	case WO_IN:
-		return " IN "
-	case WO_IS:
-		return " IS "
-	case WO_ISNULL:
-		return " IS NULL"
-	default:
-		return "?"
+	if s, ok := operatorStringMap[op]; ok {
+		return s
 	}
+	return "?"
 }
 
 // BuildIndex creates statistics for a new index.

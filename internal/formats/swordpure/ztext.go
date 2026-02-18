@@ -57,49 +57,65 @@ type VerseEntry struct {
 
 // OpenZTextModule opens a zText module for reading.
 func OpenZTextModule(conf *ConfFile, swordPath string) (*ZTextModule, error) {
-	// Construct the full data path
-	dataPath := conf.DataPath
-	if !filepath.IsAbs(dataPath) {
-		dataPath = filepath.Join(swordPath, dataPath)
-	}
-
-	// Clean the path
-	dataPath = filepath.Clean(dataPath)
+	dataPath := resolveZTextDataPath(conf.DataPath, swordPath)
 
 	mod := &ZTextModule{
 		conf:     conf,
 		dataPath: dataPath,
 	}
 
-	// Load OT index files if they exist
-	otBzsPath := filepath.Join(dataPath, "ot.bzs")
-	otBzvPath := filepath.Join(dataPath, "ot.bzv")
-	if _, err := os.Stat(otBzsPath); err == nil {
-		mod.otBlocks, err = readBlockIndex(otBzsPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read OT block index: %w", err)
-		}
-		mod.otVerses, err = readVerseIndex(otBzvPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read OT verse index: %w", err)
-		}
+	if err := mod.loadOTIndex(dataPath); err != nil {
+		return nil, err
 	}
-
-	// Load NT index files if they exist
-	ntBzsPath := filepath.Join(dataPath, "nt.bzs")
-	ntBzvPath := filepath.Join(dataPath, "nt.bzv")
-	if _, err := os.Stat(ntBzsPath); err == nil {
-		mod.ntBlocks, err = readBlockIndex(ntBzsPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read NT block index: %w", err)
-		}
-		mod.ntVerses, err = readVerseIndex(ntBzvPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read NT verse index: %w", err)
-		}
+	if err := mod.loadNTIndex(dataPath); err != nil {
+		return nil, err
 	}
 
 	return mod, nil
+}
+
+// resolveZTextDataPath resolves the data path relative to swordPath if needed.
+func resolveZTextDataPath(dataPath, swordPath string) string {
+	if !filepath.IsAbs(dataPath) {
+		dataPath = filepath.Join(swordPath, dataPath)
+	}
+	return filepath.Clean(dataPath)
+}
+
+// loadOTIndex loads OT index files if they exist.
+func (m *ZTextModule) loadOTIndex(dataPath string) error {
+	otBzsPath := filepath.Join(dataPath, "ot.bzs")
+	if _, err := os.Stat(otBzsPath); err != nil {
+		return nil // OT index doesn't exist, not an error
+	}
+	var err error
+	m.otBlocks, err = readBlockIndex(otBzsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read OT block index: %w", err)
+	}
+	m.otVerses, err = readVerseIndex(filepath.Join(dataPath, "ot.bzv"))
+	if err != nil {
+		return fmt.Errorf("failed to read OT verse index: %w", err)
+	}
+	return nil
+}
+
+// loadNTIndex loads NT index files if they exist.
+func (m *ZTextModule) loadNTIndex(dataPath string) error {
+	ntBzsPath := filepath.Join(dataPath, "nt.bzs")
+	if _, err := os.Stat(ntBzsPath); err != nil {
+		return nil // NT index doesn't exist, not an error
+	}
+	var err error
+	m.ntBlocks, err = readBlockIndex(ntBzsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read NT block index: %w", err)
+	}
+	m.ntVerses, err = readVerseIndex(filepath.Join(dataPath, "nt.bzv"))
+	if err != nil {
+		return fmt.Errorf("failed to read NT verse index: %w", err)
+	}
+	return nil
 }
 
 // readBlockIndex reads a .bzs block index file.
@@ -154,67 +170,74 @@ func readVerseIndex(path string) ([]VerseEntry, error) {
 	return entries, nil
 }
 
-// GetVerseText retrieves the text for a specific verse.
-func (m *ZTextModule) GetVerseText(ref *Ref) (string, error) {
-	// Determine which testament using book OSIS ID
+func (m *ZTextModule) resolveTestamentData(ref *Ref) ([]BlockEntry, []VerseEntry, string, bool, error) {
 	isNT := ntBookSet[ref.Book]
-
-	var blocks []BlockEntry
-	var verses []VerseEntry
-	var bzzPath string
-
+	testamentNames := map[bool]string{true: "NT", false: "OT"}
+	filePrefixes := map[bool]string{true: "nt", false: "ot"}
+	prefix := filePrefixes[isNT]
+	blocks := m.otBlocks
+	verses := m.otVerses
 	if isNT {
 		blocks = m.ntBlocks
 		verses = m.ntVerses
-		bzzPath = filepath.Join(m.dataPath, "nt.bzz")
-	} else {
-		blocks = m.otBlocks
-		verses = m.otVerses
-		bzzPath = filepath.Join(m.dataPath, "ot.bzz")
 	}
-
 	if len(blocks) == 0 || len(verses) == 0 {
-		return "", fmt.Errorf("no data for %s testament", map[bool]string{true: "NT", false: "OT"}[isNT])
+		return nil, nil, "", false, fmt.Errorf("no data for %s testament", testamentNames[isNT])
+	}
+	bzzPath := filepath.Join(m.dataPath, prefix+".bzz")
+	return blocks, verses, bzzPath, isNT, nil
+}
+
+func validateVerseIndex(verseIdx, count int) error {
+	if verseIdx < 0 || verseIdx >= count {
+		return fmt.Errorf("verse index out of range: %d", verseIdx)
+	}
+	return nil
+}
+
+func extractVerseBytes(blockData []byte, verse VerseEntry) ([]byte, error) {
+	end := int(verse.Offset) + int(verse.Size)
+	if end > len(blockData) {
+		return nil, fmt.Errorf("verse data exceeds block size")
+	}
+	return blockData[verse.Offset:end], nil
+}
+
+func (m *ZTextModule) GetVerseText(ref *Ref) (string, error) {
+	blocks, verses, bzzPath, isNT, err := m.resolveTestamentData(ref)
+	if err != nil {
+		return "", err
 	}
 
-	// Calculate verse index
 	verseIdx, err := m.calculateVerseIndex(ref, isNT)
 	if err != nil {
 		return "", err
 	}
 
-	if verseIdx < 0 || verseIdx >= len(verses) {
-		return "", fmt.Errorf("verse index out of range: %d", verseIdx)
+	if err := validateVerseIndex(verseIdx, len(verses)); err != nil {
+		return "", err
 	}
 
 	verse := verses[verseIdx]
 	if verse.Size == 0 {
-		return "", nil // Empty verse
+		return "", nil
 	}
 
 	if int(verse.BlockNum) >= len(blocks) {
 		return "", fmt.Errorf("block number out of range: %d", verse.BlockNum)
 	}
 
-	block := blocks[verse.BlockNum]
-
-	// Read and decompress the block
-	blockData, err := m.readBlock(bzzPath, block)
+	blockData, err := m.readBlock(bzzPath, blocks[verse.BlockNum])
 	if err != nil {
 		return "", fmt.Errorf("failed to read block: %w", err)
 	}
 
-	// Extract verse text
-	if int(verse.Offset)+int(verse.Size) > len(blockData) {
-		return "", fmt.Errorf("verse data exceeds block size")
+	raw, err := extractVerseBytes(blockData, verse)
+	if err != nil {
+		return "", err
 	}
 
-	text := string(blockData[verse.Offset : verse.Offset+uint32(verse.Size)])
-
-	// Clean up the text (remove null terminators, etc.)
-	text = strings.TrimRight(text, "\x00")
-
-	return text, nil
+	return strings.TrimRight(string(raw), "\x00"), nil
 }
 
 // readBlock reads and decompresses a block from the .bzz file.

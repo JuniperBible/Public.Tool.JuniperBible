@@ -169,47 +169,32 @@ func rtrimSpacesBytes(s []byte) []byte {
 	return s[:i]
 }
 
-// StrICmp performs case-insensitive string comparison (SQLite's sqlite3StrICmp).
-// This is the same as CompareNoCase but follows SQLite's exact implementation.
-func StrICmp(a, b string) int {
-	if a == "" {
-		if b == "" {
-			return 0
-		}
-		return -1
+func strICmpEmpty(a, b string) (int, bool) {
+	if a == "" || b == "" {
+		return len(a) - len(b), true
 	}
-	if b == "" {
-		return 1
+	return 0, false
+}
+
+func strICmpScan(a, b []byte) int {
+	limit := len(a)
+	if len(b) < limit {
+		limit = len(b)
 	}
-
-	aBytes := []byte(a)
-	bBytes := []byte(b)
-
-	for i := 0; i < len(aBytes) && i < len(bBytes); i++ {
-		ca := aBytes[i]
-		cb := bBytes[i]
-
-		if ca == cb {
-			if ca == 0 {
-				break
-			}
-			continue
-		}
-
-		diff := int(UpperToLower[ca]) - int(UpperToLower[cb])
+	for i := 0; i < limit; i++ {
+		diff := int(UpperToLower[a[i]]) - int(UpperToLower[b[i]])
 		if diff != 0 {
 			return diff
 		}
 	}
+	return strNICmpResult(len(a), len(b))
+}
 
-	// Check if one string is longer
-	if len(aBytes) < len(bBytes) {
-		return -1
+func StrICmp(a, b string) int {
+	if v, ok := strICmpEmpty(a, b); ok {
+		return v
 	}
-	if len(aBytes) > len(bBytes) {
-		return 1
-	}
-	return 0
+	return strICmpScan([]byte(a), []byte(b))
 }
 
 func strNICmpLimit(n, aLen, bLen int) int {
@@ -280,8 +265,8 @@ func LikeCase(pattern, str string, escape rune) bool {
 // likeImpl implements the LIKE matching algorithm.
 // If noCase is true, performs case-insensitive matching for ASCII characters.
 func likeImpl(pattern, str []byte, escape rune, noCase bool) bool {
-	pi := 0 // pattern index
-	si := 0 // string index
+	pi := 0
+	si := 0
 
 	for pi < len(pattern) {
 		pc, psize := DecodeRune(pattern[pi:])
@@ -289,24 +274,10 @@ func likeImpl(pattern, str []byte, escape rune, noCase bool) bool {
 			break
 		}
 
-		if escape != 0 && pc == escape {
-			pc, psize, pi = likeConsumeEscape(pattern, pi, psize)
-			if psize == 0 {
-				return false
-			}
-		} else if pc == '%' {
-			return likeMatchPercent(pattern, str, pi+psize, si, escape, noCase)
-		} else if pc == '_' {
-			newSI := likeAdvanceOneRune(str, si)
-			if newSI < 0 {
-				return false
-			}
-			si = newSI
-			pi += psize
-			continue
+		newPI, newSI, done, ok := likeProcessChar(pattern, str, pi, si, pc, psize, escape, noCase)
+		if done {
+			return ok
 		}
-
-		newPI, newSI, ok := likeMatchLiteral(pattern, str, pc, psize, pi, si, noCase)
 		if !ok {
 			return false
 		}
@@ -314,6 +285,26 @@ func likeImpl(pattern, str []byte, escape rune, noCase bool) bool {
 	}
 
 	return si >= len(str)
+}
+
+func likeProcessChar(pattern, str []byte, pi, si int, pc rune, psize int, escape rune, noCase bool) (newPI, newSI int, done, ok bool) {
+	if escape != 0 && pc == escape {
+		pc, psize, pi = likeConsumeEscape(pattern, pi, psize)
+		if psize == 0 {
+			return 0, 0, true, false
+		}
+	} else if pc == '%' {
+		return 0, 0, true, likeMatchPercent(pattern, str, pi+psize, si, escape, noCase)
+	} else if pc == '_' {
+		newSI := likeAdvanceOneRune(str, si)
+		if newSI < 0 {
+			return 0, 0, true, false
+		}
+		return pi + psize, newSI, false, true
+	}
+
+	newPI, newSI, ok = likeMatchLiteral(pattern, str, pc, psize, pi, si, noCase)
+	return newPI, newSI, false, ok
 }
 
 // likeConsumeEscape advances past an escape character in the pattern and
@@ -412,25 +403,30 @@ func (g *globState) match() bool {
 		if psize == 0 {
 			break
 		}
-
-		switch pc {
-		case '*':
-			return g.matchStar(psize)
-		case '?':
-			if !g.matchQuestion(psize) {
-				return false
-			}
-		case '[':
-			if !g.matchCharClass(psize) {
-				return false
-			}
-		default:
-			if !g.matchLiteral(pc, psize) {
-				return false
-			}
+		done, ok := g.matchRune(pc, psize)
+		if done {
+			return ok
+		}
+		if !ok {
+			return false
 		}
 	}
 	return g.si >= len(g.str)
+}
+
+// matchRune handles a single pattern rune. Returns (done, result).
+// done=true means matching is complete, done=false means continue.
+func (g *globState) matchRune(pc rune, psize int) (done, ok bool) {
+	switch pc {
+	case '*':
+		return true, g.matchStar(psize)
+	case '?':
+		return false, g.matchQuestion(psize)
+	case '[':
+		return false, g.matchCharClass(psize)
+	default:
+		return false, g.matchLiteral(pc, psize)
+	}
 }
 
 // matchStar handles the '*' wildcard (zero or more characters).
@@ -494,37 +490,51 @@ func (g *globState) matchCharClass(psize int) bool {
 
 // parseCharClass parses a character class and checks if sc matches.
 func (g *globState) parseCharClass(sc rune) (invert, matched bool) {
-	if g.pi < len(g.pattern) && g.pattern[g.pi] == '^' {
-		invert = true
-		g.pi++
-	}
-
+	invert = g.consumeInvert()
 	for g.pi < len(g.pattern) {
-		cc, csize := DecodeRune(g.pattern[g.pi:])
-		if csize == 0 {
+		hit, done := g.parseClassEntry(sc)
+		if done {
 			break
 		}
-		g.pi += csize
-
-		if cc == ']' {
-			break
-		}
-
-		if g.isCharRange() {
-			g.pi++ // skip '-'
-			cc2, csize2 := DecodeRune(g.pattern[g.pi:])
-			if csize2 == 0 {
-				break
-			}
-			g.pi += csize2
-			if sc >= cc && sc <= cc2 {
-				matched = true
-			}
-		} else if sc == cc {
+		if hit {
 			matched = true
 		}
 	}
 	return invert, matched
+}
+
+func (g *globState) consumeInvert() bool {
+	if g.pi < len(g.pattern) && g.pattern[g.pi] == '^' {
+		g.pi++
+		return true
+	}
+	return false
+}
+
+func (g *globState) matchRange(sc, cc rune) (matched, ok bool) {
+	g.pi++
+	cc2, csize2 := DecodeRune(g.pattern[g.pi:])
+	if csize2 == 0 {
+		return false, false
+	}
+	g.pi += csize2
+	return sc >= cc && sc <= cc2, true
+}
+
+func (g *globState) parseClassEntry(sc rune) (matched, done bool) {
+	cc, csize := DecodeRune(g.pattern[g.pi:])
+	if csize == 0 {
+		return false, true
+	}
+	g.pi += csize
+	if cc == ']' {
+		return false, true
+	}
+	if g.isCharRange() {
+		hit, ok := g.matchRange(sc, cc)
+		return hit, !ok
+	}
+	return sc == cc, false
 }
 
 // isCharRange checks if the current position is a character range (a-z).

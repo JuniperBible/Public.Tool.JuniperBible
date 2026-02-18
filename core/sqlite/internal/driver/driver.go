@@ -49,9 +49,6 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 
 // OpenConnector returns a connector for the database.
 func (d *Driver) OpenConnector(name string) (driver.Conn, error) {
-	// Parse connection string
-	// For simplicity, treat name as just the filename
-	// In a full implementation, this would parse DSN parameters
 	filename := name
 	if filename == "" || filename == ":memory:" {
 		return nil, fmt.Errorf("in-memory databases not yet supported")
@@ -59,66 +56,83 @@ func (d *Driver) OpenConnector(name string) (driver.Conn, error) {
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	d.initMaps()
 
-	// Initialize maps if needed (for Driver instances not created via singleton)
+	state, exists := d.getOrCreateState(filename)
+	if state == nil {
+		return nil, fmt.Errorf("failed to open database: state creation failed")
+	}
+
+	return d.createConnection(filename, state, exists)
+}
+
+// initMaps initializes maps if needed.
+func (d *Driver) initMaps() {
 	if d.conns == nil {
 		d.conns = make(map[string]*Conn)
 	}
 	if d.dbs == nil {
 		d.dbs = make(map[string]*dbState)
 	}
+}
 
-	// Check for existing shared database state
+// getOrCreateState gets or creates database state.
+func (d *Driver) getOrCreateState(filename string) (*dbState, bool) {
 	state, exists := d.dbs[filename]
-	if !exists {
-		// Open the pager for the first time
-		pgr, err := pager.Open(filename, false)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open database: %w", err)
-		}
-
-		// Create btree and connect it to the pager
-		bt := btree.NewBtree(uint32(pgr.PageSize()))
-		bt.Provider = newPagerProvider(pgr)
-
-		// Create shared schema
-		sch := schema.NewSchema()
-
-		state = &dbState{
-			pager:  pgr,
-			btree:  bt,
-			schema: sch,
-			refCnt: 0,
-		}
-		d.dbs[filename] = state
+	if exists {
+		state.refCnt++
+		return state, true
 	}
-
-	// Increment reference count
+	state, err := d.newDBState(filename)
+	if err != nil {
+		return nil, false
+	}
 	state.refCnt++
+	d.dbs[filename] = state
+	return state, false
+}
 
-	// Create connection using shared state
+// newDBState creates a new database state.
+func (d *Driver) newDBState(filename string) (*dbState, error) {
+	pgr, err := pager.Open(filename, false)
+	if err != nil {
+		return nil, err
+	}
+	bt := btree.NewBtree(uint32(pgr.PageSize()))
+	bt.Provider = newPagerProvider(pgr)
+	return &dbState{
+		pager:  pgr,
+		btree:  bt,
+		schema: schema.NewSchema(),
+		refCnt: 0,
+	}, nil
+}
+
+// createConnection creates a new connection with the given state.
+func (d *Driver) createConnection(filename string, state *dbState, existed bool) (driver.Conn, error) {
 	conn := &Conn{
 		driver:   d,
 		filename: filename,
 		pager:    state.pager,
 		btree:    state.btree,
-		schema:   state.schema, // Use shared schema
+		schema:   state.schema,
 		stmts:    make(map[*Stmt]struct{}),
 	}
-
-	// Initialize the database (load schema and register functions)
-	if err := conn.openDatabase(exists); err != nil {
-		state.refCnt--
-		if state.refCnt == 0 {
-			state.pager.Close()
-			delete(d.dbs, filename)
-		}
+	if err := conn.openDatabase(existed); err != nil {
+		d.releaseState(filename, state)
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
-
 	d.conns[filename] = conn
-
 	return conn, nil
+}
+
+// releaseState decrements ref count and cleans up if needed.
+func (d *Driver) releaseState(filename string, state *dbState) {
+	state.refCnt--
+	if state.refCnt == 0 {
+		state.pager.Close()
+		delete(d.dbs, filename)
+	}
 }
 
 // GetDriver returns the singleton driver instance.

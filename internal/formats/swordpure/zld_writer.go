@@ -58,53 +58,60 @@ func (w *ZLDWriter) AddEntry(key, text string) {
 // WriteModule writes the complete zLD module.
 // Returns the number of entries written.
 func (w *ZLDWriter) WriteModule() (int, error) {
-	// Create data directory
 	if err := os.MkdirAll(w.dataPath, 0700); err != nil {
 		return 0, fmt.Errorf("failed to create data path: %w", err)
 	}
 
-	// Sort entries by key for proper index ordering
 	sort.Slice(w.entries, func(i, j int) bool {
 		return w.entries[i].Key < w.entries[j].Key
 	})
 
-	// Process entries into blocks
-	entryIndices := make([]zldBlockIndex, len(w.entries))
-	currentBlockNum := uint32(0)
-
-	for i, entry := range w.entries {
-		// Check if we need to start a new block
-		if w.currentBlock.Len() > 0 && w.currentBlock.Len()+len(entry.Text)+1 > w.blockSize {
-			if err := w.flushBlock(); err != nil {
-				return 0, err
-			}
-			currentBlockNum++
-		}
-
-		// Record index for this entry
-		entryIndices[i] = zldBlockIndex{
-			BlockNum: currentBlockNum,
-			Offset:   uint32(w.currentBlock.Len()),
-		}
-
-		// Add text to current block (null-terminated)
-		w.currentBlock.WriteString(entry.Text)
-		w.currentBlock.WriteByte(0)
+	entryIndices, err := w.processEntriesToBlocks()
+	if err != nil {
+		return 0, err
 	}
 
-	// Flush remaining block
-	if w.currentBlock.Len() > 0 {
-		if err := w.flushBlock(); err != nil {
-			return 0, err
-		}
-	}
-
-	// Write all files
 	if err := w.writeFiles(entryIndices); err != nil {
 		return 0, err
 	}
 
 	return len(w.entries), nil
+}
+
+// processEntriesToBlocks processes entries into compressed blocks.
+func (w *ZLDWriter) processEntriesToBlocks() ([]zldBlockIndex, error) {
+	entryIndices := make([]zldBlockIndex, len(w.entries))
+	currentBlockNum := uint32(0)
+
+	for i, entry := range w.entries {
+		if w.needsNewBlock(len(entry.Text)) {
+			if err := w.flushBlock(); err != nil {
+				return nil, err
+			}
+			currentBlockNum++
+		}
+
+		entryIndices[i] = zldBlockIndex{
+			BlockNum: currentBlockNum,
+			Offset:   uint32(w.currentBlock.Len()),
+		}
+
+		w.currentBlock.WriteString(entry.Text)
+		w.currentBlock.WriteByte(0)
+	}
+
+	if w.currentBlock.Len() > 0 {
+		if err := w.flushBlock(); err != nil {
+			return nil, err
+		}
+	}
+
+	return entryIndices, nil
+}
+
+// needsNewBlock checks if a new block is needed for the given text size.
+func (w *ZLDWriter) needsNewBlock(textLen int) bool {
+	return w.currentBlock.Len() > 0 && w.currentBlock.Len()+textLen+1 > w.blockSize
 }
 
 // flushBlock compresses the current block and adds it to the compressed buffer.

@@ -178,50 +178,56 @@ func CopyFile(src, dst string) error {
 	return err
 }
 
-// CopyDir recursively copies a directory from src to dst with validation.
-func CopyDir(src, dst string) error {
+func cleanSrcDst(src, dst string) (string, string, error) {
 	cleanSrc, err := CleanPath(src)
 	if err != nil {
-		return fmt.Errorf("invalid source path: %w", err)
+		return "", "", fmt.Errorf("invalid source path: %w", err)
 	}
-
 	cleanDst, err := CleanPath(dst)
 	if err != nil {
-		return fmt.Errorf("invalid destination path: %w", err)
+		return "", "", fmt.Errorf("invalid destination path: %w", err)
 	}
+	return cleanSrc, cleanDst, nil
+}
 
+func prepareDstDir(cleanSrc, cleanDst string) ([]os.DirEntry, error) {
 	srcInfo, err := os.Stat(cleanSrc) // #nosec G304 -- path is cleaned and validated
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !srcInfo.IsDir() {
-		return CopyFile(cleanSrc, cleanDst)
+		return nil, CopyFile(cleanSrc, cleanDst)
 	}
-
 	if err := os.MkdirAll(cleanDst, srcInfo.Mode()); err != nil {
-		return err
+		return nil, err
 	}
+	return os.ReadDir(cleanSrc) // #nosec G304 -- path is cleaned and validated
+}
 
-	entries, err := os.ReadDir(cleanSrc) // #nosec G304 -- path is cleaned and validated
+func copyEntry(entry os.DirEntry, cleanSrc, cleanDst string) error {
+	srcPath := filepath.Join(cleanSrc, entry.Name())
+	dstPath := filepath.Join(cleanDst, entry.Name())
+	if entry.IsDir() {
+		return CopyDir(srcPath, dstPath)
+	}
+	return CopyFile(srcPath, dstPath)
+}
+
+// CopyDir recursively copies a directory from src to dst with validation.
+func CopyDir(src, dst string) error {
+	cleanSrc, cleanDst, err := cleanSrcDst(src, dst)
 	if err != nil {
 		return err
 	}
-
+	entries, err := prepareDstDir(cleanSrc, cleanDst)
+	if err != nil {
+		return err
+	}
 	for _, entry := range entries {
-		srcPath := filepath.Join(cleanSrc, entry.Name())
-		dstPath := filepath.Join(cleanDst, entry.Name())
-
-		if entry.IsDir() {
-			if err := CopyDir(srcPath, dstPath); err != nil {
-				return err
-			}
-		} else {
-			if err := CopyFile(srcPath, dstPath); err != nil {
-				return err
-			}
+		if err := copyEntry(entry, cleanSrc, cleanDst); err != nil {
+			return err
 		}
 	}
-
 	return nil
 }
 

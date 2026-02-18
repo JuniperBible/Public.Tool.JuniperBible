@@ -194,37 +194,29 @@ func (b *WhereLoopBuilder) addPrimaryKeyLookup() {
 func (b *WhereLoopBuilder) findUsableTerms(index *IndexInfo, nCol int) []*WhereTerm {
 	usable := make([]*WhereTerm, 0)
 
-	// Check each index column
 	for i := 0; i < nCol && i < len(index.Columns); i++ {
 		colIdx := index.Columns[i].Index
-
-		// Find term for this column
-		var termForCol *WhereTerm
-		for _, term := range b.Terms {
-			if term.LeftCursor == b.Cursor && term.LeftColumn == colIdx {
-				// This term references the column
-				if isUsableOperator(term.Operator) {
-					// Once we find a non-equality, we can't use further columns
-					termForCol = term
-					break
-				}
-			}
-		}
-
+		termForCol := b.findTermForIndexColumn(colIdx)
 		if termForCol == nil {
-			// No term for this column - can't use remaining columns
 			break
 		}
-
 		usable = append(usable, termForCol)
-
-		// If this is not an equality, we can't use further columns
 		if termForCol.Operator != WO_EQ {
 			break
 		}
 	}
 
 	return usable
+}
+
+// findTermForIndexColumn finds a usable term for a specific column index.
+func (b *WhereLoopBuilder) findTermForIndexColumn(colIdx int) *WhereTerm {
+	for _, term := range b.Terms {
+		if term.LeftCursor == b.Cursor && term.LeftColumn == colIdx && isUsableOperator(term.Operator) {
+			return term
+		}
+	}
+	return nil
 }
 
 // isUsableOperator checks if an operator can be used with an index.
@@ -252,50 +244,16 @@ func hasUpperBound(terms []*WhereTerm) bool {
 	return false
 }
 
-// tryInOperator attempts to optimize using IN operator with an index.
-func (b *WhereLoopBuilder) tryInOperator(index *IndexInfo, nCol int, baseTerms []*WhereTerm) {
-	// Look for an IN operator on the next column
-	if nCol >= len(index.Columns) {
-		return
-	}
-
-	nextColIdx := index.Columns[nCol].Index
-
-	var inTerm *WhereTerm
+func (b *WhereLoopBuilder) findInTermForColumn(colIdx int) *WhereTerm {
 	for _, term := range b.Terms {
-		if term.LeftCursor == b.Cursor && term.LeftColumn == nextColIdx {
-			if term.Operator == WO_IN {
-				inTerm = term
-				break
-			}
+		if term.LeftCursor == b.Cursor && term.LeftColumn == colIdx && term.Operator == WO_IN {
+			return term
 		}
 	}
+	return nil
+}
 
-	if inTerm == nil {
-		return
-	}
-
-	// Estimate IN list size (simplified)
-	inListSize := 5 // Default assumption
-
-	// Count equalities in base terms
-	nEq := 0
-	for _, term := range baseTerms {
-		if term.Operator == WO_EQ {
-			nEq++
-		}
-	}
-
-	// Check covering
-	covering := false // Simplified
-
-	cost, nOut := b.CostModel.EstimateInOperator(b.Table, index, nEq, inListSize, covering)
-
-	// Create terms list including IN term
-	terms := make([]*WhereTerm, len(baseTerms)+1)
-	copy(terms, baseTerms)
-	terms[len(baseTerms)] = inTerm
-
+func computeInOperatorFlags(nEq int, covering bool) WhereFlags {
 	flags := WHERE_INDEXED | WHERE_COLUMN_IN | WHERE_IN_ABLE
 	if nEq > 0 {
 		flags |= WHERE_COLUMN_EQ
@@ -303,21 +261,45 @@ func (b *WhereLoopBuilder) tryInOperator(index *IndexInfo, nCol int, baseTerms [
 	if covering {
 		flags |= WHERE_IDX_ONLY
 	}
+	return flags
+}
+
+func (b *WhereLoopBuilder) buildInOperatorLoop(index *IndexInfo, baseTerms []*WhereTerm, inTerm *WhereTerm, nEq int, covering bool) {
+	const inListSize = 5
+	cost, nOut := b.CostModel.EstimateInOperator(b.Table, index, nEq, inListSize, covering)
+
+	terms := make([]*WhereTerm, len(baseTerms)+1)
+	copy(terms, baseTerms)
+	terms[len(baseTerms)] = inTerm
 
 	loop := &WhereLoop{
 		TabIndex: b.Cursor,
 		Setup:    0,
 		Run:      cost,
 		NOut:     nOut,
-		Flags:    flags,
+		Flags:    computeInOperatorFlags(nEq, covering),
 		Index:    index,
 		Terms:    terms,
 	}
-
 	loop.MaskSelf.Set(b.Cursor)
 	b.setPrerequisites(loop)
-
 	b.Loops = append(b.Loops, loop)
+}
+
+// tryInOperator attempts to optimize using IN operator with an index.
+func (b *WhereLoopBuilder) tryInOperator(index *IndexInfo, nCol int, baseTerms []*WhereTerm) {
+	if nCol >= len(index.Columns) {
+		return
+	}
+
+	inTerm := b.findInTermForColumn(index.Columns[nCol].Index)
+	if inTerm == nil {
+		return
+	}
+
+	nEq := countEqualityTerms(baseTerms)
+	covering := false
+	b.buildInOperatorLoop(index, baseTerms, inTerm, nEq, covering)
 }
 
 // applyTermsToLoop applies WHERE terms to refine cost of a full table scan.

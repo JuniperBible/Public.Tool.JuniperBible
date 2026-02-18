@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -191,78 +192,24 @@ func listCapsulesHandler(w http.ResponseWriter, r *http.Request) {
 func createCapsuleHandler(w http.ResponseWriter, r *http.Request) {
 	BroadcastProgress("upload", "parsing", "Parsing upload request", 10)
 
-	// Parse multipart form with size limit
-	if err := r.ParseMultipartForm(validation.MaxFileSize); err != nil {
-		BroadcastError("upload", "Failed to parse multipart form or file too large")
-		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "Failed to parse multipart form or file too large")
-		return
-	}
-
-	file, header, err := r.FormFile("file")
+	file, header, err := parseUploadedFile(r)
 	if err != nil {
-		BroadcastError("upload", "No file uploaded")
-		respondError(w, http.StatusBadRequest, "MISSING_FILE", "No file uploaded")
+		handleUploadError(w, err)
 		return
 	}
 	defer file.Close()
 
-	// Validate filename
-	if err := validation.ValidateFilename(header.Filename); err != nil {
-		BroadcastError("upload", "Invalid filename provided")
-		respondError(w, http.StatusBadRequest, "INVALID_FILENAME", "Invalid filename provided")
-		return
-	}
-
-	// Validate file content matches claimed type (magic byte validation)
-	BroadcastProgress("upload", "validating", "Validating file type", 30)
-	fileType, err := validation.ValidateFileType(file, header.Filename)
+	fileType, safePath, err := validateUploadedFile(file, header)
 	if err != nil {
-		BroadcastError("upload", fmt.Sprintf("File validation failed: %v", err))
-		respondError(w, http.StatusBadRequest, "INVALID_FILE_TYPE", fmt.Sprintf("File validation failed: %v", err))
-		return
-	}
-	// Reset file pointer after reading magic bytes
-	if _, err := file.Seek(0, 0); err != nil {
-		BroadcastError("upload", "Failed to process file")
-		respondError(w, http.StatusInternalServerError, "FILE_PROCESSING_ERROR", "Failed to process file")
-		return
-	}
-
-	// Sanitize the filename to prevent path traversal
-	// Use our API-specific ValidatePath for defense in depth
-	safePath, err := ValidatePath(ServerConfig.CapsulesDir, header.Filename)
-	if err != nil {
-		BroadcastError("upload", fmt.Sprintf("Invalid file path: %v", err))
-		respondError(w, http.StatusBadRequest, "INVALID_PATH", fmt.Sprintf("Invalid file path: %v", err))
+		handleUploadError(w, err)
 		return
 	}
 
 	BroadcastProgress("upload", "saving", "Saving uploaded file", 50)
 
-	// Save the uploaded file with size limit
-	destPath := filepath.Join(ServerConfig.CapsulesDir, safePath)
-	destFile, err := os.Create(destPath)
+	written, err := saveUploadedFile(file, safePath)
 	if err != nil {
-		BroadcastError("upload", fmt.Sprintf("Failed to save file: %v", err))
-		respondError(w, http.StatusInternalServerError, "SAVE_FAILED", fmt.Sprintf("Failed to save file: %v", err))
-		return
-	}
-	defer destFile.Close()
-
-	// Limit the copy to prevent DoS
-	written, err := io.CopyN(destFile, file, validation.MaxFileSize)
-	if err != nil && err != io.EOF {
-		os.Remove(destPath) // Clean up on error
-		BroadcastError("upload", "Failed to write file")
-		respondError(w, http.StatusInternalServerError, "SAVE_FAILED", "Failed to write file")
-		return
-	}
-
-	// Check if there's more data (file too large)
-	if _, err := file.Read(make([]byte, 1)); err != io.EOF {
-		os.Remove(destPath) // Clean up oversized file
-		BroadcastError("upload", "File exceeds maximum size limit")
-		respondError(w, http.StatusBadRequest, "FILE_TOO_LARGE", "File exceeds maximum size limit")
+		handleUploadError(w, err)
 		return
 	}
 
@@ -281,6 +228,80 @@ func createCapsuleHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	respond(w, http.StatusCreated, capsule)
+}
+
+type uploadError struct {
+	status  int
+	code    string
+	message string
+}
+
+func (e *uploadError) Error() string {
+	return e.message
+}
+
+func handleUploadError(w http.ResponseWriter, err error) {
+	if ue, ok := err.(*uploadError); ok {
+		BroadcastError("upload", ue.message)
+		respondError(w, ue.status, ue.code, ue.message)
+	}
+}
+
+func parseUploadedFile(r *http.Request) (multipart.File, *multipart.FileHeader, error) {
+	if err := r.ParseMultipartForm(validation.MaxFileSize); err != nil {
+		return nil, nil, &uploadError{http.StatusBadRequest, "INVALID_REQUEST", "Failed to parse multipart form or file too large"}
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		return nil, nil, &uploadError{http.StatusBadRequest, "MISSING_FILE", "No file uploaded"}
+	}
+	return file, header, nil
+}
+
+func validateUploadedFile(file multipart.File, header *multipart.FileHeader) (validation.FileType, string, error) {
+	if err := validation.ValidateFilename(header.Filename); err != nil {
+		return "", "", &uploadError{http.StatusBadRequest, "INVALID_FILENAME", "Invalid filename provided"}
+	}
+
+	BroadcastProgress("upload", "validating", "Validating file type", 30)
+	fileType, err := validation.ValidateFileType(file, header.Filename)
+	if err != nil {
+		return "", "", &uploadError{http.StatusBadRequest, "INVALID_FILE_TYPE", fmt.Sprintf("File validation failed: %v", err)}
+	}
+
+	if _, err := file.Seek(0, 0); err != nil {
+		return "", "", &uploadError{http.StatusInternalServerError, "FILE_PROCESSING_ERROR", "Failed to process file"}
+	}
+
+	safePath, err := ValidatePath(ServerConfig.CapsulesDir, header.Filename)
+	if err != nil {
+		return "", "", &uploadError{http.StatusBadRequest, "INVALID_PATH", fmt.Sprintf("Invalid file path: %v", err)}
+	}
+
+	return fileType, safePath, nil
+}
+
+func saveUploadedFile(file multipart.File, safePath string) (int64, error) {
+	destPath := filepath.Join(ServerConfig.CapsulesDir, safePath)
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		return 0, &uploadError{http.StatusInternalServerError, "SAVE_FAILED", fmt.Sprintf("Failed to save file: %v", err)}
+	}
+	defer destFile.Close()
+
+	written, err := io.CopyN(destFile, file, validation.MaxFileSize)
+	if err != nil && err != io.EOF {
+		os.Remove(destPath)
+		return 0, &uploadError{http.StatusInternalServerError, "SAVE_FAILED", "Failed to write file"}
+	}
+
+	if _, err := file.Read(make([]byte, 1)); err != io.EOF {
+		os.Remove(destPath)
+		return 0, &uploadError{http.StatusBadRequest, "FILE_TOO_LARGE", "File exceeds maximum size limit"}
+	}
+
+	return written, nil
 }
 
 func handleCapsuleByID(w http.ResponseWriter, r *http.Request) {
@@ -584,7 +605,11 @@ func readCapsule(path string) (*CapsuleManifest, []ArtifactInfo, error) {
 	}
 	defer cleanup()
 
-	tarReader := tar.NewReader(wrapped)
+	return extractCapsuleFromTar(tar.NewReader(wrapped))
+}
+
+// extractCapsuleFromTar extracts manifest and artifacts from a tar reader
+func extractCapsuleFromTar(tarReader *tar.Reader) (*CapsuleManifest, []ArtifactInfo, error) {
 	var manifest *CapsuleManifest
 	var artifacts []ArtifactInfo
 
@@ -607,7 +632,6 @@ func readCapsule(path string) (*CapsuleManifest, []ArtifactInfo, error) {
 			artifacts = append(artifacts, *a)
 		}
 	}
-
 	return manifest, artifacts, nil
 }
 

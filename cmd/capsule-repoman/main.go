@@ -27,35 +27,28 @@ import (
 	_ "github.com/FocuswithJustin/JuniperBible/internal/embedded"
 )
 
+var commands = map[string]func([]string){
+	"list-sources": func(_ []string) { handleListSources() },
+	"refresh":      handleRefresh,
+	"list":         handleList,
+	"install":      handleInstall,
+	"installed":    handleInstalled,
+	"uninstall":    handleUninstall,
+	"verify":       handleVerify,
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
 	}
-
-	command := os.Args[1]
-	args := os.Args[2:]
-
-	switch command {
-	case "list-sources":
-		handleListSources()
-	case "refresh":
-		handleRefresh(args)
-	case "list":
-		handleList(args)
-	case "install":
-		handleInstall(args)
-	case "installed":
-		handleInstalled(args)
-	case "uninstall":
-		handleUninstall(args)
-	case "verify":
-		handleVerify(args)
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", command)
-		printUsage()
-		os.Exit(1)
+	if handler, ok := commands[os.Args[1]]; ok {
+		handler(os.Args[2:])
+		return
 	}
+	fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", os.Args[1])
+	printUsage()
+	os.Exit(1)
 }
 
 func printUsage() {
@@ -236,31 +229,37 @@ func handleVerify(args []string) {
 	}
 
 	if *jsonOutput {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(result); err != nil {
-			log.Fatalf("Failed to encode JSON: %v", err)
-		}
+		outputVerifyResultJSON(result)
 	} else {
-		fmt.Printf("Module: %s\n", result.Module)
-		if result.Valid {
-			fmt.Println("Status: VALID")
-		} else {
-			fmt.Println("Status: INVALID")
-		}
+		outputVerifyResultText(result)
+	}
+}
 
-		if len(result.Errors) > 0 {
-			fmt.Println("\nErrors:")
-			for _, e := range result.Errors {
-				fmt.Printf("  - %s\n", e)
-			}
-		}
+func outputVerifyResultJSON(result *repoman.VerifyResult) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(result); err != nil {
+		log.Fatalf("Failed to encode JSON: %v", err)
+	}
+}
 
-		if len(result.Warnings) > 0 {
-			fmt.Println("\nWarnings:")
-			for _, w := range result.Warnings {
-				fmt.Printf("  - %s\n", w)
-			}
-		}
+func outputVerifyResultText(result *repoman.VerifyResult) {
+	fmt.Printf("Module: %s\n", result.Module)
+	if result.Valid {
+		fmt.Println("Status: VALID")
+	} else {
+		fmt.Println("Status: INVALID")
+	}
+	printIssueList("Errors", result.Errors)
+	printIssueList("Warnings", result.Warnings)
+}
+
+func printIssueList(label string, issues []string) {
+	if len(issues) == 0 {
+		return
+	}
+	fmt.Printf("\n%s:\n", label)
+	for _, issue := range issues {
+		fmt.Printf("  - %s\n", issue)
 	}
 }

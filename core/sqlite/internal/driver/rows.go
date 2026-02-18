@@ -60,21 +60,30 @@ func (r *Rows) Next(dest []driver.Value) error {
 		return io.EOF
 	}
 
-	// Check context cancellation
+	if err := r.checkContextCancellation(); err != nil {
+		return err
+	}
+
+	if err := r.stepUntilRowReady(); err != nil {
+		return err
+	}
+
+	return r.copyResultRow(dest)
+}
+
+func (r *Rows) checkContextCancellation() error {
 	select {
 	case <-r.ctx.Done():
 		return r.ctx.Err()
 	default:
+		return nil
 	}
+}
 
-	// Step the VDBE until we get a row or halt
-	// Each Step() only executes ONE opcode, so we need to loop
+func (r *Rows) stepUntilRowReady() error {
 	for {
-		// Check context cancellation in the loop
-		select {
-		case <-r.ctx.Done():
-			return r.ctx.Err()
-		default:
+		if err := r.checkContextCancellation(); err != nil {
+			return err
 		}
 
 		hasMore, err := r.vdbe.Step()
@@ -83,27 +92,20 @@ func (r *Rows) Next(dest []driver.Value) error {
 		}
 
 		if !hasMore {
-			// VDBE halted - no more rows
 			return io.EOF
 		}
 
-		// Check if we reached a result row
 		if r.vdbe.State == vdbe.StateRowReady {
-			break
+			return nil
 		}
-
-		// Not ready yet, continue stepping
 	}
+}
 
-	// Check if we have a result row
-	// ResultRow is populated by the OpResultRow opcode after OpColumn
-	// opcodes have read data from the btree cursor
+func (r *Rows) copyResultRow(dest []driver.Value) error {
 	if r.vdbe.ResultRow == nil {
-		// State is RowReady but no result row - unexpected, treat as EOF
 		return io.EOF
 	}
 
-	// Copy values from result row to dest
 	if len(dest) < len(r.vdbe.ResultRow) {
 		return driver.ErrSkip
 	}
@@ -111,7 +113,6 @@ func (r *Rows) Next(dest []driver.Value) error {
 	for i, mem := range r.vdbe.ResultRow {
 		dest[i] = memToValue(mem)
 	}
-
 	return nil
 }
 

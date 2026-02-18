@@ -49,55 +49,53 @@ var Config = &format.Config{
 }
 
 // detectTAR performs TAR-specific detection.
+var tarExtensions = []string{".tar", ".tar.gz", ".tgz", ".tar.xz", ".txz"}
+
+func hasTarExtension(path string) bool {
+	lower := strings.ToLower(path)
+	for _, ext := range tarExtensions {
+		if strings.HasSuffix(lower, ext) {
+			return true
+		}
+	}
+	return false
+}
+
 func detectTAR(path string) (*ipc.DetectResult, error) {
 	info, err := os.Stat(path)
 	if err != nil || info.IsDir() {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "not a file",
-		}, nil
+		return tarNotDetected("not a file"), nil
 	}
 
-	// Check file extension first
-	lower := strings.ToLower(path)
-	if strings.HasSuffix(lower, ".tar") ||
-		strings.HasSuffix(lower, ".tar.gz") ||
-		strings.HasSuffix(lower, ".tgz") ||
-		strings.HasSuffix(lower, ".tar.xz") ||
-		strings.HasSuffix(lower, ".txz") {
-
-		return &ipc.DetectResult{
-			Detected: true,
-			Format:   "tar",
-			Reason:   "tar file extension detected",
-		}, nil
+	if hasTarExtension(path) {
+		return tarDetected("tar file extension detected"), nil
 	}
 
-	// Try to open as tar
+	return detectTarByContent(path)
+}
+
+func tarDetected(reason string) *ipc.DetectResult {
+	return &ipc.DetectResult{Detected: true, Format: "tar", Reason: reason}
+}
+
+func tarNotDetected(reason string) *ipc.DetectResult {
+	return &ipc.DetectResult{Detected: false, Reason: reason}
+}
+
+func detectTarByContent(path string) (*ipc.DetectResult, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot open: %v", err),
-		}, nil
+		return tarNotDetected(fmt.Sprintf("cannot open: %v", err)), nil
 	}
 	defer f.Close()
 
-	// Try plain tar
 	tr := tar.NewReader(f)
 	_, err = tr.Next()
 	if err == nil {
-		return &ipc.DetectResult{
-			Detected: true,
-			Format:   "tar",
-			Reason:   "valid tar header found",
-		}, nil
+		return tarDetected("valid tar header found"), nil
 	}
 
-	return &ipc.DetectResult{
-		Detected: false,
-		Reason:   "not a tar file",
-	}, nil
+	return tarNotDetected("not a tar file"), nil
 }
 
 // enumerateTAR lists all entries in a TAR archive.
@@ -112,26 +110,31 @@ func enumerateTAR(path string) (*ipc.EnumerateResult, error) {
 	}, nil
 }
 
-// detectCompression detects the compression type from path and magic bytes.
-func detectCompression(path string, data []byte) string {
-	lower := strings.ToLower(path)
+var extCompressionMap = map[string]string{
+	".gz":  "gzip",
+	".tgz": "gzip",
+	".xz":  "xz",
+	".txz": "xz",
+}
 
-	if strings.HasSuffix(lower, ".gz") || strings.HasSuffix(lower, ".tgz") {
-		return "gzip"
-	}
-	if strings.HasSuffix(lower, ".xz") || strings.HasSuffix(lower, ".txz") {
-		return "xz"
-	}
-
-	// Check magic bytes
+func compressionFromMagic(data []byte) string {
 	if len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b {
 		return "gzip"
 	}
 	if len(data) >= 6 && data[0] == 0xfd && string(data[1:6]) == "7zXZ\x00" {
 		return "xz"
 	}
-
 	return "none"
+}
+
+func detectCompression(path string, data []byte) string {
+	lower := strings.ToLower(path)
+	for ext, kind := range extCompressionMap {
+		if strings.HasSuffix(lower, ext) {
+			return kind
+		}
+	}
+	return compressionFromMagic(data)
 }
 
 // countTarEntries counts the number of entries in a TAR archive.
@@ -143,7 +146,43 @@ func countTarEntries(path string) int {
 	return len(entries)
 }
 
-// enumerateTarImpl is the implementation of TAR enumeration.
+func wrapCompressedReader(f *os.File, path string) (io.Reader, func(), error) {
+	lower := strings.ToLower(path)
+	if strings.HasSuffix(lower, ".gz") || strings.HasSuffix(lower, ".tgz") {
+		gr, err := gzip.NewReader(f)
+		if err != nil {
+			return nil, nil, fmt.Errorf("gzip error: %w", err)
+		}
+		return gr, func() { gr.Close() }, nil
+	}
+	if strings.HasSuffix(lower, ".xz") || strings.HasSuffix(lower, ".txz") {
+		xr, err := xz.NewReader(f)
+		if err != nil {
+			return nil, nil, fmt.Errorf("xz error: %w", err)
+		}
+		return xr, func() {}, nil
+	}
+	return f, func() {}, nil
+}
+
+func readTarEntries(tr *tar.Reader) ([]ipc.EnumerateEntry, error) {
+	var entries []ipc.EnumerateEntry
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			return entries, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("tar error: %w", err)
+		}
+		entries = append(entries, ipc.EnumerateEntry{
+			Path:      hdr.Name,
+			SizeBytes: hdr.Size,
+			IsDir:     hdr.Typeflag == tar.TypeDir,
+		})
+	}
+}
+
 func enumerateTarImpl(path string) ([]ipc.EnumerateEntry, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -151,43 +190,11 @@ func enumerateTarImpl(path string) ([]ipc.EnumerateEntry, error) {
 	}
 	defer f.Close()
 
-	var reader io.Reader = f
-
-	// Detect and handle compression
-	lower := strings.ToLower(path)
-	if strings.HasSuffix(lower, ".gz") || strings.HasSuffix(lower, ".tgz") {
-		gr, err := gzip.NewReader(f)
-		if err != nil {
-			return nil, fmt.Errorf("gzip error: %w", err)
-		}
-		defer gr.Close()
-		reader = gr
-	} else if strings.HasSuffix(lower, ".xz") || strings.HasSuffix(lower, ".txz") {
-		xr, err := xz.NewReader(f)
-		if err != nil {
-			return nil, fmt.Errorf("xz error: %w", err)
-		}
-		reader = xr
+	reader, cleanup, err := wrapCompressedReader(f, path)
+	if err != nil {
+		return nil, err
 	}
+	defer cleanup()
 
-	tr := tar.NewReader(reader)
-	var entries []ipc.EnumerateEntry
-
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("tar error: %w", err)
-		}
-
-		entries = append(entries, ipc.EnumerateEntry{
-			Path:      hdr.Name,
-			SizeBytes: hdr.Size,
-			IsDir:     hdr.Typeflag == tar.TypeDir,
-		})
-	}
-
-	return entries, nil
+	return readTarEntries(tar.NewReader(reader))
 }

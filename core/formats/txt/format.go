@@ -159,39 +159,37 @@ func parseTXTContent(content, artifactID string) []*ir.Document {
 	return []*ir.Document{doc}
 }
 
-func emitTXT(corpus *ir.Corpus, outputDir string) (string, error) {
-	outputPath := filepath.Join(outputDir, corpus.ID+".txt")
-
-	// Check for raw text for round-trip
-	if raw, ok := corpus.Attributes["_txt_raw"]; ok && raw != "" {
-		if err := os.WriteFile(outputPath, []byte(raw), 0600); err != nil {
-			return "", fmt.Errorf("failed to write text: %w", err)
-		}
-		return outputPath, nil
+func verseLine(span *ir.Span, text string) string {
+	if span.Ref == nil || span.Type != "VERSE" {
+		return ""
 	}
+	return fmt.Sprintf("%s %d:%d %s\n", span.Ref.Book, span.Ref.Chapter, span.Ref.Verse, text)
+}
 
-	// Generate text from IR
+func buildTXTFromIR(corpus *ir.Corpus) string {
 	var buf strings.Builder
-
 	for _, doc := range corpus.Documents {
 		for _, cb := range doc.ContentBlocks {
 			for _, anchor := range cb.Anchors {
 				for _, span := range anchor.Spans {
-					if span.Ref != nil && span.Type == "VERSE" {
-						buf.WriteString(fmt.Sprintf("%s %d:%d %s\n",
-							span.Ref.Book,
-							span.Ref.Chapter,
-							span.Ref.Verse,
-							cb.Text))
-					}
+					buf.WriteString(verseLine(span, cb.Text))
 				}
 			}
 		}
 	}
+	return buf.String()
+}
 
-	if err := os.WriteFile(outputPath, []byte(buf.String()), 0600); err != nil {
-		return "", fmt.Errorf("failed to write text: %w", err)
+func emitTXT(corpus *ir.Corpus, outputDir string) (string, error) {
+	outputPath := filepath.Join(outputDir, corpus.ID+".txt")
+
+	content := corpus.Attributes["_txt_raw"]
+	if content == "" {
+		content = buildTXTFromIR(corpus)
 	}
 
+	if err := os.WriteFile(outputPath, []byte(content), 0600); err != nil {
+		return "", fmt.Errorf("failed to write text: %w", err)
+	}
 	return outputPath, nil
 }

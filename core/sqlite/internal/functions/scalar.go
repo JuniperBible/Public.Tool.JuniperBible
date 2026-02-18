@@ -336,36 +336,31 @@ func unhexFunc(args []Value) (Value, error) {
 	if len(args) < 1 || len(args) > 2 {
 		return nil, fmt.Errorf("unhex() requires 1 or 2 arguments")
 	}
-
 	if args[0].IsNull() {
 		return NewNullValue(), nil
 	}
-
-	hexStr := args[0].AsString()
-	ignore := ""
-
-	if len(args) == 2 && !args[1].IsNull() {
-		ignore = args[1].AsString()
-	}
-
-	// Remove ignored characters
-	if ignore != "" {
-		var filtered strings.Builder
-		for _, r := range hexStr {
-			if !strings.ContainsRune(ignore, r) {
-				filtered.WriteRune(r)
-			}
-		}
-		hexStr = filtered.String()
-	}
-
-	// Decode hex
+	hexStr := filterIgnoredChars(args)
 	decoded, err := hex.DecodeString(hexStr)
 	if err != nil {
-		return NewNullValue(), nil // Return NULL on error
+		return NewNullValue(), nil
 	}
-
 	return NewBlobValue(decoded), nil
+}
+
+// filterIgnoredChars removes ignored characters from the hex string.
+func filterIgnoredChars(args []Value) string {
+	hexStr := args[0].AsString()
+	if len(args) < 2 || args[1].IsNull() {
+		return hexStr
+	}
+	ignore := args[1].AsString()
+	var filtered strings.Builder
+	for _, r := range hexStr {
+		if !strings.ContainsRune(ignore, r) {
+			filtered.WriteRune(r)
+		}
+	}
+	return filtered.String()
 }
 
 // quoteFunc implements quote(X)

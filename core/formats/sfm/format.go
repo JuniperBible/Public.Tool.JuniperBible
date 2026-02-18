@@ -114,45 +114,66 @@ func appendContinuationText(sb *strings.Builder, line string, verse int) {
 	sb.WriteString(strings.TrimSpace(line))
 }
 
+type sfmParser struct {
+	doc       *ir.Document
+	artifactID string
+	chapter   int
+	verse     int
+	sequence  int
+	verseText strings.Builder
+}
+
 func extractSFMContent(content, artifactID string) []*ir.Document {
-	doc := ir.NewDocument(artifactID, artifactID, 1)
+	p := &sfmParser{
+		doc:        ir.NewDocument(artifactID, artifactID, 1),
+		artifactID: artifactID,
+		chapter:    1,
+	}
 	scanner := bufio.NewScanner(strings.NewReader(content))
-	chapter, verse, sequence := 1, 0, 0
-	var verseText strings.Builder
-
-	flushVerse := func() {
-		if verseText.Len() == 0 || verse <= 0 {
-			return
-		}
-		text := strings.TrimSpace(verseText.String())
-		verseText.Reset()
-		if text == "" {
-			return
-		}
-		sequence++
-		doc.ContentBlocks = append(doc.ContentBlocks, buildContentBlock(artifactID, chapter, verse, sequence, text))
-	}
-
 	for scanner.Scan() {
-		line := scanner.Text()
-		switch {
-		case strings.HasPrefix(line, "\\c "):
-			flushVerse()
-			if c := parseChapterLine(line); c > 0 {
-				chapter = c
-			}
-		case strings.HasPrefix(line, "\\v "):
-			flushVerse()
-			if v, inline := parseVerseLine(line); v > 0 {
-				verse = v
-				verseText.WriteString(inline)
-			}
-		case !strings.HasPrefix(line, "\\"):
-			appendContinuationText(&verseText, line, verse)
-		}
+		p.processLine(scanner.Text())
 	}
-	flushVerse()
-	return []*ir.Document{doc}
+	p.flushVerse()
+	return []*ir.Document{p.doc}
+}
+
+func (p *sfmParser) processLine(line string) {
+	switch {
+	case strings.HasPrefix(line, "\\c "):
+		p.handleChapter(line)
+	case strings.HasPrefix(line, "\\v "):
+		p.handleVerse(line)
+	case !strings.HasPrefix(line, "\\"):
+		appendContinuationText(&p.verseText, line, p.verse)
+	}
+}
+
+func (p *sfmParser) handleChapter(line string) {
+	p.flushVerse()
+	if c := parseChapterLine(line); c > 0 {
+		p.chapter = c
+	}
+}
+
+func (p *sfmParser) handleVerse(line string) {
+	p.flushVerse()
+	if v, inline := parseVerseLine(line); v > 0 {
+		p.verse = v
+		p.verseText.WriteString(inline)
+	}
+}
+
+func (p *sfmParser) flushVerse() {
+	if p.verseText.Len() == 0 || p.verse <= 0 {
+		return
+	}
+	text := strings.TrimSpace(p.verseText.String())
+	p.verseText.Reset()
+	if text == "" {
+		return
+	}
+	p.sequence++
+	p.doc.ContentBlocks = append(p.doc.ContentBlocks, buildContentBlock(p.artifactID, p.chapter, p.verse, p.sequence, text))
 }
 
 func extractChapterVerse(cb *ir.ContentBlock) (int, int) {

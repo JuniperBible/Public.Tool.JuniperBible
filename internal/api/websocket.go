@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -71,34 +72,46 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.register:
-			h.mu.Lock()
-			h.clients[client] = true
-			h.mu.Unlock()
-			logging.WebSocketEvent("client_connected", len(h.clients))
-
+			h.handleRegister(client)
 		case client := <-h.unregister:
-			h.mu.Lock()
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
-				close(client.send)
-			}
-			h.mu.Unlock()
-			logging.WebSocketEvent("client_disconnected", len(h.clients))
-
+			h.handleUnregister(client)
 		case message := <-h.broadcast:
-			h.mu.RLock()
-			for client := range h.clients {
-				select {
-				case client.send <- message:
-				default:
-					// Client channel full, disconnect
-					close(client.send)
-					delete(h.clients, client)
-				}
-			}
-			h.mu.RUnlock()
+			h.handleBroadcast(message)
 		}
 	}
+}
+
+// handleRegister handles client registration.
+func (h *Hub) handleRegister(client *Client) {
+	h.mu.Lock()
+	h.clients[client] = true
+	h.mu.Unlock()
+	logging.WebSocketEvent("client_connected", len(h.clients))
+}
+
+// handleUnregister handles client unregistration.
+func (h *Hub) handleUnregister(client *Client) {
+	h.mu.Lock()
+	if _, ok := h.clients[client]; ok {
+		delete(h.clients, client)
+		close(client.send)
+	}
+	h.mu.Unlock()
+	logging.WebSocketEvent("client_disconnected", len(h.clients))
+}
+
+// handleBroadcast sends message to all clients.
+func (h *Hub) handleBroadcast(message []byte) {
+	h.mu.RLock()
+	for client := range h.clients {
+		select {
+		case client.send <- message:
+		default:
+			close(client.send)
+			delete(h.clients, client)
+		}
+	}
+	h.mu.RUnlock()
 }
 
 // Broadcast sends a progress message to all connected clients.
@@ -199,36 +212,46 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
-			c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if !ok {
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+			if !c.handleSendMessage(message, ok) {
 				return
 			}
-
-			w, err := c.conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				return
-			}
-			w.Write(message)
-
-			// Flush any additional queued messages
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-c.send)
-			}
-
-			if err := w.Close(); err != nil {
-				return
-			}
-
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			if !c.sendPing() {
 				return
 			}
 		}
 	}
+}
+
+// handleSendMessage writes a message and any queued messages
+func (c *Client) handleSendMessage(message []byte, ok bool) bool {
+	c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	if !ok {
+		c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+		return false
+	}
+	w, err := c.conn.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return false
+	}
+	w.Write(message)
+	c.flushQueuedMessages(w)
+	return w.Close() == nil
+}
+
+// flushQueuedMessages writes any additional queued messages
+func (c *Client) flushQueuedMessages(w io.WriteCloser) {
+	n := len(c.send)
+	for i := 0; i < n; i++ {
+		w.Write([]byte{'\n'})
+		w.Write(<-c.send)
+	}
+}
+
+// sendPing sends a ping message
+func (c *Client) sendPing() bool {
+	c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	return c.conn.WriteMessage(websocket.PingMessage, nil) == nil
 }
 
 // handleWebSocket upgrades HTTP connections to WebSocket and registers clients.

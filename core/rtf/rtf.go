@@ -70,47 +70,63 @@ func (p *rtfParser) parseGroup() (*Group, error) {
 	if p.pos >= len(p.data) || p.data[p.pos] != '{' {
 		return nil, fmt.Errorf("expected '{' at position %d", p.pos)
 	}
-	p.pos++ // consume '{'
+	p.pos++
 
 	group := &Group{}
-
 	for p.pos < len(p.data) {
-		ch := p.data[p.pos]
-
-		switch ch {
-		case '}':
-			p.pos++ // consume '}'
+		done, err := p.parseGroupStep(group)
+		if err != nil {
+			return nil, err
+		}
+		if done {
 			return group, nil
-
-		case '{':
-			// Nested group
-			nested, err := p.parseGroup()
-			if err != nil {
-				return nil, err
-			}
-			group.children = append(group.children, nested)
-
-		case '\\':
-			// Control word or symbol
-			cw, err := p.parseControlWord()
-			if err != nil {
-				return nil, err
-			}
-			group.children = append(group.children, cw)
-
-		case '\r', '\n':
-			p.pos++
-
-		default:
-			// Text content
-			text := p.parseText()
-			if text != "" {
-				group.children = append(group.children, text)
-			}
 		}
 	}
-
 	return nil, fmt.Errorf("unclosed group")
+}
+
+func (p *rtfParser) parseGroupStep(group *Group) (done bool, err error) {
+	ch := p.data[p.pos]
+	switch {
+	case ch == '}':
+		p.pos++
+		return true, nil
+	case ch == '\r' || ch == '\n':
+		p.pos++
+		return false, nil
+	case ch == '{':
+		return p.parseNestedGroup(group)
+	case ch == '\\':
+		return p.parseControlWordInGroup(group)
+	default:
+		return p.parseTextInGroup(group)
+	}
+}
+
+func (p *rtfParser) parseNestedGroup(group *Group) (bool, error) {
+	nested, err := p.parseGroup()
+	if err != nil {
+		return false, err
+	}
+	group.children = append(group.children, nested)
+	return false, nil
+}
+
+func (p *rtfParser) parseControlWordInGroup(group *Group) (bool, error) {
+	cw, err := p.parseControlWord()
+	if err != nil {
+		return false, err
+	}
+	group.children = append(group.children, cw)
+	return false, nil
+}
+
+func (p *rtfParser) parseTextInGroup(group *Group) (bool, error) {
+	text := p.parseText()
+	if text != "" {
+		group.children = append(group.children, text)
+	}
+	return false, nil
 }
 
 func (p *rtfParser) parseControlWord() (ControlWord, error) {
@@ -307,18 +323,27 @@ func groupFormatting(group *Group) (bold, italic bool) {
 		if !ok {
 			continue
 		}
-		switch cw.word {
-		case "b":
-			if cw.param != 0 || !cw.has {
-				bold = true
-			}
-		case "i":
-			if cw.param != 0 || !cw.has {
-				italic = true
-			}
+		if isFormattingEnabled(cw) {
+			bold, italic = applyFormatting(cw.word, bold, italic)
 		}
 	}
 	return
+}
+
+// isFormattingEnabled returns true if the control word enables formatting.
+func isFormattingEnabled(cw ControlWord) bool {
+	return cw.param != 0 || !cw.has
+}
+
+// applyFormatting applies bold/italic based on control word.
+func applyFormatting(word string, bold, italic bool) (bool, bool) {
+	if word == "b" {
+		return true, italic
+	}
+	if word == "i" {
+		return bold, true
+	}
+	return bold, italic
 }
 
 // ---------------------------------------------------------------------------

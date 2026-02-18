@@ -61,112 +61,114 @@ func (ac *AggregateCompiler) compileGroupBy(sel *Select, dest *SelectDest) error
 		return fmt.Errorf("no VDBE available")
 	}
 
-	// Analyze aggregate functions and GROUP BY
 	aggInfo, err := ac.analyzeAggregates(sel)
 	if err != nil {
 		return err
 	}
 
-	// Open ephemeral table/sorter for grouping
-	groupCursor := ac.parse.AllocCursor()
-	nGroupBy := sel.GroupBy.Len()
-
-	// Create sorter for GROUP BY
-	vdbe.AddOp2(OP_OpenEphemeral, groupCursor, nGroupBy)
-	aggInfo.GroupBySort = groupCursor
-
-	// Initialize aggregate accumulators
+	addrBreak := ac.setupGroupBySorter(sel, aggInfo)
 	ac.initializeAccumulators(aggInfo)
+	ac.openSourceTables(sel, addrBreak)
 
-	// Generate loop to scan source tables and compute aggregates
-	_ = vdbe.CurrentAddr() // addrLoop - reserved for future use
-	addrBreak := vdbe.MakeLabel()
-
-	// Open source tables
-	if sel.Src != nil {
-		for i := 0; i < sel.Src.Len(); i++ {
-			srcItem := sel.Src.Get(i)
-			if srcItem.Table == nil {
-				continue
-			}
-			cursor := srcItem.Cursor
-			vdbe.AddOp2(OP_OpenRead, cursor, srcItem.Table.RootPage)
-			vdbe.AddOp2(OP_Rewind, cursor, addrBreak)
-		}
-	}
-
-	// Inner loop to process rows
 	addrInnerLoop := vdbe.CurrentAddr()
-
-	// Evaluate WHERE clause
-	if sel.Where != nil {
-		whereReg := ac.parse.AllocReg()
-		ac.compileExpr(sel.Where, whereReg)
-		vdbe.AddOp3(OP_IfNot, whereReg, addrBreak, 1)
-		ac.parse.ReleaseReg(whereReg)
-	}
-
-	// Check if starting new group or continuing current group
+	ac.compileWhereClause(sel, addrBreak)
 	ac.checkNewGroup(sel, aggInfo, addrBreak)
-
-	// Update aggregate accumulators
 	ac.updateAccumulators(sel, aggInfo)
+	ac.emitNextRow(sel, addrInnerLoop)
 
-	// Move to next row
-	if sel.Src != nil && sel.Src.Len() > 0 {
-		cursor := sel.Src.Get(0).Cursor
-		vdbe.AddOp2(OP_Next, cursor, addrInnerLoop)
-	}
-
-	// Finalize aggregates and output results
 	vdbe.ResolveLabel(addrBreak)
 	ac.finalizeAggregates(sel, aggInfo, dest)
 
 	return nil
 }
 
+// setupGroupBySorter opens ephemeral table for grouping.
+func (ac *AggregateCompiler) setupGroupBySorter(sel *Select, aggInfo *AggInfo) int {
+	vdbe := ac.parse.GetVdbe()
+	groupCursor := ac.parse.AllocCursor()
+	nGroupBy := sel.GroupBy.Len()
+	vdbe.AddOp2(OP_OpenEphemeral, groupCursor, nGroupBy)
+	aggInfo.GroupBySort = groupCursor
+	_ = vdbe.CurrentAddr() // addrLoop - reserved for future use
+	return vdbe.MakeLabel()
+}
+
+// openSourceTables opens source tables for reading.
+func (ac *AggregateCompiler) openSourceTables(sel *Select, addrBreak int) {
+	if sel.Src == nil {
+		return
+	}
+	vdbe := ac.parse.GetVdbe()
+	for i := 0; i < sel.Src.Len(); i++ {
+		srcItem := sel.Src.Get(i)
+		if srcItem.Table == nil {
+			continue
+		}
+		vdbe.AddOp2(OP_OpenRead, srcItem.Cursor, srcItem.Table.RootPage)
+		vdbe.AddOp2(OP_Rewind, srcItem.Cursor, addrBreak)
+	}
+}
+
+// compileWhereClause evaluates WHERE clause.
+func (ac *AggregateCompiler) compileWhereClause(sel *Select, addrBreak int) {
+	if sel.Where == nil {
+		return
+	}
+	vdbe := ac.parse.GetVdbe()
+	whereReg := ac.parse.AllocReg()
+	ac.compileExpr(sel.Where, whereReg)
+	vdbe.AddOp3(OP_IfNot, whereReg, addrBreak, 1)
+	ac.parse.ReleaseReg(whereReg)
+}
+
+// emitNextRow moves to next row in source table.
+func (ac *AggregateCompiler) emitNextRow(sel *Select, addrInnerLoop int) {
+	if sel.Src == nil || sel.Src.Len() == 0 {
+		return
+	}
+	vdbe := ac.parse.GetVdbe()
+	cursor := sel.Src.Get(0).Cursor
+	vdbe.AddOp2(OP_Next, cursor, addrInnerLoop)
+}
+
 // analyzeAggregates analyzes SELECT to find aggregate functions and columns.
 func (ac *AggregateCompiler) analyzeAggregates(sel *Select) (*AggInfo, error) {
-	aggInfo := &AggInfo{
-		SelectID: sel.SelectID,
+	aggInfo := &AggInfo{SelectID: sel.SelectID}
+	if err := ac.findAggsInSelect(sel, aggInfo); err != nil {
+		return nil, err
 	}
-
-	// Find aggregate functions in result columns
-	if sel.EList != nil {
-		for i := 0; i < sel.EList.Len(); i++ {
-			item := sel.EList.Get(i)
-			if err := ac.findAggregateFuncs(item.Expr, aggInfo); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	// Find aggregate functions in HAVING clause
-	if sel.Having != nil {
-		if err := ac.findAggregateFuncs(sel.Having, aggInfo); err != nil {
-			return nil, err
-		}
-	}
-
-	// Find aggregate functions in ORDER BY
-	if sel.OrderBy != nil {
-		for i := 0; i < sel.OrderBy.Len(); i++ {
-			item := sel.OrderBy.Get(i)
-			if err := ac.findAggregateFuncs(item.Expr, aggInfo); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	// Record GROUP BY columns
 	if sel.GroupBy != nil {
 		aggInfo.NumGroupBy = sel.GroupBy.Len()
 	}
-
 	aggInfo.NumAggFuncs = len(aggInfo.AggFuncs)
 	aggInfo.NumCols = len(aggInfo.Cols)
-
 	return aggInfo, nil
+}
+
+// findAggsInSelect finds aggregate functions in result columns, HAVING, and ORDER BY.
+func (ac *AggregateCompiler) findAggsInSelect(sel *Select, aggInfo *AggInfo) error {
+	if err := ac.findAggsInExprList(sel.EList, aggInfo); err != nil {
+		return err
+	}
+	if sel.Having != nil {
+		if err := ac.findAggregateFuncs(sel.Having, aggInfo); err != nil {
+			return err
+		}
+	}
+	return ac.findAggsInExprList(sel.OrderBy, aggInfo)
+}
+
+// findAggsInExprList finds aggregate functions in an expression list.
+func (ac *AggregateCompiler) findAggsInExprList(list *ExprList, aggInfo *AggInfo) error {
+	if list == nil {
+		return nil
+	}
+	for i := 0; i < list.Len(); i++ {
+		if err := ac.findAggregateFuncs(list.Get(i).Expr, aggInfo); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // findAggregateFuncs recursively finds aggregate functions in expression tree.
@@ -174,17 +176,14 @@ func (ac *AggregateCompiler) findAggregateFuncs(expr *Expr, aggInfo *AggInfo) er
 	if expr == nil {
 		return nil
 	}
-
 	if expr.Op == TK_AGG_FUNCTION {
-		// Found aggregate function
-		aggFunc := AggFunc{
-			Expr: expr,
-			Func: expr.FuncDef,
-		}
-		aggInfo.AggFuncs = append(aggInfo.AggFuncs, aggFunc)
+		aggInfo.AggFuncs = append(aggInfo.AggFuncs, AggFunc{Expr: expr, Func: expr.FuncDef})
 	}
+	return ac.findAggsInChildren(expr, aggInfo)
+}
 
-	// Recurse into child expressions
+// findAggsInChildren recursively searches child expressions for aggregates.
+func (ac *AggregateCompiler) findAggsInChildren(expr *Expr, aggInfo *AggInfo) error {
 	if expr.Left != nil {
 		if err := ac.findAggregateFuncs(expr.Left, aggInfo); err != nil {
 			return err
@@ -195,16 +194,7 @@ func (ac *AggregateCompiler) findAggregateFuncs(expr *Expr, aggInfo *AggInfo) er
 			return err
 		}
 	}
-	if expr.List != nil {
-		for i := 0; i < expr.List.Len(); i++ {
-			item := expr.List.Get(i)
-			if err := ac.findAggregateFuncs(item.Expr, aggInfo); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	return ac.findAggsInExprList(expr.List, aggInfo)
 }
 
 // initializeAccumulators allocates registers and initializes aggregate accumulators.

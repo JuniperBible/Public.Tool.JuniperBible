@@ -111,59 +111,51 @@ type OSISL struct {
 }
 
 // detectFunc performs custom OSIS format detection.
+func osisDetected(reason string) *ipc.DetectResult {
+	return &ipc.DetectResult{Detected: true, Format: "OSIS", Reason: reason}
+}
+
+func osisNotDetected(reason string) *ipc.DetectResult {
+	return &ipc.DetectResult{Detected: false, Reason: reason}
+}
+
 func detectFunc(path string) (*ipc.DetectResult, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot stat: %v", err),
-		}, nil
+		return osisNotDetected(fmt.Sprintf("cannot stat: %v", err)), nil
 	}
 
 	if info.IsDir() {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   "path is a directory, not a file",
-		}, nil
+		return osisNotDetected("path is a directory, not a file"), nil
 	}
 
-	// Read file and check for OSIS XML markers
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return &ipc.DetectResult{
-			Detected: false,
-			Reason:   fmt.Sprintf("cannot read: %v", err),
-		}, nil
+		return osisNotDetected(fmt.Sprintf("cannot read: %v", err)), nil
 	}
 
-	// Check for OSIS markers
+	return detectOSISContent(path, data), nil
+}
+
+func detectOSISContent(path string, data []byte) *ipc.DetectResult {
 	content := string(data)
 	if strings.Contains(content, "<osis") && strings.Contains(content, "osisText") {
-		return &ipc.DetectResult{
-			Detected: true,
-			Format:   "OSIS",
-			Reason:   "OSIS XML detected",
-		}, nil
+		return osisDetected("OSIS XML detected")
 	}
 
-	// Check file extension as fallback
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == ".osis" || ext == ".xml" {
-		// Try to parse as OSIS
-		var doc OSISDoc
-		if err := xml.Unmarshal(data, &doc); err == nil && doc.OsisText.OsisIDWork != "" {
-			return &ipc.DetectResult{
-				Detected: true,
-				Format:   "OSIS",
-				Reason:   "Valid OSIS XML structure",
-			}, nil
+		if tryParseOSIS(data) {
+			return osisDetected("Valid OSIS XML structure")
 		}
 	}
 
-	return &ipc.DetectResult{
-		Detected: false,
-		Reason:   "not an OSIS XML file",
-	}, nil
+	return osisNotDetected("not an OSIS XML file")
+}
+
+func tryParseOSIS(data []byte) bool {
+	var doc OSISDoc
+	return xml.Unmarshal(data, &doc) == nil && doc.OsisText.OsisIDWork != ""
 }
 
 // parseFunc parses an OSIS file and returns an IR Corpus.

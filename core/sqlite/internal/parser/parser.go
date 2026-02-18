@@ -25,7 +25,19 @@ func NewParser(input string) *Parser {
 
 // Parse parses the SQL input and returns a list of statements.
 func (p *Parser) Parse() ([]Statement, error) {
-	// Tokenize entire input first
+	p.tokenize()
+	statements, err := p.parseStatements()
+	if err != nil {
+		return statements, err
+	}
+	if len(p.errors) > 0 {
+		return statements, fmt.Errorf("parse errors: %s", strings.Join(p.errors, "; "))
+	}
+	return statements, nil
+}
+
+// tokenize reads all tokens from the lexer.
+func (p *Parser) tokenize() {
 	for {
 		tok := p.lexer.NextToken()
 		if tok.Type != TK_SPACE && tok.Type != TK_COMMENT {
@@ -35,59 +47,60 @@ func (p *Parser) Parse() ([]Statement, error) {
 			break
 		}
 	}
+}
 
+// parseStatements parses all statements from the token stream.
+func (p *Parser) parseStatements() ([]Statement, error) {
 	statements := make([]Statement, 0)
-
 	for !p.isAtEnd() {
 		if p.match(TK_SEMI) {
-			continue // skip empty statements
+			continue
 		}
 		stmt, err := p.parseStatement()
 		if err != nil {
 			return statements, err
 		}
 		statements = append(statements, stmt)
-
-		// Consume optional semicolon
 		p.match(TK_SEMI)
 	}
-
-	if len(p.errors) > 0 {
-		return statements, fmt.Errorf("parse errors: %s", strings.Join(p.errors, "; "))
-	}
-
 	return statements, nil
 }
 
-// parseStatement parses a single SQL statement.
+type statementParser func(p *Parser) (Statement, error)
+
+var statementParsers = map[TokenType]statementParser{
+	TK_SELECT:   func(p *Parser) (Statement, error) { return p.parseSelect() },
+	TK_INSERT:   func(p *Parser) (Statement, error) { return p.parseInsert() },
+	TK_UPDATE:   func(p *Parser) (Statement, error) { return p.parseUpdate() },
+	TK_DELETE:   func(p *Parser) (Statement, error) { return p.parseDelete() },
+	TK_CREATE:   (*Parser).parseCreate,
+	TK_DROP:     (*Parser).parseDrop,
+	TK_BEGIN:    func(p *Parser) (Statement, error) { return p.parseBegin() },
+	TK_COMMIT:   func(p *Parser) (Statement, error) { return &CommitStmt{}, nil },
+	TK_ROLLBACK: func(p *Parser) (Statement, error) { return p.parseRollback() },
+}
+
+var statementParserOrder = []TokenType{
+	TK_SELECT, TK_INSERT, TK_UPDATE, TK_DELETE,
+	TK_CREATE, TK_DROP, TK_BEGIN, TK_COMMIT, TK_ROLLBACK,
+}
+
+func (p *Parser) consumeExplainPrefix() {
+	p.match(TK_QUERY)
+	p.match(TK_PLAN)
+}
+
 func (p *Parser) parseStatement() (Statement, error) {
-	switch {
-	case p.match(TK_SELECT):
-		return p.parseSelect()
-	case p.match(TK_INSERT):
-		return p.parseInsert()
-	case p.match(TK_UPDATE):
-		return p.parseUpdate()
-	case p.match(TK_DELETE):
-		return p.parseDelete()
-	case p.match(TK_CREATE):
-		return p.parseCreate()
-	case p.match(TK_DROP):
-		return p.parseDrop()
-	case p.match(TK_BEGIN):
-		return p.parseBegin()
-	case p.match(TK_COMMIT):
-		return &CommitStmt{}, nil
-	case p.match(TK_ROLLBACK):
-		return p.parseRollback()
-	case p.match(TK_EXPLAIN):
-		// Skip EXPLAIN and parse the actual statement
-		p.match(TK_QUERY)
-		p.match(TK_PLAN)
+	if p.match(TK_EXPLAIN) {
+		p.consumeExplainPrefix()
 		return p.parseStatement()
-	default:
-		return nil, p.error("expected statement, got %s", p.peek().Type)
 	}
+	for _, tok := range statementParserOrder {
+		if p.match(tok) {
+			return statementParsers[tok](p)
+		}
+	}
+	return nil, p.error("expected statement, got %s", p.peek().Type)
 }
 
 // =============================================================================
@@ -728,47 +741,67 @@ func (p *Parser) parseUpdateLimitClause(stmt *UpdateStmt) error {
 
 func (p *Parser) parseDelete() (*DeleteStmt, error) {
 	stmt := &DeleteStmt{}
-
 	if !p.match(TK_FROM) {
 		return nil, p.error("expected FROM after DELETE")
 	}
-
 	if !p.check(TK_ID) {
 		return nil, p.error("expected table name")
 	}
 	stmt.Table = Unquote(p.advance().Lexeme)
-
-	// WHERE clause
-	if p.match(TK_WHERE) {
-		where, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Where = where
+	if err := p.parseDeleteClauses(stmt); err != nil {
+		return nil, err
 	}
-
-	// ORDER BY clause
-	if p.match(TK_ORDER) {
-		if !p.match(TK_BY) {
-			return nil, p.error("expected BY after ORDER")
-		}
-		orderBy, err := p.parseOrderByList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OrderBy = orderBy
-	}
-
-	// LIMIT clause
-	if p.match(TK_LIMIT) {
-		limit, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Limit = limit
-	}
-
 	return stmt, nil
+}
+
+// parseDeleteClauses parses optional WHERE, ORDER BY, and LIMIT clauses.
+func (p *Parser) parseDeleteClauses(stmt *DeleteStmt) error {
+	if err := p.parseDeleteWhere(stmt); err != nil {
+		return err
+	}
+	if err := p.parseDeleteOrderBy(stmt); err != nil {
+		return err
+	}
+	return p.parseDeleteLimit(stmt)
+}
+
+func (p *Parser) parseDeleteWhere(stmt *DeleteStmt) error {
+	if !p.match(TK_WHERE) {
+		return nil
+	}
+	where, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	stmt.Where = where
+	return nil
+}
+
+func (p *Parser) parseDeleteOrderBy(stmt *DeleteStmt) error {
+	if !p.match(TK_ORDER) {
+		return nil
+	}
+	if !p.match(TK_BY) {
+		return p.error("expected BY after ORDER")
+	}
+	orderBy, err := p.parseOrderByList()
+	if err != nil {
+		return err
+	}
+	stmt.OrderBy = orderBy
+	return nil
+}
+
+func (p *Parser) parseDeleteLimit(stmt *DeleteStmt) error {
+	if !p.match(TK_LIMIT) {
+		return nil
+	}
+	limit, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	stmt.Limit = limit
+	return nil
 }
 
 // =============================================================================
@@ -896,18 +929,27 @@ func (p *Parser) parseColumnDef() (*ColumnDef, error) {
 	if !p.check(TK_ID) {
 		return nil, p.error("expected column name")
 	}
+	col := &ColumnDef{Name: Unquote(p.advance().Lexeme)}
+	col.Type = p.parseOptionalTypeName()
+	return p.parseColumnConstraints(col)
+}
 
-	col := &ColumnDef{
-		Name: Unquote(p.advance().Lexeme),
+// typeNameTokens are the tokens that can start a type name.
+var typeNameTokens = map[TokenType]bool{
+	TK_ID: true, TK_INTEGER_TYPE: true, TK_TEXT: true,
+	TK_REAL: true, TK_BLOB_TYPE: true, TK_NUMERIC: true,
+}
+
+// parseOptionalTypeName parses an optional type name.
+func (p *Parser) parseOptionalTypeName() string {
+	if typeNameTokens[p.peek().Type] {
+		return p.parseTypeName()
 	}
+	return ""
+}
 
-	// Type name (optional)
-	if p.check(TK_ID) || p.check(TK_INTEGER_TYPE) || p.check(TK_TEXT) ||
-		p.check(TK_REAL) || p.check(TK_BLOB_TYPE) || p.check(TK_NUMERIC) {
-		col.Type = p.parseTypeName()
-	}
-
-	// Column constraints
+// parseColumnConstraints parses all constraints on a column.
+func (p *Parser) parseColumnConstraints(col *ColumnDef) (*ColumnDef, error) {
 	for p.isColumnConstraint() {
 		constraint, err := p.parseColumnConstraint()
 		if err != nil {
@@ -915,7 +957,6 @@ func (p *Parser) parseColumnDef() (*ColumnDef, error) {
 		}
 		col.Constraints = append(col.Constraints, *constraint)
 	}
-
 	return col, nil
 }
 
@@ -1569,6 +1610,14 @@ func (p *Parser) tryParseComparisonOp(left Expression) (Expression, error) {
 	return nil, nil
 }
 
+// bitwiseTokenOps maps token types to bitwise operations.
+var bitwiseTokenOps = map[TokenType]BinaryOp{
+	TK_BITAND: OpBitAnd,
+	TK_BITOR:  OpBitOr,
+	TK_LSHIFT: OpLShift,
+	TK_RSHIFT: OpRShift,
+}
+
 func (p *Parser) parseBitwiseExpression() (Expression, error) {
 	left, err := p.parseAdditiveExpression()
 	if err != nil {
@@ -1576,38 +1625,27 @@ func (p *Parser) parseBitwiseExpression() (Expression, error) {
 	}
 
 	for {
-		var op BinaryOp
-		matched := false
-		if p.match(TK_BITAND) {
-			op = OpBitAnd
-			matched = true
-		} else if p.match(TK_BITOR) {
-			op = OpBitOr
-			matched = true
-		} else if p.match(TK_LSHIFT) {
-			op = OpLShift
-			matched = true
-		} else if p.match(TK_RSHIFT) {
-			op = OpRShift
-			matched = true
-		}
-
+		op, matched := p.matchBitwiseOp()
 		if !matched {
 			break
 		}
-
 		right, err := p.parseAdditiveExpression()
 		if err != nil {
 			return nil, err
 		}
-		left = &BinaryExpr{
-			Left:  left,
-			Op:    op,
-			Right: right,
+		left = &BinaryExpr{Left: left, Op: op, Right: right}
+	}
+	return left, nil
+}
+
+// matchBitwiseOp tries to match a bitwise operator.
+func (p *Parser) matchBitwiseOp() (BinaryOp, bool) {
+	for tk, op := range bitwiseTokenOps {
+		if p.match(tk) {
+			return op, true
 		}
 	}
-
-	return left, nil
+	return 0, false
 }
 
 func (p *Parser) parseAdditiveExpression() (Expression, error) {
@@ -1864,49 +1902,73 @@ func (p *Parser) parseFunctionFilter(fn *FunctionExpr) error {
 // parseCaseExpr parses a CASE expression after the CASE keyword.
 func (p *Parser) parseCaseExpr() (Expression, error) {
 	caseExpr := &CaseExpr{}
-
-	// Optional case expression
-	if !p.check(TK_WHEN) {
-		expr, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		caseExpr.Expr = expr
+	if err := p.parseCaseBaseExpr(caseExpr); err != nil {
+		return nil, err
 	}
-
-	// WHEN clauses
-	for p.match(TK_WHEN) {
-		condition, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		if !p.match(TK_THEN) {
-			return nil, p.error("expected THEN after WHEN condition")
-		}
-		result, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		caseExpr.WhenClauses = append(caseExpr.WhenClauses, WhenClause{
-			Condition: condition,
-			Result:    result,
-		})
+	if err := p.parseWhenClauses(caseExpr); err != nil {
+		return nil, err
 	}
-
-	// ELSE clause
-	if p.match(TK_ELSE) {
-		elseExpr, err := p.parseExpression()
-		if err != nil {
-			return nil, err
-		}
-		caseExpr.ElseClause = elseExpr
+	if err := p.parseCaseElse(caseExpr); err != nil {
+		return nil, err
 	}
-
 	if !p.match(TK_END) {
 		return nil, p.error("expected END after CASE")
 	}
-
 	return caseExpr, nil
+}
+
+// parseCaseBaseExpr parses the optional base expression in CASE.
+func (p *Parser) parseCaseBaseExpr(caseExpr *CaseExpr) error {
+	if p.check(TK_WHEN) {
+		return nil
+	}
+	expr, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	caseExpr.Expr = expr
+	return nil
+}
+
+// parseWhenClauses parses all WHEN clauses.
+func (p *Parser) parseWhenClauses(caseExpr *CaseExpr) error {
+	for p.match(TK_WHEN) {
+		clause, err := p.parseWhenClause()
+		if err != nil {
+			return err
+		}
+		caseExpr.WhenClauses = append(caseExpr.WhenClauses, clause)
+	}
+	return nil
+}
+
+// parseWhenClause parses a single WHEN ... THEN ... clause.
+func (p *Parser) parseWhenClause() (WhenClause, error) {
+	condition, err := p.parseExpression()
+	if err != nil {
+		return WhenClause{}, err
+	}
+	if !p.match(TK_THEN) {
+		return WhenClause{}, p.error("expected THEN after WHEN condition")
+	}
+	result, err := p.parseExpression()
+	if err != nil {
+		return WhenClause{}, err
+	}
+	return WhenClause{Condition: condition, Result: result}, nil
+}
+
+// parseCaseElse parses the optional ELSE clause.
+func (p *Parser) parseCaseElse(caseExpr *CaseExpr) error {
+	if !p.match(TK_ELSE) {
+		return nil
+	}
+	elseExpr, err := p.parseExpression()
+	if err != nil {
+		return err
+	}
+	caseExpr.ElseClause = elseExpr
+	return nil
 }
 
 // parseCastExpr parses a CAST expression after the CAST keyword.

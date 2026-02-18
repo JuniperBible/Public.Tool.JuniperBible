@@ -183,53 +183,70 @@ func emitTEI(corpus *ir.Corpus, outputDir string) (string, error) {
 	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
-
 	outputPath := filepath.Join(outputDir, corpus.ID+".tei.xml")
-
-	// Check for raw TEI for round-trip
-	if raw, ok := corpus.Attributes["_format_raw"]; ok && raw != "" {
-		rawData, err := hex.DecodeString(raw)
-		if err == nil {
-			if err := os.WriteFile(outputPath, rawData, 0600); err != nil {
-				return "", fmt.Errorf("failed to write TEI: %w", err)
-			}
-			return outputPath, nil
-		}
+	if ok, err := writeRawTEI(corpus, outputPath); ok {
+		return outputPath, err
 	}
+	xml := buildTEIHeader(corpus) + buildTEIBody(corpus) + "</TEI>\n"
+	if err := os.WriteFile(outputPath, []byte(xml), 0600); err != nil {
+		return "", fmt.Errorf("failed to write TEI: %w", err)
+	}
+	return outputPath, nil
+}
 
-	// Generate TEI XML from IR
+func writeRawTEI(corpus *ir.Corpus, outputPath string) (bool, error) {
+	raw, ok := corpus.Attributes["_format_raw"]
+	if !ok || raw == "" {
+		return false, nil
+	}
+	rawData, err := hex.DecodeString(raw)
+	if err != nil {
+		return false, nil
+	}
+	if err := os.WriteFile(outputPath, rawData, 0600); err != nil {
+		return true, fmt.Errorf("failed to write TEI: %w", err)
+	}
+	return true, nil
+}
+
+func buildTEIHeader(corpus *ir.Corpus) string {
 	var buf bytes.Buffer
-	buf.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
-	buf.WriteString("\n")
-	buf.WriteString(`<TEI xmlns="http://www.tei-c.org/ns/1.0">`)
-	buf.WriteString("\n")
+	buf.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+	buf.WriteString("<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">\n")
 	buf.WriteString("  <teiHeader>\n")
 	buf.WriteString("    <fileDesc>\n")
 	buf.WriteString("      <titleStmt>\n")
 	fmt.Fprintf(&buf, "        <title>%s</title>\n", escapeXML(corpus.Title))
 	buf.WriteString("      </titleStmt>\n")
 	buf.WriteString("      <publicationStmt>\n")
-	if corpus.Publisher != "" {
-		fmt.Fprintf(&buf, "        <publisher>%s</publisher>\n", escapeXML(corpus.Publisher))
-	} else {
-		buf.WriteString("        <p>Generated from IR</p>\n")
-	}
+	buf.WriteString(publisherElement(corpus.Publisher))
 	buf.WriteString("      </publicationStmt>\n")
 	buf.WriteString("      <sourceDesc>\n")
 	buf.WriteString("        <p>Converted from Capsule IR</p>\n")
 	buf.WriteString("      </sourceDesc>\n")
 	buf.WriteString("    </fileDesc>\n")
-	if corpus.Language != "" {
-		buf.WriteString("    <profileDesc>\n")
-		buf.WriteString("      <langUsage>\n")
-		fmt.Fprintf(&buf, "        <language ident=\"%s\"/>\n", corpus.Language)
-		buf.WriteString("      </langUsage>\n")
-		buf.WriteString("    </profileDesc>\n")
-	}
+	buf.WriteString(langProfileDesc(corpus.Language))
 	buf.WriteString("  </teiHeader>\n")
-	buf.WriteString("  <text>\n")
-	buf.WriteString("    <body>\n")
+	return buf.String()
+}
 
+func publisherElement(publisher string) string {
+	if publisher != "" {
+		return fmt.Sprintf("        <publisher>%s</publisher>\n", escapeXML(publisher))
+	}
+	return "        <p>Generated from IR</p>\n"
+}
+
+func langProfileDesc(lang string) string {
+	if lang == "" {
+		return ""
+	}
+	return fmt.Sprintf("    <profileDesc>\n      <langUsage>\n        <language ident=\"%s\"/>\n      </langUsage>\n    </profileDesc>\n", lang)
+}
+
+func buildTEIBody(corpus *ir.Corpus) string {
+	var buf bytes.Buffer
+	buf.WriteString("  <text>\n    <body>\n")
 	for _, doc := range corpus.Documents {
 		fmt.Fprintf(&buf, "      <div type=\"book\" n=\"%s\">\n", escapeXML(doc.ID))
 		for _, cb := range doc.ContentBlocks {
@@ -237,16 +254,8 @@ func emitTEI(corpus *ir.Corpus, outputDir string) (string, error) {
 		}
 		buf.WriteString("      </div>\n")
 	}
-
-	buf.WriteString("    </body>\n")
-	buf.WriteString("  </text>\n")
-	buf.WriteString("</TEI>\n")
-
-	if err := os.WriteFile(outputPath, buf.Bytes(), 0600); err != nil {
-		return "", fmt.Errorf("failed to write TEI: %w", err)
-	}
-
-	return outputPath, nil
+	buf.WriteString("    </body>\n  </text>\n")
+	return buf.String()
 }
 
 func escapeXML(s string) string {

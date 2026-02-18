@@ -1260,67 +1260,74 @@ type ExtractIRCmd struct {
 
 func (c *ExtractIRCmd) Run() error {
 	inputPath, _ := filepath.Abs(c.Path)
-	format := c.Format
 	outputPath, _ := filepath.Abs(c.Out)
-
-	// Load plugins
-	pluginDir := getPluginDir()
-	loader := plugins.NewLoader()
-	if err := loader.LoadFromDir(pluginDir); err != nil {
-		return fmt.Errorf("failed to load plugins: %w", err)
+	plugin, err := loadFormatPlugin(c.Format)
+	if err != nil {
+		return err
 	}
+	c.printExtractHeader(inputPath, outputPath)
+	result, err := executeExtractIR(plugin, inputPath)
+	if err != nil {
+		return err
+	}
+	if err := writeExtractOutput(result.IRPath, outputPath); err != nil {
+		return err
+	}
+	c.printExtractResult(outputPath, result.LossClass)
+	return nil
+}
 
-	// Find format plugin
+func (c *ExtractIRCmd) printExtractHeader(inputPath, outputPath string) {
+	fmt.Printf("Extracting IR from: %s\n", inputPath)
+	fmt.Printf("  Format: %s\n", c.Format)
+	fmt.Printf("  Output: %s\n", outputPath)
+	fmt.Println()
+}
+
+func (c *ExtractIRCmd) printExtractResult(outputPath, lossClass string) {
+	fmt.Printf("IR extracted successfully\n")
+	fmt.Printf("  Output: %s\n", outputPath)
+	if lossClass != "" {
+		fmt.Printf("  Loss class: %s\n", lossClass)
+	}
+}
+
+func loadFormatPlugin(format string) (*plugins.Plugin, error) {
+	loader := plugins.NewLoader()
+	if err := loader.LoadFromDir(getPluginDir()); err != nil {
+		return nil, fmt.Errorf("failed to load plugins: %w", err)
+	}
 	pluginID := "format." + format
 	plugin, err := loader.GetPlugin(pluginID)
 	if err != nil {
-		return fmt.Errorf("plugin not found: %s", pluginID)
+		return nil, fmt.Errorf("plugin not found: %s", pluginID)
 	}
+	return plugin, nil
+}
 
-	fmt.Printf("Extracting IR from: %s\n", inputPath)
-	fmt.Printf("  Format: %s\n", format)
-	fmt.Printf("  Output: %s\n", outputPath)
-	fmt.Println()
-
-	// Create temp directory for IR output
+func executeExtractIR(plugin *plugins.Plugin, inputPath string) (*plugins.ExtractIRResult, error) {
 	tempDir, err := os.MkdirTemp("", "capsule-extract-ir-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
+		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
-
-	// Execute extract-ir
 	req := plugins.NewExtractIRRequest(inputPath, tempDir)
 	resp, err := plugins.ExecutePlugin(plugin, req)
 	if err != nil {
-		return fmt.Errorf("extract-ir failed: %w", err)
+		return nil, fmt.Errorf("extract-ir failed: %w", err)
 	}
+	return plugins.ParseExtractIRResult(resp)
+}
 
-	result, err := plugins.ParseExtractIRResult(resp)
-	if err != nil {
-		return fmt.Errorf("failed to parse result: %w", err)
-	}
-
-	// Copy IR to output
-	irData, err := safefile.ReadFile(result.IRPath)
+func writeExtractOutput(irPath, outputPath string) error {
+	irData, err := safefile.ReadFile(irPath)
 	if err != nil {
 		return fmt.Errorf("failed to read IR: %w", err)
 	}
-
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0700); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
-	if err := os.WriteFile(outputPath, irData, 0600); err != nil {
-		return fmt.Errorf("failed to write output: %w", err)
-	}
-
-	fmt.Printf("IR extracted successfully\n")
-	fmt.Printf("  Output: %s\n", outputPath)
-	if result.LossClass != "" {
-		fmt.Printf("  Loss class: %s\n", result.LossClass)
-	}
-
-	return nil
+	return os.WriteFile(outputPath, irData, 0600)
 }
 
 // EmitNativeCmd emits native format from IR.
@@ -1332,67 +1339,61 @@ type EmitNativeCmd struct {
 
 func (c *EmitNativeCmd) Run() error {
 	irPath, _ := filepath.Abs(c.IR)
-	format := c.Format
 	outputPath, _ := filepath.Abs(c.Out)
-
-	// Load plugins
-	pluginDir := getPluginDir()
-	loader := plugins.NewLoader()
-	if err := loader.LoadFromDir(pluginDir); err != nil {
-		return fmt.Errorf("failed to load plugins: %w", err)
-	}
-
-	// Find format plugin
-	pluginID := "format." + format
-	plugin, err := loader.GetPlugin(pluginID)
+	plugin, err := loadFormatPlugin(c.Format)
 	if err != nil {
-		return fmt.Errorf("plugin not found: %s", pluginID)
+		return err
 	}
+	c.printEmitHeader(irPath, outputPath)
+	result, err := executeEmitNative(plugin, irPath)
+	if err != nil {
+		return err
+	}
+	if err := writeEmitOutput(result.OutputPath, outputPath); err != nil {
+		return err
+	}
+	c.printEmitResult(outputPath, result.LossClass)
+	return nil
+}
 
+func (c *EmitNativeCmd) printEmitHeader(irPath, outputPath string) {
 	fmt.Printf("Emitting native format from IR: %s\n", irPath)
-	fmt.Printf("  Format: %s\n", format)
+	fmt.Printf("  Format: %s\n", c.Format)
 	fmt.Printf("  Output: %s\n", outputPath)
 	fmt.Println()
+}
 
-	// Create temp directory for output
+func (c *EmitNativeCmd) printEmitResult(outputPath, lossClass string) {
+	fmt.Printf("Native format emitted successfully\n")
+	fmt.Printf("  Output: %s\n", outputPath)
+	if lossClass != "" {
+		fmt.Printf("  Loss class: %s\n", lossClass)
+	}
+}
+
+func executeEmitNative(plugin *plugins.Plugin, irPath string) (*plugins.EmitNativeResult, error) {
 	tempDir, err := os.MkdirTemp("", "capsule-emit-native-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
+		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
-
-	// Execute emit-native
 	req := plugins.NewEmitNativeRequest(irPath, tempDir)
 	resp, err := plugins.ExecutePlugin(plugin, req)
 	if err != nil {
-		return fmt.Errorf("emit-native failed: %w", err)
+		return nil, fmt.Errorf("emit-native failed: %w", err)
 	}
+	return plugins.ParseEmitNativeResult(resp)
+}
 
-	result, err := plugins.ParseEmitNativeResult(resp)
-	if err != nil {
-		return fmt.Errorf("failed to parse result: %w", err)
-	}
-
-	// Copy output to destination
-	outputData, err := safefile.ReadFile(result.OutputPath)
+func writeEmitOutput(sourcePath, outputPath string) error {
+	outputData, err := safefile.ReadFile(sourcePath)
 	if err != nil {
 		return fmt.Errorf("failed to read output: %w", err)
 	}
-
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0700); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
-	if err := os.WriteFile(outputPath, outputData, 0600); err != nil {
-		return fmt.Errorf("failed to write output: %w", err)
-	}
-
-	fmt.Printf("Native format emitted successfully\n")
-	fmt.Printf("  Output: %s\n", outputPath)
-	if result.LossClass != "" {
-		fmt.Printf("  Loss class: %s\n", result.LossClass)
-	}
-
-	return nil
+	return os.WriteFile(outputPath, outputData, 0600)
 }
 
 // ConvertCmd converts file to different format via IR.
@@ -1464,7 +1465,6 @@ func convertEmitNative(targetPlugin *plugins.Plugin, irPath, emitDir string) (*p
 
 func (c *ConvertCmd) Run() error {
 	inputPath, _ := filepath.Abs(c.Path)
-	toFormat := c.To
 	outputPath, _ := filepath.Abs(c.Out)
 
 	loader := plugins.NewLoader()
@@ -1472,24 +1472,53 @@ func (c *ConvertCmd) Run() error {
 		return fmt.Errorf("failed to load plugins: %w", err)
 	}
 
+	printConvertHeader(inputPath, c.To, outputPath)
+
+	sourcePlugin, sourceFormat, err := resolveSourcePlugin(loader, inputPath)
+	if err != nil {
+		return err
+	}
+
+	targetPlugin, err := resolveTargetPlugin(loader, c.To)
+	if err != nil {
+		return err
+	}
+
+	if err := executeConversion(sourcePlugin, targetPlugin, inputPath, outputPath); err != nil {
+		return err
+	}
+
+	printConvertSuccess(inputPath, sourceFormat, outputPath, c.To)
+	return nil
+}
+
+func printConvertHeader(inputPath, toFormat, outputPath string) {
 	fmt.Printf("Converting: %s\n", inputPath)
 	fmt.Printf("  To format: %s\n", toFormat)
 	fmt.Printf("  Output: %s\n", outputPath)
 	fmt.Println()
+}
 
+func resolveSourcePlugin(loader *plugins.Loader, inputPath string) (*plugins.Plugin, string, error) {
 	sourcePlugin, sourceFormat := detectSourcePlugin(loader, inputPath)
 	if sourcePlugin == nil {
-		return fmt.Errorf("could not detect source format")
+		return nil, "", fmt.Errorf("could not detect source format")
 	}
 	fmt.Printf("Detected source format: %s\n", sourceFormat)
 	fmt.Println()
+	return sourcePlugin, sourceFormat, nil
+}
 
+func resolveTargetPlugin(loader *plugins.Loader, toFormat string) (*plugins.Plugin, error) {
 	targetPluginID := "format." + toFormat
 	targetPlugin, err := loader.GetPlugin(targetPluginID)
 	if err != nil {
-		return fmt.Errorf("target plugin not found: %s", targetPluginID)
+		return nil, fmt.Errorf("target plugin not found: %s", targetPluginID)
 	}
+	return targetPlugin, nil
+}
 
+func executeConversion(sourcePlugin, targetPlugin *plugins.Plugin, inputPath, outputPath string) error {
 	tempDir, err := os.MkdirTemp("", "capsule-convert-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
@@ -1506,22 +1535,25 @@ func (c *ConvertCmd) Run() error {
 		return err
 	}
 
-	outputData, err := safefile.ReadFile(emitResult.OutputPath)
+	return copyConvertOutput(emitResult.OutputPath, outputPath)
+}
+
+func copyConvertOutput(srcPath, dstPath string) error {
+	outputData, err := safefile.ReadFile(srcPath)
 	if err != nil {
 		return fmt.Errorf("failed to read output: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0700); err != nil {
 		return fmt.Errorf("failed to create output dir: %w", err)
 	}
-	if err := os.WriteFile(outputPath, outputData, 0600); err != nil {
-		return fmt.Errorf("failed to write output: %w", err)
-	}
+	return os.WriteFile(dstPath, outputData, 0600)
+}
 
+func printConvertSuccess(inputPath, sourceFormat, outputPath, toFormat string) {
 	fmt.Println()
 	fmt.Printf("Conversion complete!\n")
 	fmt.Printf("  Input: %s (%s)\n", inputPath, sourceFormat)
 	fmt.Printf("  Output: %s (%s)\n", outputPath, toFormat)
-	return nil
 }
 
 // IRInfoCmd displays IR structure summary.
@@ -1628,51 +1660,58 @@ type DocgenCmd struct {
 	Output     string `short:"o" help:"Output directory" type:"path" default:"docs"`
 }
 
+type docgenFunc func(*docgen.Generator, string) error
+
+var docgenHandlers = map[string]docgenFunc{
+	"plugins": generatePluginsDocs,
+	"formats": generateFormatsDocs,
+	"cli":     generateCLIDocs,
+	"all":     generateAllDocs,
+}
+
 func (c *DocgenCmd) Run() error {
-	subcmd := c.Subcommand
 	outputDir, _ := filepath.Abs(c.Output)
-	pluginDir := getPluginDir()
+	gen := docgen.NewGenerator(getPluginDir(), outputDir)
 
-	gen := docgen.NewGenerator(pluginDir, outputDir)
-
-	switch subcmd {
-	case "plugins":
-		fmt.Printf("Generating PLUGINS.md...\n")
-		if err := gen.GeneratePlugins(); err != nil {
-			return err
-		}
-		fmt.Printf("Generated: %s/PLUGINS.md\n", outputDir)
-
-	case "formats":
-		fmt.Printf("Generating FORMATS.md...\n")
-		if err := gen.GenerateFormats(); err != nil {
-			return err
-		}
-		fmt.Printf("Generated: %s/FORMATS.md\n", outputDir)
-
-	case "cli":
-		fmt.Printf("Generating CLI_REFERENCE.md...\n")
-		if err := gen.GenerateCLI(); err != nil {
-			return err
-		}
-		fmt.Printf("Generated: %s/CLI_REFERENCE.md\n", outputDir)
-
-	case "all":
-		fmt.Printf("Generating all documentation...\n")
-		fmt.Printf("  Plugin dir: %s\n", pluginDir)
-		fmt.Printf("  Output dir: %s\n", outputDir)
-		fmt.Println()
-
-		if err := gen.GenerateAll(); err != nil {
-			return err
-		}
-
-		fmt.Println("Generated:")
-		fmt.Printf("  - %s/PLUGINS.md\n", outputDir)
-		fmt.Printf("  - %s/FORMATS.md\n", outputDir)
-		fmt.Printf("  - %s/CLI_REFERENCE.md\n", outputDir)
+	if handler, ok := docgenHandlers[c.Subcommand]; ok {
+		return handler(gen, outputDir)
 	}
+	return nil
+}
 
+func generatePluginsDocs(gen *docgen.Generator, outputDir string) error {
+	fmt.Printf("Generating PLUGINS.md...\n")
+	if err := gen.GeneratePlugins(); err != nil {
+		return err
+	}
+	fmt.Printf("Generated: %s/PLUGINS.md\n", outputDir)
+	return nil
+}
+
+func generateFormatsDocs(gen *docgen.Generator, outputDir string) error {
+	fmt.Printf("Generating FORMATS.md...\n")
+	if err := gen.GenerateFormats(); err != nil {
+		return err
+	}
+	fmt.Printf("Generated: %s/FORMATS.md\n", outputDir)
+	return nil
+}
+
+func generateCLIDocs(gen *docgen.Generator, outputDir string) error {
+	fmt.Printf("Generating CLI_REFERENCE.md...\n")
+	if err := gen.GenerateCLI(); err != nil {
+		return err
+	}
+	fmt.Printf("Generated: %s/CLI_REFERENCE.md\n", outputDir)
+	return nil
+}
+
+func generateAllDocs(gen *docgen.Generator, outputDir string) error {
+	fmt.Printf("Generating all documentation...\n  Output dir: %s\n\n", outputDir)
+	if err := gen.GenerateAll(); err != nil {
+		return err
+	}
+	fmt.Printf("Generated:\n  - %s/PLUGINS.md\n  - %s/FORMATS.md\n  - %s/CLI_REFERENCE.md\n", outputDir, outputDir, outputDir)
 	return nil
 }
 
@@ -1769,6 +1808,18 @@ func resolveSwordPath(path string) (string, error) {
 
 func loadBibleModules(swordPath string) ([]*juniperModule, error) {
 	modsDir := filepath.Join(swordPath, "mods.d")
+	entries, err := readModsDir(modsDir, swordPath)
+	if err != nil {
+		return nil, err
+	}
+	modules := filterBibleModules(modsDir, entries)
+	if len(modules) == 0 {
+		return nil, fmt.Errorf("no Bible modules found in %s", swordPath)
+	}
+	return modules, nil
+}
+
+func readModsDir(modsDir, swordPath string) ([]os.DirEntry, error) {
 	if _, err := os.Stat(modsDir); errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("SWORD installation not found at %s", swordPath)
 	}
@@ -1776,6 +1827,10 @@ func loadBibleModules(swordPath string) ([]*juniperModule, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read mods.d: %w", err)
 	}
+	return entries, nil
+}
+
+func filterBibleModules(modsDir string, entries []os.DirEntry) []*juniperModule {
 	var modules []*juniperModule
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".conf") {
@@ -1783,16 +1838,12 @@ func loadBibleModules(swordPath string) ([]*juniperModule, error) {
 		}
 		confPath := filepath.Join(modsDir, e.Name())
 		m := parseConfForList(confPath)
-		if m == nil || m.modType != "Bible" {
-			continue
+		if m != nil && m.modType == "Bible" {
+			m.confPath = confPath
+			modules = append(modules, m)
 		}
-		m.confPath = confPath
-		modules = append(modules, m)
 	}
-	if len(modules) == 0 {
-		return nil, fmt.Errorf("no Bible modules found in %s", swordPath)
-	}
-	return modules, nil
+	return modules
 }
 
 func selectModulesToIngest(all bool, names []string, modules []*juniperModule) ([]*juniperModule, error) {
@@ -2020,49 +2071,29 @@ func parseConfForList(path string) *juniperModule {
 	return module
 }
 
-// ingestSwordModule creates a capsule from a SWORD module.
-func ingestSwordModule(swordPath string, module *juniperModule, outputPath string) error {
-	// Read conf file
-	confData, err := safefile.ReadFile(module.confPath)
-	if err != nil {
-		return fmt.Errorf("failed to read conf: %w", err)
+// resolveModuleDataPath validates and resolves the module data path.
+func resolveModuleDataPath(module *juniperModule, swordPath string) (string, string, error) {
+	if module.dataPath == "" {
+		return "", "", fmt.Errorf("no DataPath in conf file")
 	}
-
-	// Determine data path
-	dataPath := module.dataPath
-	if dataPath == "" {
-		return fmt.Errorf("no DataPath in conf file")
-	}
-
-	// Clean up data path
-	dataPath = strings.TrimPrefix(dataPath, "./")
+	dataPath := strings.TrimPrefix(module.dataPath, "./")
 	fullDataPath := filepath.Join(swordPath, dataPath)
-
 	if _, err := os.Stat(fullDataPath); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("data path not found: %s", fullDataPath)
+		return "", "", fmt.Errorf("data path not found: %s", fullDataPath)
 	}
+	return dataPath, fullDataPath, nil
+}
 
-	// Create temp directory for capsule contents
-	tempDir, err := os.MkdirTemp("", "sword-capsule-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Create capsule structure
-	capsuleDir := filepath.Join(tempDir, "capsule")
+// populateCapsuleDir creates the capsule directory structure and copies module files.
+func populateCapsuleDir(capsuleDir string, module *juniperModule, confData []byte, dataPath, fullDataPath string) error {
 	modsDir := filepath.Join(capsuleDir, "mods.d")
 	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		return fmt.Errorf("failed to create mods.d: %w", err)
 	}
-
-	// Write conf file
 	confName := strings.ToLower(module.name) + ".conf"
 	if err := os.WriteFile(filepath.Join(modsDir, confName), confData, 0600); err != nil {
 		return fmt.Errorf("failed to write conf: %w", err)
 	}
-
-	// Copy module data
 	destDataPath := filepath.Join(capsuleDir, dataPath)
 	if err := os.MkdirAll(filepath.Dir(destDataPath), 0700); err != nil {
 		return fmt.Errorf("failed to create data dir: %w", err)
@@ -2070,8 +2101,11 @@ func ingestSwordModule(swordPath string, module *juniperModule, outputPath strin
 	if err := fileutil.CopyDir(fullDataPath, destDataPath); err != nil {
 		return fmt.Errorf("failed to copy data: %w", err)
 	}
+	return nil
+}
 
-	// Create manifest.json
+// writeSwordManifest marshals and writes the capsule manifest.json file.
+func writeSwordManifest(capsuleDir string, module *juniperModule) error {
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 		"module_type":     "bible",
@@ -2087,8 +2121,31 @@ func ingestSwordModule(swordPath string, module *juniperModule, outputPath strin
 	if err := os.WriteFile(filepath.Join(capsuleDir, "manifest.json"), manifestData, 0600); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
+	return nil
+}
 
-	// Create tar.gz archive
+// ingestSwordModule creates a capsule from a SWORD module.
+func ingestSwordModule(swordPath string, module *juniperModule, outputPath string) error {
+	confData, err := safefile.ReadFile(module.confPath)
+	if err != nil {
+		return fmt.Errorf("failed to read conf: %w", err)
+	}
+	dataPath, fullDataPath, err := resolveModuleDataPath(module, swordPath)
+	if err != nil {
+		return err
+	}
+	tempDir, err := os.MkdirTemp("", "sword-capsule-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+	capsuleDir := filepath.Join(tempDir, "capsule")
+	if err := populateCapsuleDir(capsuleDir, module, confData, dataPath, fullDataPath); err != nil {
+		return err
+	}
+	if err := writeSwordManifest(capsuleDir, module); err != nil {
+		return err
+	}
 	return archive.CreateCapsuleTarGz(capsuleDir, outputPath)
 }
 
@@ -2348,6 +2405,11 @@ func (c *CapsuleConvertCmd) Run() error {
 	}
 	defer os.RemoveAll(tempDir)
 
+	return runCapsuleConversion(capsulePath, targetFormat, tempDir)
+}
+
+// runCapsuleConversion performs the actual capsule conversion steps.
+func runCapsuleConversion(capsulePath, targetFormat, tempDir string) error {
 	extractDir := filepath.Join(tempDir, "extract")
 	if err := extractCapsuleArchive(capsulePath, extractDir); err != nil {
 		return fmt.Errorf("failed to extract capsule: %w", err)
@@ -2367,12 +2429,22 @@ func (c *CapsuleConvertCmd) Run() error {
 		return fmt.Errorf("failed to load plugins: %w", err)
 	}
 
+	extractResult, emitResult, err := runConversionPipeline(loader, sourceFormat, targetFormat, contentPath, tempDir)
+	if err != nil {
+		return err
+	}
+
+	return finalizeConversion(capsulePath, sourceFormat, targetFormat, tempDir, extractResult, emitResult)
+}
+
+// runConversionPipeline runs IR extraction and format emission.
+func runConversionPipeline(loader *plugins.Loader, sourceFormat, targetFormat, contentPath, tempDir string) (*plugins.ExtractIRResult, *plugins.EmitNativeResult, error) {
 	fmt.Println("Step 1: Extracting IR...")
 	irDir := filepath.Join(tempDir, "ir")
 	os.MkdirAll(irDir, 0700)
 	extractResult, err := capsuleConvertExtractIR(loader, sourceFormat, contentPath, irDir)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	fmt.Printf("  IR extracted (loss class: %s)\n", extractResult.LossClass)
 
@@ -2381,10 +2453,15 @@ func (c *CapsuleConvertCmd) Run() error {
 	os.MkdirAll(emitDir, 0700)
 	emitResult, err := capsuleConvertEmitFormat(loader, targetFormat, extractResult.IRPath, emitDir)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	fmt.Printf("  Output generated (loss class: %s)\n", emitResult.LossClass)
 
+	return extractResult, emitResult, nil
+}
+
+// finalizeConversion creates the final capsule and backs up the original.
+func finalizeConversion(capsulePath, sourceFormat, targetFormat, tempDir string, extractResult *plugins.ExtractIRResult, emitResult *plugins.EmitNativeResult) error {
 	fmt.Println("Step 3: Creating new capsule...")
 	newCapsuleDir := filepath.Join(tempDir, "new-capsule")
 	os.MkdirAll(newCapsuleDir, 0700)
@@ -2604,34 +2681,49 @@ func extractCapsuleArchive(capsulePath, destDir string) error {
 	return nil
 }
 
+var capsuleFormatPatterns = []struct {
+	ext    string
+	format string
+}{
+	{".osis", "osis"},
+	{".osis.xml", "osis"},
+	{".usx", "usx"},
+	{".usfm", "usfm"},
+	{".sfm", "usfm"},
+	{".json", "json"},
+}
+
+func isSkippedFile(name string) bool {
+	return name == "manifest.json" || strings.HasSuffix(name, ".ir.json")
+}
+
+func findSWORDModule(extractDir string) string {
+	modsDir := filepath.Join(extractDir, "mods.d")
+	if _, err := os.Stat(modsDir); err != nil {
+		return ""
+	}
+	entries, _ := os.ReadDir(modsDir)
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".conf") {
+			return filepath.Join(modsDir, e.Name())
+		}
+	}
+	return ""
+}
+
 // findConvertibleContent finds content in extracted capsule.
 func findConvertibleContent(extractDir string) (string, string) {
-	patterns := []struct {
-		ext    string
-		format string
-	}{
-		{".osis", "osis"},
-		{".osis.xml", "osis"},
-		{".usx", "usx"},
-		{".usfm", "usfm"},
-		{".sfm", "usfm"},
-		{".json", "json"},
-	}
-
-	var found string
-	var format string
+	var found, format string
 
 	filepath.Walk(extractDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
-
 		name := strings.ToLower(filepath.Base(path))
-		if name == "manifest.json" || strings.HasSuffix(name, ".ir.json") {
+		if isSkippedFile(name) {
 			return nil
 		}
-
-		for _, p := range patterns {
+		for _, p := range capsuleFormatPatterns {
 			if strings.HasSuffix(name, p.ext) {
 				found = path
 				format = p.format
@@ -2641,18 +2733,9 @@ func findConvertibleContent(extractDir string) (string, string) {
 		return nil
 	})
 
-	// Check for SWORD module
 	if found == "" {
-		modsDir := filepath.Join(extractDir, "mods.d")
-		if _, err := os.Stat(modsDir); err == nil {
-			entries, _ := os.ReadDir(modsDir)
-			for _, e := range entries {
-				if strings.HasSuffix(e.Name(), ".conf") {
-					found = filepath.Join(modsDir, e.Name())
-					format = "sword"
-					break
-				}
-			}
+		if path := findSWORDModule(extractDir); path != "" {
+			return path, "sword"
 		}
 	}
 
@@ -2809,20 +2892,20 @@ func (c *CASToSWORDCmd) Run() error {
 	}
 	defer os.RemoveAll(tempDir)
 
+	return runCASToSWORDConversion(capsulePath, tempDir)
+}
+
+// runCASToSWORDConversion performs the CAS to SWORD conversion steps.
+func runCASToSWORDConversion(capsulePath, tempDir string) error {
 	fmt.Println("Extracting CAS capsule...")
 	extractDir := filepath.Join(tempDir, "extract")
 	if err := extractCapsuleArchive(capsulePath, extractDir); err != nil {
 		return fmt.Errorf("failed to extract: %w", err)
 	}
 
-	manifestData, err := safefile.ReadFile(filepath.Join(extractDir, "manifest.json"))
+	manifest, err := loadCASManifest(extractDir)
 	if err != nil {
-		return fmt.Errorf("failed to read manifest: %w", err)
-	}
-
-	var manifest casManifest
-	if err := json.Unmarshal(manifestData, &manifest); err != nil {
-		return fmt.Errorf("failed to parse manifest: %w", err)
+		return err
 	}
 
 	fmt.Printf("  ID: %s\n", manifest.ID)
@@ -2834,16 +2917,37 @@ func (c *CASToSWORDCmd) Run() error {
 		return err
 	}
 
-	fmt.Printf("Extracting artifact: %s (%d files)\n", mainArtifact.ID, len(mainArtifact.Files))
-
 	swordDir := filepath.Join(tempDir, "sword")
 	os.MkdirAll(swordDir, 0700)
 
+	extractCASArtifact(mainArtifact, extractDir, swordDir, manifest)
+	return createSWORDCapsule(capsulePath, swordDir)
+}
+
+// loadCASManifest loads and parses the CAS manifest.
+func loadCASManifest(extractDir string) (casManifest, error) {
+	manifestData, err := safefile.ReadFile(filepath.Join(extractDir, "manifest.json"))
+	if err != nil {
+		return casManifest{}, fmt.Errorf("failed to read manifest: %w", err)
+	}
+
+	var manifest casManifest
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		return casManifest{}, fmt.Errorf("failed to parse manifest: %w", err)
+	}
+	return manifest, nil
+}
+
+// extractCASArtifact extracts artifact files and writes SWORD manifest.
+func extractCASArtifact(mainArtifact *casArtifact, extractDir, swordDir string, manifest casManifest) {
+	fmt.Printf("Extracting artifact: %s (%d files)\n", mainArtifact.ID, len(mainArtifact.Files))
 	extracted := extractArtifactFiles(mainArtifact.Files, extractDir, swordDir)
 	fmt.Printf("  Extracted %d files\n", extracted)
-
 	writeSWORDManifest(swordDir, manifest)
+}
 
+// createSWORDCapsule backs up original and creates new SWORD capsule.
+func createSWORDCapsule(capsulePath, swordDir string) error {
 	fmt.Println()
 	fmt.Println("Creating new capsule...")
 
@@ -3102,30 +3206,45 @@ func getPluginDir() string {
 
 func getFlakePath() string {
 	// Look relative to executable
-	exe, err := os.Executable()
-	if err == nil {
-		flakePath := filepath.Join(filepath.Dir(exe), "nix")
-		if _, err := os.Stat(filepath.Join(flakePath, "flake.nix")); err == nil {
-			return flakePath
-		}
+	if path := getFlakePathFromExecutable(); path != "" {
+		return path
 	}
 
-	// Look in current working directory
+	// Look in current working directory and walk up
+	return getFlakePathFromCwd()
+}
+
+// getFlakePathFromExecutable looks for flake.nix relative to executable.
+func getFlakePathFromExecutable() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	flakePath := filepath.Join(filepath.Dir(exe), "nix")
+	if _, err := os.Stat(filepath.Join(flakePath, "flake.nix")); err == nil {
+		return flakePath
+	}
+	return ""
+}
+
+// getFlakePathFromCwd looks for flake.nix from cwd and walks up.
+func getFlakePathFromCwd() string {
 	cwd, err := os.Getwd()
-	if err == nil {
-		flakePath := filepath.Join(cwd, "nix")
-		if _, err := os.Stat(filepath.Join(flakePath, "flake.nix")); err == nil {
-			return flakePath
-		}
+	if err != nil {
+		return ""
+	}
+
+	// Check current directory first
+	flakePath := filepath.Join(cwd, "nix")
+	if _, err := os.Stat(filepath.Join(flakePath, "flake.nix")); err == nil {
+		return flakePath
 	}
 
 	// Walk up from current directory
-	if cwd != "" {
-		for dir := cwd; dir != "/" && dir != "."; dir = filepath.Dir(dir) {
-			flakePath := filepath.Join(dir, "nix")
-			if _, err := os.Stat(filepath.Join(flakePath, "flake.nix")); err == nil {
-				return flakePath
-			}
+	for dir := cwd; dir != "/" && dir != "."; dir = filepath.Dir(dir) {
+		flakePath := filepath.Join(dir, "nix")
+		if _, err := os.Stat(filepath.Join(flakePath, "flake.nix")); err == nil {
+			return flakePath
 		}
 	}
 

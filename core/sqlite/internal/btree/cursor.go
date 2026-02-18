@@ -66,78 +66,98 @@ func (c *BtCursor) MoveToFirst() error {
 
 // MoveToLast moves the cursor to the last entry in the B-tree
 func (c *BtCursor) MoveToLast() error {
-	// Reset cursor state
+	c.resetForMoveToLast()
+	return c.navigateToRightmostLeaf(c.RootPage)
+}
+
+// resetForMoveToLast resets cursor state for MoveToLast.
+func (c *BtCursor) resetForMoveToLast() {
 	c.Depth = 0
 	c.PageStack[0] = c.RootPage
 	c.AtFirst = false
 	c.AtLast = false
+}
 
-	// Navigate to rightmost leaf
-	pageNum := c.RootPage
+// navigateToRightmostLeaf navigates to the rightmost leaf page.
+func (c *BtCursor) navigateToRightmostLeaf(pageNum uint32) error {
 	for {
-		// Get page
-		pageData, err := c.Btree.GetPage(pageNum)
+		pageData, header, err := c.getPageAndHeader(pageNum)
 		if err != nil {
-			c.State = CursorInvalid
-			return fmt.Errorf("failed to get page %d: %w", pageNum, err)
+			return err
 		}
 
-		// Parse header
-		header, err := ParsePageHeader(pageData, pageNum)
-		if err != nil {
-			c.State = CursorInvalid
-			return fmt.Errorf("failed to parse page %d: %w", pageNum, err)
-		}
-
-		// Check if this is a leaf
 		if header.IsLeaf {
-			// We've reached a leaf - position at last cell
-			if header.NumCells == 0 {
-				c.State = CursorInvalid
-				return fmt.Errorf("empty leaf page %d", pageNum)
-			}
-
-			c.CurrentPage = pageNum
-			c.CurrentIndex = int(header.NumCells) - 1
-			c.CurrentHeader = header
-			c.AtLast = true
-			c.IndexStack[c.Depth] = c.CurrentIndex
-
-			// Parse the last cell
-			cellOffset, err := header.GetCellPointer(pageData, c.CurrentIndex)
-			if err != nil {
-				c.State = CursorInvalid
-				return err
-			}
-
-			cell, err := ParseCell(header.PageType, pageData[cellOffset:], c.Btree.UsableSize)
-			if err != nil {
-				c.State = CursorInvalid
-				return err
-			}
-			c.CurrentCell = cell
-			c.State = CursorValid
-			return nil
+			return c.positionAtLastCell(pageNum, pageData, header)
 		}
 
-		// Interior page - follow rightmost child pointer
-		// For interior pages, the rightmost child is in the header
-		if header.RightChild == 0 {
-			c.State = CursorInvalid
-			return fmt.Errorf("interior page %d has no right child", pageNum)
+		pageNum, err = c.descendToRightChild(pageNum, header)
+		if err != nil {
+			return err
 		}
-
-		// Navigate to rightmost child
-		c.Depth++
-		if c.Depth >= MaxBtreeDepth {
-			c.State = CursorInvalid
-			return fmt.Errorf("btree depth exceeded (possible corruption)")
-		}
-
-		pageNum = header.RightChild
-		c.PageStack[c.Depth] = pageNum
-		c.IndexStack[c.Depth] = -1 // Will be set when we reach the leaf
 	}
+}
+
+// getPageAndHeader retrieves a page and parses its header.
+func (c *BtCursor) getPageAndHeader(pageNum uint32) ([]byte, *PageHeader, error) {
+	pageData, err := c.Btree.GetPage(pageNum)
+	if err != nil {
+		c.State = CursorInvalid
+		return nil, nil, fmt.Errorf("failed to get page %d: %w", pageNum, err)
+	}
+
+	header, err := ParsePageHeader(pageData, pageNum)
+	if err != nil {
+		c.State = CursorInvalid
+		return nil, nil, fmt.Errorf("failed to parse page %d: %w", pageNum, err)
+	}
+	return pageData, header, nil
+}
+
+// positionAtLastCell positions cursor at the last cell of a leaf page.
+func (c *BtCursor) positionAtLastCell(pageNum uint32, pageData []byte, header *PageHeader) error {
+	if header.NumCells == 0 {
+		c.State = CursorInvalid
+		return fmt.Errorf("empty leaf page %d", pageNum)
+	}
+
+	c.CurrentPage = pageNum
+	c.CurrentIndex = int(header.NumCells) - 1
+	c.CurrentHeader = header
+	c.AtLast = true
+	c.IndexStack[c.Depth] = c.CurrentIndex
+
+	cellOffset, err := header.GetCellPointer(pageData, c.CurrentIndex)
+	if err != nil {
+		c.State = CursorInvalid
+		return err
+	}
+
+	cell, err := ParseCell(header.PageType, pageData[cellOffset:], c.Btree.UsableSize)
+	if err != nil {
+		c.State = CursorInvalid
+		return err
+	}
+	c.CurrentCell = cell
+	c.State = CursorValid
+	return nil
+}
+
+// descendToRightChild descends to the rightmost child of an interior page.
+func (c *BtCursor) descendToRightChild(pageNum uint32, header *PageHeader) (uint32, error) {
+	if header.RightChild == 0 {
+		c.State = CursorInvalid
+		return 0, fmt.Errorf("interior page %d has no right child", pageNum)
+	}
+
+	c.Depth++
+	if c.Depth >= MaxBtreeDepth {
+		c.State = CursorInvalid
+		return 0, fmt.Errorf("btree depth exceeded (possible corruption)")
+	}
+
+	c.PageStack[c.Depth] = header.RightChild
+	c.IndexStack[c.Depth] = -1
+	return header.RightChild, nil
 }
 
 // Next moves the cursor to the next entry
@@ -301,130 +321,110 @@ func (c *BtCursor) prevViaParent() (bool, error) {
 	return true, c.descendToLast(cell.ChildPage)
 }
 
+func (c *BtCursor) markInvalidAndReturn(err error) error {
+	c.State = CursorInvalid
+	return err
+}
+
+func (c *BtCursor) setupLeafFirst(pageNum uint32, pageData []byte, header *PageHeader) error {
+	if header.NumCells == 0 {
+		return c.markInvalidAndReturn(fmt.Errorf("empty leaf"))
+	}
+
+	c.CurrentPage = pageNum
+	c.CurrentIndex = 0
+	c.CurrentHeader = header
+
+	cellOffset, err := header.GetCellPointer(pageData, 0)
+	if err != nil {
+		return c.markInvalidAndReturn(err)
+	}
+
+	cell, err := ParseCell(header.PageType, pageData[cellOffset:], c.Btree.UsableSize)
+	if err != nil {
+		return c.markInvalidAndReturn(err)
+	}
+	c.CurrentCell = cell
+	c.State = CursorValid
+	return nil
+}
+
 // descendToFirst descends to the first (leftmost) entry starting from the given page
 func (c *BtCursor) descendToFirst(pageNum uint32) error {
 	for {
 		c.Depth++
 		if c.Depth >= MaxBtreeDepth {
-			c.State = CursorInvalid
-			return fmt.Errorf("btree depth exceeded")
+			return c.markInvalidAndReturn(fmt.Errorf("btree depth exceeded"))
 		}
 
 		c.PageStack[c.Depth] = pageNum
 		c.IndexStack[c.Depth] = 0
 
-		pageData, err := c.Btree.GetPage(pageNum)
+		pageData, header, err := c.getPageAndHeader(pageNum)
 		if err != nil {
-			c.State = CursorInvalid
-			return err
-		}
-
-		header, err := ParsePageHeader(pageData, pageNum)
-		if err != nil {
-			c.State = CursorInvalid
-			return err
+			return c.markInvalidAndReturn(err)
 		}
 
 		if header.IsLeaf {
-			// Reached leaf
-			if header.NumCells == 0 {
-				c.State = CursorInvalid
-				return fmt.Errorf("empty leaf")
-			}
-
-			c.CurrentPage = pageNum
-			c.CurrentIndex = 0
-			c.CurrentHeader = header
-
-			cellOffset, err := header.GetCellPointer(pageData, 0)
-			if err != nil {
-				c.State = CursorInvalid
-				return err
-			}
-
-			cell, err := ParseCell(header.PageType, pageData[cellOffset:], c.Btree.UsableSize)
-			if err != nil {
-				c.State = CursorInvalid
-				return err
-			}
-			c.CurrentCell = cell
-			c.State = CursorValid
-			return nil
+			return c.setupLeafFirst(pageNum, pageData, header)
 		}
 
-		// Get first child
-		cellOffset, err := header.GetCellPointer(pageData, 0)
+		pageNum, err = c.getFirstChildPage(header, pageData)
 		if err != nil {
-			c.State = CursorInvalid
-			return err
+			return c.markInvalidAndReturn(err)
 		}
-
-		cell, err := ParseCell(header.PageType, pageData[cellOffset:], c.Btree.UsableSize)
-		if err != nil {
-			c.State = CursorInvalid
-			return err
-		}
-
-		pageNum = cell.ChildPage
 	}
+}
+
+func (c *BtCursor) getFirstChildPage(header *PageHeader, pageData []byte) (uint32, error) {
+	cellOffset, err := header.GetCellPointer(pageData, 0)
+	if err != nil {
+		return 0, err
+	}
+	cell, err := ParseCell(header.PageType, pageData[cellOffset:], c.Btree.UsableSize)
+	if err != nil {
+		return 0, err
+	}
+	return cell.ChildPage, nil
 }
 
 // descendToLast descends to the last (rightmost) entry starting from the given page
 func (c *BtCursor) descendToLast(pageNum uint32) error {
 	for {
-		c.Depth++
-		if c.Depth >= MaxBtreeDepth {
-			c.State = CursorInvalid
-			return fmt.Errorf("btree depth exceeded")
-		}
-
-		c.PageStack[c.Depth] = pageNum
-
-		pageData, err := c.Btree.GetPage(pageNum)
+		pageData, header, err := c.enterPage(pageNum)
 		if err != nil {
-			c.State = CursorInvalid
 			return err
 		}
-
-		header, err := ParsePageHeader(pageData, pageNum)
-		if err != nil {
-			c.State = CursorInvalid
-			return err
-		}
-
 		if header.IsLeaf {
-			// Reached leaf
-			if header.NumCells == 0 {
-				c.State = CursorInvalid
-				return fmt.Errorf("empty leaf")
-			}
-
-			c.CurrentPage = pageNum
-			c.CurrentIndex = int(header.NumCells) - 1
-			c.CurrentHeader = header
-			c.IndexStack[c.Depth] = c.CurrentIndex
-
-			cellOffset, err := header.GetCellPointer(pageData, c.CurrentIndex)
-			if err != nil {
-				c.State = CursorInvalid
-				return err
-			}
-
-			cell, err := ParseCell(header.PageType, pageData[cellOffset:], c.Btree.UsableSize)
-			if err != nil {
-				c.State = CursorInvalid
-				return err
-			}
-			c.CurrentCell = cell
-			c.State = CursorValid
-			return nil
+			return c.positionAtLastCell(pageNum, pageData, header)
 		}
-
-		// Follow rightmost child
 		c.IndexStack[c.Depth] = int(header.NumCells)
 		pageNum = header.RightChild
 	}
 }
+
+// enterPage increments depth and loads the page.
+func (c *BtCursor) enterPage(pageNum uint32) ([]byte, *PageHeader, error) {
+	c.Depth++
+	if c.Depth >= MaxBtreeDepth {
+		c.State = CursorInvalid
+		return nil, nil, fmt.Errorf("btree depth exceeded")
+	}
+	c.PageStack[c.Depth] = pageNum
+
+	pageData, err := c.Btree.GetPage(pageNum)
+	if err != nil {
+		c.State = CursorInvalid
+		return nil, nil, err
+	}
+	header, err := ParsePageHeader(pageData, pageNum)
+	if err != nil {
+		c.State = CursorInvalid
+		return nil, nil, err
+	}
+	return pageData, header, nil
+}
+
 
 // IsValid returns true if the cursor is pointing to a valid entry
 func (c *BtCursor) IsValid() bool {
@@ -614,53 +614,50 @@ func (c *BtCursor) binarySearch(pageData []byte, header *PageHeader, rowid int64
 
 // Insert inserts a new row with the given key and payload
 func (c *BtCursor) Insert(key int64, payload []byte) error {
-	// Seek to the position where this key should be inserted
-	found, err := c.SeekRowid(key)
-	if err != nil {
+	if err := c.validateInsertPosition(key); err != nil {
 		return err
 	}
 
-	if found {
-		return fmt.Errorf("duplicate key: %d", key)
-	}
-
-	// We're now positioned at a leaf page
-	if c.CurrentHeader == nil || !c.CurrentHeader.IsLeaf {
-		return fmt.Errorf("cursor not positioned at leaf page")
-	}
-
-	// Encode the cell
 	cellData := EncodeTableLeafCell(key, payload)
-
-	// Get the current page
-	pageData, err := c.Btree.GetPage(c.CurrentPage)
+	btreePage, err := c.getCurrentBtreePage()
 	if err != nil {
 		return err
 	}
 
-	// Wrap in BtreePage for write operations
-	btreePage, err := NewBtreePage(c.CurrentPage, pageData, c.Btree.UsableSize)
-	if err != nil {
-		return err
-	}
-
-	// Check if the cell will fit on the page
 	if len(cellData) > btreePage.FreeSpace() {
-		// Page is full - need to split
 		return c.splitPage(key, payload)
 	}
 
-	// Insert the cell
 	if err := btreePage.InsertCell(c.CurrentIndex, cellData); err != nil {
 		return err
 	}
 
-	// Update the cursor to point to the newly inserted cell
-	if _, err := c.SeekRowid(key); err != nil {
+	_, err = c.SeekRowid(key)
+	return err
+}
+
+// validateInsertPosition seeks to position and validates it's a valid leaf.
+func (c *BtCursor) validateInsertPosition(key int64) error {
+	found, err := c.SeekRowid(key)
+	if err != nil {
 		return err
 	}
-
+	if found {
+		return fmt.Errorf("duplicate key: %d", key)
+	}
+	if c.CurrentHeader == nil || !c.CurrentHeader.IsLeaf {
+		return fmt.Errorf("cursor not positioned at leaf page")
+	}
 	return nil
+}
+
+// getCurrentBtreePage returns a BtreePage for the current cursor page.
+func (c *BtCursor) getCurrentBtreePage() (*BtreePage, error) {
+	pageData, err := c.Btree.GetPage(c.CurrentPage)
+	if err != nil {
+		return nil, err
+	}
+	return NewBtreePage(c.CurrentPage, pageData, c.Btree.UsableSize)
 }
 
 // Delete deletes the row at the current cursor position

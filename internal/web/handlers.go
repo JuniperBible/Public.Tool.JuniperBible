@@ -944,43 +944,49 @@ func handleIRWithPrefix(w http.ResponseWriter, r *http.Request, prefix string) {
 		return
 	}
 
-	// Check if this is a download request
-	isDownload := strings.HasSuffix(capsulePath, "/download")
-	if isDownload {
-		capsulePath = strings.TrimSuffix(capsulePath, "/download")
-	}
-
-	// Sanitize path to prevent path traversal attacks
-	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, capsulePath)
+	isDownload, capsulePath := parseIRDownloadPath(capsulePath)
+	fullPath, err := resolveIRPath(capsulePath)
 	if err != nil {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
-	fullPath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
 
-	// Handle download request
 	if isDownload {
 		handleIRDownload(w, fullPath, capsulePath)
 		return
 	}
 
-	// Build initial data structure
+	renderIRPage(w, r, prefix, capsulePath, fullPath)
+}
+
+// parseIRDownloadPath extracts download flag and cleans capsule path.
+func parseIRDownloadPath(capsulePath string) (bool, string) {
+	isDownload := strings.HasSuffix(capsulePath, "/download")
+	if isDownload {
+		capsulePath = strings.TrimSuffix(capsulePath, "/download")
+	}
+	return isDownload, capsulePath
+}
+
+// resolveIRPath sanitizes and resolves the full path.
+func resolveIRPath(capsulePath string) (string, error) {
+	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, capsulePath)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(ServerConfig.CapsulesDir, cleanPath), nil
+}
+
+// renderIRPage builds and renders the IR view page.
+func renderIRPage(w http.ResponseWriter, r *http.Request, prefix, capsulePath, fullPath string) {
 	csrfToken := getOrCreateCSRFToken(w, r)
 	data := buildIRData(capsulePath, prefix, csrfToken)
 
-	// Handle POST request for generating IR
 	if r.Method == http.MethodPost {
 		handleIRGenerationRequest(r, &data, capsulePath)
 	}
 
-	// Check if capsule exists and load IR content
-	if !checkCapsuleExists(fullPath, &data) {
-		Templates.ExecuteTemplate(w, "ir.html", data)
-		return
-	}
-
-	// Load and prepare IR content for display
-	if !loadIRContent(fullPath, &data) {
+	if !checkCapsuleExists(fullPath, &data) || !loadIRContent(fullPath, &data) {
 		Templates.ExecuteTemplate(w, "ir.html", data)
 		return
 	}
@@ -1100,13 +1106,45 @@ func handlePlugins(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+var convertActionHandlers = map[string]func(*http.Request, *ConvertData){
+	"convert": func(r *http.Request, data *ConvertData) {
+		data.ActiveTab = "convert"
+		source := r.FormValue("source")
+		targetFormat := r.FormValue("format")
+		if source != "" && targetFormat != "" {
+			data.Result = performConversion(source, targetFormat)
+		}
+	},
+	"generate-ir": func(r *http.Request, data *ConvertData) {
+		data.ActiveTab = "generate-ir"
+		source := r.FormValue("source")
+		if source != "" {
+			data.Result = performIRGeneration(source)
+		}
+	},
+	"cas-to-sword": func(r *http.Request, data *ConvertData) {
+		data.ActiveTab = "cas-to-sword"
+		source := r.FormValue("source")
+		if source != "" {
+			data.Result = performCASToSWORD(source)
+		}
+	},
+}
+
+func processConvertPost(r *http.Request, data *ConvertData) {
+	if !validateCSRFToken(r) {
+		data.PageData.Error = "Invalid CSRF token. Please try again."
+		return
+	}
+	action := r.FormValue("action")
+	if handler, ok := convertActionHandlers[action]; ok {
+		handler(r, data)
+	}
+}
+
 func handleConvert(w http.ResponseWriter, r *http.Request) {
 	allCapsules := listCapsules()
-
-	// Categorize capsules in parallel
 	capsulesNoIR, capsulesCAS, _ := categorizeCapsules(allCapsules)
-
-	// Get or create CSRF token
 	csrfToken := getOrCreateCSRFToken(w, r)
 
 	data := ConvertData{
@@ -1119,42 +1157,7 @@ func handleConvert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPost {
-		// Validate CSRF token
-		if !validateCSRFToken(r) {
-			data.PageData.Error = "Invalid CSRF token. Please try again."
-		} else {
-			action := r.FormValue("action")
-
-			switch action {
-			case "convert":
-				data.ActiveTab = "convert"
-				source := r.FormValue("source")
-				targetFormat := r.FormValue("format")
-
-				if source != "" && targetFormat != "" {
-					result := performConversion(source, targetFormat)
-					data.Result = result
-				}
-
-			case "generate-ir":
-				data.ActiveTab = "generate-ir"
-				source := r.FormValue("source")
-
-				if source != "" {
-					result := performIRGeneration(source)
-					data.Result = result
-				}
-
-			case "cas-to-sword":
-				data.ActiveTab = "cas-to-sword"
-				source := r.FormValue("source")
-
-				if source != "" {
-					result := performCASToSWORD(source)
-					data.Result = result
-				}
-			}
-		}
+		processConvertPost(r, &data)
 	}
 
 	if err := Templates.ExecuteTemplate(w, "convert.html", data); err != nil {
@@ -1309,31 +1312,40 @@ func createConvertedCapsule(tempDir, outputPath, irPath, sourcePath, fullPath, s
 	newCapsuleDir := filepath.Join(tempDir, "new-capsule")
 	os.MkdirAll(newCapsuleDir, 0700)
 
-	// Copy converted output
+	if err := copyConvertedOutput(outputPath, newCapsuleDir); err != nil {
+		return convertError("%v", err)
+	}
+	copyIRToNewCapsule(irPath, sourcePath, newCapsuleDir)
+	writeConversionManifest(newCapsuleDir, fullPath, sourceFormat, targetFormat, extractLoss, emitLoss)
+
+	return finalizeConvertedCapsule(fullPath, newCapsuleDir, sourcePath, sourceFormat, targetFormat, extractLoss, emitLoss)
+}
+
+// copyConvertedOutput copies the converted output file to the new capsule directory
+func copyConvertedOutput(outputPath, newCapsuleDir string) error {
 	outputData, err := os.ReadFile(outputPath)
 	if err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to read converted output: %v", err),
-		}
+		return fmt.Errorf("Failed to read converted output: %w", err)
 	}
-
 	outputName := filepath.Base(outputPath)
 	if err := os.WriteFile(filepath.Join(newCapsuleDir, outputName), outputData, 0600); err != nil {
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to write converted output: %v", err),
-		}
+		return fmt.Errorf("Failed to write converted output: %w", err)
 	}
+	return nil
+}
 
-	// Copy IR to new capsule
+// copyIRToNewCapsule copies the IR file to the new capsule directory
+func copyIRToNewCapsule(irPath, sourcePath, newCapsuleDir string) {
 	irData, err := os.ReadFile(irPath)
-	if err == nil {
-		irName := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath)) + ".ir.json"
-		os.WriteFile(filepath.Join(newCapsuleDir, irName), irData, 0600)
+	if err != nil {
+		return
 	}
+	irName := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath)) + ".ir.json"
+	os.WriteFile(filepath.Join(newCapsuleDir, irName), irData, 0600)
+}
 
-	// Create manifest
+// writeConversionManifest creates the manifest for the converted capsule
+func writeConversionManifest(newCapsuleDir, fullPath, sourceFormat, targetFormat, extractLoss, emitLoss string) {
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
 		"module_type":     "bible",
@@ -1344,44 +1356,40 @@ func createConvertedCapsule(tempDir, outputPath, irPath, sourcePath, fullPath, s
 		"extraction_loss": extractLoss,
 		"emission_loss":   emitLoss,
 	}
-
-	// Preserve original manifest metadata
-	origManifest := readCapsuleManifest(fullPath)
-	if origManifest != nil {
-		if origManifest.Title != "" {
-			manifest["title"] = origManifest.Title
-		}
-		if origManifest.Language != "" {
-			manifest["language"] = origManifest.Language
-		}
-	}
-
+	preserveOriginalMetadata(fullPath, manifest)
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
 	os.WriteFile(filepath.Join(newCapsuleDir, "manifest.json"), manifestData, 0600)
+}
 
-	// Rename original and create new capsule
+// preserveOriginalMetadata copies title and language from original manifest
+func preserveOriginalMetadata(fullPath string, manifest map[string]interface{}) {
+	origManifest := readCapsuleManifest(fullPath)
+	if origManifest == nil {
+		return
+	}
+	if origManifest.Title != "" {
+		manifest["title"] = origManifest.Title
+	}
+	if origManifest.Language != "" {
+		manifest["language"] = origManifest.Language
+	}
+}
+
+// finalizeConvertedCapsule renames original and creates the new capsule
+func finalizeConvertedCapsule(fullPath, newCapsuleDir, sourcePath, sourceFormat, targetFormat, extractLoss, emitLoss string) *ConvertResult {
 	oldPath := renameToOld(fullPath)
 	if oldPath == "" {
-		return &ConvertResult{
-			Success: false,
-			Message: "Failed to rename original capsule",
-		}
+		return convertError("Failed to rename original capsule")
 	}
-
 	if err := archive.CreateCapsuleTarGzFromPath(newCapsuleDir, fullPath); err != nil {
 		os.Rename(oldPath, fullPath)
-		return &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to create new capsule: %v", err),
-		}
+		return convertError("Failed to create new capsule: %v", err)
 	}
-
-	lossClass := combineLossClass(extractLoss, emitLoss)
 	return &ConvertResult{
 		Success:      true,
 		OutputPath:   sourcePath,
 		OldPath:      filepath.Base(oldPath),
-		LossClass:    lossClass,
+		LossClass:    combineLossClass(extractLoss, emitLoss),
 		Message:      fmt.Sprintf("Successfully converted from %s to %s", sourceFormat, targetFormat),
 		SourceFormat: sourceFormat,
 	}
@@ -1634,45 +1642,40 @@ func buildCapsuleWithIR(extractDir string, extractResult *plugins.ExtractIRResul
 func readIRFileData(irPath string) ([]byte, *ConvertResult) {
 	info, err := os.Stat(irPath)
 	if err != nil {
-		return nil, &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to stat IR path: %v", err),
-		}
+		return nil, convertError("Failed to stat IR path: %v", err)
 	}
 
 	if info.IsDir() {
-		entries, err := os.ReadDir(irPath)
+		irPath, err = findIRFileInDir(irPath)
 		if err != nil {
-			return nil, &ConvertResult{
-				Success: false,
-				Message: fmt.Sprintf("Failed to read IR directory: %v", err),
-			}
-		}
-
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".ir.json") {
-				irPath = filepath.Join(irPath, entry.Name())
-				break
-			}
-		}
-
-		if !strings.HasSuffix(irPath, ".ir.json") {
-			return nil, &ConvertResult{
-				Success: false,
-				Message: "No .ir.json file found in IR directory",
-			}
+			return nil, convertError("%v", err)
 		}
 	}
 
 	irData, err := os.ReadFile(irPath)
 	if err != nil {
-		return nil, &ConvertResult{
-			Success: false,
-			Message: fmt.Sprintf("Failed to read IR: %v", err),
+		return nil, convertError("Failed to read IR: %v", err)
+	}
+	return irData, nil
+}
+
+// findIRFileInDir finds the first .ir.json file in a directory
+func findIRFileInDir(dirPath string) (string, error) {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return "", fmt.Errorf("Failed to read IR directory: %w", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".ir.json") {
+			return filepath.Join(dirPath, entry.Name()), nil
 		}
 	}
+	return "", fmt.Errorf("No .ir.json file found in IR directory")
+}
 
-	return irData, nil
+// convertError creates a failure ConvertResult with formatted message
+func convertError(format string, args ...interface{}) *ConvertResult {
+	return &ConvertResult{Success: false, Message: fmt.Sprintf(format, args...)}
 }
 
 // updateManifestWithIR updates the manifest.json with IR metadata
@@ -1958,14 +1961,18 @@ func isJSONContent(content []byte) bool {
 	if len(content) < 2 {
 		return false
 	}
-	// Skip whitespace
 	for i := 0; i < len(content); i++ {
-		if content[i] == ' ' || content[i] == '\t' || content[i] == '\n' || content[i] == '\r' {
+		if isWhitespace(content[i]) {
 			continue
 		}
 		return content[i] == '{' || content[i] == '['
 	}
 	return false
+}
+
+// isWhitespace checks if a byte is whitespace.
+func isWhitespace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
 // extractCapsule extracts a capsule archive to a directory.
@@ -2283,41 +2290,57 @@ func readCapsuleManifest(capsulePath string) *CapsuleManifest {
 }
 
 func handleStatic(w http.ResponseWriter, r *http.Request) {
-	// Serve static files from cache (populated at startup)
 	path := strings.TrimPrefix(r.URL.Path, "/static/")
-
-	// Determine content type
-	var contentType string
-	switch path {
-	case "base.css", "style.css":
-		contentType = "text/css"
-	case "app.js":
-		contentType = "application/javascript"
-	default:
+	contentType := staticContentType(path)
+	if contentType == "" {
 		http.NotFound(w, r)
 		return
 	}
 
-	// Try to get from cache first
+	content, etag, err := loadStaticContent(path)
+	if err != nil {
+		http.Error(w, path+" not found", http.StatusNotFound)
+		return
+	}
+
+	if checkNotModified(w, r, etag) {
+		return
+	}
+
+	serveStaticContent(w, content, contentType, etag)
+}
+
+// staticContentType returns the content type for a static file path.
+func staticContentType(path string) string {
+	types := map[string]string{
+		"base.css":  "text/css",
+		"style.css": "text/css",
+		"app.js":    "application/javascript",
+	}
+	return types[path]
+}
+
+// loadStaticContent loads static file content from cache or filesystem.
+func loadStaticContent(path string) ([]byte, string, error) {
 	content, etag, ok := getStaticFile(path)
-	if !ok {
-		// Fallback to direct read if cache not populated
-		var err error
-		content, err = staticFS.ReadFile("static/" + path)
-		if err != nil {
-			http.Error(w, path+" not found", http.StatusNotFound)
-			return
-		}
+	if ok {
+		return content, etag, nil
 	}
+	content, err := staticFS.ReadFile("static/" + path)
+	return content, "", err
+}
 
-	// Check If-None-Match for conditional request (304 Not Modified)
-	if etag != "" {
-		if match := r.Header.Get("If-None-Match"); match == etag {
-			w.WriteHeader(http.StatusNotModified)
-			return
-		}
+// checkNotModified checks If-None-Match and sends 304 if matched.
+func checkNotModified(w http.ResponseWriter, r *http.Request, etag string) bool {
+	if etag != "" && r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return true
 	}
+	return false
+}
 
+// serveStaticContent writes static content with appropriate headers.
+func serveStaticContent(w http.ResponseWriter, content []byte, contentType, etag string) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 	if etag != "" {
@@ -2343,25 +2366,8 @@ func listCapsulesUncached() []CapsuleInfo {
 
 	var capsules []CapsuleInfo
 	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-		ext := filepath.Ext(name)
-		if ext == ".xz" || ext == ".gz" || ext == ".tar" {
-			info, err := entry.Info()
-			if err != nil {
-				continue
-			}
-			fullPath := filepath.Join(ServerConfig.CapsulesDir, name)
-			capsules = append(capsules, CapsuleInfo{
-				Name:      name,
-				Path:      name, // Flat directory, path == name
-				Size:      info.Size(),
-				SizeHuman: humanSize(info.Size()),
-				Format:    detectCapsuleFormat(fullPath),
-			})
+		if capsule := entryCapsuleInfo(entry); capsule != nil {
+			capsules = append(capsules, *capsule)
 		}
 	}
 
@@ -2372,62 +2378,81 @@ func listCapsulesUncached() []CapsuleInfo {
 	return capsules
 }
 
+// entryCapsuleInfo builds CapsuleInfo from a directory entry if it's a capsule.
+func entryCapsuleInfo(entry os.DirEntry) *CapsuleInfo {
+	if entry.IsDir() || !isCapsuleExtension(filepath.Ext(entry.Name())) {
+		return nil
+	}
+	info, err := entry.Info()
+	if err != nil {
+		return nil
+	}
+	name := entry.Name()
+	fullPath := filepath.Join(ServerConfig.CapsulesDir, name)
+	return &CapsuleInfo{
+		Name:      name,
+		Path:      name,
+		Size:      info.Size(),
+		SizeHuman: humanSize(info.Size()),
+		Format:    detectCapsuleFormat(fullPath),
+	}
+}
+
+// isCapsuleExtension checks if extension indicates a capsule file.
+func isCapsuleExtension(ext string) bool {
+	return ext == ".xz" || ext == ".gz" || ext == ".tar"
+}
+
 func listFormatPlugins() []PluginInfo {
 	var pluginInfos []PluginInfo
-
-	// Use plugin loader to find all format plugins
 	loader := getLoader()
-
 	for _, p := range loader.ListPlugins() {
 		if strings.HasPrefix(p.Manifest.PluginID, "format.") {
-			source := "unloaded"
-			hasBinary := false
-			hasExternalBinary := false
-			capabilities := ""
-
-			// Check if this is an external plugin (has real path, not "(embedded)")
-			if p.Path != "(embedded)" && p.Manifest.Entrypoint != "" {
-				binPath := filepath.Join(p.Path, p.Manifest.Entrypoint)
-				if _, err := os.Stat(binPath); err == nil {
-					hasBinary = true
-					hasExternalBinary = true
-					source = "external"
-				}
-			}
-
-			// Check if embedded plugin exists
-			if !hasBinary && plugins.HasEmbeddedPlugin(p.Manifest.PluginID) {
-				hasBinary = true
-				source = "internal"
-			}
-
-			// Determine capability status for internal plugins
-			if source == "internal" {
-				if hasExternalBinary {
-					capabilities = "IR: external fallback"
-				} else {
-					// Check if this plugin has stub IR implementations
-					capabilities = getEmbeddedPluginCapabilities(p.Manifest.PluginID, hasExternalBinary)
-				}
-			}
-
-			name := strings.TrimPrefix(p.Manifest.PluginID, "format.")
-
-			pluginInfos = append(pluginInfos, PluginInfo{
-				PluginID:     p.Manifest.PluginID,
-				Name:         name,
-				Version:      p.Manifest.Version,
-				Type:         "format",
-				Description:  fmt.Sprintf("Format plugin for %s", name),
-				HasBinary:    hasBinary,
-				Source:       source,
-				Capabilities: capabilities,
-				License:      getPluginLicense(p),
-			})
+			pluginInfos = append(pluginInfos, buildPluginInfo(p))
 		}
 	}
-
 	return pluginInfos
+}
+
+func buildPluginInfo(p *plugins.Plugin) PluginInfo {
+	source, hasBinary, hasExternalBinary := determinePluginSource(p)
+	capabilities := determinePluginCapabilities(source, p.Manifest.PluginID, hasExternalBinary)
+	name := strings.TrimPrefix(p.Manifest.PluginID, "format.")
+	return PluginInfo{
+		PluginID:     p.Manifest.PluginID,
+		Name:         name,
+		Version:      p.Manifest.Version,
+		Type:         "format",
+		Description:  fmt.Sprintf("Format plugin for %s", name),
+		HasBinary:    hasBinary,
+		Source:       source,
+		Capabilities: capabilities,
+		License:      getPluginLicense(p),
+	}
+}
+
+func determinePluginSource(p *plugins.Plugin) (source string, hasBinary, hasExternalBinary bool) {
+	source = "unloaded"
+	if p.Path != "(embedded)" && p.Manifest.Entrypoint != "" {
+		binPath := filepath.Join(p.Path, p.Manifest.Entrypoint)
+		if _, err := os.Stat(binPath); err == nil {
+			return "external", true, true
+		}
+	}
+	if plugins.HasEmbeddedPlugin(p.Manifest.PluginID) {
+		return "internal", true, false
+	}
+	return source, false, false
+}
+
+func determinePluginCapabilities(source, pluginID string, hasExternalBinary bool) string {
+	if source != "internal" {
+		return ""
+	}
+	if hasExternalBinary {
+		return "IR: external fallback"
+	}
+	return getEmbeddedPluginCapabilities(pluginID, hasExternalBinary)
 }
 
 // getEmbeddedPluginCapabilities returns capability information for an embedded plugin.
@@ -2525,22 +2550,30 @@ func matchApacheLicense(contentLower string) bool {
 
 // matchGPLLicense checks if content matches GPL license patterns and returns the version
 func matchGPLLicense(contentLower string) (string, bool) {
-	if strings.Contains(contentLower, "gnu general public license") && strings.Contains(contentLower, "version 3") {
+	if matchGPL3(contentLower) {
 		return "GPL-3.0", true
 	}
-	if strings.Contains(contentLower, "gpl-3") || strings.Contains(contentLower, "gplv3") {
-		return "GPL-3.0", true
-	}
-	if strings.Contains(contentLower, "gnu general public license") && strings.Contains(contentLower, "version 2") {
-		return "GPL-2.0", true
-	}
-	if strings.Contains(contentLower, "gpl-2") || strings.Contains(contentLower, "gplv2") {
+	if matchGPL2(contentLower) {
 		return "GPL-2.0", true
 	}
 	if strings.Contains(contentLower, "gnu lesser general public license") {
 		return "LGPL", true
 	}
 	return "", false
+}
+
+func matchGPL3(contentLower string) bool {
+	if strings.Contains(contentLower, "gnu general public license") && strings.Contains(contentLower, "version 3") {
+		return true
+	}
+	return strings.Contains(contentLower, "gpl-3") || strings.Contains(contentLower, "gplv3")
+}
+
+func matchGPL2(contentLower string) bool {
+	if strings.Contains(contentLower, "gnu general public license") && strings.Contains(contentLower, "version 2") {
+		return true
+	}
+	return strings.Contains(contentLower, "gpl-2") || strings.Contains(contentLower, "gplv2")
 }
 
 // matchBSDLicense checks if content matches BSD license patterns and returns the variant
@@ -2607,48 +2640,36 @@ func parseLicenseText(content string) string {
 
 func listToolPlugins() []PluginInfo {
 	var pluginInfos []PluginInfo
-
-	// Use plugin loader to find all tool plugins (tool.* and tools.* prefixes)
 	loader := getLoader()
 
 	for _, p := range loader.ListPlugins() {
-		if strings.HasPrefix(p.Manifest.PluginID, "tool.") || strings.HasPrefix(p.Manifest.PluginID, "tools.") {
-			source := "unloaded"
-			hasBinary := false
-
-			// Check if this is an external plugin (has real path, not "(embedded)")
-			if p.Path != "(embedded)" && p.Manifest.Entrypoint != "" {
-				binPath := filepath.Join(p.Path, p.Manifest.Entrypoint)
-				if _, err := os.Stat(binPath); err == nil {
-					hasBinary = true
-					source = "external"
-				}
-			}
-
-			// Check if embedded plugin exists
-			if !hasBinary && plugins.HasEmbeddedPlugin(p.Manifest.PluginID) {
-				hasBinary = true
-				source = "internal"
-			}
-
-			name := p.Manifest.PluginID
-			name = strings.TrimPrefix(name, "tool.")
-			name = strings.TrimPrefix(name, "tools.")
-
-			pluginInfos = append(pluginInfos, PluginInfo{
-				PluginID:    p.Manifest.PluginID,
-				Name:        name,
-				Version:     p.Manifest.Version,
-				Type:        "tool",
-				Description: fmt.Sprintf("Tool plugin for %s", name),
-				HasBinary:   hasBinary,
-				Source:      source,
-				License:     getPluginLicense(p),
-			})
+		if !isToolPlugin(p.Manifest.PluginID) {
+			continue
 		}
+		pluginInfos = append(pluginInfos, buildToolPluginInfo(p))
 	}
-
 	return pluginInfos
+}
+
+// isToolPlugin checks if a plugin ID is a tool plugin
+func isToolPlugin(pluginID string) bool {
+	return strings.HasPrefix(pluginID, "tool.") || strings.HasPrefix(pluginID, "tools.")
+}
+
+// buildToolPluginInfo constructs PluginInfo for a tool plugin
+func buildToolPluginInfo(p *plugins.Plugin) PluginInfo {
+	source, hasBinary, _ := determinePluginSource(p)
+	name := strings.TrimPrefix(strings.TrimPrefix(p.Manifest.PluginID, "tool."), "tools.")
+	return PluginInfo{
+		PluginID:    p.Manifest.PluginID,
+		Name:        name,
+		Version:     p.Manifest.Version,
+		Type:        "tool",
+		Description: fmt.Sprintf("Tool plugin for %s", name),
+		HasBinary:   hasBinary,
+		Source:      source,
+		License:     getPluginLicense(p),
+	}
 }
 
 // detectCapsuleFormat is implemented in format_detection.go
@@ -2747,25 +2768,18 @@ func readArtifactContent(capsulePath, artifactID string) (string, string, error)
 	}
 	defer f.Close()
 
-	var reader io.Reader = f
-
-	if strings.HasSuffix(capsulePath, ".xz") {
-		xzReader, err := xz.NewReader(reader)
-		if err != nil {
-			return "", "", err
-		}
-		reader = xzReader
-	} else if strings.HasSuffix(capsulePath, ".gz") {
-		gzReader, err := gzip.NewReader(reader)
-		if err != nil {
-			return "", "", err
-		}
-		defer gzReader.Close()
-		reader = gzReader
+	reader, closeFunc, err := wrapWithDecompressor(f, capsulePath)
+	if err != nil {
+		return "", "", err
+	}
+	if closeFunc != nil {
+		defer closeFunc()
 	}
 
-	tarReader := tar.NewReader(reader)
+	return findArtifactInTar(tar.NewReader(reader), artifactID)
+}
 
+func findArtifactInTar(tarReader *tar.Reader, artifactID string) (string, string, error) {
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -2774,17 +2788,15 @@ func readArtifactContent(capsulePath, artifactID string) (string, string, error)
 		if err != nil {
 			return "", "", err
 		}
-
-		if header.Name == artifactID {
-			data, err := io.ReadAll(tarReader)
-			if err != nil {
-				return "", "", err
-			}
-			contentType := detectContentType(header.Name, data)
-			return string(data), contentType, nil
+		if header.Name != artifactID {
+			continue
 		}
+		data, err := io.ReadAll(tarReader)
+		if err != nil {
+			return "", "", err
+		}
+		return string(data), detectContentType(header.Name, data), nil
 	}
-
 	return "", "", fmt.Errorf("artifact not found: %s", artifactID)
 }
 
@@ -3185,51 +3197,61 @@ func performVerify(capsulePath string) *VerifyResult {
 
 // performDetect detects the format of an uploaded file.
 func performDetect(file io.Reader, filename string) *DetectResult {
-	// Save to temp file
+	tempPath, cleanup, err := saveDetectFile(file, filename)
+	if err != nil {
+		return detectError(err)
+	}
+	defer cleanup()
+	return detectFormat(tempPath)
+}
+
+// saveDetectFile saves the uploaded file to a temp directory.
+func saveDetectFile(file io.Reader, filename string) (string, func(), error) {
 	tempDir, err := secureMkdirTemp("", "capsule-detect-*")
 	if err != nil {
-		return &DetectResult{
-			Format:  "unknown",
-			Details: fmt.Sprintf("Error: %v", err),
-		}
+		return "", nil, err
 	}
-	defer os.RemoveAll(tempDir)
-
+	cleanup := func() { os.RemoveAll(tempDir) }
 	tempPath := filepath.Join(tempDir, filename)
 	outFile, err := os.Create(tempPath)
 	if err != nil {
-		return &DetectResult{
-			Format:  "unknown",
-			Details: fmt.Sprintf("Error: %v", err),
-		}
+		cleanup()
+		return "", nil, err
 	}
 	if _, err := io.Copy(outFile, file); err != nil {
 		outFile.Close()
-		return &DetectResult{
-			Format:  "unknown",
-			Details: fmt.Sprintf("Error copying file: %v", err),
-		}
+		cleanup()
+		return "", nil, fmt.Errorf("copying file: %w", err)
 	}
 	if err := outFile.Close(); err != nil {
-		return &DetectResult{
-			Format:  "unknown",
-			Details: fmt.Sprintf("Error closing file: %v", err),
-		}
+		cleanup()
+		return "", nil, fmt.Errorf("closing file: %w", err)
 	}
+	return tempPath, cleanup, nil
+}
 
-	// Load plugins
+// detectError returns a DetectResult for an error condition.
+func detectError(err error) *DetectResult {
+	return &DetectResult{
+		Format:  "unknown",
+		Details: fmt.Sprintf("Error: %v", err),
+	}
+}
+
+// detectFormat uses plugins to detect the file format.
+func detectFormat(tempPath string) *DetectResult {
 	loader := getLoader()
 	if err := loader.LoadFromDir(ServerConfig.PluginsDir); err != nil {
-		format := detectFileFormatByExtension(tempPath)
-		return &DetectResult{
-			Format:     format,
-			PluginID:   "(extension-based)",
-			Confidence: "low",
-			Details:    "Plugin detection unavailable, used extension-based detection",
-		}
+		return extensionBasedDetect(tempPath, "Plugin detection unavailable, used extension-based detection")
 	}
+	if result := tryPluginDetect(loader, tempPath); result != nil {
+		return result
+	}
+	return extensionBasedDetect(tempPath, "No plugin detected this format, using extension-based detection")
+}
 
-	// Try each format plugin
+// tryPluginDetect tries each format plugin to detect the file.
+func tryPluginDetect(loader *plugins.Loader, tempPath string) *DetectResult {
 	for _, plugin := range loader.GetPluginsByKind("format") {
 		req := plugins.NewDetectRequest(tempPath)
 		resp, err := plugins.ExecutePlugin(plugin, req)
@@ -3249,14 +3271,17 @@ func performDetect(file io.Reader, filename string) *DetectResult {
 			}
 		}
 	}
+	return nil
+}
 
-	// Fallback
+// extensionBasedDetect returns a detection result based on file extension.
+func extensionBasedDetect(tempPath, details string) *DetectResult {
 	format := detectFileFormatByExtension(tempPath)
 	return &DetectResult{
 		Format:     format,
 		PluginID:   "(fallback)",
 		Confidence: "low",
-		Details:    "No plugin detected this format, using extension-based detection",
+		Details:    details,
 	}
 }
 
@@ -3268,13 +3293,11 @@ func handleExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Sanitize path to prevent path traversal attacks
-	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, capsulePath)
+	fullPath, err := sanitizeAndResolvePath(capsulePath)
 	if err != nil {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
-	fullPath := filepath.Join(ServerConfig.CapsulesDir, cleanPath)
 
 	info, err := os.Stat(fullPath)
 	if err != nil {
@@ -3282,30 +3305,37 @@ func handleExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if this is a download request
-	artifactID := r.URL.Query().Get("artifact")
-	if artifactID != "" && r.URL.Query().Get("download") == "true" {
-		// Stream artifact content as download
-		content, contentType, err := readArtifactContent(fullPath, artifactID)
-		if err != nil {
-			httpError(w, err, http.StatusNotFound)
-			return
-		}
-
-		filename := filepath.Base(artifactID)
-		w.Header().Set("Content-Type", contentType)
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
-		w.Write([]byte(content))
+	if handleArtifactDownload(w, r, fullPath) {
 		return
 	}
 
-	// Show export page
+	renderExportPage(w, capsulePath, fullPath, info)
+}
+
+// handleArtifactDownload handles download requests for artifacts, returns true if handled
+func handleArtifactDownload(w http.ResponseWriter, r *http.Request, fullPath string) bool {
+	artifactID := r.URL.Query().Get("artifact")
+	if artifactID == "" || r.URL.Query().Get("download") != "true" {
+		return false
+	}
+	content, contentType, err := readArtifactContent(fullPath, artifactID)
+	if err != nil {
+		httpError(w, err, http.StatusNotFound)
+		return true
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filepath.Base(artifactID)))
+	w.Write([]byte(content))
+	return true
+}
+
+// renderExportPage renders the export page template
+func renderExportPage(w http.ResponseWriter, capsulePath, fullPath string, info os.FileInfo) {
 	_, artifacts, err := readCapsule(fullPath)
 	if err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-
 	data := ExportData{
 		PageData: PageData{Title: "Export: " + capsulePath},
 		Capsule: CapsuleInfo{
@@ -3316,10 +3346,18 @@ func handleExport(w http.ResponseWriter, r *http.Request) {
 		},
 		Artifacts: artifacts,
 	}
-
 	if err := Templates.ExecuteTemplate(w, "export.html", data); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 	}
+}
+
+// sanitizeAndResolvePath sanitizes and resolves a capsule path
+func sanitizeAndResolvePath(capsulePath string) (string, error) {
+	cleanPath, err := validation.SanitizePath(ServerConfig.CapsulesDir, capsulePath)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(ServerConfig.CapsulesDir, cleanPath), nil
 }
 
 // SelfcheckData is the data for the selfcheck page.
@@ -4109,51 +4147,51 @@ type ToolItem struct {
 
 // handleTools handles the tools list page.
 func handleTools(w http.ResponseWriter, r *http.Request) {
-	// Read contrib/tool directory
-	contribDir := "contrib/tool"
-	tools := getToolsList(contribDir)
-
-	data := ToolsData{
-		PageData: PageData{Title: "Tool Plugins"},
-	}
-
-	// If contrib/tool has tools, show those
-	if len(tools) > 0 {
-		data.Tools = tools
-		data.Source = "contrib/tool"
-	} else {
-		// Otherwise, load tool plugins from plugins directory
-		loader := getLoader()
-		if err := loader.LoadFromDir(ServerConfig.PluginsDir); err == nil {
-			var toolPlugins []PluginInfo
-			for _, p := range loader.ListPlugins() {
-				if strings.HasPrefix(p.Manifest.PluginID, "tool.") || strings.HasPrefix(p.Manifest.PluginID, "tools.") {
-					// Check if binary exists
-					hasBinary := false
-					if p.Manifest.Entrypoint != "" {
-						binPath := filepath.Join(p.Path, p.Manifest.Entrypoint)
-						if _, err := os.Stat(binPath); err == nil {
-							hasBinary = true
-						}
-					}
-					name := p.Manifest.PluginID
-					name = strings.TrimPrefix(name, "tool.")
-					name = strings.TrimPrefix(name, "tools.")
-					toolPlugins = append(toolPlugins, PluginInfo{
-						PluginID:  p.Manifest.PluginID,
-						Name:      name,
-						Version:   p.Manifest.Version,
-						HasBinary: hasBinary,
-					})
-				}
-			}
-			data.ToolPlugins = toolPlugins
-			data.Source = ServerConfig.PluginsDir + "/tool"
-		}
-	}
+	data := ToolsData{PageData: PageData{Title: "Tool Plugins"}}
+	populateToolsData(&data)
 
 	if err := Templates.ExecuteTemplate(w, "tools.html", data); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
+	}
+}
+
+// populateToolsData fills the ToolsData with tools from contrib or plugins
+func populateToolsData(data *ToolsData) {
+	tools := getToolsList("contrib/tool")
+	if len(tools) > 0 {
+		data.Tools = tools
+		data.Source = "contrib/tool"
+		return
+	}
+	data.ToolPlugins = loadToolPluginsFromDir()
+	data.Source = ServerConfig.PluginsDir + "/tool"
+}
+
+// loadToolPluginsFromDir loads tool plugins from the plugins directory
+func loadToolPluginsFromDir() []PluginInfo {
+	loader := getLoader()
+	if err := loader.LoadFromDir(ServerConfig.PluginsDir); err != nil {
+		return nil
+	}
+	var toolPlugins []PluginInfo
+	for _, p := range loader.ListPlugins() {
+		if !isToolPlugin(p.Manifest.PluginID) {
+			continue
+		}
+		toolPlugins = append(toolPlugins, buildToolPluginInfoBasic(p))
+	}
+	return toolPlugins
+}
+
+// buildToolPluginInfoBasic builds basic PluginInfo without license
+func buildToolPluginInfoBasic(p *plugins.Plugin) PluginInfo {
+	_, hasBinary, _ := determinePluginSource(p)
+	name := strings.TrimPrefix(strings.TrimPrefix(p.Manifest.PluginID, "tool."), "tools.")
+	return PluginInfo{
+		PluginID:  p.Manifest.PluginID,
+		Name:      name,
+		Version:   p.Manifest.Version,
+		HasBinary: hasBinary,
 	}
 }
 
@@ -4226,50 +4264,68 @@ func getToolsList(contribDir string) []ToolItem {
 func extractPurposeFromReadme(readme string) string {
 	lines := strings.Split(readme, "\n")
 	for i, line := range lines {
-		line = strings.TrimSpace(line)
-		// Skip the title
-		if strings.HasPrefix(line, "# ") {
-			// Check if next non-empty line is a description
-			for j := i + 1; j < len(lines) && j < i+5; j++ {
-				nextLine := strings.TrimSpace(lines[j])
-				if nextLine == "" {
-					continue
-				}
-				if !strings.HasPrefix(nextLine, "#") && !strings.HasPrefix(nextLine, "[") {
-					// Truncate if too long
-					if len(nextLine) > 100 {
-						nextLine = nextLine[:97] + "..."
-					}
-					return nextLine
-				}
-				break
-			}
+		if strings.HasPrefix(strings.TrimSpace(line), "# ") {
+			return findDescriptionAfterTitle(lines, i)
 		}
 	}
 	return ""
 }
 
+// findDescriptionAfterTitle looks for a description line after the title.
+func findDescriptionAfterTitle(lines []string, titleIdx int) string {
+	for j := titleIdx + 1; j < len(lines) && j < titleIdx+5; j++ {
+		nextLine := strings.TrimSpace(lines[j])
+		if nextLine == "" {
+			continue
+		}
+		if !strings.HasPrefix(nextLine, "#") && !strings.HasPrefix(nextLine, "[") {
+			return truncateLine(nextLine, 100)
+		}
+		break
+	}
+	return ""
+}
+
+// truncateLine truncates a line to maxLen with ellipsis.
+func truncateLine(line string, maxLen int) string {
+	if len(line) > maxLen {
+		return line[:maxLen-3] + "..."
+	}
+	return line
+}
+
 // extractLicenseType extracts the license type from license text.
 func extractLicenseType(license string) string {
-	licenseLower := strings.ToLower(license)
+	if matched := matchKnownLicense(license); matched != "" {
+		return matched
+	}
+	return extractFirstShortLine(license)
+}
 
-	// Check against known patterns
+// matchKnownLicense checks against known license patterns.
+func matchKnownLicense(license string) string {
+	licenseLower := strings.ToLower(license)
 	for _, lp := range licensePatterns {
-		allMatch := true
-		for _, pattern := range lp.patterns {
-			if !strings.Contains(licenseLower, pattern) {
-				allMatch = false
-				break
-			}
-		}
-		if allMatch {
+		if allPatternsMatch(licenseLower, lp.patterns) {
 			return lp.license
 		}
 	}
+	return ""
+}
 
-	// Fallback: try first line
-	lines := strings.Split(license, "\n")
-	for _, line := range lines {
+// allPatternsMatch checks if all patterns are found in text.
+func allPatternsMatch(text string, patterns []string) bool {
+	for _, pattern := range patterns {
+		if !strings.Contains(text, pattern) {
+			return false
+		}
+	}
+	return true
+}
+
+// extractFirstShortLine finds the first non-empty short line.
+func extractFirstShortLine(license string) string {
+	for _, line := range strings.Split(license, "\n") {
 		line = strings.TrimSpace(line)
 		if line != "" && len(line) < 50 {
 			return line
@@ -4932,33 +4988,49 @@ type RefreshResult struct {
 
 // parseJuniperRequestParams parses query parameters and form values from the request.
 func parseJuniperRequestParams(r *http.Request) (tab, subtab, selectedSource, customURL string, installedPage int, shouldLoadModules bool) {
-	tab = r.URL.Query().Get("tab")
-	if tab == "" {
-		tab = "installed"
-	}
+	tab = getQueryOrDefault(r, "tab", "installed")
 	subtab = r.URL.Query().Get("subtab")
 	if tab == "capsules" && subtab == "" {
 		subtab = "list"
 	}
-	installedPage = 1
-	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
-		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
-			installedPage = p
-		}
-	}
-	selectedSource = r.URL.Query().Get("source")
-	if selectedSource == "" {
-		selectedSource = r.FormValue("source")
-	}
-	if selectedSource == "" {
-		selectedSource = "CrossWire"
-	}
-	customURL = r.URL.Query().Get("custom_url")
-	if customURL == "" {
-		customURL = r.FormValue("custom_url")
-	}
+	installedPage = parsePageNumber(r)
+	selectedSource = getQueryOrFormValue(r, "source", "CrossWire")
+	customURL = getQueryOrFormValue(r, "custom_url", "")
 	shouldLoadModules = r.URL.Query().Get("loaded") == "1"
 	return
+}
+
+// getQueryOrDefault returns the query parameter value or a default.
+func getQueryOrDefault(r *http.Request, key, defaultVal string) string {
+	val := r.URL.Query().Get(key)
+	if val == "" {
+		return defaultVal
+	}
+	return val
+}
+
+// parsePageNumber parses the page query parameter.
+func parsePageNumber(r *http.Request) int {
+	pageStr := r.URL.Query().Get("page")
+	if pageStr == "" {
+		return 1
+	}
+	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		return p
+	}
+	return 1
+}
+
+// getQueryOrFormValue returns the query parameter, form value, or default.
+func getQueryOrFormValue(r *http.Request, key, defaultVal string) string {
+	val := r.URL.Query().Get(key)
+	if val == "" {
+		val = r.FormValue(key)
+	}
+	if val == "" {
+		return defaultVal
+	}
+	return val
 }
 
 // handleFileUploadDetect handles file upload for format detection.
@@ -5072,40 +5144,63 @@ func loadRepositoryModules(effectiveSource string, data *JuniperRepomanData) {
 func loadInstalledModulesWithPagination(installedPage, installedPageSize int, data *JuniperRepomanData) {
 	installed := getInstalledModules(ServerConfig.SwordDir)
 	data.InstalledTotal = len(installed)
-	data.InstalledTotalPages = (len(installed) + installedPageSize - 1) / installedPageSize
-	if data.InstalledTotalPages == 0 {
-		data.InstalledTotalPages = 1
+	data.InstalledTotalPages = calculateTotalPages(len(installed), installedPageSize)
+	extractInstalledFilters(installed, data)
+	installedPage = adjustPageNumber(installedPage, data)
+	data.Installed = paginateInstalled(installed, installedPage, installedPageSize)
+}
+
+// calculateTotalPages calculates the total number of pages.
+func calculateTotalPages(total, pageSize int) int {
+	pages := (total + pageSize - 1) / pageSize
+	if pages == 0 {
+		return 1
 	}
-	installedTypeSet := make(map[string]bool)
-	installedLangSet := make(map[string]bool)
+	return pages
+}
+
+// extractInstalledFilters extracts unique types and languages from installed modules.
+func extractInstalledFilters(installed []RepoModule, data *JuniperRepomanData) {
+	typeSet := make(map[string]bool)
+	langSet := make(map[string]bool)
 	for _, mod := range installed {
 		if mod.Type != "" {
-			installedTypeSet[mod.Type] = true
+			typeSet[mod.Type] = true
 		}
 		if mod.Language != "" {
-			installedLangSet[mod.Language] = true
+			langSet[mod.Language] = true
 		}
 	}
-	for t := range installedTypeSet {
+	for t := range typeSet {
 		data.InstalledTypes = append(data.InstalledTypes, t)
 	}
-	for l := range installedLangSet {
+	for l := range langSet {
 		data.InstalledLanguages = append(data.InstalledLanguages, l)
 	}
 	sort.Strings(data.InstalledTypes)
 	sort.Strings(data.InstalledLanguages)
-	if installedPage > data.InstalledTotalPages {
-		installedPage = data.InstalledTotalPages
-		data.InstalledPage = installedPage
+}
+
+// adjustPageNumber ensures the page number is within valid bounds.
+func adjustPageNumber(page int, data *JuniperRepomanData) int {
+	if page > data.InstalledTotalPages {
+		page = data.InstalledTotalPages
+		data.InstalledPage = page
 	}
-	start := (installedPage - 1) * installedPageSize
-	end := start + installedPageSize
+	return page
+}
+
+// paginateInstalled returns the slice of installed modules for the current page.
+func paginateInstalled(installed []RepoModule, page, pageSize int) []RepoModule {
+	start := (page - 1) * pageSize
+	end := start + pageSize
 	if end > len(installed) {
 		end = len(installed)
 	}
 	if start < len(installed) {
-		data.Installed = installed[start:end]
+		return installed[start:end]
 	}
+	return nil
 }
 
 // loadLocalModulesForIngest loads local SWORD modules for the ingest tab.
@@ -5547,38 +5642,39 @@ func getInstalledModules(swordDir string) []RepoModule {
 	return modules
 }
 
+// repoModuleSetters maps conf keys to their setters.
+var repoModuleSetters = map[string]func(*RepoModule, string){
+	"description": func(m *RepoModule, v string) { m.Description = v },
+	"lang":        func(m *RepoModule, v string) { m.Language = v },
+	"version":     func(m *RepoModule, v string) { m.Version = v },
+	"moddrv":      func(m *RepoModule, v string) { m.Type = moduleTypeFromModDrv(v) },
+}
+
 // parseRepoModuleConf parses a SWORD module .conf file.
 func parseRepoModuleConf(conf, filename string) RepoModule {
-	module := RepoModule{
-		Name: strings.TrimSuffix(filename, ".conf"),
-	}
-
-	lines := strings.Split(conf, "\n")
-	for _, line := range lines {
+	module := RepoModule{Name: strings.TrimSuffix(filename, ".conf")}
+	for _, line := range strings.Split(conf, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
 			module.Name = strings.TrimSuffix(strings.TrimPrefix(line, "["), "]")
 			continue
 		}
-
-		if idx := strings.Index(line, "="); idx > 0 {
-			key := strings.TrimSpace(line[:idx])
-			value := strings.TrimSpace(line[idx+1:])
-
-			switch strings.ToLower(key) {
-			case "description":
-				module.Description = value
-			case "lang":
-				module.Language = value
-			case "version":
-				module.Version = value
-			case "moddrv":
-				module.Type = moduleTypeFromModDrv(value)
-			}
-		}
+		applyConfLine(&module, line)
 	}
-
 	return module
+}
+
+// applyConfLine applies a key=value line to the module.
+func applyConfLine(module *RepoModule, line string) {
+	idx := strings.Index(line, "=")
+	if idx <= 0 {
+		return
+	}
+	key := strings.TrimSpace(strings.ToLower(line[:idx]))
+	value := strings.TrimSpace(line[idx+1:])
+	if setter, ok := repoModuleSetters[key]; ok {
+		setter(module, value)
+	}
 }
 
 // moduleTypeFromModDrv determines the module type from the driver.

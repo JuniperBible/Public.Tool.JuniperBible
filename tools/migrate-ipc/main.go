@@ -104,7 +104,7 @@ func readAndValidateFile(path string) ([]byte, error) {
 	}
 
 	// Skip if already migrated
-	if bytes.Contains(src, []byte("github.com/FocuswithJustin/JuniperBible/plugins/ipc")) {
+	if bytes.Contains(src, []byte("github.com/JuniperBible/juniper/plugins/ipc")) {
 		fmt.Printf("  Already migrated, skipping: %s\n", path)
 		return nil, nil
 	}
@@ -244,7 +244,7 @@ func addIPCImport(file *ast.File) {
 	ipcImport := &ast.ImportSpec{
 		Path: &ast.BasicLit{
 			Kind:  token.STRING,
-			Value: `"github.com/FocuswithJustin/JuniperBible/plugins/ipc"`,
+			Value: `"github.com/JuniperBible/juniper/plugins/ipc"`,
 		},
 	}
 

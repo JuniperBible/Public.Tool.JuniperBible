@@ -3,8 +3,8 @@ package embedded_test
 import (
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/plugins"
-	"github.com/FocuswithJustin/JuniperBible/internal/embedded"
+	"github.com/JuniperBible/juniper/core/plugins"
+	"github.com/JuniperBible/juniper/internal/embedded"
 )
 
 // TestPluginRegistrations verifies that all embedded plugins are registered.

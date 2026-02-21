@@ -25,7 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
+	"github.com/JuniperBible/juniper/internal/safefile"
 )
 
 // readBlock reads and decompresses a block from a .bzz file.

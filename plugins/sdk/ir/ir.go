@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/ipc"
 )
 
 // Corpus type alias for convenience

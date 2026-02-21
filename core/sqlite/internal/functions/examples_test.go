@@ -3,7 +3,7 @@ package functions_test
 import (
 	"fmt"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/functions"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/functions"
 )
 
 // Example demonstrates basic usage of scalar functions

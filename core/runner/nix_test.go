@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/internal/fileutil"
+	"github.com/JuniperBible/juniper/internal/fileutil"
 )
 
 func TestNewNixExecutor(t *testing.T) {

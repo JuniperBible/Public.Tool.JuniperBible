@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/internal/fileutil"
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
+	"github.com/JuniperBible/juniper/internal/fileutil"
+	"github.com/JuniperBible/juniper/internal/safefile"
 )
 
 // skipIRExtraction can be set to true in tests to speed up capsule creation.

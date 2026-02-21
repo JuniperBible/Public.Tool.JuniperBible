@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/ipc"
 )
 
 func main() {

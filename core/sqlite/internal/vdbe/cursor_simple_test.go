@@ -3,7 +3,7 @@ package vdbe
 import (
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/btree"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
 )
 
 func TestBtreeCursorBasic(t *testing.T) {

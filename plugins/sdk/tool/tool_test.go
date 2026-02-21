@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/runtime"
+	"github.com/JuniperBible/juniper/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/sdk/runtime"
 )
 
 func TestMakeInfoHandler(t *testing.T) {

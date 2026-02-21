@@ -16,7 +16,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/FocuswithJustin/JuniperBible/core/encoding"
+	"github.com/JuniperBible/juniper/core/encoding"
 	"github.com/antchfx/xmlquery"
 	"github.com/antchfx/xpath"
 )

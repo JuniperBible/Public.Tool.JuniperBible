@@ -4,9 +4,9 @@ package tool
 import (
 	"os/exec"
 
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/errors"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/runtime"
+	"github.com/JuniperBible/juniper/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/sdk/errors"
+	"github.com/JuniperBible/juniper/plugins/sdk/runtime"
 )
 
 // Profile describes a tool execution profile.

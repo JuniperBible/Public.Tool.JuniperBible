@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
+	"github.com/JuniperBible/juniper/internal/safefile"
 )
 
 // ModuleInfo contains metadata about a SWORD module.

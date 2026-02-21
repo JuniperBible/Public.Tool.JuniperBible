@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/FocuswithJustin/JuniperBible/internal/validation"
+	"github.com/JuniperBible/juniper/internal/validation"
 )
 
 // ValidatePath performs web-specific path validation for capsule operations.

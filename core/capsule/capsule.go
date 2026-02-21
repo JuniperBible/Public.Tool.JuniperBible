@@ -11,9 +11,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/FocuswithJustin/JuniperBible/core/cas"
-	"github.com/FocuswithJustin/JuniperBible/core/errors"
-	"github.com/FocuswithJustin/JuniperBible/core/ir"
+	"github.com/JuniperBible/juniper/core/cas"
+	"github.com/JuniperBible/juniper/core/errors"
+	"github.com/JuniperBible/juniper/core/ir"
 	"github.com/ulikunitz/xz"
 )
 

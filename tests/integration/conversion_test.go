@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/core/capsule"
-	"github.com/FocuswithJustin/JuniperBible/core/plugins"
+	"github.com/JuniperBible/juniper/core/capsule"
+	"github.com/JuniperBible/juniper/core/plugins"
 )
 
 // TestConversionPipelineSetup verifies the conversion pipeline can be initialized.

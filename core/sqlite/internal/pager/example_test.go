@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/pager"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/pager"
 )
 
 // Example demonstrates basic usage of the pager.

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/core/capsule"
-	"github.com/FocuswithJustin/JuniperBible/internal/fileutil"
+	"github.com/JuniperBible/juniper/core/capsule"
+	"github.com/JuniperBible/juniper/internal/fileutil"
 )
 
 // TestLoadToolArchiveMissingManifest tests loading archive without tool-manifest.

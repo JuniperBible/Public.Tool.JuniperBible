@@ -3,7 +3,7 @@ package selfcheck
 import (
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/ir"
+	"github.com/JuniperBible/juniper/core/ir"
 )
 
 func TestLossBudgetIsWithinBudget(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/capsule"
+	"github.com/JuniperBible/juniper/core/capsule"
 )
 
 // sampleModules lists all available sample modules for testing.

@@ -3,7 +3,7 @@ package schema
 import (
 	"strings"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/expr"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/expr"
 )
 
 // Affinity represents SQLite type affinity.

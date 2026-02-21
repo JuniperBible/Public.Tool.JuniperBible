@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/core/capsule"
-	"github.com/FocuswithJustin/JuniperBible/core/ir"
+	"github.com/JuniperBible/juniper/core/capsule"
+	"github.com/JuniperBible/juniper/core/ir"
 )
 
 // Cache is a generic LRU cache interface.

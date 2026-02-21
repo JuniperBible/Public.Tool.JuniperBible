@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/ipc"
 )
 
 func TestDispatcher(t *testing.T) {

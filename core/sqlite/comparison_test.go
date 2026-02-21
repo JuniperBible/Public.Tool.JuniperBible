@@ -17,7 +17,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3" // CGO driver
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite"
+	"github.com/JuniperBible/juniper/core/sqlite"
 	// Pure Go driver
 )
 

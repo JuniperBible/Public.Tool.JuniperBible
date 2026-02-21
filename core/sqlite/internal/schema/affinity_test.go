@@ -3,7 +3,7 @@ package schema
 import (
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/expr"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/expr"
 )
 
 func TestDetermineAffinity(t *testing.T) {

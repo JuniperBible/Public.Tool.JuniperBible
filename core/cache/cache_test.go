@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/core/capsule"
-	"github.com/FocuswithJustin/JuniperBible/core/ir"
+	"github.com/JuniperBible/juniper/core/capsule"
+	"github.com/JuniperBible/juniper/core/ir"
 )
 
 func TestLRUCache_BasicOperations(t *testing.T) {

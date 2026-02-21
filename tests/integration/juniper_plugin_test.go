@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite"
+	"github.com/JuniperBible/juniper/core/sqlite"
 )
 
 // juniperPlugin describes a plugin to test (formerly juniper plugins).

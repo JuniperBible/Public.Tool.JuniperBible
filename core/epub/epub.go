@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/core/encoding"
+	"github.com/JuniperBible/juniper/core/encoding"
 )
 
 // zipWriter interface allows for testing error paths.

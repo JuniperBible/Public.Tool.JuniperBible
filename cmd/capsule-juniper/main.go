@@ -17,11 +17,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/FocuswithJustin/JuniperBible/internal/juniper"
-	"github.com/FocuswithJustin/JuniperBible/internal/juniper/repoman"
+	"github.com/JuniperBible/juniper/internal/juniper"
+	"github.com/JuniperBible/juniper/internal/juniper/repoman"
 
 	// Import embedded plugins registry to register all embedded plugins
-	_ "github.com/FocuswithJustin/JuniperBible/internal/embedded"
+	_ "github.com/JuniperBible/juniper/internal/embedded"
 )
 
 var commands = map[string]func([]string){

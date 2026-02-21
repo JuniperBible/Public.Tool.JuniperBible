@@ -3,7 +3,7 @@ package calibre
 import (
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/plugins"
+	"github.com/JuniperBible/juniper/core/plugins"
 )
 
 // TestManifest tests the Manifest function.

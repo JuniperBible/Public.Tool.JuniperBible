@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/btree"
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/parser"
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/schema"
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/vdbe"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/schema"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/vdbe"
 )
 
 // TestBlobHandling tests BLOB data type handling:

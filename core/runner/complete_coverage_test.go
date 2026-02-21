@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/capsule"
+	"github.com/JuniperBible/juniper/core/capsule"
 )
 
 // TestParseTranscriptScannerError tests ParseTranscript when scanner encounters an error.

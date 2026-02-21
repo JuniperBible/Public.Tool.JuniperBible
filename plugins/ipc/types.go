@@ -34,7 +34,7 @@ type IPCResponse = Response
 // Core Type Reference
 //
 // The following comments document all core IPC types available in this package.
-// Import "github.com/FocuswithJustin/JuniperBible/plugins/ipc" to use these types.
+// Import "github.com/JuniperBible/juniper/plugins/ipc" to use these types.
 
 // Request types (defined in protocol.go):
 //   - Request: Incoming JSON request envelope (command + args)

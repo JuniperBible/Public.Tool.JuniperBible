@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/parser"
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/schema"
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/vdbe"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/schema"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/vdbe"
 )
 
 type stmtHandler func(parser.Statement) (*vdbe.VDBE, error)

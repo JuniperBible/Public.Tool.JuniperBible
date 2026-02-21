@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
+	"github.com/JuniperBible/juniper/internal/safefile"
 )
 
 // Source represents a SWORD repository source.

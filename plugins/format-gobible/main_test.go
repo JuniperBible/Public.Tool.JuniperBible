@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
+	"github.com/JuniperBible/juniper/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
 
 // createTestGoBible creates a minimal GoBible-style JAR file for testing.

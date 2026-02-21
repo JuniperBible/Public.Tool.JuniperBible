@@ -2,7 +2,7 @@
 // This provides a stable API surface while keeping IPC as the canonical source.
 package types
 
-import "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+import "github.com/JuniperBible/juniper/plugins/ipc"
 
 // Request/Response types
 type (

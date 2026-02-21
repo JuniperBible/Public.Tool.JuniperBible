@@ -3,7 +3,7 @@ package planner_test
 import (
 	"fmt"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/planner"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/planner"
 )
 
 // Example demonstrates basic query planning

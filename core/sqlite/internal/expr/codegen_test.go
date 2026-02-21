@@ -3,8 +3,8 @@ package expr
 import (
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/parser"
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/vdbe"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/vdbe"
 )
 
 // TestSimpleArithmetic tests basic arithmetic expression code generation.

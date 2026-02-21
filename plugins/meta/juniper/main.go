@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/ipc"
 )
 
 // PluginInfo contains plugin metadata.

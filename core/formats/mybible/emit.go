@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
+	"github.com/JuniperBible/juniper/core/sqlite"
+	"github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
 
 func emitCreateSchema(db *sql.DB) error {

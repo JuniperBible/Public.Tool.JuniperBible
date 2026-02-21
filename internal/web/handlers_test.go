@@ -18,13 +18,13 @@ import (
 
 	"github.com/ulikunitz/xz"
 
-	"github.com/FocuswithJustin/JuniperBible/core/plugins"
-	"github.com/FocuswithJustin/JuniperBible/internal/archive"
-	"github.com/FocuswithJustin/JuniperBible/internal/fileutil"
-	"github.com/FocuswithJustin/JuniperBible/internal/validation"
+	"github.com/JuniperBible/juniper/core/plugins"
+	"github.com/JuniperBible/juniper/internal/archive"
+	"github.com/JuniperBible/juniper/internal/fileutil"
+	"github.com/JuniperBible/juniper/internal/validation"
 
 	// Import embedded plugins registry to register all embedded plugins
-	_ "github.com/FocuswithJustin/JuniperBible/internal/embedded"
+	_ "github.com/JuniperBible/juniper/internal/embedded"
 )
 
 func init() {

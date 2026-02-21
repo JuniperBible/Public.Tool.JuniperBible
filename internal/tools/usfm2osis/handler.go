@@ -4,7 +4,7 @@ package usfm2osis
 import (
 	"fmt"
 
-	"github.com/FocuswithJustin/JuniperBible/core/plugins"
+	"github.com/JuniperBible/juniper/core/plugins"
 )
 
 // Handler implements the EmbeddedToolHandler interface for usfm2osis.

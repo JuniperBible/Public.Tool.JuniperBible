@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/btree"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
 )
 
 // Step executes the VDBE program until a result row is ready or the program halts.

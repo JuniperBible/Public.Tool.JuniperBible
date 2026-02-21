@@ -3,7 +3,7 @@ package usfm2osis
 import (
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/plugins"
+	"github.com/JuniperBible/juniper/core/plugins"
 )
 
 func TestManifest(t *testing.T) {

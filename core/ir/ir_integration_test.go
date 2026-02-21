@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/ir"
+	"github.com/JuniperBible/juniper/core/ir"
 )
 
 const testdataDir = "../../testdata"

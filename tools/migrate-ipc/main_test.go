@@ -103,7 +103,7 @@ func TestMigrateFileAlreadyMigrated(t *testing.T) {
 	content := `package main
 
 import (
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/ipc"
 )
 
 func main() {
@@ -243,7 +243,7 @@ func main() {
 	migratedStr := string(migrated)
 
 	// Check that ipc import was added
-	if !strings.Contains(migratedStr, "github.com/FocuswithJustin/JuniperBible/plugins/ipc") {
+	if !strings.Contains(migratedStr, "github.com/JuniperBible/juniper/plugins/ipc") {
 		t.Error("expected ipc import to be added")
 	}
 

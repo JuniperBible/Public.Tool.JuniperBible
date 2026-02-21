@@ -10,9 +10,9 @@ import (
 	"os"
 	"path/filepath"
 
-	apperrors "github.com/FocuswithJustin/JuniperBible/core/errors"
-	"github.com/FocuswithJustin/JuniperBible/internal/logging"
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
+	apperrors "github.com/JuniperBible/juniper/core/errors"
+	"github.com/JuniperBible/juniper/internal/logging"
+	"github.com/JuniperBible/juniper/internal/safefile"
 )
 
 // ErrIncompatibleVersion is returned when a plugin's version requirements are not met.

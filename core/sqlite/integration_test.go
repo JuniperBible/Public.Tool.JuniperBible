@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite"
+	"github.com/JuniperBible/juniper/core/sqlite"
 )
 
 // setupTestDB creates a temporary test database and returns cleanup function

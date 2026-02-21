@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/btree"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
 )
 
 // makeTestRecord creates a simple SQLite record for testing

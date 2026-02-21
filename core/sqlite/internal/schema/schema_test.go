@@ -3,7 +3,7 @@ package schema
 import (
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/parser"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
 )
 
 func TestNewSchema(t *testing.T) {

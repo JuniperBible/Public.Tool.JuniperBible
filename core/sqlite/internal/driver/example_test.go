@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	_ "github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/driver"
+	_ "github.com/JuniperBible/juniper/core/sqlite/internal/driver"
 )
 
 // ExampleDriver demonstrates basic usage of the SQLite driver.

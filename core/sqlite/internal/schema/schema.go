@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/parser"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
 )
 
 // Schema represents a database schema containing tables and indexes.

@@ -3,7 +3,7 @@ package vdbe
 import (
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/functions"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/functions"
 )
 
 // TestScalarFunctions tests scalar function execution

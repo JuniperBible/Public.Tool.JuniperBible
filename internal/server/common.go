@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/core/plugins"
+	"github.com/JuniperBible/juniper/core/plugins"
 )
 
 // AbsPath returns the absolute path of a file, or the original path if it fails.

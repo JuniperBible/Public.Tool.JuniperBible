@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	ftesting "github.com/FocuswithJustin/JuniperBible/core/formats/testing"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
+	ftesting "github.com/JuniperBible/juniper/core/formats/testing"
+	"github.com/JuniperBible/juniper/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/sdk/format"
+	"github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
 
 // This example shows how to use the format testing framework.

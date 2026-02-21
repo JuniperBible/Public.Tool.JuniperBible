@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/parser"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
 )
 
 // Example demonstrates basic usage of the SQL parser.

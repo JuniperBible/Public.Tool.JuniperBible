@@ -1,7 +1,7 @@
 package selfcheck
 
 import (
-	"github.com/FocuswithJustin/JuniperBible/core/ir"
+	"github.com/JuniperBible/juniper/core/ir"
 )
 
 // LossBudget defines acceptable loss thresholds for a conversion.

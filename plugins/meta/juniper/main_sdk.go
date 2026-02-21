@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/ipc"
 )
 
 // TranscriptEvent extends the base event with juniper-specific fields.

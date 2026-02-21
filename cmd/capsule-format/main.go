@@ -20,10 +20,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/FocuswithJustin/JuniperBible/core/plugins"
+	"github.com/JuniperBible/juniper/core/plugins"
 
 	// Import embedded plugins registry to register all embedded plugins
-	_ "github.com/FocuswithJustin/JuniperBible/internal/embedded"
+	_ "github.com/JuniperBible/juniper/internal/embedded"
 )
 
 var commands = map[string]func([]string){

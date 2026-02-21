@@ -15,7 +15,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
+	"github.com/JuniperBible/juniper/internal/safefile"
 )
 
 // PluginManifest represents a plugin.json file.

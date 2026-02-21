@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/ir"
-	"github.com/FocuswithJustin/JuniperBible/internal/archive"
+	"github.com/JuniperBible/juniper/core/ir"
+	"github.com/JuniperBible/juniper/internal/archive"
 )
 
 // clearAllCaches clears all web caches for clean tests.

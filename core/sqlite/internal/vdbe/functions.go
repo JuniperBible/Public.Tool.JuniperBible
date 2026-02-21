@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/functions"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/functions"
 )
 
 // FunctionContext holds function execution state

@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/FocuswithJustin/JuniperBible/core/formats/logos"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+	"github.com/JuniperBible/juniper/core/formats/logos"
+	"github.com/JuniperBible/juniper/plugins/sdk/format"
 )
 
 func main() {

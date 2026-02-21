@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/core/cas"
+	"github.com/JuniperBible/juniper/core/cas"
 )
 
 // TestExecuteRequestOutputBlobsWithSubdirectory tests that ExecuteRequest correctly handles

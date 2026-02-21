@@ -15,9 +15,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
+	"github.com/JuniperBible/juniper/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/sdk/format"
+	"github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
 
 // OSIS XML Types

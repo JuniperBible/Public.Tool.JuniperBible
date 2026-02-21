@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/juniper/internal/safefile"
+	"github.com/JuniperBible/juniper/plugins/ipc"
 )
 
 type IPCRequest struct {

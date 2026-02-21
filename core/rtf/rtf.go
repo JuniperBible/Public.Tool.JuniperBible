@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/FocuswithJustin/JuniperBible/core/encoding"
+	"github.com/JuniperBible/juniper/core/encoding"
 )
 
 // Document represents a parsed RTF document.

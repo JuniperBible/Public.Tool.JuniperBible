@@ -3,7 +3,7 @@
 package fixtures
 
 import (
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
+	"github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
 
 // MinimalBible returns a minimal Bible corpus with only Genesis 1:1.

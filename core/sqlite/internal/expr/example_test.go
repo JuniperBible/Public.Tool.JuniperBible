@@ -3,7 +3,7 @@ package expr_test
 import (
 	"fmt"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/expr"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/expr"
 )
 
 // Example demonstrates creating and evaluating a simple arithmetic expression

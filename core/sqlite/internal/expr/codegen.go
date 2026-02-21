@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/parser"
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/vdbe"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/vdbe"
 )
 
 // binaryOpEntry holds the VDBE opcode and comment string for a binary operator.

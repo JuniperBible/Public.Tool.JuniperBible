@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/btree"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
 )
 
 // Example_varintEncoding demonstrates encoding and decoding variable-length integers

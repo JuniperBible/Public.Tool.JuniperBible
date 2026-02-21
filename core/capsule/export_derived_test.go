@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/FocuswithJustin/JuniperBible/core/ir"
-	"github.com/FocuswithJustin/JuniperBible/core/plugins"
+	"github.com/JuniperBible/juniper/core/ir"
+	"github.com/JuniperBible/juniper/core/plugins"
 )
 
 func init() {

@@ -8,8 +8,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/FocuswithJustin/JuniperBible/plugins/ipc"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/errors"
+	"github.com/JuniperBible/juniper/plugins/ipc"
+	"github.com/JuniperBible/juniper/plugins/sdk/errors"
 )
 
 // Handler processes IPC commands and returns results.

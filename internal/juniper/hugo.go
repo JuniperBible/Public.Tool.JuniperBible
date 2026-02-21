@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/FocuswithJustin/JuniperBible/internal/formats/swordpure"
-	"github.com/FocuswithJustin/JuniperBible/internal/safefile"
+	"github.com/JuniperBible/juniper/internal/formats/swordpure"
+	"github.com/JuniperBible/juniper/internal/safefile"
 )
 
 // ntBooks contains all New Testament book OSIS IDs for quick lookup.

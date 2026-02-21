@@ -3,7 +3,7 @@
 package main
 
 import (
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite"
+	"github.com/JuniperBible/juniper/core/sqlite"
 )
 
 var sqliteDriver = sqlite.DriverName()

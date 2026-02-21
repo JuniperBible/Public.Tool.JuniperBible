@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 	"io"
 
-	"github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/vdbe"
+	"github.com/JuniperBible/juniper/core/sqlite/internal/vdbe"
 )
 
 // Rows implements database/sql/driver.Rows for SQLite.

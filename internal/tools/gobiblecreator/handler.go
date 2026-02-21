@@ -4,7 +4,7 @@ package gobiblecreator
 import (
 	"fmt"
 
-	"github.com/FocuswithJustin/JuniperBible/core/plugins"
+	"github.com/JuniperBible/juniper/core/plugins"
 )
 
 // Handler implements the EmbeddedToolHandler interface for gobible-creator.

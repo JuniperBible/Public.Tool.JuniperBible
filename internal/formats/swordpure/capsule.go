@@ -430,11 +430,26 @@ func resolveDataPath(swordPath string, conf *ConfFile) (string, string, error) {
 	dataPath = cleanDataPath(dataPath)
 	fullDataPath := filepath.Join(swordPath, dataPath)
 
-	if _, err := os.Stat(fullDataPath); errors.Is(err, os.ErrNotExist) {
-		return "", "", fmt.Errorf("data path not found: %s", fullDataPath)
+	resolvedPath, err := resolveDataPathVariants(fullDataPath)
+	if err != nil {
+		return "", "", err
 	}
 
-	return dataPath, fullDataPath, nil
+	return dataPath, resolvedPath, nil
+}
+
+// resolveDataPathVariants checks for both directory and file prefix paths.
+func resolveDataPathVariants(fullDataPath string) (string, error) {
+	if _, err := os.Stat(fullDataPath); err == nil {
+		return fullDataPath, nil
+	}
+
+	parentDir := filepath.Dir(fullDataPath)
+	if _, err := os.Stat(parentDir); err == nil {
+		return parentDir, nil
+	}
+
+	return "", fmt.Errorf("data path not found: %s", fullDataPath)
 }
 
 // cleanDataPath removes "./" prefix from relative paths.
@@ -491,7 +506,7 @@ func copyConfFile(tempDir, confPath string) error {
 
 // copyModuleData copies the module data to the temporary directory.
 func copyModuleData(tempDir, dataPath, fullDataPath string) error {
-	destDataPath := filepath.Join(tempDir, dataPath)
+	destDataPath := computeDestDataPath(tempDir, dataPath, fullDataPath)
 	if err := os.MkdirAll(filepath.Dir(destDataPath), 0700); err != nil {
 		return fmt.Errorf("failed to create data dir: %w", err)
 	}
@@ -501,6 +516,20 @@ func copyModuleData(tempDir, dataPath, fullDataPath string) error {
 	}
 
 	return nil
+}
+
+// computeDestDataPath determines the correct destination path for module data.
+func computeDestDataPath(tempDir, dataPath, fullDataPath string) string {
+	info, err := os.Stat(fullDataPath)
+	if err != nil {
+		return filepath.Join(tempDir, dataPath)
+	}
+
+	if info.IsDir() && filepath.Base(fullDataPath) != filepath.Base(dataPath) {
+		return filepath.Join(tempDir, filepath.Dir(dataPath))
+	}
+
+	return filepath.Join(tempDir, dataPath)
 }
 
 // extractModuleIR extracts IR for supported Bible modules.

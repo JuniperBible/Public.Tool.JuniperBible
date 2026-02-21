@@ -1717,16 +1717,17 @@ func generateAllDocs(gen *docgen.Generator, outputDir string) error {
 
 // JuniperCmd provides SWORD module tools.
 type JuniperCmd struct {
-	List       JuniperListCmd       `cmd:"" help:"List Bible modules in SWORD installation"`
+	List       JuniperListCmd       `cmd:"" help:"List SWORD modules in SWORD installation"`
 	Ingest     JuniperIngestCmd     `cmd:"" help:"Ingest SWORD modules into capsules (raw, no IR)"`
 	Install    JuniperInstallCmd    `cmd:"" help:"Install SWORD modules as capsules with IR (recommended)"`
 	CASToSword JuniperCASToSwordCmd `cmd:"cas-to-sword" help:"Convert CAS capsule to SWORD module"`
 	Hugo       JuniperHugoCmd       `cmd:"" help:"Export SWORD modules to Hugo JSON data files"`
 }
 
-// JuniperListCmd lists Bible modules in a SWORD installation.
+// JuniperListCmd lists SWORD modules in a SWORD installation.
 type JuniperListCmd struct {
 	Path string `arg:"" optional:"" help:"Path to SWORD installation (default: ~/.sword)"`
+	Type string `short:"t" help:"Module type filter: bible, commentary, dictionary, genbook, all (default: all)" default:"all"`
 }
 
 func truncateDesc(desc string) string {
@@ -1743,21 +1744,25 @@ func encryptedSuffix(encrypted bool) string {
 	return ""
 }
 
-func printBibleModules(modsDir string) (int, error) {
+func printModules(modsDir string, typeFilter string) (int, error) {
 	entries, err := os.ReadDir(modsDir)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read mods.d: %w", err)
 	}
+	normalizedFilter := strings.ToLower(typeFilter)
 	count := 0
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".conf") {
 			continue
 		}
 		module := parseConfForList(filepath.Join(modsDir, e.Name()))
-		if module == nil || module.modType != "Bible" {
+		if module == nil {
 			continue
 		}
-		fmt.Printf("%-15s %-8s %-40s%s\n", module.name, module.lang, truncateDesc(module.description), encryptedSuffix(module.encrypted))
+		if !matchesTypeFilter(module.modType, normalizedFilter) {
+			continue
+		}
+		fmt.Printf("%-15s %-12s %-8s %-35s%s\n", module.name, module.modType, module.lang, truncateDesc(module.description), encryptedSuffix(module.encrypted))
 		count++
 	}
 	return count, nil
@@ -1774,16 +1779,20 @@ func (c *JuniperListCmd) Run() error {
 		return fmt.Errorf("SWORD installation not found at %s (missing mods.d)", swordPath)
 	}
 
-	fmt.Printf("Bible modules in %s:\n\n", swordPath)
-	fmt.Printf("%-15s %-8s %-40s\n", "MODULE", "LANG", "DESCRIPTION")
-	fmt.Printf("%-15s %-8s %-40s\n", "------", "----", "-----------")
+	typeDesc := c.Type
+	if c.Type == "all" || c.Type == "" {
+		typeDesc = "all types"
+	}
+	fmt.Printf("SWORD modules (%s) in %s:\n\n", typeDesc, swordPath)
+	fmt.Printf("%-15s %-12s %-8s %-35s\n", "MODULE", "TYPE", "LANG", "DESCRIPTION")
+	fmt.Printf("%-15s %-12s %-8s %-35s\n", "------", "----", "----", "-----------")
 
-	count, err := printBibleModules(modsDir)
+	count, err := printModules(modsDir, c.Type)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("\nTotal: %d Bible modules\n", count)
+	fmt.Printf("\nTotal: %d module(s)\n", count)
 	return nil
 }
 
@@ -1792,7 +1801,8 @@ type JuniperIngestCmd struct {
 	Modules []string `arg:"" optional:"" help:"Module names to ingest (or --all)"`
 	Path    string   `help:"Path to SWORD installation (default: ~/.sword)"`
 	Output  string   `short:"o" help:"Output directory (default: capsules)" default:"capsules"`
-	All     bool     `short:"a" help:"Ingest all Bible modules"`
+	All     bool     `short:"a" help:"Ingest all modules matching type filter"`
+	Type    string   `short:"t" help:"Module type filter: bible, commentary, dictionary, genbook, all (default: all)" default:"all"`
 }
 
 func resolveSwordPath(path string) (string, error) {
@@ -1806,15 +1816,15 @@ func resolveSwordPath(path string) (string, error) {
 	return filepath.Join(home, ".sword"), nil
 }
 
-func loadBibleModules(swordPath string) ([]*juniperModule, error) {
+func loadModules(swordPath string, typeFilter string) ([]*juniperModule, error) {
 	modsDir := filepath.Join(swordPath, "mods.d")
 	entries, err := readModsDir(modsDir, swordPath)
 	if err != nil {
 		return nil, err
 	}
-	modules := filterBibleModules(modsDir, entries)
+	modules := filterModules(modsDir, entries, typeFilter)
 	if len(modules) == 0 {
-		return nil, fmt.Errorf("no Bible modules found in %s", swordPath)
+		return nil, fmt.Errorf("no modules found matching type '%s' in %s", typeFilter, swordPath)
 	}
 	return modules, nil
 }
@@ -1830,20 +1840,31 @@ func readModsDir(modsDir, swordPath string) ([]os.DirEntry, error) {
 	return entries, nil
 }
 
-func filterBibleModules(modsDir string, entries []os.DirEntry) []*juniperModule {
+func filterModules(modsDir string, entries []os.DirEntry, typeFilter string) []*juniperModule {
 	var modules []*juniperModule
+	normalizedFilter := strings.ToLower(typeFilter)
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".conf") {
 			continue
 		}
 		confPath := filepath.Join(modsDir, e.Name())
 		m := parseConfForList(confPath)
-		if m != nil && m.modType == "Bible" {
+		if m == nil {
+			continue
+		}
+		if matchesTypeFilter(m.modType, normalizedFilter) {
 			m.confPath = confPath
 			modules = append(modules, m)
 		}
 	}
 	return modules
+}
+
+func matchesTypeFilter(modType, filter string) bool {
+	if filter == "all" || filter == "" {
+		return modType != "Unknown"
+	}
+	return strings.EqualFold(modType, filter)
 }
 
 func selectModulesToIngest(all bool, names []string, modules []*juniperModule) ([]*juniperModule, error) {
@@ -1894,7 +1915,7 @@ func (c *JuniperIngestCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	modules, err := loadBibleModules(swordPath)
+	modules, err := loadModules(swordPath, c.Type)
 	if err != nil {
 		return err
 	}
@@ -1916,7 +1937,8 @@ type JuniperInstallCmd struct {
 	Modules []string `arg:"" optional:"" help:"Module names to install (or --all)"`
 	Path    string   `help:"Path to SWORD installation (default: ~/.sword)"`
 	Output  string   `short:"o" help:"Output directory (default: capsules)" default:"capsules"`
-	All     bool     `short:"a" help:"Install all Bible modules"`
+	All     bool     `short:"a" help:"Install all modules matching type filter"`
+	Type    string   `short:"t" help:"Module type filter: bible, commentary, dictionary, genbook, all (default: all)" default:"all"`
 }
 
 func selectModulesToInstall(all bool, names []string, modules []*juniperModule) ([]*juniperModule, error) {
@@ -1975,7 +1997,7 @@ func (c *JuniperInstallCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	modules, err := loadBibleModules(swordPath)
+	modules, err := loadModules(swordPath, c.Type)
 	if err != nil {
 		return err
 	}
@@ -2078,10 +2100,36 @@ func resolveModuleDataPath(module *juniperModule, swordPath string) (string, str
 	}
 	dataPath := strings.TrimPrefix(module.dataPath, "./")
 	fullDataPath := filepath.Join(swordPath, dataPath)
-	if _, err := os.Stat(fullDataPath); errors.Is(err, os.ErrNotExist) {
-		return "", "", fmt.Errorf("data path not found: %s", fullDataPath)
+
+	resolvedPath, err := resolveDataPathVariants(fullDataPath)
+	if err != nil {
+		return "", "", err
 	}
-	return dataPath, fullDataPath, nil
+	return dataPath, resolvedPath, nil
+}
+
+// resolveDataPathVariants checks for both directory and file prefix paths.
+func resolveDataPathVariants(fullDataPath string) (string, error) {
+	if _, err := os.Stat(fullDataPath); err == nil {
+		return fullDataPath, nil
+	}
+	parentDir := filepath.Dir(fullDataPath)
+	if _, err := os.Stat(parentDir); err == nil {
+		return parentDir, nil
+	}
+	return "", fmt.Errorf("data path not found: %s", fullDataPath)
+}
+
+// computeDestDataPath determines the correct destination path for module data.
+func computeDestDataPath(capsuleDir, dataPath, fullDataPath string) string {
+	info, err := os.Stat(fullDataPath)
+	if err != nil {
+		return filepath.Join(capsuleDir, dataPath)
+	}
+	if info.IsDir() && filepath.Base(fullDataPath) != filepath.Base(dataPath) {
+		return filepath.Join(capsuleDir, filepath.Dir(dataPath))
+	}
+	return filepath.Join(capsuleDir, dataPath)
 }
 
 // populateCapsuleDir creates the capsule directory structure and copies module files.
@@ -2094,7 +2142,7 @@ func populateCapsuleDir(capsuleDir string, module *juniperModule, confData []byt
 	if err := os.WriteFile(filepath.Join(modsDir, confName), confData, 0600); err != nil {
 		return fmt.Errorf("failed to write conf: %w", err)
 	}
-	destDataPath := filepath.Join(capsuleDir, dataPath)
+	destDataPath := computeDestDataPath(capsuleDir, dataPath, fullDataPath)
 	if err := os.MkdirAll(filepath.Dir(destDataPath), 0700); err != nil {
 		return fmt.Errorf("failed to create data dir: %w", err)
 	}
@@ -2108,7 +2156,7 @@ func populateCapsuleDir(capsuleDir string, module *juniperModule, confData []byt
 func writeSwordManifest(capsuleDir string, module *juniperModule) error {
 	manifest := map[string]interface{}{
 		"capsule_version": "1.0",
-		"module_type":     "bible",
+		"module_type":     strings.ToLower(module.modType),
 		"id":              module.name,
 		"title":           module.description,
 		"language":        module.lang,

@@ -272,10 +272,34 @@ func resolveDataPath(swordPath, dataPath string) (string, string, error) {
 	}
 	dataPath = strings.TrimPrefix(dataPath, "./")
 	fullDataPath := filepath.Join(swordPath, dataPath)
-	if _, err := os.Stat(fullDataPath); errors.Is(err, os.ErrNotExist) {
-		return "", "", fmt.Errorf("data path not found: %s", fullDataPath)
+
+	resolvedPath, err := resolveDataPathVariants(fullDataPath)
+	if err != nil {
+		return "", "", err
 	}
-	return dataPath, fullDataPath, nil
+	return dataPath, resolvedPath, nil
+}
+
+func resolveDataPathVariants(fullDataPath string) (string, error) {
+	if _, err := os.Stat(fullDataPath); err == nil {
+		return fullDataPath, nil
+	}
+	parentDir := filepath.Dir(fullDataPath)
+	if _, err := os.Stat(parentDir); err == nil {
+		return parentDir, nil
+	}
+	return "", fmt.Errorf("data path not found: %s", fullDataPath)
+}
+
+func computeDestDataPath(capsuleDir, dataPath, fullDataPath string) string {
+	info, err := os.Stat(fullDataPath)
+	if err != nil {
+		return filepath.Join(capsuleDir, dataPath)
+	}
+	if info.IsDir() && filepath.Base(fullDataPath) != filepath.Base(dataPath) {
+		return filepath.Join(capsuleDir, filepath.Dir(dataPath))
+	}
+	return filepath.Join(capsuleDir, dataPath)
 }
 
 func setupCapsuleStructure(capsuleDir string, module *Module, confData []byte, dataPath, fullDataPath string) error {
@@ -289,7 +313,7 @@ func setupCapsuleStructure(capsuleDir string, module *Module, confData []byte, d
 		return fmt.Errorf("failed to write conf: %w", err)
 	}
 
-	destDataPath := filepath.Join(capsuleDir, dataPath)
+	destDataPath := computeDestDataPath(capsuleDir, dataPath, fullDataPath)
 	if err := os.MkdirAll(filepath.Dir(destDataPath), 0700); err != nil {
 		return fmt.Errorf("failed to create data dir: %w", err)
 	}

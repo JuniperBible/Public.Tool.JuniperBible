@@ -34,13 +34,13 @@ The SQLite blessing applies:
 
 - **License**: MIT
 - **URL**: https://github.com/alecthomas/kong
-- **Note**: Used via fork at github.com/FocuswithJustin/kong
+- **Note**: Used via fork at github.com/JuniperBible/kong
 
 ### github.com/alecthomas/participle/v2 (v2.1.4)
 
 - **License**: MIT
 - **URL**: https://github.com/alecthomas/participle
-- **Note**: Used via fork at github.com/FocuswithJustin/participle
+- **Note**: Used via fork at github.com/JuniperBible/participle
 
 ### github.com/antchfx/xmlquery (v1.5.0)
 

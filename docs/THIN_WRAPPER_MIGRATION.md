@@ -26,8 +26,8 @@ plugins/format-json/main.go (11 lines)
   //go:build standalone
   package main
   import (
-      "github.com/FocuswithJustin/JuniperBible/core/formats/json"
-      "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+      "github.com/JuniperBible/juniper/core/formats/json"
+      "github.com/JuniperBible/juniper/plugins/sdk/format"
   )
   func main() {
       format.Run(json.Config)
@@ -90,8 +90,8 @@ If you need to convert manually:
    package main
 
    import (
-       "github.com/FocuswithJustin/JuniperBible/core/formats/<name>"
-       "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+       "github.com/JuniperBible/juniper/core/formats/<name>"
+       "github.com/JuniperBible/juniper/plugins/sdk/format"
    )
 
    func main() {
@@ -261,7 +261,7 @@ Specialized parsing, complex structures:
 
 **Error**:
 ```
-cannot find package "github.com/FocuswithJustin/JuniperBible/core/formats/json"
+cannot find package "github.com/JuniperBible/juniper/core/formats/json"
 ```
 
 **Solution**:

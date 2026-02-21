@@ -46,8 +46,8 @@ Test data and third-party packages are in separate branches for flexible licensi
 
 | Branch | Purpose | Import Path |
 |--------|---------|-------------|
-| `test-data` | Sample Bibles, fixtures | `github.com/FocuswithJustin/mimicry/test-data/data` |
-| `test-contrib` | Tool references, legacy code | `github.com/FocuswithJustin/mimicry/test-contrib/tools` |
+| `test-data` | Sample Bibles, fixtures | `github.com/JuniperBible/juniper/test-data/data` |
+| `test-contrib` | Tool references, legacy code | `github.com/JuniperBible/juniper/test-contrib/tools` |
 
 ### Using Git Worktrees
 
@@ -75,8 +75,8 @@ For local testing before pushing:
 
 ```go
 // go.mod
-replace github.com/FocuswithJustin/mimicry/test-data => ../mimicry-worktrees/test-data
-replace github.com/FocuswithJustin/mimicry/test-contrib => ../mimicry-worktrees/test-contrib
+replace github.com/JuniperBible/juniper/test-data => ../mimicry-worktrees/test-data
+replace github.com/JuniperBible/juniper/test-contrib => ../mimicry-worktrees/test-contrib
 ```
 
 ---

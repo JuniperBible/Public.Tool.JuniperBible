@@ -39,7 +39,7 @@ package main
 import (
     "log"
 
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+    "github.com/JuniperBible/juniper/core/sqlite"
 )
 
 func main() {

@@ -33,7 +33,7 @@ func main() {
 **After:**
 ```go
 import (
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+    "github.com/JuniperBible/juniper/core/sqlite"
 )
 
 func main() {
@@ -46,7 +46,7 @@ func main() {
 
 | Feature | modernc.org/sqlite | JuniperBible |
 |---------|-------------------|--------------|
-| Import | `modernc.org/sqlite` | `github.com/FocuswithJustin/JuniperBible/core/sqlite` |
+| Import | `modernc.org/sqlite` | `github.com/JuniperBible/juniper/core/sqlite` |
 | Driver name | "sqlite" | "sqlite" |
 | Pure Go | ✅ Yes | ✅ Yes |
 | CGO | ❌ No | ⚠️ Optional |
@@ -64,7 +64,7 @@ func main() {
 1. **Update imports:**
    ```bash
    # Find and replace in your codebase
-   find . -name "*.go" -exec sed -i 's|modernc.org/sqlite|github.com/FocuswithJustin/JuniperBible/core/sqlite|g' {} \;
+   find . -name "*.go" -exec sed -i 's|modernc.org/sqlite|github.com/JuniperBible/juniper/core/sqlite|g' {} \;
    ```
 
 2. **Update sql.Open calls:**
@@ -116,7 +116,7 @@ func main() {
 **After:**
 ```go
 import (
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+    "github.com/JuniperBible/juniper/core/sqlite"
 )
 
 func main() {
@@ -143,7 +143,7 @@ Keep using mattn/go-sqlite3 but switch to the unified API:
 **Code:**
 ```go
 import (
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+    "github.com/JuniperBible/juniper/core/sqlite"
 )
 
 func main() {
@@ -172,7 +172,7 @@ CGO_ENABLED=1 go build -tags cgo_sqlite ./...
 1. **Update imports:**
    ```go
    import (
-       "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+       "github.com/JuniperBible/juniper/core/sqlite"
    )
    ```
 
@@ -262,7 +262,7 @@ db, err := sql.Open("driverName", "dsn")
 
 ### After
 ```go
-import "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+import "github.com/JuniperBible/juniper/core/sqlite"
 
 db, err := sqlite.Open("mydata.db")
 ```
@@ -429,7 +429,7 @@ package main
 import (
     "testing"
 
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+    "github.com/JuniperBible/juniper/core/sqlite"
 )
 
 func TestMigration(t *testing.T) {
@@ -628,7 +628,7 @@ package main
 import (
     "log"
 
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+    "github.com/JuniperBible/juniper/core/sqlite"
 )
 
 func main() {
@@ -679,7 +679,7 @@ import (
     "log"
     "time"
 
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+    "github.com/JuniperBible/juniper/core/sqlite"
 )
 
 func main() {

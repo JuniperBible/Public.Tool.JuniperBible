@@ -160,7 +160,7 @@ Example structure:
 
 package main
 
-import "github.com/FocuswithJustin/mimicry/plugins/ipc"
+import "github.com/JuniperBible/juniper/plugins/ipc"
 
 func main() {
     req, err := ipc.ReadRequest()
@@ -190,7 +190,7 @@ Example structure:
 
 package main
 
-import "github.com/FocuswithJustin/mimicry/plugins/sdk/format"
+import "github.com/JuniperBible/juniper/plugins/sdk/format"
 
 type MyFormatHandler struct{}
 
@@ -220,7 +220,7 @@ package main
 
 import (
     "encoding/json"
-    "github.com/FocuswithJustin/mimicry/plugins/ipc"
+    "github.com/JuniperBible/juniper/plugins/ipc"
     "os"
 )
 
@@ -282,7 +282,7 @@ func escapeHTML(s string) string {
 
 New pattern (use shared package):
 ```go
-import "github.com/FocuswithJustin/mimicry/plugins/ipc"
+import "github.com/JuniperBible/juniper/plugins/ipc"
 
 // Use ipc.Corpus, ipc.ExtractIRResult, ipc.EscapeHTML, etc.
 ```

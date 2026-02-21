@@ -23,7 +23,7 @@ Juniper Bible uses forked versions of two dependencies to support specific funct
 ### alecthomas/kong
 
 **Upstream Repository**: https://github.com/alecthomas/kong
-**Fork Repository**: https://github.com/FocuswithJustin/kong
+**Fork Repository**: https://github.com/JuniperBible/kong
 **Version**: v1.13.0
 **Last Sync Date**: 2026-01-09
 
@@ -53,7 +53,7 @@ The kong CLI framework fork includes the following modifications:
 2. **Check for security advisories**: https://github.com/alecthomas/kong/security/advisories
 3. **Merge upstream changes monthly**:
    ```bash
-   cd $GOPATH/src/github.com/FocuswithJustin/kong
+   cd $GOPATH/src/github.com/JuniperBible/kong
    git remote add upstream https://github.com/alecthomas/kong.git
    git fetch upstream
    git merge upstream/master
@@ -81,7 +81,7 @@ The kong CLI framework fork includes the following modifications:
 ### alecthomas/participle
 
 **Upstream Repository**: https://github.com/alecthomas/participle
-**Fork Repository**: https://github.com/FocuswithJustin/participle
+**Fork Repository**: https://github.com/JuniperBible/participle
 **Version**: v2.1.4 (upstream equivalent: v2.1.1+)
 **Last Sync Date**: 2026-01-09
 
@@ -112,7 +112,7 @@ The participle parser library fork includes the following modifications:
 2. **Check for security advisories**: https://github.com/alecthomas/participle/security/advisories
 3. **Merge upstream changes monthly**:
    ```bash
-   cd $GOPATH/src/github.com/FocuswithJustin/participle
+   cd $GOPATH/src/github.com/JuniperBible/participle
    git remote add upstream https://github.com/alecthomas/participle.git
    git fetch upstream
    git merge upstream/master

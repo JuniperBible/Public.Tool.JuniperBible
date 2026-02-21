@@ -13,7 +13,7 @@ This guide will help you get started with Juniper Bible for Bible text format co
 
 ```bash
 # Clone the repository
-git clone https://github.com/FocuswithJustin/mimicry.git
+git clone https://github.com/JuniperBible/juniper.git
 cd mimicry
 
 # Enter the development environment (recommended)
@@ -39,17 +39,17 @@ Test data and third-party dependencies are distributed as separate Go modules:
 
 ```bash
 # Import test data (sample Bibles, fixtures)
-go get github.com/FocuswithJustin/mimicry/test-data@test-data
+go get github.com/JuniperBible/juniper/test-data@test-data
 
 # Import third-party tool references
-go get github.com/FocuswithJustin/mimicry/test-contrib@test-contrib
+go get github.com/JuniperBible/juniper/test-contrib@test-contrib
 ```
 
 ```go
 // In your test files
 import (
-    "github.com/FocuswithJustin/mimicry/test-data/data"
-    "github.com/FocuswithJustin/mimicry/test-contrib/tools"
+    "github.com/JuniperBible/juniper/test-data/data"
+    "github.com/JuniperBible/juniper/test-contrib/tools"
 )
 
 func TestWithSampleData(t *testing.T) {

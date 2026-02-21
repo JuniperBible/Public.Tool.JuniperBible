@@ -109,7 +109,7 @@ Some chapters have different verse divisions:
 ### Basic Mapping
 
 ```go
-import "github.com/FocuswithJustin/mimicry/core/ir"
+import "github.com/JuniperBible/juniper/core/ir"
 
 // Create a reference
 ref := &ir.Ref{

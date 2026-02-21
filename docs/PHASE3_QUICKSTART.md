@@ -73,8 +73,8 @@ func handleEmitNative(args map[string]interface{}) { ... }
 package main
 
 import (
-    "github.com/FocuswithJustin/JuniperBible/core/formats/json"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+    "github.com/JuniperBible/juniper/core/formats/json"
+    "github.com/JuniperBible/juniper/plugins/sdk/format"
 )
 
 func main() {

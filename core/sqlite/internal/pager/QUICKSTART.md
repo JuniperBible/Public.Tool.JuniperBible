@@ -5,7 +5,7 @@
 The pager is part of the JuniperBible SQLite implementation:
 
 ```bash
-go get github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/pager
+go get github.com/JuniperBible/juniper/core/sqlite/internal/pager
 ```
 
 ## Basic Usage
@@ -17,7 +17,7 @@ package main
 
 import (
     "log"
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/pager"
+    "github.com/JuniperBible/juniper/core/sqlite/internal/pager"
 )
 
 func main() {

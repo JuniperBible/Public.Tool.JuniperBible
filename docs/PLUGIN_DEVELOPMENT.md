@@ -46,9 +46,9 @@ Here's how to create a new format using the canonical package pattern:
 package myformat
 
 import (
-    "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
+    "github.com/JuniperBible/juniper/plugins/ipc"
+    "github.com/JuniperBible/juniper/plugins/sdk/format"
+    "github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
 
 // Config defines the myformat plugin configuration
@@ -122,8 +122,8 @@ func init() {
 package main
 
 import (
-    "github.com/FocuswithJustin/JuniperBible/core/formats/myformat"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+    "github.com/JuniperBible/juniper/core/formats/myformat"
+    "github.com/JuniperBible/juniper/plugins/sdk/format"
 )
 
 func main() {
@@ -407,7 +407,7 @@ package main
 import (
     "encoding/json"
     "os"
-    "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+    "github.com/JuniperBible/juniper/plugins/ipc"
 )
 
 func main() {
@@ -462,7 +462,7 @@ func handleDetect(args map[string]interface{}) {
 The `plugins/ipc` package provides common functionality:
 
 ```go
-import "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+import "github.com/JuniperBible/juniper/plugins/ipc"
 
 // Recommended: Use StandardDetect for two-stage detection (extension + content)
 func handleDetect(args map[string]interface{}) {
@@ -807,8 +807,8 @@ type EmbeddedFormatHandler interface {
 package myformat
 
 import (
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
-    "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
+    "github.com/JuniperBible/juniper/plugins/sdk/format"
+    "github.com/JuniperBible/juniper/plugins/ipc"
 )
 
 var Config = &format.Config{

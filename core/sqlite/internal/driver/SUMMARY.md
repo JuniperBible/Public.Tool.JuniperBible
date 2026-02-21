@@ -201,7 +201,7 @@ import (
     "database/sql"
     "log"
 
-    _ "github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/driver"
+    _ "github.com/JuniperBible/juniper/core/sqlite/internal/driver"
 )
 
 func main() {

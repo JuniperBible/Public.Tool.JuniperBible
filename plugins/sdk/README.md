@@ -32,8 +32,8 @@ The SDK is organized into focused packages:
 package main
 
 import (
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
+	"github.com/JuniperBible/juniper/plugins/sdk/format"
+	"github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
 
 func main() {
@@ -63,7 +63,7 @@ func main() {
 package main
 
 import (
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/tool"
+	"github.com/JuniperBible/juniper/plugins/sdk/tool"
 )
 
 func main() {
@@ -201,7 +201,7 @@ Standardized error types.
 Re-exports of IPC types for convenience.
 
 ```go
-import "github.com/FocuswithJustin/JuniperBible/plugins/sdk/types"
+import "github.com/JuniperBible/juniper/plugins/sdk/types"
 
 // Use IPC types directly
 var req types.Request

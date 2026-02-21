@@ -175,7 +175,7 @@ JuniperBible includes a complete pure Go implementation of SQLite, eliminating e
 ```go
 import (
     "database/sql"
-    _ "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+    _ "github.com/JuniperBible/juniper/core/sqlite"
 )
 
 db, _ := sql.Open("sqlite", "database.db")

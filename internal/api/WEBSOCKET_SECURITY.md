@@ -114,7 +114,7 @@ Use `SecureWebSocketHandler` for production deployments:
 package main
 
 import (
-    "github.com/FocuswithJustin/mimicry/internal/api"
+    "github.com/JuniperBible/juniper/internal/api"
 )
 
 func main() {

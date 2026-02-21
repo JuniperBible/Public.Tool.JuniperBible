@@ -62,14 +62,14 @@ The driver is automatically registered when you import it:
 
 ```go
 import (
-    _ "github.com/FocuswithJustin/JuniperBible/contrib/sqlite-external"
+    _ "github.com/JuniperBible/juniper/contrib/sqlite-external"
 )
 ```
 
 Or use the core/sqlite package which automatically selects the right driver:
 
 ```go
-import "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+import "github.com/JuniperBible/juniper/core/sqlite"
 
 func main() {
     db, err := sqlite.Open("mydb.db")
@@ -191,7 +191,7 @@ See [BUILD_MODES.md](../../docs/BUILD_MODES.md) for more information.
 
 ## Module Structure
 
-This package is part of the main `github.com/FocuswithJustin/JuniperBible` module but is logically separated in the `contrib/` directory to indicate:
+This package is part of the main `github.com/JuniperBible/juniper` module but is logically separated in the `contrib/` directory to indicate:
 
 1. **Optional Dependency**: Not required for core functionality
 2. **External Requirement**: Needs CGO and C compiler

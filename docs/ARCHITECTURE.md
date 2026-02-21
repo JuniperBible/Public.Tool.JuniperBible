@@ -49,9 +49,9 @@ Contains all format-specific logic:
 package myformat
 
 import (
-    "github.com/FocuswithJustin/JuniperBible/plugins/ipc"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
+    "github.com/JuniperBible/juniper/plugins/ipc"
+    "github.com/JuniperBible/juniper/plugins/sdk/format"
+    "github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
 
 // Config is the canonical configuration for this format
@@ -128,8 +128,8 @@ Thin wrapper for standalone execution:
 package main
 
 import (
-    "github.com/FocuswithJustin/JuniperBible/core/formats/myformat"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+    "github.com/JuniperBible/juniper/core/formats/myformat"
+    "github.com/JuniperBible/juniper/plugins/sdk/format"
 )
 
 func main() {

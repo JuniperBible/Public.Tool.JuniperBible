@@ -2,7 +2,7 @@
 
 This document describes the public API of the `core/sqlite` package.
 
-## Package: `github.com/FocuswithJustin/JuniperBible/core/sqlite`
+## Package: `github.com/JuniperBible/juniper/core/sqlite`
 
 The `sqlite` package provides a unified interface for SQLite database access, supporting both pure Go and CGO implementations.
 
@@ -242,7 +242,7 @@ package main
 import (
     "log"
 
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite"
+    "github.com/JuniperBible/juniper/core/sqlite"
 )
 
 func main() {

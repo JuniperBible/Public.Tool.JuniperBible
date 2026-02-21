@@ -20,8 +20,8 @@ Phase 3 of the code deduplication project creates the infrastructure to convert 
 package main
 
 import (
-	"github.com/FocuswithJustin/JuniperBible/core/formats/FORMATNAME"
-	"github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+	"github.com/JuniperBible/juniper/core/formats/FORMATNAME"
+	"github.com/JuniperBible/juniper/plugins/sdk/format"
 )
 
 func main() {

@@ -228,7 +228,7 @@ When external plugins are enabled:
 ### Web Server (`internal/web`)
 
 ```go
-import "github.com/FocuswithJustin/mimicry/internal/web"
+import "github.com/JuniperBible/juniper/internal/web"
 
 cfg := web.Config{
     Port:            8080,
@@ -246,7 +246,7 @@ if err := web.Start(cfg); err != nil {
 ### REST API (`internal/api`)
 
 ```go
-import "github.com/FocuswithJustin/mimicry/internal/api"
+import "github.com/JuniperBible/juniper/internal/api"
 
 cfg := api.Config{
     Port:            8081,
@@ -267,7 +267,7 @@ All embedded plugins register themselves automatically when `internal/embedded` 
 ```go
 import (
     // Import embedded plugins registry to register all embedded plugins
-    _ "github.com/FocuswithJustin/mimicry/internal/embedded"
+    _ "github.com/JuniperBible/juniper/internal/embedded"
 )
 ```
 

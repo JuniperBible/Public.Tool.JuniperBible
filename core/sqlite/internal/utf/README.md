@@ -89,7 +89,7 @@ Key Functions:
 ### UTF-8 Encoding
 
 ```go
-import "github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/utf"
+import "github.com/JuniperBible/juniper/core/sqlite/internal/utf"
 
 // Encode a rune to UTF-8
 buf := make([]byte, 4)

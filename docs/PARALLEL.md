@@ -126,7 +126,7 @@ type InterlinearLayer struct {
 ### From Multiple IR Files
 
 ```go
-import "github.com/FocuswithJustin/mimicry/core/ir"
+import "github.com/JuniperBible/juniper/core/ir"
 
 // Load corpora
 kjv, _ := ir.LoadCorpus("kjv.ir.json")

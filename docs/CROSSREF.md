@@ -147,7 +147,7 @@ Cross-references from the ESV Study Bible:
 ### Extracting Cross-References
 
 ```go
-import "github.com/FocuswithJustin/mimicry/core/ir"
+import "github.com/JuniperBible/juniper/core/ir"
 
 // From OSIS
 corpus, err := extractIR(osisContent)

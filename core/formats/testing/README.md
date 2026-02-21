@@ -23,8 +23,8 @@ package json_test
 
 import (
     "testing"
-    ftesting "github.com/FocuswithJustin/JuniperBible/core/formats/testing"
-    "github.com/FocuswithJustin/JuniperBible/core/formats/json"
+    ftesting "github.com/JuniperBible/juniper/core/formats/testing"
+    "github.com/JuniperBible/juniper/core/formats/json"
 )
 
 func TestJSONFormat(t *testing.T) {
@@ -240,7 +240,7 @@ func executePlugin(...) { /* 40 lines */ }
 
 // After: 10-20 lines
 package format_test
-import "github.com/FocuswithJustin/JuniperBible/core/formats/testing"
+import "github.com/JuniperBible/juniper/core/formats/testing"
 
 func TestFormat(t *testing.T) {
     testing.RunFormatTests(t, testing.FormatTestCase{

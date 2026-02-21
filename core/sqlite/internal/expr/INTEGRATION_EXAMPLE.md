@@ -67,8 +67,8 @@ Initialize VDBE and code generator:
 
 ```go
 import (
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/expr"
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/vdbe"
+    "github.com/JuniperBible/juniper/core/sqlite/internal/expr"
+    "github.com/JuniperBible/juniper/core/sqlite/internal/vdbe"
 )
 
 // Create VDBE instance
@@ -317,9 +317,9 @@ package main
 
 import (
     "fmt"
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/expr"
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/parser"
-    "github.com/FocuswithJustin/JuniperBible/core/sqlite/internal/vdbe"
+    "github.com/JuniperBible/juniper/core/sqlite/internal/expr"
+    "github.com/JuniperBible/juniper/core/sqlite/internal/parser"
+    "github.com/JuniperBible/juniper/core/sqlite/internal/vdbe"
 )
 
 func main() {

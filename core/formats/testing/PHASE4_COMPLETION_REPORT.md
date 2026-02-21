@@ -182,8 +182,8 @@ package json_test
 
 import (
     "testing"
-    "github.com/FocuswithJustin/JuniperBible/core/formats/json"
-    ftesting "github.com/FocuswithJustin/JuniperBible/core/formats/testing"
+    "github.com/JuniperBible/juniper/core/formats/json"
+    ftesting "github.com/JuniperBible/juniper/core/formats/testing"
 )
 
 func TestJSONFormat(t *testing.T) {

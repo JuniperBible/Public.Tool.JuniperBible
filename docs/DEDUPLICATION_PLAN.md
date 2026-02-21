@@ -137,8 +137,8 @@ Complete list of canonical packages:
 package json
 
 import (
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/ir"
+    "github.com/JuniperBible/juniper/plugins/sdk/format"
+    "github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
 
 // Config defines the JSON format plugin.
@@ -207,8 +207,8 @@ func init() {
 package main
 
 import (
-    "github.com/FocuswithJustin/JuniperBible/core/formats/json"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+    "github.com/JuniperBible/juniper/core/formats/json"
+    "github.com/JuniperBible/juniper/plugins/sdk/format"
 )
 
 func main() {
@@ -243,9 +243,9 @@ package json_test
 
 import (
     "testing"
-    "github.com/FocuswithJustin/JuniperBible/core/formats/json"
-    ftesting "github.com/FocuswithJustin/JuniperBible/core/formats/testing"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/testing/fixtures"
+    "github.com/JuniperBible/juniper/core/formats/json"
+    ftesting "github.com/JuniperBible/juniper/core/formats/testing"
+    "github.com/JuniperBible/juniper/plugins/sdk/testing/fixtures"
 )
 
 func TestJSONFormat(t *testing.T) {

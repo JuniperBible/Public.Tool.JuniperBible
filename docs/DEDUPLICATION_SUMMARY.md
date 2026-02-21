@@ -113,8 +113,8 @@ Duplication rate: <5%
 package main
 
 import (
-    "github.com/FocuswithJustin/JuniperBible/core/formats/myformat"
-    "github.com/FocuswithJustin/JuniperBible/plugins/sdk/format"
+    "github.com/JuniperBible/juniper/core/formats/myformat"
+    "github.com/JuniperBible/juniper/plugins/sdk/format"
 )
 
 func main() {

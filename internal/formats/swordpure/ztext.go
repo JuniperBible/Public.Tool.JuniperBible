@@ -33,12 +33,13 @@ const (
 
 // ZTextModule represents a parsed zText SWORD module.
 type ZTextModule struct {
-	conf     *ConfFile
-	dataPath string
-	otBlocks []BlockEntry
-	ntBlocks []BlockEntry
-	otVerses []VerseEntry
-	ntVerses []VerseEntry
+	conf      *ConfFile
+	dataPath  string
+	decryptor Decryptor // Decryptor for encrypted modules (nil if not encrypted)
+	otBlocks  []BlockEntry
+	ntBlocks  []BlockEntry
+	otVerses  []VerseEntry
+	ntVerses  []VerseEntry
 }
 
 // BlockEntry represents an entry in the .bzs block index.
@@ -62,6 +63,11 @@ func OpenZTextModule(conf *ConfFile, swordPath string) (*ZTextModule, error) {
 	mod := &ZTextModule{
 		conf:     conf,
 		dataPath: dataPath,
+	}
+
+	// Set up decryptor if module is encrypted
+	if conf.CipherKey != "" {
+		mod.decryptor = NewDecryptor(CipherSapphire, []byte(conf.CipherKey))
 	}
 
 	if err := mod.loadOTIndex(dataPath); err != nil {
@@ -241,6 +247,7 @@ func (m *ZTextModule) GetVerseText(ref *Ref) (string, error) {
 }
 
 // readBlock reads and decompresses a block from the .bzz file.
+// For encrypted modules, decrypts the data before decompression.
 func (m *ZTextModule) readBlock(bzzPath string, block BlockEntry) ([]byte, error) {
 	f, err := os.Open(bzzPath)
 	if err != nil {
@@ -253,10 +260,16 @@ func (m *ZTextModule) readBlock(bzzPath string, block BlockEntry) ([]byte, error
 		return nil, err
 	}
 
-	// Read compressed data
+	// Read compressed (and possibly encrypted) data
 	compressed := make([]byte, block.CompressedSize)
 	if _, err := io.ReadFull(f, compressed); err != nil {
 		return nil, err
+	}
+
+	// Decrypt if module is encrypted
+	// SWORD encrypts the compressed data, so decrypt before decompression
+	if m.decryptor != nil {
+		m.decryptor.Decrypt(compressed)
 	}
 
 	// Decompress using zlib

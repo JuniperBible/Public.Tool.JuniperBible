@@ -226,15 +226,16 @@ func parseModuleSelection(input string, bibles []ModuleInfo) []ModuleInfo {
 }
 
 // ingestModules processes each module and creates capsules.
+// Encrypted modules are now supported via Sapphire II cipher decryption.
 func ingestModules(toIngest []ModuleInfo, swordPath, outputDir string, stdout, stderr io.Writer) {
 	fmt.Fprintf(stdout, "\nIngesting %d module(s) to %s/\n\n", len(toIngest), outputDir)
 	for _, m := range toIngest {
-		if m.Encrypted {
-			fmt.Fprintf(stdout, "Skipping %s (encrypted modules not supported)\n", m.Name)
-			continue
-		}
 		capsulePath := filepath.Join(outputDir, m.Name+".capsule.tar.xz")
-		fmt.Fprintf(stdout, "Creating %s...\n", capsulePath)
+		encLabel := ""
+		if m.Encrypted {
+			encLabel = " [encrypted]"
+		}
+		fmt.Fprintf(stdout, "Creating %s...%s\n", capsulePath, encLabel)
 		if err := createModuleCapsule(swordPath, m, capsulePath); err != nil {
 			fmt.Fprintf(stderr, "  Error: %v\n", err)
 			continue
@@ -542,7 +543,8 @@ func extractModuleIR(conf *ConfFile, swordPath, irDir string) {
 		return
 	}
 
-	if conf.ModuleType() == "Bible" && conf.IsCompressed() && !conf.IsEncrypted() {
+	// Extract IR for Bible modules - encrypted modules now supported via decryption
+	if conf.ModuleType() == "Bible" && conf.IsCompressed() {
 		if err := extractIRToCapsule(conf, swordPath, irDir); err != nil {
 			fmt.Printf("  Warning: Could not extract IR: %v\n", err)
 		}

@@ -237,12 +237,8 @@ func exportModulesInParallel(modules []*Module, swordPath, auxDir string, worker
 	sem := make(chan struct{}, workers)
 	results := make(chan exportResult, len(modules))
 
+	// Encrypted modules are now supported via Sapphire II cipher decryption
 	for i, m := range modules {
-		if m.Encrypted {
-			fmt.Printf("Skipping %s: encrypted\n", m.Name)
-			continue
-		}
-
 		wg.Add(1)
 		go exportSingleModule(m, i+1, swordPath, auxDir, sem, results, &wg)
 	}

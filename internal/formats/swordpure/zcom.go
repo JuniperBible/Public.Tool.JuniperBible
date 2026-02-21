@@ -29,7 +29,8 @@ import (
 )
 
 // readBlock reads and decompresses a block from a .bzz file.
-func readBlock(bzzPath string, block BlockEntry) ([]byte, error) {
+// For encrypted modules, pass a Decryptor to decrypt before decompression.
+func readBlock(bzzPath string, block BlockEntry, decryptor Decryptor) ([]byte, error) {
 	f, err := safefile.Open(bzzPath)
 	if err != nil {
 		return nil, err
@@ -41,10 +42,16 @@ func readBlock(bzzPath string, block BlockEntry) ([]byte, error) {
 		return nil, err
 	}
 
-	// Read compressed data
+	// Read compressed (and possibly encrypted) data
 	compressed := make([]byte, block.CompressedSize)
 	if _, err := io.ReadFull(f, compressed); err != nil {
 		return nil, err
+	}
+
+	// Decrypt if decryptor is provided
+	// SWORD encrypts the compressed data, so decrypt before decompression
+	if decryptor != nil {
+		decryptor.Decrypt(compressed)
 	}
 
 	// Decompress using zlib
@@ -84,22 +91,28 @@ type BookEntries struct {
 
 // ZComParser handles parsing of zCom format SWORD commentary modules.
 type ZComParser struct {
-	module   *ConfFile
-	basePath string
-	dataPath string
-	otBlocks []BlockEntry
-	ntBlocks []BlockEntry
-	otVerses []VerseEntry
-	ntVerses []VerseEntry
-	loaded   bool
+	module    *ConfFile
+	basePath  string
+	dataPath  string
+	decryptor Decryptor // Decryptor for encrypted modules (nil if not encrypted)
+	otBlocks  []BlockEntry
+	ntBlocks  []BlockEntry
+	otVerses  []VerseEntry
+	ntVerses  []VerseEntry
+	loaded    bool
 }
 
 // NewZComParser creates a new parser for a zCom commentary module.
 func NewZComParser(conf *ConfFile, swordPath string) *ZComParser {
-	return &ZComParser{
+	p := &ZComParser{
 		module:   conf,
 		basePath: swordPath,
 	}
+	// Set up decryptor if module is encrypted
+	if conf.CipherKey != "" {
+		p.decryptor = NewDecryptor(CipherSapphire, []byte(conf.CipherKey))
+	}
+	return p
 }
 
 // Load reads the index files for the commentary module.
@@ -174,11 +187,11 @@ func (p *ZComParser) resolveVerseIndex(ref Ref, isNT bool, verses []VerseEntry) 
 	return verseIdx, nil
 }
 
-func extractEntryText(bzzPath string, blocks []BlockEntry, verse VerseEntry) (string, error) {
+func extractEntryText(bzzPath string, blocks []BlockEntry, verse VerseEntry, decryptor Decryptor) (string, error) {
 	if int(verse.BlockNum) >= len(blocks) {
 		return "", fmt.Errorf("block number out of range: %d", verse.BlockNum)
 	}
-	blockData, err := readBlock(bzzPath, blocks[verse.BlockNum])
+	blockData, err := readBlock(bzzPath, blocks[verse.BlockNum], decryptor)
 	if err != nil {
 		return "", fmt.Errorf("failed to read block: %w", err)
 	}
@@ -208,7 +221,7 @@ func (p *ZComParser) GetEntry(ref Ref) (*CommentaryEntry, error) {
 		return &CommentaryEntry{Reference: ref, Text: "", Source: p.module.ModuleName}, nil
 	}
 
-	text, err := extractEntryText(td.bzzPath, td.blocks, verse)
+	text, err := extractEntryText(td.bzzPath, td.blocks, verse, p.decryptor)
 	if err != nil {
 		return nil, err
 	}

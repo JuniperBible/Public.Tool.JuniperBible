@@ -1892,14 +1892,16 @@ func selectModulesToIngest(all bool, names []string, modules []*juniperModule) (
 	return selected, nil
 }
 
+// ingestModules ingests SWORD modules into capsules.
+// Encrypted modules are now supported via Sapphire II cipher decryption.
 func ingestModules(swordPath, output string, toIngest []*juniperModule) {
 	for _, m := range toIngest {
+		encLabel := ""
 		if m.encrypted {
-			fmt.Printf("Skipping %s (encrypted)\n", m.name)
-			continue
+			encLabel = " [encrypted]"
 		}
 		capsulePath := filepath.Join(output, m.name+".capsule.tar.gz")
-		fmt.Printf("Creating %s...\n", capsulePath)
+		fmt.Printf("Creating %s%s...\n", capsulePath, encLabel)
 		if err := ingestSwordModule(swordPath, m, capsulePath); err != nil {
 			fmt.Printf("  Error: %v\n", err)
 			continue
@@ -1966,13 +1968,15 @@ func selectModulesToInstall(all bool, names []string, modules []*juniperModule) 
 	return selected, nil
 }
 
+// installOneModule installs one SWORD module as a capsule with IR.
+// Encrypted modules are now supported via Sapphire II cipher decryption.
 func installOneModule(swordPath string, m *juniperModule, output string) bool {
+	encLabel := ""
 	if m.encrypted {
-		fmt.Printf("Skipping %s (encrypted)\n", m.name)
-		return false
+		encLabel = " [encrypted]"
 	}
 	capsulePath := filepath.Join(output, m.name+".capsule.tar.gz")
-	fmt.Printf("Installing %s...\n", m.name)
+	fmt.Printf("Installing %s%s...\n", m.name, encLabel)
 	fmt.Printf("  Ingesting SWORD module...\n")
 	if err := ingestSwordModule(swordPath, m, capsulePath); err != nil {
 		fmt.Printf("  Error during ingest: %v\n", err)
@@ -2783,7 +2787,7 @@ func findConvertibleContent(extractDir string) (string, string) {
 
 	if found == "" {
 		if path := findSWORDModule(extractDir); path != "" {
-			return path, "sword"
+			return path, "sword-pure"
 		}
 	}
 

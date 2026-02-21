@@ -168,14 +168,42 @@ func (h *Handler) ExtractIR(path, outputDir string) (*plugins.ExtractIRResult, e
 	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create output dir: %w", err)
 	}
-	confs, err := LoadModulesFromPath(path)
+
+	// Determine the SWORD root directory from the path
+	// The path might be:
+	// 1. A conf file path (e.g., /path/to/mods.d/kjv.conf)
+	// 2. A SWORD root directory (e.g., /path/to/sword)
+	swordRoot := path
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat path: %w", err)
+	}
+	if !info.IsDir() {
+		// path is a conf file - go up to the SWORD root
+		// /path/to/mods.d/kjv.conf -> /path/to
+		swordRoot = filepath.Dir(filepath.Dir(path))
+	}
+
+	confs, err := LoadModulesFromPath(swordRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load modules: %w", err)
 	}
+
+	var irPath string
 	for _, conf := range confs {
-		processModule(conf, path, outputDir)
+		result := processModule(conf, swordRoot, outputDir)
+		if result["status"] == "ok" {
+			if p, ok := result["ir_path"].(string); ok && irPath == "" {
+				irPath = p
+			}
+		}
 	}
-	return &plugins.ExtractIRResult{IRPath: outputDir, LossClass: "L1"}, nil
+
+	if irPath == "" {
+		return nil, fmt.Errorf("no modules could be processed")
+	}
+
+	return &plugins.ExtractIRResult{IRPath: irPath, LossClass: "L1"}, nil
 }
 
 // processModule processes a single SWORD module for IR extraction.
@@ -203,10 +231,8 @@ func processModule(conf *ConfFile, path, outputDir string) map[string]interface{
 }
 
 // shouldSkipModule returns a reason to skip the module, or empty string to process.
+// Note: Encrypted modules are now supported via Sapphire II cipher decryption.
 func shouldSkipModule(conf *ConfFile) string {
-	if conf.IsEncrypted() {
-		return "encrypted"
-	}
 	if conf.ModuleType() != "Bible" || !conf.IsCompressed() {
 		return fmt.Sprintf("unsupported type: %s/%s", conf.ModuleType(), conf.ModDrv)
 	}

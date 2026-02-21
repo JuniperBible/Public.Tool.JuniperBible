@@ -35,6 +35,7 @@ import (
 	_ "github.com/JuniperBible/Public.Tool.JuniperBible/core/formats/sqlite"
 	_ "github.com/JuniperBible/Public.Tool.JuniperBible/core/formats/sword"
 	swordpure "github.com/JuniperBible/Public.Tool.JuniperBible/core/formats/sword-pure"
+	_ "github.com/JuniperBible/Public.Tool.JuniperBible/internal/formats/swordpure" // Register embedded handler
 	_ "github.com/JuniperBible/Public.Tool.JuniperBible/core/formats/tar"
 	_ "github.com/JuniperBible/Public.Tool.JuniperBible/core/formats/tei"
 	_ "github.com/JuniperBible/Public.Tool.JuniperBible/core/formats/theword"

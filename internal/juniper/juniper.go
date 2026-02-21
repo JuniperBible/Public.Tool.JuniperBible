@@ -189,14 +189,15 @@ func selectModules(all bool, names []string, available []*Module, noneMsg string
 	return selected, nil
 }
 
-// ingestSingleModule ingests one non-encrypted module and reports the result.
+// ingestSingleModule ingests one module and reports the result.
+// Encrypted modules are now supported via Sapphire II cipher decryption.
 func ingestSingleModule(swordPath, outputDir string, m *Module) {
+	encLabel := ""
 	if m.Encrypted {
-		fmt.Printf("Skipping %s (encrypted)\n", m.Name)
-		return
+		encLabel = " [encrypted]"
 	}
 	capsulePath := filepath.Join(outputDir, m.Name+".capsule.tar.gz")
-	fmt.Printf("Creating %s...\n", capsulePath)
+	fmt.Printf("Creating %s%s...\n", capsulePath, encLabel)
 	if err := IngestModule(swordPath, m, capsulePath); err != nil {
 		fmt.Printf("  Error: %v\n", err)
 		return
@@ -351,13 +352,14 @@ type InstallConfig struct {
 
 // installSingleModule ingests one module and generates its IR.
 // It returns true when both steps succeed.
+// Encrypted modules are now supported via Sapphire II cipher decryption.
 func installSingleModule(swordPath, outputDir, pluginsDir string, m *Module) bool {
+	encLabel := ""
 	if m.Encrypted {
-		fmt.Printf("Skipping %s (encrypted)\n", m.Name)
-		return false
+		encLabel = " [encrypted]"
 	}
 	capsulePath := filepath.Join(outputDir, m.Name+".capsule.tar.gz")
-	fmt.Printf("Installing %s...\n", m.Name)
+	fmt.Printf("Installing %s%s...\n", m.Name, encLabel)
 
 	fmt.Printf("  Ingesting SWORD module...\n")
 	if err := IngestModule(swordPath, m, capsulePath); err != nil {

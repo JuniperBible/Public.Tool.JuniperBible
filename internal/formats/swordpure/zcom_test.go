@@ -359,7 +359,7 @@ func TestReadBlock(t *testing.T) {
 		UncompSize:     uint32(len(testData)),
 	}
 
-	decompressed, err := readBlock(bzzPath, block)
+	decompressed, err := readBlock(bzzPath, block, nil) // nil = no encryption
 	if err != nil {
 		t.Fatalf("readBlock failed: %v", err)
 	}
@@ -376,7 +376,7 @@ func TestReadBlockNonExistent(t *testing.T) {
 		UncompSize:     200,
 	}
 
-	_, err := readBlock("/nonexistent/test.bzz", block)
+	_, err := readBlock("/nonexistent/test.bzz", block, nil)
 	if err == nil {
 		t.Error("readBlock should fail for non-existent file")
 	}
@@ -715,7 +715,7 @@ func TestReadBlockSeekError(t *testing.T) {
 		UncompSize:     200,
 	}
 
-	_, err = readBlock(bzzPath, block)
+	_, err = readBlock(bzzPath, block, nil)
 	if err == nil {
 		t.Error("readBlock should fail when seeking beyond file")
 	}
@@ -740,7 +740,7 @@ func TestReadBlockInvalidZlib(t *testing.T) {
 		UncompSize:     100,
 	}
 
-	_, err = readBlock(bzzPath, block)
+	_, err = readBlock(bzzPath, block, nil)
 	if err == nil {
 		t.Error("readBlock should fail for invalid zlib data")
 	}

@@ -222,8 +222,10 @@ func TestHandlerExtractIR(t *testing.T) {
 		t.Fatal("ExtractIR returned nil result")
 	}
 
-	if result.IRPath != outputDir {
-		t.Errorf("IRPath = %q, want %q", result.IRPath, outputDir)
+	// IRPath should be the actual IR file path, not the output directory
+	expectedIRPath := filepath.Join(outputDir, "TestMod.ir.json")
+	if result.IRPath != expectedIRPath {
+		t.Errorf("IRPath = %q, want %q", result.IRPath, expectedIRPath)
 	}
 
 	if result.LossClass != "L1" {
@@ -552,6 +554,7 @@ func TestHandlerExtractIREncryptedModule(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create mock encrypted module
+	// Note: Encrypted modules are now supported via Sapphire II cipher decryption
 	modsDir := filepath.Join(tmpDir, "mods.d")
 	if err := os.MkdirAll(modsDir, 0700); err != nil {
 		t.Fatalf("failed to create mods.d: %v", err)
@@ -580,7 +583,7 @@ CipherKey=12345
 		t.Fatalf("ExtractIR failed: %v", err)
 	}
 
-	// Should succeed but skip the encrypted module
+	// Should attempt to process (may fail due to missing data files, but shouldn't skip)
 	if result == nil {
 		t.Fatal("ExtractIR returned nil result")
 	}
@@ -616,14 +619,11 @@ Lang=en
 	defer os.RemoveAll(outputDir)
 
 	handler := &Handler{}
-	result, err := handler.ExtractIR(tmpDir, outputDir)
-	if err != nil {
-		t.Fatalf("ExtractIR failed: %v", err)
-	}
+	_, err = handler.ExtractIR(tmpDir, outputDir)
 
-	// Should succeed but skip the non-Bible module
-	if result == nil {
-		t.Fatal("ExtractIR returned nil result")
+	// Non-Bible modules are skipped, so we should get "no modules could be processed"
+	if err == nil {
+		t.Error("ExtractIR should fail for non-Bible modules")
 	}
 }
 
@@ -657,14 +657,11 @@ Lang=en
 	defer os.RemoveAll(outputDir)
 
 	handler := &Handler{}
-	result, err := handler.ExtractIR(tmpDir, outputDir)
-	if err != nil {
-		t.Fatalf("ExtractIR failed: %v", err)
-	}
+	_, err = handler.ExtractIR(tmpDir, outputDir)
 
-	// Should succeed but skip the uncompressed module
-	if result == nil {
-		t.Fatal("ExtractIR returned nil result")
+	// Uncompressed modules are skipped, so we should get "no modules could be processed"
+	if err == nil {
+		t.Error("ExtractIR should fail for uncompressed modules")
 	}
 }
 

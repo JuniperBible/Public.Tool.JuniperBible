@@ -149,8 +149,8 @@ func TestDecompressZLDBlock(t *testing.T) {
 	binary.Write(&blockData, binary.LittleEndian, uint32(compressed.Len()))
 	blockData.Write(compressed.Bytes())
 
-	// Decompress
-	decompressed, err := decompressZLDBlock(blockData.Bytes())
+	// Decompress (nil cipher key = not encrypted)
+	decompressed, err := decompressZLDBlock(blockData.Bytes(), nil)
 	if err != nil {
 		t.Fatalf("decompressZLDBlock failed: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestDecompressZLDBlockTooShort(t *testing.T) {
 	// Block data too short (less than 4 bytes)
 	data := []byte{0x00, 0x00}
 
-	_, err := decompressZLDBlock(data)
+	_, err := decompressZLDBlock(data, nil)
 	if err == nil {
 		t.Error("decompressZLDBlock should fail for too short data")
 	}
@@ -175,7 +175,7 @@ func TestDecompressZLDBlockTruncated(t *testing.T) {
 	data := make([]byte, 8)
 	binary.LittleEndian.PutUint32(data[0:4], 100) // size=100, but only 4 bytes follow
 
-	_, err := decompressZLDBlock(data)
+	_, err := decompressZLDBlock(data, nil)
 	if err == nil {
 		t.Error("decompressZLDBlock should fail for truncated data")
 	}

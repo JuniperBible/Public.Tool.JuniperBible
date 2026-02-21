@@ -780,9 +780,15 @@ CipherKey=12345
 		t.Fatalf("runIngestCmd failed: %v", err)
 	}
 
+	// Encrypted modules are now supported via Sapphire II cipher decryption
+	// Check that it attempted to process the module (may fail due to missing data files)
 	output := stdout.String()
-	if !strings.Contains(output, "Skipping") || !strings.Contains(output, "encrypted") {
-		t.Errorf("output should indicate encrypted module was skipped, got: %s", output)
+	if !strings.Contains(output, "EncMod") {
+		t.Errorf("output should reference the encrypted module, got: %s", output)
+	}
+	// Should show [encrypted] label when processing
+	if !strings.Contains(output, "[encrypted]") {
+		t.Errorf("output should show [encrypted] label, got: %s", output)
 	}
 }
 

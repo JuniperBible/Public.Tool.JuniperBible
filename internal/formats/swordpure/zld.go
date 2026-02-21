@@ -120,7 +120,8 @@ func parseZLDCompressedIndex(data []byte) ([]ZLDIndexEntry, error) {
 
 // decompressZLDBlock decompresses a zLD data block.
 // Format: 4-byte little-endian size + zlib compressed data
-func decompressZLDBlock(data []byte) ([]byte, error) {
+// For encrypted modules, pass a Decryptor to decrypt before decompression.
+func decompressZLDBlock(data []byte, decryptor Decryptor) ([]byte, error) {
 	if len(data) < 4 {
 		return nil, fmt.Errorf("block data too short")
 	}
@@ -132,8 +133,17 @@ func decompressZLDBlock(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("block data truncated")
 	}
 
+	// Get compressed data
+	compressed := make([]byte, compressedSize)
+	copy(compressed, data[4:4+compressedSize])
+
+	// Decrypt if decryptor is provided
+	// SWORD encrypts the compressed data, so decrypt before decompression
+	if decryptor != nil {
+		decryptor.Decrypt(compressed)
+	}
+
 	// Decompress using zlib
-	compressed := data[4 : 4+compressedSize]
 	reader, err := zlib.NewReader(bytes.NewReader(compressed))
 	if err != nil {
 		return nil, fmt.Errorf("zlib init failed: %w", err)

@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/JuniperBible/juniper/internal/safefile"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/safefile"
 	"github.com/zeebo/blake3"
 )
 

@@ -1,4 +1,4 @@
-module github.com/JuniperBible/juniper
+module github.com/JuniperBible/Public.Tool.JuniperBible
 
 go 1.26.0
 
@@ -38,6 +38,6 @@ require (
 // SECURITY: These forks must be kept in sync with upstream to receive security updates
 // See docs/FORKED_DEPENDENCIES.md for fork rationale and maintenance schedule
 // Last upstream sync: 2026-01-09
-replace github.com/alecthomas/kong => github.com/JuniperBible/kong v1.13.0
+replace github.com/alecthomas/kong => github.com/FocuswithJustin/kong v1.13.0
 
-replace github.com/alecthomas/participle/v2 => github.com/JuniperBible/participle/v2 v2.1.4
+replace github.com/alecthomas/participle/v2 => github.com/FocuswithJustin/participle/v2 v2.1.4

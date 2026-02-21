@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuniperBible/juniper/internal/validation"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/validation"
 )
 
 var (

@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuniperBible/juniper/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
 )
 
 // FormatDetector provides a unified interface for detecting various format types.

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JuniperBible/juniper/core/capsule"
-	"github.com/JuniperBible/juniper/core/runner"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/capsule"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/runner"
 )
 
 // Test List function

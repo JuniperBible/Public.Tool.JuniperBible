@@ -12,9 +12,9 @@ package swordpure
 import (
 	"fmt"
 
-	"github.com/JuniperBible/juniper/plugins/ipc"
-	"github.com/JuniperBible/juniper/plugins/sdk/format"
-	"github.com/JuniperBible/juniper/plugins/sdk/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/format"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/ir"
 )
 
 // Config defines the SWORD Pure format plugin.

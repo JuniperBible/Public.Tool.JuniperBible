@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuniperBible/juniper/plugins/ipc"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/ipc"
 )
 
 // TranscriptEvent extends the base event with calibre-specific fields.

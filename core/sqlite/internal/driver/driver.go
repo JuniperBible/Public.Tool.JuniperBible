@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/pager"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/schema"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/btree"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/pager"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/schema"
 )
 
 // dbState represents shared state for a database file

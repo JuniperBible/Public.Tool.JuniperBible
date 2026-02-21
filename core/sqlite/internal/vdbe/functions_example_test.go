@@ -3,7 +3,7 @@ package vdbe_test
 import (
 	"fmt"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/vdbe"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/vdbe"
 )
 
 // ExampleVDBE_scalarFunctions demonstrates executing scalar functions

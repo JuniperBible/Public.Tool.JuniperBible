@@ -3,8 +3,8 @@ package schema
 import (
 	"fmt"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/btree"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/parser"
 )
 
 // sqlite_master table schema:

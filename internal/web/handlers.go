@@ -24,11 +24,11 @@ import (
 
 	"github.com/ulikunitz/xz"
 
-	"github.com/JuniperBible/juniper/core/plugins"
-	"github.com/JuniperBible/juniper/internal/archive"
-	"github.com/JuniperBible/juniper/internal/fileutil"
-	"github.com/JuniperBible/juniper/internal/logging"
-	"github.com/JuniperBible/juniper/internal/validation"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/archive"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/fileutil"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/logging"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/validation"
 )
 
 const (

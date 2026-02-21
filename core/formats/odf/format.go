@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuniperBible/juniper/plugins/ipc"
-	"github.com/JuniperBible/juniper/plugins/sdk/format"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/format"
 )
 
 // Config defines the ODF format plugin configuration.

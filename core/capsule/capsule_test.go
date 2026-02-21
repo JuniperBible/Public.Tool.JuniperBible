@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/cas"
-	"github.com/JuniperBible/juniper/core/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/cas"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/ir"
 	"github.com/ulikunitz/xz"
 )
 

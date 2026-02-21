@@ -15,7 +15,7 @@ import (
 	"io"
 	"unicode/utf8"
 
-	"github.com/JuniperBible/juniper/core/encoding"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/encoding"
 )
 
 // zipWriter interface for testing.

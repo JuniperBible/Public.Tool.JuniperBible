@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/format"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/format"
 )
 
 // Example demonstrates creating a new SQLite database header.

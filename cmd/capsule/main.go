@@ -20,23 +20,23 @@ import (
 
 	"github.com/alecthomas/kong"
 
-	"github.com/JuniperBible/juniper/core/capsule"
-	"github.com/JuniperBible/juniper/core/cas"
-	"github.com/JuniperBible/juniper/core/docgen"
-	"github.com/JuniperBible/juniper/core/ir"
-	"github.com/JuniperBible/juniper/core/plugins"
-	"github.com/JuniperBible/juniper/core/runner"
-	"github.com/JuniperBible/juniper/core/selfcheck"
-	"github.com/JuniperBible/juniper/internal/api"
-	"github.com/JuniperBible/juniper/internal/archive"
-	"github.com/JuniperBible/juniper/internal/fileutil"
-	"github.com/JuniperBible/juniper/internal/juniper"
-	"github.com/JuniperBible/juniper/internal/safefile"
-	"github.com/JuniperBible/juniper/internal/validation"
-	"github.com/JuniperBible/juniper/internal/web"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/capsule"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/cas"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/docgen"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/runner"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/selfcheck"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/api"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/archive"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/fileutil"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/juniper"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/safefile"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/validation"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/web"
 
 	// Import embedded plugins registry to register all embedded plugins
-	_ "github.com/JuniperBible/juniper/internal/embedded"
+	_ "github.com/JuniperBible/Public.Tool.JuniperBible/internal/embedded"
 )
 
 const version = "0.3.0"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/JuniperBible/juniper/internal/logging"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/logging"
 )
 
 // AuthConfig holds authentication configuration.

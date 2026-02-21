@@ -16,7 +16,7 @@ import (
 
 	"github.com/ulikunitz/xz"
 
-	"github.com/JuniperBible/juniper/internal/server"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/server"
 )
 
 func init() {

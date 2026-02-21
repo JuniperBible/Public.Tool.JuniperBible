@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuniperBible/juniper/plugins/ipc"
-	"github.com/JuniperBible/juniper/plugins/sdk/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/ir"
 )
 
 // createTestTXT creates a minimal plain text Bible file for testing.

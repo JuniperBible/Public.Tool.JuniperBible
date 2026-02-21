@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuniperBible/juniper/internal/safefile"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/safefile"
 )
 
 // Index entry sizes for SWORD binary file formats.

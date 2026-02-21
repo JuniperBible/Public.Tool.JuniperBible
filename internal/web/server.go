@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuniperBible/juniper/core/plugins"
-	"github.com/JuniperBible/juniper/internal/logging"
-	"github.com/JuniperBible/juniper/internal/server"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/logging"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/server"
 )
 
 //go:embed templates/*.html

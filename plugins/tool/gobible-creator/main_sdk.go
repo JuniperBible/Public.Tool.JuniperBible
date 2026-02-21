@@ -11,8 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/JuniperBible/juniper/internal/safefile"
-	"github.com/JuniperBible/juniper/plugins/ipc"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/safefile"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/ipc"
 )
 
 // TranscriptEvent extends the base event with gobible-creator-specific fields.

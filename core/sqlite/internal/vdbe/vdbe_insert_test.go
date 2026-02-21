@@ -3,7 +3,7 @@ package vdbe
 import (
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/btree"
 )
 
 func TestVDBEInsertAndSelect(t *testing.T) {

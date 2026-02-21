@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/cas"
-	"github.com/JuniperBible/juniper/core/ir"
-	"github.com/JuniperBible/juniper/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/cas"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
 )
 
 // TestExportIdentity tests that exporting in IDENTITY mode produces byte-identical output.

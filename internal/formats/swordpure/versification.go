@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/JuniperBible/juniper/internal/formats/swordpure/versdata"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/formats/swordpure/versdata"
 )
 
 // VersificationID identifies a versification system.

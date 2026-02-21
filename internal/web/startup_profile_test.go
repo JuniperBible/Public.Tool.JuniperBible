@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JuniperBible/juniper/internal/archive"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/archive"
 )
 
 // ProfileResult holds timing data for a single operation.

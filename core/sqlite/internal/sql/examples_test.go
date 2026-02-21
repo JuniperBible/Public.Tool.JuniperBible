@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/sql"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/sql"
 )
 
 // ExampleMakeRecord demonstrates encoding values into SQLite record format

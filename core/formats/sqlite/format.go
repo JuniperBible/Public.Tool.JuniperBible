@@ -15,10 +15,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuniperBible/juniper/core/sqlite"
-	"github.com/JuniperBible/juniper/plugins/ipc"
-	"github.com/JuniperBible/juniper/plugins/sdk/format"
-	"github.com/JuniperBible/juniper/plugins/sdk/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/format"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/ir"
 )
 
 // Config defines the SQLite format plugin configuration.

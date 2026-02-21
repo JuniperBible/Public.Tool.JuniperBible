@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/JuniperBible/juniper/internal/safefile"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/safefile"
 )
 
 // CopyDir recursively copies a directory tree from src to dst.

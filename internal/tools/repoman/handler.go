@@ -4,7 +4,7 @@ package repoman
 import (
 	"fmt"
 
-	"github.com/JuniperBible/juniper/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
 )
 
 // Handler implements the EmbeddedToolHandler interface for repoman.

@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/JuniperBible/juniper/core/errors"
-	"github.com/JuniperBible/juniper/core/ir"
-	"github.com/JuniperBible/juniper/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/errors"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
 )
 
 // Injectable functions for testing

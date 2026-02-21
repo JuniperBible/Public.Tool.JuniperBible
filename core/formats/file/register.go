@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuniperBible/juniper/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
 )
 
 // embeddedHandler adapts the SDK Config to the EmbeddedFormatHandler interface.

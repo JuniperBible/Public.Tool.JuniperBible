@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/JuniperBible/juniper/internal/logging"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/logging"
 	"github.com/gorilla/websocket"
 )
 

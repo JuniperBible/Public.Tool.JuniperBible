@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/ir"
 )
 
 func TestIRRecordJSON(t *testing.T) {

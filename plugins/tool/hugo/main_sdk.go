@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/JuniperBible/juniper/plugins/ipc"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/ipc"
 )
 
 // TranscriptEvent extends the base event with hugo-specific fields.

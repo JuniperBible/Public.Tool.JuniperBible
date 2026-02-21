@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JuniperBible/juniper/internal/server"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/server"
 )
 
 func TestSetupRoutes(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/vdbe"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/vdbe"
 )
 
 // Result represents the result of executing a SQL statement.

@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/JuniperBible/juniper/core/plugins"
-	"github.com/JuniperBible/juniper/internal/logging"
-	"github.com/JuniperBible/juniper/internal/server"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/logging"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/server"
 )
 
 // Start starts the API server with the given configuration.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuniperBible/juniper/internal/formats/swordpure"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/formats/swordpure"
 )
 
 func TestStripMarkup(t *testing.T) {

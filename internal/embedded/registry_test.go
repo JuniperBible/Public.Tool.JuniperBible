@@ -3,8 +3,8 @@ package embedded_test
 import (
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/plugins"
-	"github.com/JuniperBible/juniper/internal/embedded"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/embedded"
 )
 
 // TestPluginRegistrations verifies that all embedded plugins are registered.

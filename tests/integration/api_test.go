@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JuniperBible/juniper/internal/api"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/api"
 )
 
 // setupTestAPI creates a test API server with temporary directories.

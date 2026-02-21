@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/JuniperBible/juniper/core/formats/flex"
-	"github.com/JuniperBible/juniper/plugins/sdk/format"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/formats/flex"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/format"
 )
 
 func main() {

@@ -17,11 +17,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/JuniperBible/juniper/core/capsule"
-	"github.com/JuniperBible/juniper/core/runner"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/capsule"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/runner"
 
 	// Import embedded plugins registry to register all embedded plugins
-	_ "github.com/JuniperBible/juniper/internal/embedded"
+	_ "github.com/JuniperBible/Public.Tool.JuniperBible/internal/embedded"
 )
 
 func main() {

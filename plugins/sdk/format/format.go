@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuniperBible/juniper/plugins/ipc"
-	"github.com/JuniperBible/juniper/plugins/sdk/blob"
-	"github.com/JuniperBible/juniper/plugins/sdk/errors"
-	"github.com/JuniperBible/juniper/plugins/sdk/ir"
-	"github.com/JuniperBible/juniper/plugins/sdk/runtime"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/ipc"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/blob"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/errors"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/runtime"
 )
 
 // Config defines a format plugin's capabilities and handlers.

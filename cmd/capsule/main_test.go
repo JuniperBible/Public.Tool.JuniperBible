@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/capsule"
-	"github.com/JuniperBible/juniper/core/cas"
-	"github.com/JuniperBible/juniper/core/plugins"
-	"github.com/JuniperBible/juniper/internal/archive"
-	"github.com/JuniperBible/juniper/internal/fileutil"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/capsule"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/cas"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/archive"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/fileutil"
 )
 
 func init() {

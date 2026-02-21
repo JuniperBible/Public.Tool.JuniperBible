@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/JuniperBible/juniper/internal/safefile"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/safefile"
 )
 
 // IPCRequest is the request format from capsule.

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/ir"
 )
 
 // TestWebUIIntegration tests the full web UI with a real HTTP server.

@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/JuniperBible/juniper/core/cas"
-	"github.com/JuniperBible/juniper/internal/fileutil"
-	"github.com/JuniperBible/juniper/internal/safefile"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/cas"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/fileutil"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/safefile"
 )
 
 // validIdentifierRegex validates plugin and profile identifiers.

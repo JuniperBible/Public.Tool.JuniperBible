@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/ir"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/ir"
 )
 
 // BenchmarkPack benchmarks packing a capsule into a tar.xz archive.

@@ -3,7 +3,7 @@ package schema
 import (
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/btree"
 )
 
 func TestInitializeMaster(t *testing.T) {

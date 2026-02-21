@@ -16,9 +16,9 @@ import (
 
 	"github.com/ulikunitz/xz"
 
-	"github.com/JuniperBible/juniper/core/errors"
-	"github.com/JuniperBible/juniper/internal/safefile"
-	"github.com/JuniperBible/juniper/internal/validation"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/errors"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/safefile"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/validation"
 )
 
 // APIResponse is the standard API response wrapper.

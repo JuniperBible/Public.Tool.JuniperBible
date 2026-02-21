@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/encoding"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/encoding"
 )
 
 // TestNewEPUB verifies creating a new EPUB.

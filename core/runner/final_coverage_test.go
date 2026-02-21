@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JuniperBible/juniper/internal/fileutil"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/fileutil"
 )
 
 // TestExecuteRequestInDirError tests ExecuteRequest when in directory creation fails.

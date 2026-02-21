@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/engine"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/engine"
 )
 
 // Example_basic demonstrates basic database operations.

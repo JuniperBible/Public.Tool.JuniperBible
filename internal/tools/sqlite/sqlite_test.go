@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
 )
 
 // TestManifest tests the Manifest function.

@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JuniperBible/juniper/core/docgen"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/docgen"
 )
 
 // generator interface for testing.

@@ -3,7 +3,7 @@ package repoman
 import (
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
 )
 
 func TestManifest(t *testing.T) {

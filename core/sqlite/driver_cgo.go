@@ -11,7 +11,7 @@
 package sqlite
 
 import (
-	_ "github.com/JuniperBible/juniper/contrib/sqlite-external" // CGO SQLite driver
+	_ "github.com/JuniperBible/Public.Tool.JuniperBible/contrib/sqlite-external" // CGO SQLite driver
 )
 
 const (

@@ -3,8 +3,8 @@ package schema_test
 import (
 	"fmt"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/schema"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/parser"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/schema"
 )
 
 // Example demonstrates basic schema management operations.

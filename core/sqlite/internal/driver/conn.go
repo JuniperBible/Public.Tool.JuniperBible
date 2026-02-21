@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/functions"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/pager"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/schema"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/btree"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/functions"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/pager"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/parser"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/schema"
 )
 
 // Conn implements database/sql/driver.Conn for SQLite.

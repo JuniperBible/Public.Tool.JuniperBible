@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/JuniperBible/juniper/internal/validation"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/internal/validation"
 )
 
 func TestValidatePath(t *testing.T) {

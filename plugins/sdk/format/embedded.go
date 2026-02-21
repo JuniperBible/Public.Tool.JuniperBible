@@ -3,8 +3,8 @@
 package format
 
 import (
-	"github.com/JuniperBible/juniper/core/plugins"
-	"github.com/JuniperBible/juniper/plugins/ipc"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/plugins"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/ipc"
 )
 
 // registerEmbedded registers a format Config as an embedded plugin.

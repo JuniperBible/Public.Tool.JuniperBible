@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/JuniperBible/juniper/core/formats/usfm"
-	"github.com/JuniperBible/juniper/plugins/sdk/format"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/formats/usfm"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/format"
 )
 
 func main() {

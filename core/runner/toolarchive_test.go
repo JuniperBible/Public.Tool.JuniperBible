@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/capsule"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/capsule"
 )
 
 func TestToolRegistry(t *testing.T) {

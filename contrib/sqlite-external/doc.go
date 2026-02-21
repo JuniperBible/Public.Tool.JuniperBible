@@ -1,13 +1,13 @@
 // Package sqliteexternal provides optional external SQLite drivers.
 //
-// This package is part of the main github.com/JuniperBible/juniper module
+// This package is part of the main github.com/JuniperBible/Public.Tool.JuniperBible module
 // and provides CGO-based SQLite drivers for performance-critical applications.
 //
 // # CGO SQLite Driver
 //
 // To use the CGO driver (github.com/mattn/go-sqlite3):
 //
-//	import _ "github.com/JuniperBible/juniper/contrib/sqlite-external"
+//	import _ "github.com/JuniperBible/Public.Tool.JuniperBible/contrib/sqlite-external"
 //
 // Build with:
 //
@@ -16,7 +16,7 @@
 // # Default Pure Go Driver
 //
 // By default, Juniper Bible uses a pure Go SQLite implementation that requires
-// no CGO. See github.com/JuniperBible/juniper/core/sqlite for details.
+// no CGO. See github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite for details.
 //
 // # When to Use
 //

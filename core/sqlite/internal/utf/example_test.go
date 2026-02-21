@@ -3,7 +3,7 @@ package utf_test
 import (
 	"fmt"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/utf"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/utf"
 )
 
 // Example demonstrates UTF-8 encoding and decoding

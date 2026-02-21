@@ -3,10 +3,10 @@ package driver
 import (
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/sqlite/internal/btree"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/parser"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/schema"
-	"github.com/JuniperBible/juniper/core/sqlite/internal/vdbe"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/btree"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/parser"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/schema"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite/internal/vdbe"
 )
 
 func TestDriverInsertSelect(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JuniperBible/juniper/core/capsule"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/capsule"
 )
 
 // TestExecuteRequestToJSONError tests ExecuteRequest when req.ToJSON() fails.

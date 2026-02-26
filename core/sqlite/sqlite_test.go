@@ -139,23 +139,16 @@ func TestMustOpen(t *testing.T) {
 func TestDriverTypeConsistency(t *testing.T) {
 	driverType := DriverType()
 
-	switch driverType {
-	case "purego":
-		if IsCGO() {
-			t.Error("IsCGO() should be false for purego driver")
-		}
-		if DriverName() != "sqlite" {
-			t.Errorf("purego driver should use 'sqlite' name, got '%s'", DriverName())
-		}
-	case "cgo":
-		if !IsCGO() {
-			t.Error("IsCGO() should be true for cgo driver")
-		}
-		if DriverName() != "sqlite3" {
-			t.Errorf("cgo driver should use 'sqlite3' name, got '%s'", DriverName())
-		}
-	default:
-		t.Errorf("unknown driver type: %s", driverType)
+	if driverType != "purego" {
+		t.Errorf("expected driver type 'purego', got '%s'", driverType)
+	}
+
+	if IsCGO() {
+		t.Error("IsCGO() should be false for purego driver")
+	}
+
+	if DriverName() != "sqlite_internal" {
+		t.Errorf("purego driver should use 'sqlite_internal' name, got '%s'", DriverName())
 	}
 }
 

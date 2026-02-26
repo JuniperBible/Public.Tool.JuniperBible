@@ -1,15 +1,13 @@
-//go:build !cgo_sqlite
-
-// Pure Go SQLite driver using modernc.org/sqlite.
-// This is the default when CGO is disabled or cgo_sqlite tag is not set.
+// Pure Go SQLite driver using Public.Lib.Anthony.
+// This is the only SQLite driver - CGO support has been removed.
 package sqlite
 
 import (
-	_ "modernc.org/sqlite" // Pure Go SQLite driver
+	"github.com/JuniperBible/Public.Lib.Anthony"
 )
 
 const (
-	driverName    = "sqlite"
+	driverName    = anthony.DriverName
 	driverType    = "purego"
-	driverPackage = "modernc.org/sqlite"
+	driverPackage = "github.com/JuniperBible/Public.Lib.Anthony"
 )

@@ -66,14 +66,16 @@ func runIngest(args []string) {
 	fs := flag.NewFlagSet("ingest", flag.ExitOnError)
 	path := fs.String("path", "", "Path to SWORD installation (default: ~/.sword)")
 	output := fs.String("output", "capsules", "Output directory for capsules")
-	all := fs.Bool("all", false, "Ingest all Bible modules")
+	all := fs.Bool("all", false, "Ingest all modules")
+	typeFilter := fs.String("type", "all", "Module type filter: bible, commentary, dictionary, genbook, all")
 	fs.Parse(args)
 
 	cfg := juniper.IngestConfig{
-		Path:    *path,
-		Output:  *output,
-		All:     *all,
-		Modules: fs.Args(),
+		Path:       *path,
+		Output:     *output,
+		All:        *all,
+		Modules:    fs.Args(),
+		TypeFilter: *typeFilter,
 	}
 	if err := juniper.Ingest(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -85,14 +87,16 @@ func runInstall(args []string) {
 	fs := flag.NewFlagSet("install", flag.ExitOnError)
 	path := fs.String("path", "", "Path to SWORD installation (default: ~/.sword)")
 	output := fs.String("output", "capsules", "Output directory for capsules")
-	all := fs.Bool("all", false, "Install all Bible modules")
+	all := fs.Bool("all", false, "Install all modules")
+	typeFilter := fs.String("type", "all", "Module type filter: bible, commentary, dictionary, genbook, all")
 	fs.Parse(args)
 
 	cfg := juniper.InstallConfig{
-		Path:    *path,
-		Output:  *output,
-		All:     *all,
-		Modules: fs.Args(),
+		Path:       *path,
+		Output:     *output,
+		All:        *all,
+		Modules:    fs.Args(),
+		TypeFilter: *typeFilter,
 	}
 	if err := juniper.Install(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -399,12 +403,14 @@ Options for 'list':
 Options for 'ingest':
   --path        Path to SWORD installation (default: ~/.sword)
   --output      Output directory for capsules (default: capsules)
-  --all         Ingest all Bible modules
+  --all         Ingest all modules
+  --type        Module type filter: bible, commentary, dictionary, genbook, all (default: all)
 
 Options for 'install':
   --path        Path to SWORD installation (default: ~/.sword)
   --output      Output directory for capsules (default: capsules)
-  --all         Install all Bible modules
+  --all         Install all modules
+  --type        Module type filter: bible, commentary, dictionary, genbook, all (default: all)
 
 Options for 'cas-to-sword':
   --output      Output directory for SWORD module (default: ~/.sword)

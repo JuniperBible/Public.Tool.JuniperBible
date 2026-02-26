@@ -1,17 +1,9 @@
-// Package sqlite provides a unified SQLite interface supporting both
-// pure Go (modernc.org/sqlite) and CGO (mattn/go-sqlite3) implementations.
+// Package sqlite provides a pure Go SQLite interface using Public.Lib.Anthony.
 //
-// Build modes:
-//   - Default (CGO_ENABLED=0): Uses pure Go modernc.org/sqlite
-//   - CGO mode (CGO_ENABLED=1 -tags cgo_sqlite): Uses mattn/go-sqlite3 via contrib/sqlite-external
+// The driver registers as "sqlite_internal" and provides full SQLite functionality
+// without any CGO dependencies.
 //
-// The CGO driver is located in contrib/sqlite-external/ to clearly separate
-// optional external dependencies from core functionality.
-//
-// The driver name is always "sqlite" or "sqlite3" depending on the implementation.
 // Use Open() instead of sql.Open() to ensure the correct driver is used.
-//
-// See contrib/sqlite-external/README.md for CGO driver usage details.
 package sqlite
 
 import (
@@ -26,14 +18,15 @@ func DriverName() string {
 }
 
 // DriverType returns a string identifying the underlying implementation.
-// Returns "cgo" for mattn/go-sqlite3, "purego" for modernc.org/sqlite.
+// Always returns "purego" as CGO support has been removed.
 func DriverType() string {
 	return driverType
 }
 
 // IsCGO returns true if the CGO implementation is being used.
+// Always returns false as CGO support has been removed.
 func IsCGO() bool {
-	return driverType == "cgo"
+	return false
 }
 
 // Open opens a SQLite database using the appropriate driver.

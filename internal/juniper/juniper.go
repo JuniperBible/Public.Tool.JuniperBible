@@ -36,10 +36,11 @@ type ListConfig struct {
 
 // IngestConfig holds configuration for ingesting SWORD modules.
 type IngestConfig struct {
-	Path    string   // SWORD installation path
-	Output  string   // Output directory for capsules
-	Modules []string // Specific modules to ingest
-	All     bool     // Ingest all modules
+	Path       string   // SWORD installation path
+	Output     string   // Output directory for capsules
+	Modules    []string // Specific modules to ingest
+	All        bool     // Ingest all modules
+	TypeFilter string   // Module type filter: bible, commentary, dictionary, genbook, all (default: all)
 }
 
 // CASToSwordConfig holds configuration for CAS-to-SWORD conversion.
@@ -131,8 +132,9 @@ func truncateDesc(desc string, maxLen int) string {
 	return desc
 }
 
-// ListModules returns all Bible modules in a SWORD installation.
-func ListModules(swordPath string) ([]*Module, error) {
+// ListModules returns modules in a SWORD installation matching the type filter.
+// typeFilter can be: "bible", "commentary", "dictionary", "genbook", or "all".
+func ListModules(swordPath string, typeFilter ...string) ([]*Module, error) {
 	modsDir := filepath.Join(swordPath, "mods.d")
 	if _, err := os.Stat(modsDir); errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("SWORD installation not found at %s", swordPath)
@@ -143,6 +145,12 @@ func ListModules(swordPath string) ([]*Module, error) {
 		return nil, fmt.Errorf("failed to read mods.d: %w", err)
 	}
 
+	// Default to Bible for backwards compatibility
+	filter := "Bible"
+	if len(typeFilter) > 0 && typeFilter[0] != "" {
+		filter = normalizeTypeFilter(typeFilter[0])
+	}
+
 	var modules []*Module
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".conf") {
@@ -151,7 +159,11 @@ func ListModules(swordPath string) ([]*Module, error) {
 
 		confPath := filepath.Join(modsDir, e.Name())
 		module := ParseConf(confPath)
-		if module == nil || module.ModType != "Bible" {
+		if module == nil {
+			continue
+		}
+		// Filter by type (case-insensitive comparison)
+		if filter != "all" && !strings.EqualFold(module.ModType, filter) {
 			continue
 		}
 		module.ConfPath = confPath
@@ -159,6 +171,24 @@ func ListModules(swordPath string) ([]*Module, error) {
 	}
 
 	return modules, nil
+}
+
+// normalizeTypeFilter converts CLI type filter values to internal module type names.
+func normalizeTypeFilter(filter string) string {
+	switch strings.ToLower(filter) {
+	case "bible", "bibles":
+		return "Bible"
+	case "commentary", "commentaries":
+		return "Commentary"
+	case "dictionary", "dictionaries", "lexicon":
+		return "Dictionary"
+	case "genbook", "genbooks", "book":
+		return "GenBook"
+	case "all", "":
+		return "all"
+	default:
+		return filter
+	}
 }
 
 // selectModules resolves which modules to process given an all-flag, an
@@ -214,13 +244,22 @@ func Ingest(cfg IngestConfig) error {
 		return err
 	}
 
-	modules, err := ListModules(swordPath)
+	// Default to "all" if no type filter specified (convert all types)
+	typeFilter := cfg.TypeFilter
+	if typeFilter == "" {
+		typeFilter = "all"
+	}
+
+	modules, err := ListModules(swordPath, typeFilter)
 	if err != nil {
 		return err
 	}
 
 	if len(modules) == 0 {
-		return fmt.Errorf("no Bible modules found in %s", swordPath)
+		if typeFilter == "all" {
+			return fmt.Errorf("no modules found in %s", swordPath)
+		}
+		return fmt.Errorf("no %s modules found in %s", typeFilter, swordPath)
 	}
 
 	toIngest, err := selectModules(cfg.All, cfg.Modules, modules, "no modules to ingest")
@@ -348,6 +387,7 @@ type InstallConfig struct {
 	Modules    []string // Specific modules to install
 	All        bool     // Install all modules
 	PluginsDir string   // Directory containing format plugins
+	TypeFilter string   // Module type filter: bible, commentary, dictionary, genbook, all (default: all)
 }
 
 // installSingleModule ingests one module and generates its IR.
@@ -388,13 +428,22 @@ func Install(cfg InstallConfig) error {
 		return err
 	}
 
-	modules, err := ListModules(swordPath)
+	// Default to "all" if no type filter specified (install all types)
+	typeFilter := cfg.TypeFilter
+	if typeFilter == "" {
+		typeFilter = "all"
+	}
+
+	modules, err := ListModules(swordPath, typeFilter)
 	if err != nil {
 		return err
 	}
 
 	if len(modules) == 0 {
-		return fmt.Errorf("no Bible modules found in %s", swordPath)
+		if typeFilter == "all" {
+			return fmt.Errorf("no modules found in %s", swordPath)
+		}
+		return fmt.Errorf("no %s modules found in %s", typeFilter, swordPath)
 	}
 
 	toInstall, err := selectModules(cfg.All, cfg.Modules, modules, "no modules to install")

@@ -1,5 +1,3 @@
-//go:build !cgo_sqlite
-
 package main
 
 import (

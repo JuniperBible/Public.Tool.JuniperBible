@@ -137,9 +137,8 @@ Input Format → extract-ir → Juniper's Sword (IR) → emit-native → Output 
 │   ├── meta/               # meta plugins (aggregators)
 │   ├── sdk/                # plugin SDK for simplified development
 │   └── ipc/                # shared IPC protocol package (CANONICAL)
-├── contrib/                # optional external dependencies
-│   ├── sqlite-external/    # CGO SQLite driver (mattn/go-sqlite3)
-│   └── tool/               # contributed tools
+├── contrib/                # contributed tools and optional components
+│   └── tool/               # contributed tools (osis2mod, pandoc, etc.)
 ├── tests/
 │   └── integration/        # integration tests
 ├── nix/
@@ -159,35 +158,62 @@ Input Format → extract-ir → Juniper's Sword (IR) → emit-native → Output 
 
 ## Pure Go SQLite Database Engine
 
-JuniperBible includes a complete pure Go implementation of SQLite, eliminating external dependencies:
+JuniperBible uses **Public.Lib.Anthony**, a complete pure Go SQLite implementation that eliminates all external dependencies and CGO requirements.
+
+### Why Public.Lib.Anthony?
+
+Public.Lib.Anthony provides a unified, pure Go SQLite implementation used across all JuniperBible projects:
+
+- **Zero CGO Dependencies** - Pure Go implementation enables true cross-platform builds
+- **No External Dependencies** - Removed modernc.org/sqlite and mattn/go-sqlite3
+- **Production Ready** - Full ACID compliance with transaction support
+- **High Performance** - Transaction batching provides 10-100x speedup for bulk operations
+- **Unified Codebase** - Single source of truth across Public.Tool.JuniperBible and Public.Website.MichaelCore
 
 ### Features
 
 - 100% pure Go, no CGO required
 - Compatible with `database/sql` interface
 - Full SQL support: SELECT, INSERT, UPDATE, DELETE, CREATE TABLE
-- Transactions with ACID guarantees
+- Transactions with ACID guarantees (journal and WAL modes)
 - Built-in functions (string, math, date/time, aggregates)
-- B-tree storage engine
-- Query optimization
+- B-tree storage engine with overflow pages
+- Query optimization and indexing
+- Concurrent access with thread-safe page cache
+- Common Table Expressions (CTEs) and subqueries
 
 ### Usage
 ```go
 import (
     "database/sql"
-    _ "github.com/JuniperBible/juniper/core/sqlite"
+    _ "github.com/JuniperBible/Public.Lib.Anthony/internal/driver"
 )
 
-db, _ := sql.Open("sqlite", "database.db")
+// Opens using Public.Lib.Anthony's pure Go driver
+db, _ := sql.Open("sqlite_internal", "database.db")
+```
+
+Or use the convenience wrapper:
+
+```go
+import "github.com/JuniperBible/juniper/core/sqlite"
+
+// Automatically uses Public.Lib.Anthony
+db, _ := sqlite.Open("database.db")
 ```
 
 ### Architecture
 
-- `core/sqlite/internal/pager` - Page cache and file I/O
-- `core/sqlite/internal/btree` - B-tree storage
-- `core/sqlite/internal/parser` - SQL parser
-- `core/sqlite/internal/vdbe` - Virtual machine
-- `core/sqlite/internal/engine` - Query execution
+Public.Lib.Anthony provides the complete SQLite implementation:
+
+- `internal/pager` - Page cache, journal, and transaction management
+- `internal/btree` - B-tree storage engine
+- `internal/parser` - SQL lexer, parser, and AST
+- `internal/vdbe` - Virtual Database Engine (bytecode VM)
+- `internal/engine` - Query execution engine
+- `internal/driver` - database/sql driver interface
+
+JuniperBible's `core/sqlite` package provides a thin compatibility wrapper around Public.Lib.Anthony.
 
 ---
 
@@ -453,14 +479,13 @@ Juniper Bible is strict by design.
 # Development environment (recommended)
 nix-shell
 
-# Build (pure Go, no CGO)
+# Build (pure Go, no CGO required)
 make build
 make plugins
 make api
 make all
 
-# Build with CGO SQLite
-make build-cgo
+# Note: CGO builds have been removed - all builds are pure Go using Public.Lib.Anthony
 ```
 
 ### Testing
@@ -493,11 +518,8 @@ go test -cover ./...
 # Integration tests
 go test ./tests/integration/... -v
 
-# SQLite driver consistency
-make test-sqlite-divergence
-
-# CGO variant
-make test-cgo
+# Note: SQLite driver divergence tests removed (single driver now: Public.Lib.Anthony)
+# Note: CGO variant tests removed (no CGO builds)
 ```
 
 See [docs/TESTING.md](docs/TESTING.md) for comprehensive testing documentation.
@@ -508,19 +530,23 @@ See [docs/TESTING.md](docs/TESTING.md) for comprehensive testing documentation.
 make docs
 ```
 
-### SQLite driver selection
+### SQLite Implementation
 
-Default is pure Go (**modernc.org/sqlite**). Optional CGO driver available in `contrib/sqlite-external/` with `-tags cgo_sqlite` for performance-critical applications.
+JuniperBible uses **Public.Lib.Anthony** for all SQLite operations. This is a pure Go SQLite implementation with no CGO dependencies.
 
-Both drivers must produce identical results (enforced by divergence tests):
+**Important**: CGO-based SQLite drivers (mattn/go-sqlite3, modernc.org/sqlite) have been completely removed from this project. All SQLite functionality is now provided by Public.Lib.Anthony.
 
-```bash
-make test-sqlite-divergence
+Always use the wrapper functions:
+
+```go
+import "github.com/JuniperBible/juniper/core/sqlite"
+
+db, err := sqlite.Open("database.db")
+// or
+db, err := sqlite.OpenReadOnly("database.db")
 ```
 
-Use `core/sqlite.Open()` or `core/sqlite.OpenReadOnly()` — never import drivers directly.
-
-See [contrib/sqlite-external/README.md](contrib/sqlite-external/README.md) for CGO driver details.
+Never import SQLite drivers directly. The `core/sqlite` package handles driver registration automatically.
 
 ---
 
@@ -542,20 +568,20 @@ CAPSULE_PLUGINS_EXTERNAL=1 capsule <command>
 
 ### Distribution variants
 
-Two distribution variants are available:
+JuniperBible now builds as a single pure Go distribution using Public.Lib.Anthony for SQLite:
 
-| Variant | SQLite Driver | Cross-compile | Performance |
-|---------|---------------|---------------|-------------|
-| `*-purego` | modernc.org/sqlite | All platforms | Baseline |
-| `*-cgo` | mattn/go-sqlite3 | Linux/macOS only | ~10% faster |
+| Variant | SQLite Driver | Cross-compile | CGO Required |
+|---------|---------------|---------------|--------------|
+| Standard | Public.Lib.Anthony | All platforms | No |
 
 Build distributions:
 
 ```bash
-make dist-purego   # Pure Go for all platforms
-make dist-cgo      # CGO for supported platforms
-make dist-local    # Both variants for current platform
+make dist          # Pure Go for all platforms (no CGO)
+make dist-local    # Build for current platform
 ```
+
+**Migration Note**: CGO build variants have been removed. All builds now use Public.Lib.Anthony for unified SQLite support across all platforms.
 
 ---
 

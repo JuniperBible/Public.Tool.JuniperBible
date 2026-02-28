@@ -6,4 +6,4 @@ require github.com/JuniperBible/Public.Tool.JuniperBible v0.0.0-00010101000000-0
 
 replace github.com/JuniperBible/Public.Tool.JuniperBible => ../..
 
-replace github.com/JuniperBible/Public.Lib.Anthony => ../../../Public.Lib.Anthony
+replace github.com/JuniperBible/Public.Lib.Anthony => ../../../../Public.Lib.Anthony

@@ -59,11 +59,17 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	}
 	defer db.Close()
 
+	if err := sqlite.ConfigureForBulkWrite(db); err != nil {
+		return "", err
+	}
+
 	if err := emitCreateSchema(db); err != nil {
 		return "", err
 	}
 
-	if err := emitBibleNative(db, corpus); err != nil {
+	if err := sqlite.WithTransaction(db, func(tx *sql.Tx) error {
+		return emitBibleNativeTx(tx, corpus)
+	}); err != nil {
 		return "", fmt.Errorf("failed to emit content: %w", err)
 	}
 

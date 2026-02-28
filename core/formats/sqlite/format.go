@@ -182,12 +182,22 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	}
 	defer db.Close()
 
+	if err := sqlite.ConfigureForBulkWrite(db); err != nil {
+		return "", err
+	}
+
 	if err := createSQLiteSchema(db); err != nil {
 		return "", err
 	}
 
 	insertMetadata(db, corpus)
-	insertCorpusData(db, corpus)
+
+	err = sqlite.WithTransaction(db, func(tx *sql.Tx) error {
+		return insertCorpusDataTx(tx, corpus)
+	})
+	if err != nil {
+		return "", err
+	}
 
 	return outputPath, nil
 }
@@ -237,10 +247,32 @@ func insertCorpusData(db *sql.DB, corpus *ir.Corpus) {
 	}
 }
 
+func insertCorpusDataTx(tx *sql.Tx, corpus *ir.Corpus) error {
+	for _, doc := range corpus.Documents {
+		if _, err := tx.Exec("INSERT INTO books (id, name, book_order) VALUES (?, ?, ?)",
+			doc.ID, doc.Title, doc.Order); err != nil {
+			return err
+		}
+		if err := insertDocumentVersesTx(tx, doc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func insertDocumentVerses(db *sql.DB, doc *ir.Document) {
 	for _, cb := range doc.ContentBlocks {
 		insertContentBlockVerses(db, cb, doc.ID)
 	}
+}
+
+func insertDocumentVersesTx(tx *sql.Tx, doc *ir.Document) error {
+	for _, cb := range doc.ContentBlocks {
+		if err := insertContentBlockVersesTx(tx, cb, doc.ID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func insertContentBlockVerses(db *sql.DB, cb *ir.ContentBlock, docID string) {
@@ -252,6 +284,20 @@ func insertContentBlockVerses(db *sql.DB, cb *ir.ContentBlock, docID string) {
 			}
 		}
 	}
+}
+
+func insertContentBlockVersesTx(tx *sql.Tx, cb *ir.ContentBlock, docID string) error {
+	for _, anchor := range cb.Anchors {
+		for _, span := range anchor.Spans {
+			if span.Ref != nil && span.Type == "VERSE" {
+				if _, err := tx.Exec("INSERT INTO verses (id, book, chapter, verse, text) VALUES (?, ?, ?, ?, ?)",
+					span.Ref.OSISID, docID, span.Ref.Chapter, span.Ref.Verse, cb.Text); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func enumerate(path string) (*ipc.EnumerateResult, error) {

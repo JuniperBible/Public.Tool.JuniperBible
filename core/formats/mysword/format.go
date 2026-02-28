@@ -537,6 +537,29 @@ var moduleEmitters = map[string]func(*sql.DB, *ir.Corpus) error{
 	"DICTIONARY": emitDictionaryNative,
 }
 
+var moduleEmittersTx = map[string]func(*sql.Tx, *ir.Corpus) error{
+	"BIBLE":      emitBibleNativeTx,
+	"COMMENTARY": emitCommentaryNativeTx,
+	"DICTIONARY": emitDictionaryNativeTx,
+}
+
+func createSchemaForModuleType(db *sql.DB, moduleType string) error {
+	switch moduleType {
+	case "BIBLE":
+		_, err := db.Exec("CREATE TABLE IF NOT EXISTS Books (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)")
+		return err
+	case "COMMENTARY":
+		_, err := db.Exec("CREATE TABLE IF NOT EXISTS commentaries (book_number INTEGER, chapter_number_from INTEGER, chapter_number_to INTEGER, verse_number_from INTEGER, verse_number_to INTEGER, text TEXT)")
+		return err
+	case "DICTIONARY":
+		_, err := db.Exec("CREATE TABLE IF NOT EXISTS dictionary (topic TEXT, definition TEXT)")
+		return err
+	default:
+		_, err := db.Exec("CREATE TABLE IF NOT EXISTS Books (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)")
+		return err
+	}
+}
+
 func corpusTitle(corpus *ir.Corpus) string {
 	if corpus.Title != "" {
 		return corpus.Title
@@ -573,11 +596,23 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	}
 	defer db.Close()
 
-	emitter := moduleEmitters[corpus.ModuleType]
-	if emitter == nil {
-		emitter = emitBibleNative
+	if err := sqlite.ConfigureForBulkWrite(db); err != nil {
+		return "", err
 	}
-	if err := emitter(db, corpus); err != nil {
+
+	// Create schema first
+	if err := createSchemaForModuleType(db, corpus.ModuleType); err != nil {
+		return "", fmt.Errorf("failed to create schema: %w", err)
+	}
+
+	// Insert data with transaction
+	emitterTx := moduleEmittersTx[corpus.ModuleType]
+	if emitterTx == nil {
+		emitterTx = emitBibleNativeTx
+	}
+	if err := sqlite.WithTransaction(db, func(tx *sql.Tx) error {
+		return emitterTx(tx, corpus)
+	}); err != nil {
 		return "", fmt.Errorf("failed to emit content: %w", err)
 	}
 
@@ -608,10 +643,32 @@ func insertVerseSpan(db *sql.DB, docID string, bookNum int, cb *ir.ContentBlock,
 	return nil
 }
 
+func insertVerseSpanTx(tx *sql.Tx, docID string, bookNum int, cb *ir.ContentBlock, span *ir.Span) error {
+	if span.Ref == nil || span.Type != "VERSE" {
+		return nil
+	}
+	if _, err := tx.Exec("INSERT INTO Books (Book, Chapter, Verse, Scripture) VALUES (?, ?, ?, ?)",
+		bookNum, span.Ref.Chapter, span.Ref.Verse, cb.Text); err != nil {
+		return fmt.Errorf("insert Books verse %s.%d.%d: %w", docID, span.Ref.Chapter, span.Ref.Verse, err)
+	}
+	return nil
+}
+
 func insertBlockVerses(db *sql.DB, docID string, bookNum int, cb *ir.ContentBlock) error {
 	for _, anchor := range cb.Anchors {
 		for _, span := range anchor.Spans {
 			if err := insertVerseSpan(db, docID, bookNum, cb, span); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func insertBlockVersesTx(tx *sql.Tx, docID string, bookNum int, cb *ir.ContentBlock) error {
+	for _, anchor := range cb.Anchors {
+		for _, span := range anchor.Spans {
+			if err := insertVerseSpanTx(tx, docID, bookNum, cb, span); err != nil {
 				return err
 			}
 		}
@@ -635,6 +692,18 @@ func emitBibleNative(db *sql.DB, corpus *ir.Corpus) error {
 	return nil
 }
 
+func emitBibleNativeTx(tx *sql.Tx, corpus *ir.Corpus) error {
+	for _, doc := range corpus.Documents {
+		bookNum := resolveBookNum(doc)
+		for _, cb := range doc.ContentBlocks {
+			if err := insertBlockVersesTx(tx, doc.ID, bookNum, cb); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func emitCommentaryNative(db *sql.DB, corpus *ir.Corpus) error {
 	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS commentaries (book_number INTEGER, chapter_number_from INTEGER, chapter_number_to INTEGER, verse_number_from INTEGER, verse_number_to INTEGER, text TEXT)"); err != nil {
 		return fmt.Errorf("create commentaries table: %w", err)
@@ -647,10 +716,28 @@ func emitCommentaryNative(db *sql.DB, corpus *ir.Corpus) error {
 	return nil
 }
 
+func emitCommentaryNativeTx(tx *sql.Tx, corpus *ir.Corpus) error {
+	for _, doc := range corpus.Documents {
+		if err := emitDocumentCommentariesTx(tx, doc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // emitDocumentCommentaries writes commentary entries for a document
 func emitDocumentCommentaries(db *sql.DB, doc *ir.Document) error {
 	for _, cb := range doc.ContentBlocks {
 		if err := emitContentBlockCommentaries(db, cb); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func emitDocumentCommentariesTx(tx *sql.Tx, doc *ir.Document) error {
+	for _, cb := range doc.ContentBlocks {
+		if err := emitContentBlockCommentariesTx(tx, cb); err != nil {
 			return err
 		}
 	}
@@ -677,6 +764,25 @@ func emitContentBlockCommentaries(db *sql.DB, cb *ir.ContentBlock) error {
 	return nil
 }
 
+func emitContentBlockCommentariesTx(tx *sql.Tx, cb *ir.ContentBlock) error {
+	for _, anchor := range cb.Anchors {
+		for _, span := range anchor.Spans {
+			if span.Ref == nil {
+				continue
+			}
+			verseEnd := span.Ref.Verse
+			if span.Ref.VerseEnd > 0 {
+				verseEnd = span.Ref.VerseEnd
+			}
+			if _, err := tx.Exec("INSERT INTO commentaries (book_number, chapter_number_from, chapter_number_to, verse_number_from, verse_number_to, text) VALUES (?, ?, ?, ?, ?, ?)",
+				osisToBookNum[span.Ref.Book], span.Ref.Chapter, span.Ref.Chapter, span.Ref.Verse, verseEnd, cb.Text); err != nil {
+				return fmt.Errorf("insert commentaries entry: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
 func emitDictionaryNative(db *sql.DB, corpus *ir.Corpus) error {
 	// MySword dictionary table
 	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS dictionary (topic TEXT, definition TEXT)"); err != nil {
@@ -690,6 +796,21 @@ func emitDictionaryNative(db *sql.DB, corpus *ir.Corpus) error {
 				topic = t
 			}
 			if _, err := db.Exec("INSERT INTO dictionary (topic, definition) VALUES (?, ?)", topic, cb.Text); err != nil {
+				return fmt.Errorf("insert dictionary entry: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+func emitDictionaryNativeTx(tx *sql.Tx, corpus *ir.Corpus) error {
+	for _, doc := range corpus.Documents {
+		for _, cb := range doc.ContentBlocks {
+			topic := ""
+			if t, ok := cb.Attributes["topic"].(string); ok {
+				topic = t
+			}
+			if _, err := tx.Exec("INSERT INTO dictionary (topic, definition) VALUES (?, ?)", topic, cb.Text); err != nil {
 				return fmt.Errorf("insert dictionary entry: %w", err)
 			}
 		}

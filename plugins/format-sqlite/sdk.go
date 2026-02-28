@@ -9,13 +9,13 @@ package main
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite"
 	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/ipc"
 	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/format"
 	"github.com/JuniperBible/Public.Tool.JuniperBible/plugins/sdk/ir"
@@ -50,7 +50,7 @@ func detectSQLite(path string) (*ipc.DetectResult, error) {
 		return &ipc.DetectResult{Detected: false, Reason: "not a SQLite file extension"}, nil
 	}
 
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
 		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot open as SQLite: %v", err)}, nil
 	}
@@ -66,7 +66,7 @@ func detectSQLite(path string) (*ipc.DetectResult, error) {
 }
 
 func enumerateSQLite(path string) (*ipc.EnumerateResult, error) {
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -109,7 +109,7 @@ func parseSQLite(path string) (*ir.Corpus, error) {
 	}
 	sourceHash := sha256.Sum256(sourceData)
 
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -185,7 +185,7 @@ func parseSQLite(path string) (*ir.Corpus, error) {
 func emitSQLite(corpus *ir.Corpus, outputDir string) (string, error) {
 	outputPath := filepath.Join(outputDir, corpus.ID+".db")
 
-	db, err := sql.Open(sqliteDriver, outputPath)
+	db, err := sqlite.Open(outputPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create database: %w", err)
 	}

@@ -34,4 +34,4 @@ replace github.com/alecthomas/kong => github.com/FocuswithJustin/kong v1.13.0
 replace github.com/alecthomas/participle/v2 => github.com/FocuswithJustin/participle/v2 v2.1.4
 
 // Use local Public.Lib.Anthony for pure Go SQLite
-replace github.com/JuniperBible/Public.Lib.Anthony => ../Public.Lib.Anthony
+replace github.com/JuniperBible/Public.Lib.Anthony => ../../Public.Lib.Anthony

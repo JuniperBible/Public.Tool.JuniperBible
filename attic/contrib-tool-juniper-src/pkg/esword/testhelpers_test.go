@@ -1,12 +1,11 @@
 package esword
 
 import (
-	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/JuniperBible/Public.Tool.JuniperBible/core/sqlite"
 )
 
 // TestVerse holds test data for creating Bible databases
@@ -39,7 +38,7 @@ func CreateTestBibleDB(t *testing.T, verses []TestVerse, metadata *BibleMetadata
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.bblx")
 
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sqlite.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -107,7 +106,7 @@ func CreateTestCommentaryDB(t *testing.T, entries []TestCommentaryEntry, metadat
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.cmtx")
 
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sqlite.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -171,7 +170,7 @@ func CreateTestDictionaryDB(t *testing.T, entries []TestDictionaryEntry, metadat
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.dctx")
 
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sqlite.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -244,7 +243,7 @@ func CreateEmptyDB(t *testing.T) string {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "empty.bblx")
 
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sqlite.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Failed to create empty database: %v", err)
 	}

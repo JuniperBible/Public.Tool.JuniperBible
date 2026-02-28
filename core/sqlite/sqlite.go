@@ -9,6 +9,8 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/JuniperBible/Public.Lib.Anthony"
 )
 
 // DriverName returns the SQL driver name to use.
@@ -32,13 +34,12 @@ func IsCGO() bool {
 // Open opens a SQLite database using the appropriate driver.
 // This is the preferred way to open SQLite databases.
 func Open(dataSourceName string) (*sql.DB, error) {
-	return sql.Open(driverName, dataSourceName)
+	return anthony.Open(dataSourceName)
 }
 
 // OpenReadOnly opens a SQLite database in read-only mode.
 func OpenReadOnly(path string) (*sql.DB, error) {
-	dsn := path + "?mode=ro"
-	return Open(dsn)
+	return anthony.OpenReadOnly(path)
 }
 
 // MustOpen opens a SQLite database and returns an error if it fails.
@@ -67,4 +68,41 @@ func GetInfo() Info {
 		IsCGO:      IsCGO(),
 		Package:    driverPackage,
 	}
+}
+
+// WithTransaction wraps a function in a transaction for bulk operations.
+// If fn returns an error, the transaction is rolled back.
+// If fn succeeds, the transaction is committed.
+func WithTransaction(db *sql.DB, fn func(*sql.Tx) error) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	if err := fn(tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
+// ConfigureForBulkWrite sets pragmas optimized for bulk writing operations.
+// Enables WAL mode, sets synchronous to NORMAL, and increases cache size.
+func ConfigureForBulkWrite(db *sql.DB) error {
+	pragmas := []string{
+		"PRAGMA journal_mode=WAL",
+		"PRAGMA synchronous=NORMAL",
+		"PRAGMA cache_size=-64000",
+	}
+	for _, pragma := range pragmas {
+		if _, err := db.Exec(pragma); err != nil {
+			return fmt.Errorf("exec %s: %w", pragma, err)
+		}
+	}
+	return nil
+}
+
+// EnableForeignKeys enables foreign key constraint checking.
+func EnableForeignKeys(db *sql.DB) error {
+	_, err := db.Exec("PRAGMA foreign_keys=ON")
+	return err
 }

@@ -8,3 +8,5 @@ require (
 )
 
 replace github.com/JuniperBible/juniper => ../..
+
+replace github.com/JuniperBible/Public.Lib.Anthony => ../../../../../Public.Lib.Anthony

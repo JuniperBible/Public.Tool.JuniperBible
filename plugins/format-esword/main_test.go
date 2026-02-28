@@ -4,13 +4,13 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 
+	"github.com/JuniperBible/juniper/core/sqlite"
 	"github.com/JuniperBible/juniper/plugins/ipc"
 	"github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
@@ -19,7 +19,7 @@ import (
 func createTestBible(t *testing.T, path string) {
 	t.Helper()
 
-	db, err := sql.Open(sqliteDriver, path)
+	db, err := sqlite.Open( path)
 	if err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
@@ -280,7 +280,7 @@ func TestESwordEmitNative(t *testing.T) {
 	}
 
 	// Verify the output is a valid SQLite database with expected data
-	db, err := sql.Open(sqliteDriver, outputPath+"?mode=ro")
+	db, err := sqlite.Open( outputPath+"?mode=ro")
 	if err != nil {
 		t.Fatalf("failed to open output database: %v", err)
 	}
@@ -347,13 +347,13 @@ func TestESwordRoundTrip(t *testing.T) {
 	outputPath := emitResult["output_path"].(string)
 
 	// Compare original and output databases (L1 - semantic comparison)
-	origDB, err := sql.Open(sqliteDriver, bblxPath+"?mode=ro")
+	origDB, err := sqlite.Open( bblxPath+"?mode=ro")
 	if err != nil {
 		t.Fatalf("failed to open original: %v", err)
 	}
 	defer origDB.Close()
 
-	outDB, err := sql.Open(sqliteDriver, outputPath+"?mode=ro")
+	outDB, err := sqlite.Open( outputPath+"?mode=ro")
 	if err != nil {
 		t.Fatalf("failed to open output: %v", err)
 	}

@@ -7,6 +7,7 @@
 package sqlite
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -182,12 +183,26 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	}
 	defer db.Close()
 
+	if err := sqlite.ConfigureForBulkWrite(context.Background(), db); err != nil {
+		return "", err
+	}
+
 	if err := createSQLiteSchema(db); err != nil {
 		return "", err
 	}
 
-	insertMetadata(db, corpus)
-	insertCorpusData(db, corpus)
+	if err := sqlite.EnableForeignKeys(context.Background(), db); err != nil {
+		return "", err
+	}
+
+	err = sqlite.WithTransaction(context.Background(), db, func(tx *sql.Tx) error {
+		insertMetadata(tx, corpus)
+		insertCorpusData(tx, corpus)
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
 
 	return outputPath, nil
 }
@@ -224,30 +239,30 @@ func createSQLiteSchema(db *sql.DB) error {
 	return nil
 }
 
-func insertMetadata(db *sql.DB, corpus *ir.Corpus) {
-	db.Exec("INSERT INTO meta (id, title, language, description, version) VALUES (?, ?, ?, ?, ?)",
+func insertMetadata(tx *sql.Tx, corpus *ir.Corpus) {
+	tx.Exec("INSERT INTO meta (id, title, language, description, version) VALUES (?, ?, ?, ?, ?)",
 		corpus.ID, corpus.Title, corpus.Language, corpus.Description, corpus.Version)
 }
 
-func insertCorpusData(db *sql.DB, corpus *ir.Corpus) {
+func insertCorpusData(tx *sql.Tx, corpus *ir.Corpus) {
 	for _, doc := range corpus.Documents {
-		db.Exec("INSERT INTO books (id, name, book_order) VALUES (?, ?, ?)",
+		tx.Exec("INSERT INTO books (id, name, book_order) VALUES (?, ?, ?)",
 			doc.ID, doc.Title, doc.Order)
-		insertDocumentVerses(db, doc)
+		insertDocumentVerses(tx, doc)
 	}
 }
 
-func insertDocumentVerses(db *sql.DB, doc *ir.Document) {
+func insertDocumentVerses(tx *sql.Tx, doc *ir.Document) {
 	for _, cb := range doc.ContentBlocks {
-		insertContentBlockVerses(db, cb, doc.ID)
+		insertContentBlockVerses(tx, cb, doc.ID)
 	}
 }
 
-func insertContentBlockVerses(db *sql.DB, cb *ir.ContentBlock, docID string) {
+func insertContentBlockVerses(tx *sql.Tx, cb *ir.ContentBlock, docID string) {
 	for _, anchor := range cb.Anchors {
 		for _, span := range anchor.Spans {
 			if span.Ref != nil && span.Type == "VERSE" {
-				db.Exec("INSERT INTO verses (id, book, chapter, verse, text) VALUES (?, ?, ?, ?, ?)",
+				tx.Exec("INSERT INTO verses (id, book, chapter, verse, text) VALUES (?, ?, ?, ?, ?)",
 					span.Ref.OSISID, docID, span.Ref.Chapter, span.Ref.Verse, cb.Text)
 			}
 		}

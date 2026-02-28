@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/JuniperBible/juniper/core/sqlite"
 	"github.com/JuniperBible/juniper/plugins/ipc"
 	"github.com/JuniperBible/juniper/plugins/sdk/format"
 	"github.com/JuniperBible/juniper/plugins/sdk/ir"
@@ -88,7 +89,7 @@ func detectESword(path string) (*ipc.DetectResult, error) {
 		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("extension %s is not a known e-Sword format", ext)}, nil
 	}
 
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
 		return &ipc.DetectResult{Detected: false, Reason: fmt.Sprintf("cannot open as SQLite: %v", err)}, nil
 	}
@@ -102,7 +103,7 @@ func detectESword(path string) (*ipc.DetectResult, error) {
 }
 
 func enumerateESword(path string) (*ipc.EnumerateResult, error) {
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -148,7 +149,7 @@ func parseESword(path string) (*ir.Corpus, error) {
 	}
 	sourceHash := sha256.Sum256(sourceData)
 
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -396,7 +397,7 @@ func emitESword(corpus *ir.Corpus, outputDir string) (string, error) {
 
 	outputPath := filepath.Join(outputDir, corpus.ID+ext)
 
-	db, err := sql.Open(sqliteDriver, outputPath)
+	db, err := sqlite.Open(outputPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create database: %w", err)
 	}

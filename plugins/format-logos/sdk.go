@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/JuniperBible/juniper/core/sqlite"
 	"github.com/JuniperBible/juniper/plugins/ipc"
 	"github.com/JuniperBible/juniper/plugins/sdk/format"
 	"github.com/JuniperBible/juniper/plugins/sdk/ir"
@@ -43,7 +44,7 @@ func detectLogos(path string) (*ipc.DetectResult, error) {
 	}
 
 	if !validExtensions[ext] {
-		db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+		db, err := sqlite.OpenReadOnly(path)
 		if err != nil {
 			return &ipc.DetectResult{Detected: false, Reason: "not a Logos file extension or database"}, nil
 		}
@@ -77,7 +78,7 @@ func parseLogos(path string) (*ir.Corpus, error) {
 	corpus.Attributes = map[string]string{"_logos_raw": hex.EncodeToString(data)}
 
 	// Try to extract content from SQLite database
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err == nil {
 		defer db.Close()
 		corpus.Documents = extractLogosContent(db, artifactID)
@@ -153,7 +154,7 @@ func emitLogos(corpus *ir.Corpus, outputDir string) (string, error) {
 	}
 
 	// Generate Logos-compatible SQLite from IR
-	db, err := sql.Open(sqliteDriver, outputPath)
+	db, err := sqlite.Open(outputPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create database: %w", err)
 	}

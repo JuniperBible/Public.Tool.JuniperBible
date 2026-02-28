@@ -384,10 +384,10 @@ func stripHTML(text string) string {
 }
 
 
-func emitBibleNative(db *sql.DB, corpus *ir.Corpus) error {
+func emitBibleNative(tx *sql.Tx, corpus *ir.Corpus) error {
 	for _, doc := range corpus.Documents {
 		bookNum := resolveBookNum(doc)
-		if err := emitDocumentVerses(db, doc, bookNum); err != nil {
+		if err := emitDocumentVerses(tx, doc, bookNum); err != nil {
 			return err
 		}
 	}
@@ -406,22 +406,22 @@ func resolveBookNum(doc *ir.Document) int {
 	return 0
 }
 
-func emitDocumentVerses(db *sql.DB, doc *ir.Document, bookNum int) error {
+func emitDocumentVerses(tx *sql.Tx, doc *ir.Document, bookNum int) error {
 	for _, cb := range doc.ContentBlocks {
-		if err := emitContentBlockVerses(db, doc.ID, cb, bookNum); err != nil {
+		if err := emitContentBlockVerses(tx, doc.ID, cb, bookNum); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func emitContentBlockVerses(db *sql.DB, docID string, cb *ir.ContentBlock, bookNum int) error {
+func emitContentBlockVerses(tx *sql.Tx, docID string, cb *ir.ContentBlock, bookNum int) error {
 	for _, anchor := range cb.Anchors {
 		for _, span := range anchor.Spans {
 			if span.Ref == nil || span.Type != "VERSE" {
 				continue
 			}
-			if _, err := db.Exec("INSERT INTO verses (book_number, chapter, verse, text) VALUES (?, ?, ?, ?)",
+			if _, err := tx.Exec("INSERT INTO verses (book_number, chapter, verse, text) VALUES (?, ?, ?, ?)",
 				bookNum, span.Ref.Chapter, span.Ref.Verse, cb.Text); err != nil {
 				return fmt.Errorf("insert verse %s.%d.%d: %w", docID, span.Ref.Chapter, span.Ref.Verse, err)
 			}

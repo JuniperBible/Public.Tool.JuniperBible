@@ -7,17 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Changed
+- Migrated SQLite implementation to Public.Lib.Anthony for unified pure Go SQLite support
+- Removed CGO-based SQLite drivers (mattn/go-sqlite3, modernc.org/sqlite)
+- Added transaction support for 10-100x faster bulk write operations
+- Archived legacy contrib/tool/juniper/src code to attic/
 
-- **Pure Go SQLite Database Engine** - Complete replacement for external SQLite dependencies
-  - Pager: Page cache, file I/O, journaling for ACID transactions
-  - B-tree: Storage engine with read/write operations
-  - Parser: Full SQL tokenizer and recursive descent parser
-  - VDBE: Virtual Database Engine with 146 opcodes
-  - Functions: 75+ built-in SQL functions (string, math, date/time, aggregates)
-  - Query Planner: Cost-based optimization
-  - Schema: sqlite_master table management
-  - Driver: database/sql compatible interface
+### Removed
+- CGO build mode for SQLite (driver_cgo.go files)
+- modernc.org/sqlite dependency
+- mattn/go-sqlite3 dependency (was in contrib/sqlite-external)
+- SQLite driver divergence tests (no longer needed with single driver)
+- contrib/sqlite-external directory
+
+### Added
+- Public.Lib.Anthony integration for all SQLite operations
+- Unified SQLite interface via core/sqlite package
+- Pure Go builds for all platforms without CGO
+- Transaction batching support for improved performance
 - Complete code deduplication infrastructure achieving 93% reduction (183,000 → 13,400 lines)
 - 42 canonical format packages in `core/formats/<name>/` (single source of truth)
 - SDK test infrastructure with PluginTest harness and shared fixtures
@@ -26,22 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI enforcement scripts for wrapper size limits
 - New documentation: ARCHITECTURE.md, DEDUPLICATION_SUMMARY.md
 
-### Changed
-
-- Replaced `modernc.org/sqlite` with internal pure Go implementation
-- Moved optional CGO SQLite driver to `contrib/sqlite-external/`
-- Converted 32 standalone plugins to thin wrappers (~12 lines each, down from 600-800)
-- Fixed embedded registration in all 41 `core/formats/*/register.go` files
-- Enhanced `plugins/sdk/format/format.go` with RegisterEmbedded() support
-- Updated all documentation to reflect new canonical package structure
-
-### Removed
-
-- External dependency on `modernc.org/sqlite` and its transitive dependencies
-- External dependency on `github.com/mattn/go-sqlite3` (moved to contrib/)
-- Deleted 41 redundant embedded plugins from `plugins/format/*/` (~71,000 lines)
-- Deleted 40 redundant internal handlers from `internal/formats/*/` (~48,000 lines)
-- Eliminated duplicated IPC type definitions from standalone plugins
+### Migration Notes
+- All SQLite operations now use Public.Lib.Anthony (pure Go, no CGO)
+- CGO build variants have been completely removed
+- Use `core/sqlite.Open()` instead of importing drivers directly
+- Transaction batching recommended for bulk operations (10-100x speedup)
 
 ## [0.2.0] - 2026-02-16
 

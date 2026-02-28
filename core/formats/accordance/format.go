@@ -7,6 +7,7 @@
 package accordance
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -15,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/JuniperBible/juniper/core/sqlite"
 	"github.com/JuniperBible/juniper/plugins/ipc"
 	"github.com/JuniperBible/juniper/plugins/sdk/format"
 	"github.com/JuniperBible/juniper/plugins/sdk/ir"
@@ -31,9 +33,6 @@ var Config = &format.Config{
 	Enumerate:  enumerateAccordance,
 }
 
-// sqliteDriver is set at build time via build tags
-const sqliteDriver = "sqlite"
-
 func detectAccordance(path string) (*ipc.DetectResult, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == ".amod" || ext == ".accordance" {
@@ -44,7 +43,7 @@ func detectAccordance(path string) (*ipc.DetectResult, error) {
 		}, nil
 	}
 
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
 		return &ipc.DetectResult{
 			Detected: false,
@@ -90,7 +89,7 @@ func parseAccordance(path string) (*ir.Corpus, error) {
 
 	corpus.Attributes["_accordance_raw"] = hex.EncodeToString(data)
 
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err == nil {
 		defer db.Close()
 		corpus.Documents = extractAccordanceContent(db, artifactID)
@@ -219,11 +218,11 @@ func resolveChapterVerse(cb *ir.ContentBlock) (int, int) {
 	return 1, cb.Sequence
 }
 
-func insertContentBlocks(db *sql.DB, docs []*ir.Document) {
+func insertContentBlocks(tx *sql.Tx, docs []*ir.Document) {
 	for _, doc := range docs {
 		for _, cb := range doc.ContentBlocks {
 			chapter, verse := resolveChapterVerse(cb)
-			db.Exec("INSERT INTO AccVerses (book, chapter, verse, text) VALUES (?, ?, ?, ?)",
+			tx.Exec("INSERT INTO AccVerses (book, chapter, verse, text) VALUES (?, ?, ?, ?)",
 				doc.ID, chapter, verse, cb.Text)
 		}
 	}
@@ -236,20 +235,30 @@ func emitAccordance(corpus *ir.Corpus, outputDir string) (string, error) {
 		return outputPath, err
 	}
 
-	db, err := sql.Open(sqliteDriver, outputPath)
+	db, err := sqlite.Open(outputPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create database: %w", err)
 	}
 	defer db.Close()
 
+	if err := sqlite.ConfigureForBulkWrite(context.Background(), db); err != nil {
+		return "", err
+	}
+
 	if err := createAccordanceTables(db); err != nil {
 		return "", err
 	}
 
-	db.Exec("INSERT INTO AccMetadata VALUES ('title', ?)", corpus.Title)
-	db.Exec("INSERT INTO AccMetadata VALUES ('language', ?)", corpus.Language)
+	err = sqlite.WithTransaction(context.Background(), db, func(tx *sql.Tx) error {
+		tx.Exec("INSERT INTO AccMetadata VALUES ('title', ?)", corpus.Title)
+		tx.Exec("INSERT INTO AccMetadata VALUES ('language', ?)", corpus.Language)
 
-	insertContentBlocks(db, corpus.Documents)
+		insertContentBlocks(tx, corpus.Documents)
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
 
 	return outputPath, nil
 }

@@ -1,6 +1,7 @@
 package mybible
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"path/filepath"
@@ -28,24 +29,24 @@ func emitCreateSchema(db *sql.DB) error {
 	return nil
 }
 
-func emitInsertMetadata(db *sql.DB, corpus *ir.Corpus) {
+func emitInsertMetadata(tx *sql.Tx, corpus *ir.Corpus) {
 	title := corpus.Title
 	if title == "" {
 		title = corpus.ID
 	}
-	db.Exec("INSERT INTO info (name, value) VALUES ('description', ?)", title)
+	tx.Exec("INSERT INTO info (name, value) VALUES ('description', ?)", title)
 	if corpus.Description != "" {
-		db.Exec("INSERT INTO info (name, value) VALUES ('detailed_info', ?)", corpus.Description)
+		tx.Exec("INSERT INTO info (name, value) VALUES ('detailed_info', ?)", corpus.Description)
 	}
 	if corpus.Language != "" {
-		db.Exec("INSERT INTO info (name, value) VALUES ('language', ?)", corpus.Language)
+		tx.Exec("INSERT INTO info (name, value) VALUES ('language', ?)", corpus.Language)
 	}
 	if v, ok := corpus.Attributes["version"]; ok {
-		db.Exec("INSERT INTO info (name, value) VALUES ('version', ?)", v)
+		tx.Exec("INSERT INTO info (name, value) VALUES ('version', ?)", v)
 	}
 	for k, v := range corpus.Attributes {
 		if k != "version" {
-			db.Exec("INSERT INTO info (name, value) VALUES (?, ?)", k, v)
+			tx.Exec("INSERT INTO info (name, value) VALUES (?, ?)", k, v)
 		}
 	}
 }
@@ -59,15 +60,24 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	}
 	defer db.Close()
 
+	if err := sqlite.ConfigureForBulkWrite(context.Background(), db); err != nil {
+		return "", err
+	}
+
 	if err := emitCreateSchema(db); err != nil {
 		return "", err
 	}
 
-	if err := emitBibleNative(db, corpus); err != nil {
-		return "", fmt.Errorf("failed to emit content: %w", err)
+	err = sqlite.WithTransaction(context.Background(), db, func(tx *sql.Tx) error {
+		if err := emitBibleNative(tx, corpus); err != nil {
+			return fmt.Errorf("failed to emit content: %w", err)
+		}
+		emitInsertMetadata(tx, corpus)
+		return nil
+	})
+	if err != nil {
+		return "", err
 	}
-
-	emitInsertMetadata(db, corpus)
 
 	return outputPath, nil
 }

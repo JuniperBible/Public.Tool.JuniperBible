@@ -1,51 +1,48 @@
-// Package sqlite provides a unified SQLite interface supporting both
-// pure Go (modernc.org/sqlite) and CGO (mattn/go-sqlite3) implementations.
+// Package sqlite provides a unified SQLite interface that wraps the Anthony
+// pure Go SQLite driver with MichaelCore-specific functionality.
 //
-// Build modes:
-//   - Default (CGO_ENABLED=0): Uses pure Go modernc.org/sqlite
-//   - CGO mode (CGO_ENABLED=1 -tags cgo_sqlite): Uses mattn/go-sqlite3 via contrib/sqlite-external
+// This package delegates to the Anthony library (Public.Lib.Anthony) for all
+// SQLite operations, while providing additional transaction helpers and
+// database configuration utilities specific to MichaelCore's needs.
 //
-// The CGO driver is located in contrib/sqlite-external/ to clearly separate
-// optional external dependencies from core functionality.
-//
-// The driver name is always "sqlite" or "sqlite3" depending on the implementation.
 // Use Open() instead of sql.Open() to ensure the correct driver is used.
-//
-// See contrib/sqlite-external/README.md for CGO driver usage details.
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/JuniperBible/Public.Lib.Anthony"
 )
 
 // DriverName returns the SQL driver name to use.
-// This is always "sqlite" for compatibility.
+// This delegates to Anthony's driver name.
 func DriverName() string {
-	return driverName
+	return anthony.DriverName
 }
 
 // DriverType returns a string identifying the underlying implementation.
-// Returns "cgo" for mattn/go-sqlite3, "purego" for modernc.org/sqlite.
+// Always returns "anthony" since this package now exclusively uses the Anthony driver.
 func DriverType() string {
-	return driverType
+	return "anthony"
 }
 
 // IsCGO returns true if the CGO implementation is being used.
+// Always returns false since Anthony is a pure Go implementation.
 func IsCGO() bool {
-	return driverType == "cgo"
+	return false
 }
 
-// Open opens a SQLite database using the appropriate driver.
+// Open opens a SQLite database using the Anthony driver.
 // This is the preferred way to open SQLite databases.
 func Open(dataSourceName string) (*sql.DB, error) {
-	return sql.Open(driverName, dataSourceName)
+	return anthony.Open(dataSourceName)
 }
 
 // OpenReadOnly opens a SQLite database in read-only mode.
 func OpenReadOnly(path string) (*sql.DB, error) {
-	dsn := path + "?mode=ro"
-	return Open(dsn)
+	return anthony.OpenReadOnly(path)
 }
 
 // MustOpen opens a SQLite database and returns an error if it fails.
@@ -69,9 +66,83 @@ type Info struct {
 // GetInfo returns information about the current SQLite configuration.
 func GetInfo() Info {
 	return Info{
-		DriverName: driverName,
-		DriverType: driverType,
+		DriverName: DriverName(),
+		DriverType: DriverType(),
 		IsCGO:      IsCGO(),
-		Package:    driverPackage,
+		Package:    "github.com/JuniperBible/Public.Lib.Anthony",
 	}
+}
+
+// WithTransaction executes a function within a database transaction.
+// If the function returns an error, the transaction is rolled back.
+// Otherwise, the transaction is committed.
+//
+// Example:
+//
+//	err := sqlite.WithTransaction(ctx, db, func(tx *sql.Tx) error {
+//	    _, err := tx.Exec("INSERT INTO users (name) VALUES (?)", "Alice")
+//	    return err
+//	})
+func WithTransaction(ctx context.Context, db *sql.DB, fn func(*sql.Tx) error) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p)
+		}
+	}()
+
+	if err := fn(tx); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("transaction error: %w (rollback error: %v)", err, rbErr)
+		}
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+// ConfigureForBulkWrite optimizes a SQLite database connection for bulk write operations.
+// This should be called before performing large batch inserts or updates.
+//
+// Settings applied:
+//   - WAL mode for better concurrent write performance
+//   - NORMAL synchronous mode (faster, still safe with WAL)
+//   - Increased cache size (10MB)
+//   - 64MB temp store in memory
+func ConfigureForBulkWrite(ctx context.Context, db *sql.DB) error {
+	settings := []string{
+		"PRAGMA journal_mode=WAL",
+		"PRAGMA synchronous=NORMAL",
+		"PRAGMA cache_size=-10000", // 10MB
+		"PRAGMA temp_store=MEMORY",
+		"PRAGMA temp_store_size=67108864", // 64MB
+	}
+
+	for _, pragma := range settings {
+		if _, err := db.ExecContext(ctx, pragma); err != nil {
+			return fmt.Errorf("failed to execute %s: %w", pragma, err)
+		}
+	}
+
+	return nil
+}
+
+// EnableForeignKeys enables foreign key constraint enforcement.
+// SQLite disables foreign keys by default for backwards compatibility.
+// This should be called after opening a database if you need foreign key support.
+func EnableForeignKeys(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, "PRAGMA foreign_keys=ON")
+	if err != nil {
+		return fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+	return nil
 }

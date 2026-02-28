@@ -2,13 +2,13 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 
+	"github.com/JuniperBible/juniper/core/sqlite"
 	"github.com/JuniperBible/juniper/plugins/ipc"
 	"github.com/JuniperBible/juniper/plugins/sdk/ir"
 )
@@ -17,7 +17,7 @@ import (
 func createTestAccordance(t *testing.T, path string) {
 	t.Helper()
 
-	db, err := sql.Open(sqliteDriver, path)
+	db, err := sqlite.Open( path)
 	if err != nil {
 		t.Fatalf("failed to create database: %v", err)
 	}
@@ -263,7 +263,7 @@ func TestAccordanceEmitNative(t *testing.T) {
 	}
 
 	// Verify the output file is a valid SQLite database
-	db, err := sql.Open(sqliteDriver, accPath)
+	db, err := sqlite.Open( accPath)
 	if err != nil {
 		t.Fatalf("failed to open output database: %v", err)
 	}

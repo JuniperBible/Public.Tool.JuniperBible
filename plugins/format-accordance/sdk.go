@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/JuniperBible/juniper/core/sqlite"
 	"github.com/JuniperBible/juniper/plugins/ipc"
 	"github.com/JuniperBible/juniper/plugins/sdk/format"
 	"github.com/JuniperBible/juniper/plugins/sdk/ir"
@@ -39,7 +40,7 @@ func detectAccordance(path string) (*ipc.DetectResult, error) {
 		return &ipc.DetectResult{Detected: true, Format: "Accordance", Reason: "Accordance file extension detected"}, nil
 	}
 
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err != nil {
 		return &ipc.DetectResult{Detected: false, Reason: "not an Accordance file"}, nil
 	}
@@ -69,7 +70,7 @@ func parseAccordance(path string) (*ir.Corpus, error) {
 	corpus.LossClass = "L2"
 	corpus.Attributes = map[string]string{"_accordance_raw": hex.EncodeToString(data)}
 
-	db, err := sql.Open(sqliteDriver, path+"?mode=ro")
+	db, err := sqlite.OpenReadOnly(path)
 	if err == nil {
 		defer db.Close()
 		corpus.Documents = extractAccordanceContent(db, artifactID)
@@ -144,7 +145,7 @@ func emitAccordance(corpus *ir.Corpus, outputDir string) (string, error) {
 	}
 
 	// Generate Accordance-compatible SQLite from IR
-	db, err := sql.Open(sqliteDriver, outputPath)
+	db, err := sqlite.Open(outputPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create database: %w", err)
 	}

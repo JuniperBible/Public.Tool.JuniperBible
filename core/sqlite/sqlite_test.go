@@ -140,6 +140,13 @@ func TestDriverTypeConsistency(t *testing.T) {
 	driverType := DriverType()
 
 	switch driverType {
+	case "anthony":
+		if IsCGO() {
+			t.Error("IsCGO() should be false for anthony driver")
+		}
+		if DriverName() != "sqlite_internal" {
+			t.Errorf("anthony driver should use 'sqlite_internal' name, got '%s'", DriverName())
+		}
 	case "purego":
 		if IsCGO() {
 			t.Error("IsCGO() should be false for purego driver")

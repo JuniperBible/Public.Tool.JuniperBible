@@ -3,11 +3,11 @@
 package sqlite
 
 import (
-	"github.com/JuniperBible/Public.Lib.Anthony"
+	"github.com/cyanitol/Public.Lib.Anthony"
 )
 
 const (
 	driverName    = anthony.DriverName
 	driverType    = "purego"
-	driverPackage = "github.com/JuniperBible/Public.Lib.Anthony"
+	driverPackage = "github.com/cyanitol/Public.Lib.Anthony"
 )

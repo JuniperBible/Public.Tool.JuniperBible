@@ -10,7 +10,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/JuniperBible/Public.Lib.Anthony"
+	"github.com/cyanitol/Public.Lib.Anthony"
 )
 
 // DriverName returns the SQL driver name to use.

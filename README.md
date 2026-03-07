@@ -186,7 +186,7 @@ Public.Lib.Anthony provides a unified, pure Go SQLite implementation used across
 ```go
 import (
     "database/sql"
-    _ "github.com/JuniperBible/Public.Lib.Anthony/internal/driver"
+    _ "github.com/cyanitol/Public.Lib.Anthony/internal/driver"
 )
 
 // Opens using Public.Lib.Anthony's pure Go driver

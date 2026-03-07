@@ -3,7 +3,7 @@ module github.com/JuniperBible/Public.Tool.JuniperBible
 go 1.26.0
 
 require (
-	github.com/JuniperBible/Public.Lib.Anthony v0.0.0
+	github.com/cyanitol/Public.Lib.Anthony v0.0.0
 	github.com/alecthomas/kong v1.13.0
 	github.com/ulikunitz/xz v0.5.15
 	github.com/zeebo/blake3 v0.2.4
@@ -34,4 +34,4 @@ replace github.com/alecthomas/kong => github.com/FocuswithJustin/kong v1.13.0
 replace github.com/alecthomas/participle/v2 => github.com/FocuswithJustin/participle/v2 v2.1.4
 
 // Use local Public.Lib.Anthony for pure Go SQLite
-replace github.com/JuniperBible/Public.Lib.Anthony => ../../Public.Lib.Anthony
+replace github.com/cyanitol/Public.Lib.Anthony => ../../Public.Lib.Anthony

@@ -19,6 +19,11 @@ var (
 	capsuleNew      = capsule.New
 )
 
+// DefaultCapsuleOpts holds default CapsuleOption values applied to all
+// capsule operations when the caller does not supply its own options.
+// Tests can set this to inject a mock Veronica CAS client.
+var DefaultCapsuleOpts []capsule.CapsuleOption
+
 // ToolArchive represents an archived tool binary stored in a capsule.
 type ToolArchive struct {
 	// ToolID is the unique identifier for the tool (e.g., "sword-utils", "pandoc").
@@ -59,7 +64,10 @@ type ToolArchiveManifest struct {
 }
 
 // LoadToolArchive loads a tool archive from a capsule file.
-func LoadToolArchive(ctx context.Context, capsulePath string) (*ToolArchive, error) {
+func LoadToolArchive(ctx context.Context, capsulePath string, opts ...capsule.CapsuleOption) (*ToolArchive, error) {
+	if len(opts) == 0 {
+		opts = DefaultCapsuleOpts
+	}
 	// Create temp directory for unpacking
 	tempDir, err := toolOsMkdirTemp("", "tool-load-*")
 	if err != nil {
@@ -67,7 +75,7 @@ func LoadToolArchive(ctx context.Context, capsulePath string) (*ToolArchive, err
 	}
 	// Note: tempDir is not cleaned up here; caller should use Close()
 
-	cap, err := capsuleUnpack(capsulePath, tempDir)
+	cap, err := capsuleUnpack(capsulePath, tempDir, opts...)
 	if err != nil {
 		os.RemoveAll(tempDir)
 		return nil, fmt.Errorf("failed to unpack tool archive: %w", err)
@@ -250,14 +258,17 @@ func (r *ToolRegistry) ListTools() ([]string, error) {
 }
 
 // CreateToolArchive creates a new tool archive capsule from binaries.
-func CreateToolArchive(ctx context.Context, toolID, version, platform string, binaries map[string]string, destPath string) error {
+func CreateToolArchive(ctx context.Context, toolID, version, platform string, binaries map[string]string, destPath string, opts ...capsule.CapsuleOption) error {
+	if len(opts) == 0 {
+		opts = DefaultCapsuleOpts
+	}
 	tempDir, err := toolOsMkdirTemp("", "tool-archive-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	cap, err := capsuleNew(tempDir)
+	cap, err := capsuleNew(tempDir, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create capsule: %w", err)
 	}

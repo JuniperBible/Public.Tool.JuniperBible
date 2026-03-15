@@ -1,4 +1,8 @@
 // Package testing provides a table-driven test framework for format plugins.
+//
+// Deprecated: New format tests should be generated via go generate using
+// tools/testgen and a testspec.json file in the format package directory.
+// See core/formats/generate.go for the go:generate directive.
 package testing
 
 import (

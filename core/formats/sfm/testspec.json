@@ -1,0 +1,15 @@
+{
+  "name": "SFM",
+  "package": "sfm",
+  "sample_content": "\\id GEN\n\\h Genesis\n\\c 1\n\\p\n\\v 1 In the beginning God created the heavens and the earth.\n\\v 2 And the earth was without form, and void.\n",
+  "round_trip": false,
+  "expected_loss_class": "L1",
+  "extensions": [".sfm", ".ptx"],
+  "negative_detection": "This is plain text with no SFM markers at all.",
+  "expected_ir": {
+    "id": "",
+    "min_documents": 1,
+    "min_content_blocks": 1
+  },
+  "skip_tests": []
+}

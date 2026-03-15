@@ -20,6 +20,11 @@ type VeronicaCAS interface {
 	Get(ctx context.Context, digest string) ([]byte, error)
 }
 
+// blake3Pointer is the structure stored in BLAKE3 pointer files.
+type blake3Pointer struct {
+	SHA256 string `json:"sha256"`
+}
+
 // VeronicaStore implements BlobStore using a Veronica CAS backend.
 // It adapts between Juniper's raw hex hash format and Veronica's
 // "sha256:hex" prefixed digest format.

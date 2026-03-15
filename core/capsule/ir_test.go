@@ -131,7 +131,7 @@ func TestCapsuleStoreIR(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create a capsule
-	c, err := Create(tmpDir)
+	c, err := Create(tmpDir, vOpt())
 	if err != nil {
 		t.Fatalf("Failed to create capsule: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestCapsuleLoadIR(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create a capsule
-	c, err := Create(tmpDir)
+	c, err := Create(tmpDir, vOpt())
 	if err != nil {
 		t.Fatalf("Failed to create capsule: %v", err)
 	}
@@ -253,7 +253,7 @@ func TestCapsuleIRRoundTrip(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create a capsule
-	c, err := Create(tmpDir)
+	c, err := Create(tmpDir, vOpt())
 	if err != nil {
 		t.Fatalf("Failed to create capsule: %v", err)
 	}
@@ -354,7 +354,7 @@ func TestCapsuleIRDeterminism(t *testing.T) {
 		}
 		defer os.RemoveAll(tmpDir)
 
-		c, err := Create(tmpDir)
+		c, err := Create(tmpDir, vOpt())
 		if err != nil {
 			t.Fatalf("Failed to create capsule: %v", err)
 		}
@@ -382,7 +382,7 @@ func TestCapsuleLoadIRNotFound(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create a capsule
-	c, err := Create(tmpDir)
+	c, err := Create(tmpDir, vOpt())
 	if err != nil {
 		t.Fatalf("Failed to create capsule: %v", err)
 	}
@@ -403,7 +403,7 @@ func TestCapsulePackWithIR(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create a capsule
-	c, err := Create(tmpDir)
+	c, err := Create(tmpDir, vOpt())
 	if err != nil {
 		t.Fatalf("Failed to create capsule: %v", err)
 	}

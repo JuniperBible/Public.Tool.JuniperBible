@@ -1,0 +1,15 @@
+{
+  "name": "OSIS",
+  "package": "osis",
+  "sample_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<osis>\n  <osisText osisIDWork=\"Test\" xml:lang=\"en\">\n    <header><work osisWork=\"Test\"><title>Test</title></work></header>\n    <div type=\"book\" osisID=\"Gen\">\n      <p><verse osisID=\"Gen.1.1\"/>In the beginning God created the heavens and the earth.</p>\n    </div>\n  </osisText>\n</osis>",
+  "round_trip": false,
+  "expected_loss_class": "L0",
+  "extensions": [".osis", ".xml"],
+  "negative_detection": "<?xml version=\"1.0\"?>\n<catalog><item>Not OSIS</item></catalog>",
+  "expected_ir": {
+    "id": "",
+    "min_documents": 1,
+    "min_content_blocks": 1
+  },
+  "skip_tests": []
+}

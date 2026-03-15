@@ -47,16 +47,13 @@ const version = "0.3.0"
 var veronicaClient *veronica.Client
 
 // capsuleOpts returns CapsuleOption slice for capsule construction.
-// If Veronica is available, includes WithVeronicaClient.
-func capsuleOpts() []capsule.CapsuleOption {
-	if veronicaClient != nil {
-		return []capsule.CapsuleOption{capsule.WithVeronicaClient(veronicaClient.CAS())}
-	}
-	return nil
+// Always includes WithVeronicaClient since Veronica is required.
+// Declared as a var so tests can override it with a mock.
+var capsuleOpts = func() []capsule.CapsuleOption {
+	return []capsule.CapsuleOption{capsule.WithVeronicaClient(veronicaClient.CAS())}
 }
 
-// initVeronica attempts to create a Veronica client with fallback mode.
-// Returns nil on failure (Veronica is optional).
+// initVeronica creates a Veronica client. Fatals on failure since Veronica is required.
 func initVeronica() *veronica.Client {
 	socketPath := os.Getenv("VERONICA_SOCKET")
 	if socketPath == "" {
@@ -67,7 +64,7 @@ func initVeronica() *veronica.Client {
 		veronica.WithFallback(true),
 	)
 	if err != nil {
-		return nil
+		log.Fatalf("Veronica CAS client is required: %v", err)
 	}
 	return client
 }

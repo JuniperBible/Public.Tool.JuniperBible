@@ -20,7 +20,7 @@ func TestLoadToolArchiveMissingManifest(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a capsule without tool-manifest
-	cap, err := capsule.New(tempDir)
+	cap, err := capsule.New(tempDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestLoadToolArchiveInvalidManifestData(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a capsule with corrupt tool-manifest
-	cap, err := capsule.New(tempDir)
+	cap, err := capsule.New(tempDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestExtractArtifactMissing(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	cap, err := capsule.New(tempDir)
+	cap, err := capsule.New(tempDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -593,7 +593,7 @@ func TestExtractArtifactRetrieveError(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	cap, err := capsule.New(tempDir)
+	cap, err := capsule.New(tempDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -631,7 +631,7 @@ func TestExtractArtifactWriteError(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	cap, err := capsule.New(tempDir)
+	cap, err := capsule.New(tempDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -706,7 +706,7 @@ func TestLoadToolArchiveRetrieveError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a capsule with a tool-manifest artifact pointing to non-existent blob
-	cap, err := capsule.New(tempDir)
+	cap, err := capsule.New(tempDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}

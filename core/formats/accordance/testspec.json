@@ -1,0 +1,11 @@
+{
+  "name": "Accordance",
+  "package": "accordance",
+  "sample_content": "placeholder",
+  "round_trip": false,
+  "expected_loss_class": "",
+  "extensions": [".amod", ".accordance"],
+  "negative_detection": "",
+  "expected_ir": null,
+  "skip_tests": ["Detect", "DetectNegative", "Ingest", "Enumerate", "ExtractIR", "EmitNative", "RoundTrip"]
+}

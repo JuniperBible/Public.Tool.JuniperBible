@@ -20,7 +20,6 @@ import (
 
 // Injectable functions for testing
 var (
-	casNewStore          = cas.NewStore
 	jsonMarshalCapsule   = json.Marshal
 	jsonUnmarshalCapsule = json.Unmarshal
 	osReadFileCapsule    = os.ReadFile
@@ -45,7 +44,6 @@ var (
 	xzNewReader       = xz.NewReader
 	ioReadAllUnpack   = io.ReadAll
 	osWriteFileUnpack = os.WriteFile
-	casNewStoreUnpack = cas.NewStore
 
 	// DetectCompression injectable function
 	fileReadDetect func(io.Reader, []byte) (int, error)
@@ -132,19 +130,13 @@ func New(root string, opts ...CapsuleOption) (*Capsule, error) {
 		opt(&cfg)
 	}
 
-	var store cas.BlobStore
-	if cfg.veronicaCAS != nil {
-		var err error
-		store, err = cas.NewVeronicaStore(cfg.veronicaCAS, root)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create Veronica store")
-		}
-	} else {
-		var err error
-		store, err = casNewStore(root)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create blob store")
-		}
+	if cfg.veronicaCAS == nil {
+		return nil, errors.NewValidation("capsule", "Veronica CAS client is required")
+	}
+
+	store, err := cas.NewVeronicaStore(cfg.veronicaCAS, root)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create Veronica store")
 	}
 
 	return &Capsule{
@@ -401,19 +393,13 @@ func Unpack(archivePath, destDir string, opts ...CapsuleOption) (*Capsule, error
 		opt(&cfg)
 	}
 
-	var store cas.BlobStore
-	if cfg.veronicaCAS != nil {
-		var err error
-		store, err = cas.NewVeronicaStore(cfg.veronicaCAS, destDir)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create Veronica store: %w", err)
-		}
-	} else {
-		var err error
-		store, err = casNewStoreUnpack(destDir)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create store: %w", err)
-		}
+	if cfg.veronicaCAS == nil {
+		return nil, fmt.Errorf("Veronica CAS client is required")
+	}
+
+	store, err := cas.NewVeronicaStore(cfg.veronicaCAS, destDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Veronica store: %w", err)
 	}
 
 	return &Capsule{root: destDir, Manifest: manifest, store: store}, nil

@@ -196,6 +196,62 @@ func TestVeronicaStoreDeduplicate(t *testing.T) {
 	}
 }
 
+func TestHash(t *testing.T) {
+	data := []byte("hello world")
+	hash := Hash(data)
+	if len(hash) != 64 {
+		t.Errorf("expected 64 char hex hash, got %d: %s", len(hash), hash)
+	}
+
+	// Same data should produce same hash
+	hash2 := Hash(data)
+	if hash != hash2 {
+		t.Errorf("same data produced different hashes: %s != %s", hash, hash2)
+	}
+
+	// Different data should produce different hash
+	hash3 := Hash([]byte("different"))
+	if hash == hash3 {
+		t.Error("different data produced same hash")
+	}
+}
+
+func TestBlake3Hash(t *testing.T) {
+	data := []byte("hello world")
+	hash := Blake3Hash(data)
+	if len(hash) != 64 {
+		t.Errorf("expected 64 char hex hash, got %d: %s", len(hash), hash)
+	}
+
+	// Same data should produce same hash
+	hash2 := Blake3Hash(data)
+	if hash != hash2 {
+		t.Errorf("same data produced different hashes: %s != %s", hash, hash2)
+	}
+
+	// SHA-256 and BLAKE3 should differ
+	sha256Hash := Hash(data)
+	if hash == sha256Hash {
+		t.Error("BLAKE3 and SHA-256 should produce different hashes")
+	}
+}
+
+func TestIsValidHash(t *testing.T) {
+	valid := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	if !isValidHash(valid) {
+		t.Error("expected valid hash to pass")
+	}
+	if isValidHash("invalid") {
+		t.Error("expected invalid hash to fail")
+	}
+	if isValidHash("") {
+		t.Error("expected empty hash to fail")
+	}
+	if isValidHash("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855") {
+		t.Error("expected uppercase hash to fail")
+	}
+}
+
 func TestStripAndAddPrefix(t *testing.T) {
 	hash := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	digest := "sha256:" + hash

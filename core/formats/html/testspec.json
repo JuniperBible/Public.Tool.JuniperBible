@@ -1,0 +1,15 @@
+{
+  "name": "HTML",
+  "package": "html",
+  "sample_content": "<html><body><span class=\"verse\" data-verse=\"1\">In the beginning God created the heavens and the earth.</span></body></html>",
+  "round_trip": false,
+  "expected_loss_class": "L1",
+  "extensions": [".html", ".htm"],
+  "negative_detection": "<html><body><p>Hello world</p></body></html>",
+  "expected_ir": {
+    "id": "",
+    "min_documents": 1,
+    "min_content_blocks": 1
+  },
+  "skip_tests": []
+}

@@ -28,7 +28,7 @@ func TestByteEqualCheck(t *testing.T) {
 
 	// Create a capsule with a file
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestPlanExecution(t *testing.T) {
 
 	// Create a capsule with a file
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestReportGeneration(t *testing.T) {
 
 	// Create a capsule
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestTranscriptEqualCheck(t *testing.T) {
 
 	// Create a capsule with runs
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -382,7 +382,7 @@ func TestTranscriptEqualCheckFail(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -508,7 +508,7 @@ func TestIdentityBytesPlanExecution(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -545,7 +545,7 @@ func TestBehaviorIdentityPlanExecution(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -588,7 +588,7 @@ func TestNewExecutorWithPlugins(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -631,7 +631,7 @@ func TestUnknownStepType(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -663,7 +663,7 @@ func TestUnknownCheckType(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -695,7 +695,7 @@ func TestMissingRunInTranscriptCheck(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -731,7 +731,7 @@ func TestMissingArtifactInByteCheck(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -767,7 +767,7 @@ func TestExportStepWithMissingArtifact(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -803,7 +803,7 @@ func TestRunToolStepWithoutPluginLoader(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -842,7 +842,7 @@ func TestRunToolStepPluginNotFound(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -884,7 +884,7 @@ func TestRunToolStep(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -919,7 +919,7 @@ func TestExtractIRStep(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -970,7 +970,7 @@ func TestExtractIRStepMissingArtifact(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1006,7 +1006,7 @@ func TestEmitNativeStep(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1065,7 +1065,7 @@ func TestEmitNativeStepMissingIR(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1101,7 +1101,7 @@ func TestCompareIRStep(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1168,7 +1168,7 @@ func TestCompareIRStepMissingIR(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1204,7 +1204,7 @@ func TestIRStructureEqualCheck(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1273,7 +1273,7 @@ func TestIRStructureEqualCheckMissing(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1309,7 +1309,7 @@ func TestIRRoundtripCheck(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1373,7 +1373,7 @@ func TestIRFidelityCheck(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1434,7 +1434,7 @@ func TestIRFidelityCheckMissing(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1470,7 +1470,7 @@ func TestIRFidelityCheckWithLossBudget(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1535,7 +1535,7 @@ func TestIRFidelityCheckFailsWithHighLossClass(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1608,7 +1608,7 @@ func TestIRStructureEqualCheckFail(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1689,7 +1689,7 @@ func TestByteEqualCheckWithOutputs(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1750,7 +1750,7 @@ func TestExtractIRStepWithPreviousOutput(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1809,7 +1809,7 @@ func TestExportStepDerivedMode(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1856,7 +1856,7 @@ func TestByteEqualCheckMissingFile(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1893,7 +1893,7 @@ func TestByteEqualCheckMissingArtifact(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1918,7 +1918,7 @@ func TestTranscriptEqualCheckWithOutputs(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2000,7 +2000,7 @@ func TestTranscriptEqualCheckMixedSources(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2072,7 +2072,7 @@ func TestIRFidelityCheckInvalidJSON(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2137,7 +2137,7 @@ func TestByteEqualCheckBothArtifacts(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2200,7 +2200,7 @@ func TestIRStructureEqualCheckReadError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2257,7 +2257,7 @@ func TestCompareIRStepReadError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2312,7 +2312,7 @@ func TestExtractIRStepWithNoPlugin(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2363,7 +2363,7 @@ func TestEmitNativeStepWithNoPlugin(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2422,7 +2422,7 @@ func TestByteEqualCheckRetrieveError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2466,7 +2466,7 @@ func TestTranscriptEqualCheckRunWithoutOutputs(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2508,7 +2508,7 @@ func TestIRFidelityCheckWithLossClassL1(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2570,7 +2570,7 @@ func TestIRFidelityCheckExceedsLossClass(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2632,7 +2632,7 @@ func TestByteEqualCheckBothArtifactsRetrieveError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2687,7 +2687,7 @@ func TestTranscriptEqualCheckReadOutputError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2737,7 +2737,7 @@ func TestByteEqualCheckReadOutputError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2801,7 +2801,7 @@ func TestIRStructureEqualCheckFirstReadError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2858,7 +2858,7 @@ func TestTranscriptEqualCheckMissingRunB(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -2952,7 +2952,7 @@ func TestRunToolStepNotToolPlugin(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3003,7 +3003,7 @@ func TestRunToolStepInputNotFound(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3055,7 +3055,7 @@ func TestRunToolStepSuccess(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3107,7 +3107,7 @@ func TestRunToolStepWithArtifactInput(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3169,7 +3169,7 @@ func TestRunToolStepWithPreviousOutput(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3265,7 +3265,7 @@ echo '{"status":"ok"}'
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3346,7 +3346,7 @@ echo '{"status":"error","error":"intentional test error"}'
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3404,7 +3404,7 @@ func TestRunToolStepInputDirError(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3474,7 +3474,7 @@ func TestRunToolStepOutputDirError(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3544,7 +3544,7 @@ func TestRunToolStepEmptyOriginalName(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3609,7 +3609,7 @@ func TestRunToolStepExportFailure(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3692,7 +3692,7 @@ echo '{"status":"ok"}'
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3799,7 +3799,7 @@ func TestExtractIRStepWithPlugin(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3848,7 +3848,7 @@ func TestExtractIRStepExportFailure(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3893,7 +3893,7 @@ func TestExtractIRStepMkdirError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -3947,7 +3947,7 @@ func TestExtractIRStepWriteError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4039,7 +4039,7 @@ func TestExtractIRStepPluginExecutionError(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4130,7 +4130,7 @@ echo '{"status":"error","error":"intentional test error"}'
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4191,7 +4191,7 @@ func TestEmitNativeStepWithPlugin(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4247,7 +4247,7 @@ func TestEmitNativeStepMkdirError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4297,7 +4297,7 @@ func TestEmitNativeStepReadError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4336,7 +4336,7 @@ func TestEmitNativeStepWriteError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4424,7 +4424,7 @@ func TestEmitNativeStepPluginExecutionError(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4521,7 +4521,7 @@ echo '{"status":"error","error":"intentional test error"}'
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4577,7 +4577,7 @@ func TestCompareIRStepReadErrorA(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4625,7 +4625,7 @@ func TestCompareIRStepReadErrorB(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4673,7 +4673,7 @@ func TestByteEqualCheckOutputReadError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4727,7 +4727,7 @@ func TestTranscriptEqualCheckOutputReadErrorA(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4772,7 +4772,7 @@ func TestTranscriptEqualCheckOutputReadErrorB(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4823,7 +4823,7 @@ func TestIRStructureEqualCheckReadErrorA(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4867,7 +4867,7 @@ func TestIRStructureEqualCheckReadErrorB(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4917,7 +4917,7 @@ func TestIRFidelityCheckReadError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -4960,7 +4960,7 @@ func TestCompareIRStepWriteErrorActual(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -5018,7 +5018,7 @@ func TestByteEqualCheckValidatorSuccess(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -5065,7 +5065,7 @@ func TestByteEqualCheckValidatorArtifactNotFound(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -5093,7 +5093,7 @@ func TestByteEqualCheckValidatorReadFileError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -5133,7 +5133,7 @@ func TestByteEqualCheckTwoArtifacts(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -5200,7 +5200,7 @@ func TestByteEqualCheckArtifactBRetrieveError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -5256,7 +5256,7 @@ func TestByteEqualCheckArtifactBNotFound(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -5309,7 +5309,7 @@ func TestByteEqualCheckValidatorRetrieveError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}

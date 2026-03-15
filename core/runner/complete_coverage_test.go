@@ -131,7 +131,7 @@ func TestLoadToolArchiveSuccessAllFields(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a capsule with all fields
-	cap, err := capsule.New(tempDir)
+	cap, err := capsule.New(tempDir, testVOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}

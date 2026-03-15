@@ -1,0 +1,15 @@
+{
+  "name": "TheWord",
+  "package": "theword",
+  "sample_content": "In the beginning God created the heavens and the earth.\nAnd the earth was without form, and void.\nAnd God said, Let there be light: and there was light.\nAnd God saw the light, that it was good.\nAnd God divided the light from the darkness.\nAnd God called the light Day, and the darkness he called Night.\nAnd the evening and the morning were the first day.\nAnd God said, Let there be a firmament in the midst of the waters.\nAnd God made the firmament.\nAnd God called the firmament Heaven.\nAnd the evening and the morning were the second day.\nAnd God said, Let the waters be gathered together.\n",
+  "round_trip": true,
+  "expected_loss_class": "L0",
+  "extensions": [".ont", ".nt", ".twm"],
+  "negative_detection": "",
+  "expected_ir": {
+    "id": "",
+    "min_documents": 1,
+    "min_content_blocks": 1
+  },
+  "skip_tests": ["DetectNegative"]
+}

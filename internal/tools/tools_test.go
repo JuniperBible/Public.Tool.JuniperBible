@@ -298,7 +298,7 @@ func TestExecute(t *testing.T) {
 			name: "error - artifact not found",
 			setupFunc: func(t *testing.T) (string, ExecuteConfig) {
 				dir := t.TempDir()
-				cap, err := capsule.New(dir)
+				cap, err := capsule.New(dir, testVOpt())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -893,7 +893,7 @@ func TestExecuteWithRealNix(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	cap, err := capsule.New(dir)
+	cap, err := capsule.New(dir, testVOpt())
 	if err != nil {
 		t.Fatal(err)
 	}

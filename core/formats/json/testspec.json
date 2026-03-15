@@ -1,0 +1,15 @@
+{
+  "name": "JSON",
+  "package": "json",
+  "sample_content": "{\"meta\":{\"id\":\"test\",\"title\":\"Test Bible\",\"version\":\"1.0\"},\"books\":[{\"id\":\"GEN\",\"name\":\"Genesis\",\"order\":1,\"chapters\":[{\"number\":1,\"verses\":[{\"book\":\"GEN\",\"chapter\":1,\"verse\":1,\"text\":\"In the beginning God created the heavens and the earth.\",\"id\":\"GEN.1.1\"}]}]}],\"verses\":[]}",
+  "round_trip": true,
+  "expected_loss_class": "L0",
+  "extensions": [".json"],
+  "negative_detection": "{\"name\": \"not a bible\"}",
+  "expected_ir": {
+    "id": "test",
+    "min_documents": 1,
+    "min_content_blocks": 1
+  },
+  "skip_tests": []
+}

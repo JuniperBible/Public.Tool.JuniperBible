@@ -1,0 +1,30 @@
+CAS Migration, Test Codegen, Complexity — Implementation Tracker
+================================================================
+
+[x] Task 1: CAS Migration to Private.Lib.Veronica
+    [x] 1.1 Create core/cas/hash.go
+    [x] 1.2 Update core/cas/iface.go (HashResult, remove Store check)
+    [x] 1.3 Update core/cas/veronica.go (blake3Pointer)
+    [x] 1.4 Delete store.go, blake3.go, store_test.go, blake3_test.go
+    [x] 1.5 Update core/capsule/capsule.go (require Veronica)
+    [x] 1.6 Update cmd/capsule/main.go (fatal on Veronica failure)
+    [x] 1.7 Update test files (mock VeronicaCAS)
+    [x] 1.8 Verify build and tests
+
+[x] Task 2: Cyclomatic Complexity ≤ 11
+    [x] 2.1 Update Makefile threshold 6 → 11
+    [x] 2.2 Verify (all functions CC ≤ 11)
+
+[x] Task 3: Test Migration to Go Code Generation
+    [x] 3.1 Create tools/testgen/main.go
+    [x] 3.2 Create testspec.json for 41 formats
+    [x] 3.3 Create core/formats/generate.go
+    [x] 3.4 Run go generate
+    [x] 3.5 Verify generated tests pass
+    [x] 3.6 Mark old format_test.go deprecated
+
+[x] Task 4: Fix remaining test failures (cmd/capsule, core/runner, internal/tools)
+    [x] 4.1 cmd/capsule: Fix test assertion mismatches (sword-pure, error messages)
+    [x] 4.2 core/runner: Already fixed (veronicamock_test.go in place)
+    [x] 4.3 internal/tools: Already fixed (veronicamock_test.go in place)
+    [x] 4.4 Full project test suite passes (go test ./...)

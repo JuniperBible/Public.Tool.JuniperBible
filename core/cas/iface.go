@@ -2,8 +2,14 @@ package cas
 
 import "context"
 
+// HashResult contains both SHA-256 and BLAKE3 hashes for a stored blob.
+type HashResult struct {
+	SHA256 string `json:"sha256"`
+	BLAKE3 string `json:"blake3"`
+}
+
 // BlobStore is the interface for content-addressed blob storage.
-// Both the filesystem Store and VeronicaStore implement this interface.
+// All CAS operations go through VeronicaStore which implements this interface.
 type BlobStore interface {
 	// Store stores the given data and returns its SHA-256 hash.
 	Store(ctx context.Context, data []byte) (string, error)
@@ -23,6 +29,3 @@ type BlobStore interface {
 	// RetrieveByBlake3 retrieves a blob by its BLAKE3 hash.
 	RetrieveByBlake3(ctx context.Context, blake3Hash string) ([]byte, error)
 }
-
-// Verify that Store implements BlobStore at compile time.
-var _ BlobStore = (*Store)(nil)

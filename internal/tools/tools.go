@@ -187,7 +187,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 }
 
 func unpackAndExportArtifact(capsulePath, artifactID, tempDir string) (*capsule.Capsule, string, error) {
-	cap, err := capsule.Unpack(capsulePath, tempDir)
+	cap, err := capsule.Unpack(capsulePath, tempDir, runner.DefaultCapsuleOpts...)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to unpack capsule: %w", err)
 	}

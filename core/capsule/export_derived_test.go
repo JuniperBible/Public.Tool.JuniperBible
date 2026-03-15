@@ -441,7 +441,7 @@ func TestExportDerivedValidation(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -534,7 +534,7 @@ func TestExportDerivedToBytes(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -643,7 +643,7 @@ func TestExportDerivedPluginNotFound(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -689,7 +689,7 @@ func TestExportDerivedTargetPluginNotFound(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -737,7 +737,7 @@ func TestExportDerivedRetrieveError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -829,7 +829,7 @@ func TestExportDerivedNoDetectedFormat(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -929,7 +929,7 @@ func TestExportDerivedMkdirIRDirError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -984,7 +984,7 @@ func TestExportDerivedMkdirOutputDirError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1063,7 +1063,7 @@ func TestExportDerivedMkdirDestDirError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1142,7 +1142,7 @@ func TestExportDerivedToBytesReadFileError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}

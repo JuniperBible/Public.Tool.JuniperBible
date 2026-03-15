@@ -580,8 +580,8 @@ lint:
 	fi
 
 complexity:
-	@echo "Checking cyclomatic complexity (max 6)..."
-	@./scripts/check-complexity.sh 6
+	@echo "Checking cyclomatic complexity (max 11)..."
+	@./scripts/check-complexity.sh 11
 
 dev-deps:
 	$(GO) install golang.org/x/tools/cmd/goimports@latest

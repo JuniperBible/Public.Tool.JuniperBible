@@ -1,0 +1,11 @@
+{
+  "name": "File",
+  "package": "file",
+  "sample_content": "In the beginning God created the heavens and the earth.",
+  "round_trip": false,
+  "expected_loss_class": "",
+  "extensions": [],
+  "negative_detection": "",
+  "expected_ir": null,
+  "skip_tests": ["DetectNegative", "ExtractIR", "EmitNative", "RoundTrip"]
+}

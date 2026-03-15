@@ -1,0 +1,15 @@
+{
+  "name": "TXT",
+  "package": "txt",
+  "sample_content": "Gen 1:1 In the beginning God created the heavens and the earth.\nGen 1:2 And the earth was without form, and void.",
+  "round_trip": false,
+  "expected_loss_class": "L3",
+  "extensions": [".txt", ".text"],
+  "negative_detection": "This is just a random text file with no verse references.",
+  "expected_ir": {
+    "id": "",
+    "min_documents": 1,
+    "min_content_blocks": 1
+  },
+  "skip_tests": []
+}

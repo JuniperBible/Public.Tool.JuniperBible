@@ -1,0 +1,11 @@
+{
+  "name": "ODF",
+  "package": "odf",
+  "sample_content": "placeholder",
+  "round_trip": false,
+  "expected_loss_class": "",
+  "extensions": [".odt", ".ods", ".odp"],
+  "negative_detection": "",
+  "expected_ir": null,
+  "skip_tests": ["Detect", "DetectNegative", "Ingest", "Enumerate", "ExtractIR", "EmitNative", "RoundTrip"]
+}

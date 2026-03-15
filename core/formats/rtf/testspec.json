@@ -1,0 +1,15 @@
+{
+  "name": "RTF",
+  "package": "rtf",
+  "sample_content": "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\\pard Gen 1:1 In the beginning God created the heavens and the earth.\\par}",
+  "round_trip": false,
+  "expected_loss_class": "L2",
+  "extensions": [".rtf"],
+  "negative_detection": "This is plain text, not RTF.",
+  "expected_ir": {
+    "id": "",
+    "min_documents": 1,
+    "min_content_blocks": 1
+  },
+  "skip_tests": []
+}

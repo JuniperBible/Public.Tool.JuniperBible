@@ -1,0 +1,15 @@
+{
+  "name": "XML",
+  "package": "xml",
+  "sample_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<bible>\n  <book name=\"Genesis\">\n    <chapter number=\"1\">\n      <verse number=\"1\">In the beginning God created the heavens and the earth.</verse>\n    </chapter>\n  </book>\n</bible>",
+  "round_trip": false,
+  "expected_loss_class": "L1",
+  "extensions": [".xml"],
+  "negative_detection": "<?xml version=\"1.0\"?>\n<catalog><item>Not a Bible</item></catalog>",
+  "expected_ir": {
+    "id": "",
+    "min_documents": 1,
+    "min_content_blocks": 1
+  },
+  "skip_tests": []
+}

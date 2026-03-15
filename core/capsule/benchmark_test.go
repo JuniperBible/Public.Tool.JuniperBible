@@ -20,7 +20,7 @@ func BenchmarkPack(b *testing.B) {
 
 	// Create a capsule with test data
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		b.Fatalf("failed to create capsule: %v", err)
 	}
@@ -78,7 +78,7 @@ func BenchmarkUnpack(b *testing.B) {
 
 	// Create and pack a capsule to use for unpacking
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		b.Fatalf("failed to create capsule: %v", err)
 	}
@@ -116,7 +116,7 @@ func BenchmarkUnpack(b *testing.B) {
 		// Clean up previous unpack directory
 		os.RemoveAll(unpackDir)
 
-		_, err := Unpack(archivePath, unpackDir)
+		_, err := Unpack(archivePath, unpackDir, vOpt())
 		if err != nil {
 			b.Fatalf("failed to unpack capsule: %v", err)
 		}
@@ -163,7 +163,7 @@ func BenchmarkIngestFile(b *testing.B) {
 
 			// Create capsule
 			capsuleDir := filepath.Join(tempDir, "capsule")
-			capsule, err := New(capsuleDir)
+			capsule, err := New(capsuleDir, vOpt())
 			if err != nil {
 				b.Fatalf("failed to create capsule: %v", err)
 			}
@@ -205,7 +205,7 @@ func BenchmarkStoreIR(b *testing.B) {
 
 	// Create capsule
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		b.Fatalf("failed to create capsule: %v", err)
 	}
@@ -276,7 +276,7 @@ func BenchmarkLoadIR(b *testing.B) {
 
 	// Create capsule
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		b.Fatalf("failed to create capsule: %v", err)
 	}

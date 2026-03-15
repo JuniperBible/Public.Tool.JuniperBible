@@ -1,0 +1,15 @@
+{
+  "name": "Zefania",
+  "package": "zefania",
+  "sample_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<XMLBIBLE biblename=\"Test\">\n  <BIBLEBOOK bnumber=\"1\" bname=\"Genesis\">\n    <CHAPTER cnumber=\"1\">\n      <VERS vnumber=\"1\">In the beginning God created the heavens and the earth.</VERS>\n    </CHAPTER>\n  </BIBLEBOOK>\n</XMLBIBLE>",
+  "round_trip": false,
+  "expected_loss_class": "L0",
+  "extensions": [".xml"],
+  "negative_detection": "<?xml version=\"1.0\"?>\n<catalog><item>Not Zefania</item></catalog>",
+  "expected_ir": {
+    "id": "",
+    "min_documents": 1,
+    "min_content_blocks": 1
+  },
+  "skip_tests": []
+}

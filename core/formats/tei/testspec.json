@@ -1,0 +1,15 @@
+{
+  "name": "TEI",
+  "package": "tei",
+  "sample_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TEI xmlns=\"http://www.tei-c.org/ns/1.0\">\n  <teiHeader><fileDesc><titleStmt><title>Test</title></titleStmt><publicationStmt><p>Test</p></publicationStmt><sourceDesc><p>Test</p></sourceDesc></fileDesc></teiHeader>\n  <text><body><div type=\"book\" n=\"Gen\"><div type=\"chapter\" n=\"1\"><ab n=\"Gen.1.1\">In the beginning God created the heavens and the earth.</ab></div></div></body></text>\n</TEI>",
+  "round_trip": false,
+  "expected_loss_class": "L1",
+  "extensions": [".tei", ".xml"],
+  "negative_detection": "<?xml version=\"1.0\"?>\n<catalog><item>Not TEI</item></catalog>",
+  "expected_ir": {
+    "id": "",
+    "min_documents": 1,
+    "min_content_blocks": 1
+  },
+  "skip_tests": []
+}

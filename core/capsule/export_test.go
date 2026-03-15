@@ -30,7 +30,7 @@ func TestExportIdentity(t *testing.T) {
 
 	// Create capsule and ingest
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -74,6 +74,7 @@ func TestExportIdentityAfterPackUnpack(t *testing.T) {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tempDir)
+	_, mockOpt := sharedMockCAS()
 
 	// Create test file
 	originalContent := []byte("Content for pack/unpack/export test - byte preservation is critical!")
@@ -84,7 +85,7 @@ func TestExportIdentityAfterPackUnpack(t *testing.T) {
 
 	// Create capsule and ingest
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, mockOpt)
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -104,7 +105,7 @@ func TestExportIdentityAfterPackUnpack(t *testing.T) {
 
 	// Unpack to new location
 	unpackDir := filepath.Join(tempDir, "unpacked")
-	unpacked, err := Unpack(archivePath, unpackDir)
+	unpacked, err := Unpack(archivePath, unpackDir, mockOpt)
 	if err != nil {
 		t.Fatalf("failed to unpack: %v", err)
 	}
@@ -141,7 +142,7 @@ func TestExportNonExistentArtifact(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -160,6 +161,7 @@ func TestExportMultipleFiles(t *testing.T) {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tempDir)
+	_, mockOpt := sharedMockCAS()
 
 	// Create multiple test files with different content
 	files := map[string][]byte{
@@ -170,7 +172,7 @@ func TestExportMultipleFiles(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, mockOpt)
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -197,7 +199,7 @@ func TestExportMultipleFiles(t *testing.T) {
 	}
 
 	unpackDir := filepath.Join(tempDir, "unpacked")
-	unpacked, err := Unpack(archivePath, unpackDir)
+	unpacked, err := Unpack(archivePath, unpackDir, mockOpt)
 	if err != nil {
 		t.Fatalf("failed to unpack: %v", err)
 	}
@@ -238,7 +240,7 @@ func TestExportDerivedMode(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -269,7 +271,7 @@ func TestExportUnknownMode(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -300,7 +302,7 @@ func TestExportToBytesUnknownMode(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -329,7 +331,7 @@ func TestExportToBytesDerivedMode(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -362,7 +364,7 @@ func TestExportIdentityInvalidPath(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -391,7 +393,7 @@ func TestExportIdentityMkdirError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -427,7 +429,7 @@ func TestExportIdentityWriteError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -534,7 +536,7 @@ func TestExportDerivedNoPluginLoader(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -565,7 +567,7 @@ func TestExportDerivedNoTargetFormat(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -594,7 +596,7 @@ func TestExportDerivedArtifactNotFound(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -618,7 +620,7 @@ func TestExportDerivedTempDirError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -658,7 +660,7 @@ func TestExportDerivedToBytesTempDirError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -923,7 +925,7 @@ func TestExportDerivedWriteSourceFileError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -975,7 +977,7 @@ func TestExportDerivedExtractIRError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1015,7 +1017,7 @@ func TestExportDerivedEmitNativeError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1068,7 +1070,7 @@ func TestExportDerivedFullSuccess(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1159,7 +1161,7 @@ func TestExportDerivedReadOutputError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1217,7 +1219,7 @@ func TestExportDerivedWriteDestError(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1285,7 +1287,7 @@ func TestExportDerivedToBytesSuccess(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := New(capsuleDir)
+	cap, err := New(capsuleDir, vOpt())
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1352,6 +1354,7 @@ func TestExportBinaryPreservation(t *testing.T) {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tempDir)
+	_, mockOpt := sharedMockCAS()
 
 	// Create binary content with all byte values
 	binaryContent := make([]byte, 256)
@@ -1365,7 +1368,7 @@ func TestExportBinaryPreservation(t *testing.T) {
 	}
 
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	capsule, err := New(capsuleDir)
+	capsule, err := New(capsuleDir, mockOpt)
 	if err != nil {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
@@ -1382,7 +1385,7 @@ func TestExportBinaryPreservation(t *testing.T) {
 	}
 
 	unpackDir := filepath.Join(tempDir, "unpacked")
-	unpacked, err := Unpack(archivePath, unpackDir)
+	unpacked, err := Unpack(archivePath, unpackDir, mockOpt)
 	if err != nil {
 		t.Fatalf("failed to unpack: %v", err)
 	}

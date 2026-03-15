@@ -4,6 +4,7 @@
 package juniper
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -657,7 +658,8 @@ func loadIRFromCapsule(capsulePath string) (*ir.Corpus, error) {
 		break
 	}
 
-	irBlobData, err := cap.GetStore().Retrieve(irRecord.IRBlobSHA256)
+	ctx := context.Background()
+	irBlobData, err := cap.GetStore().Retrieve(ctx, irRecord.IRBlobSHA256)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve IR blob: %w", err)
 	}

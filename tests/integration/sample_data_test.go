@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -98,11 +99,12 @@ func TestCapsuleVerification(t *testing.T) {
 			}
 
 			// Verify each artifact
+			ctx := context.Background()
 			for id, artifact := range cap.Manifest.Artifacts {
 				t.Logf("verifying artifact: %s (%d bytes)", id, artifact.SizeBytes)
 
 				// Retrieve blob
-				data, err := cap.GetStore().Retrieve(artifact.PrimaryBlobSHA256)
+				data, err := cap.GetStore().Retrieve(ctx, artifact.PrimaryBlobSHA256)
 				if err != nil {
 					t.Errorf("failed to retrieve artifact %s: %v", id, err)
 					continue

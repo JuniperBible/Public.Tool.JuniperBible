@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -49,7 +50,7 @@ func createPackedCapsule(t *testing.T, dir, content string) string {
 
 	// Create test file and ingest
 	testFile := createTestFile(t, dir, "test.txt", content)
-	_, err := cap.IngestFile(testFile)
+	_, err := cap.IngestFile(context.Background(), testFile)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -2948,7 +2949,7 @@ func TestCompareCmd_Run_IdenticalTranscripts(t *testing.T) {
 	transcriptHash := cas.Hash(transcriptData)
 
 	// Store transcript in CAS
-	if _, err := cap.GetStore().Store(transcriptData); err != nil {
+	if _, err := cap.GetStore().Store(context.Background(), transcriptData); err != nil {
 		t.Fatalf("failed to store transcript: %v", err)
 	}
 
@@ -3008,10 +3009,10 @@ func TestCompareCmd_Run_DifferentTranscripts(t *testing.T) {
 	hash2 := cas.Hash(transcript2)
 
 	// Store transcripts in CAS
-	if _, err := cap.GetStore().Store(transcript1); err != nil {
+	if _, err := cap.GetStore().Store(context.Background(), transcript1); err != nil {
 		t.Fatalf("failed to store transcript1: %v", err)
 	}
-	if _, err := cap.GetStore().Store(transcript2); err != nil {
+	if _, err := cap.GetStore().Store(context.Background(), transcript2); err != nil {
 		t.Fatalf("failed to store transcript2: %v", err)
 	}
 
@@ -3181,7 +3182,7 @@ func TestVerifyCmd_Run_CorruptedBlob(t *testing.T) {
 
 	// Ingest a file
 	testFile := createTestFile(t, tempDir, "test.txt", "original content")
-	artifact, err := cap.IngestFile(testFile)
+	artifact, err := cap.IngestFile(context.Background(), testFile)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -3363,7 +3364,7 @@ func TestGoldenCheckCmd_Run_Success(t *testing.T) {
 	// Create a capsule with a run that has a transcript
 	cap, capsuleDir := createTestCapsule(t, tempDir)
 	testFile := createTestFile(t, tempDir, "input.txt", "test content")
-	artifact, err := cap.IngestFile(testFile)
+	artifact, err := cap.IngestFile(context.Background(), testFile)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -3414,7 +3415,7 @@ func TestGoldenCheckCmd_Run_Mismatch(t *testing.T) {
 	// Create a capsule with a run
 	cap, capsuleDir := createTestCapsule(t, tempDir)
 	testFile := createTestFile(t, tempDir, "input.txt", "test content")
-	artifact, err := cap.IngestFile(testFile)
+	artifact, err := cap.IngestFile(context.Background(), testFile)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -3460,7 +3461,7 @@ func TestGoldenCheckCmd_Run_NoTranscript(t *testing.T) {
 
 	cap, capsuleDir := createTestCapsule(t, tempDir)
 	testFile := createTestFile(t, tempDir, "input.txt", "test")
-	artifact, _ := cap.IngestFile(testFile)
+	artifact, _ := cap.IngestFile(context.Background(), testFile)
 
 	// Run without transcript
 	cap.Manifest.Runs = map[string]*capsule.Run{
@@ -3550,7 +3551,7 @@ func TestSelfcheckCmd_Run_WithPlanID(t *testing.T) {
 
 	cap, capsuleDir := createTestCapsule(t, tempDir)
 	testFile := createTestFile(t, tempDir, "input.txt", "test content")
-	artifact, err := cap.IngestFile(testFile)
+	artifact, err := cap.IngestFile(context.Background(), testFile)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -3625,7 +3626,7 @@ func TestVerifyCmd_Run_CorruptedData(t *testing.T) {
 	// Create a capsule
 	cap, capsuleDir := createTestCapsule(t, tempDir)
 	testFile := createTestFile(t, tempDir, "input.txt", "test content")
-	artifact, err := cap.IngestFile(testFile)
+	artifact, err := cap.IngestFile(context.Background(), testFile)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}

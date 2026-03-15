@@ -1,6 +1,7 @@
 package selfcheck
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -39,14 +40,14 @@ func TestByteEqualCheck(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
 
 	// Export to a new location
 	exportPath := filepath.Join(tempDir, "exported.txt")
-	if err := cap.Export(artifact.ID, capsule.ExportModeIdentity, exportPath); err != nil {
+	if err := cap.Export(context.Background(), artifact.ID, capsule.ExportModeIdentity, exportPath); err != nil {
 		t.Fatalf("failed to export: %v", err)
 	}
 
@@ -56,7 +57,7 @@ func TestByteEqualCheck(t *testing.T) {
 		PathB:     exportPath,
 	}
 
-	result, err := check.Execute(cap)
+	result, err := check.Execute(context.Background(), cap)
 	if err != nil {
 		t.Fatalf("check execution failed: %v", err)
 	}
@@ -70,7 +71,7 @@ func TestByteEqualCheck(t *testing.T) {
 		t.Fatalf("failed to modify file: %v", err)
 	}
 
-	result, err = check.Execute(cap)
+	result, err = check.Execute(context.Background(), cap)
 	if err != nil {
 		t.Fatalf("check execution failed: %v", err)
 	}
@@ -101,7 +102,7 @@ func TestPlanExecution(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -134,7 +135,7 @@ func TestPlanExecution(t *testing.T) {
 
 	// Execute the plan
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("plan execution failed: %v", err)
 	}
@@ -172,7 +173,7 @@ func TestReportGeneration(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -203,7 +204,7 @@ func TestReportGeneration(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -354,7 +355,7 @@ func TestTranscriptEqualCheck(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -422,7 +423,7 @@ func TestTranscriptEqualCheckFail(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -518,14 +519,14 @@ func TestIdentityBytesPlanExecution(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
 
 	plan := IdentityBytesPlan(artifact.ID)
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("plan execution failed: %v", err)
 	}
@@ -568,7 +569,7 @@ func TestBehaviorIdentityPlanExecution(t *testing.T) {
 
 	plan := BehaviorIdentityPlan("run-1", "run-2")
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("plan execution failed: %v", err)
 	}
@@ -605,13 +606,13 @@ func TestNewExecutorWithPlugins(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
 
 	plan := IdentityBytesPlan(artifact.ID)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("plan execution failed: %v", err)
 	}
@@ -647,7 +648,7 @@ func TestUnknownStepType(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for unknown step type")
 	}
@@ -679,7 +680,7 @@ func TestUnknownCheckType(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for unknown check type")
 	}
@@ -715,7 +716,7 @@ func TestMissingRunInTranscriptCheck(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing run")
 	}
@@ -751,7 +752,7 @@ func TestMissingArtifactInByteCheck(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing artifact")
 	}
@@ -787,7 +788,7 @@ func TestExportStepWithMissingArtifact(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for export with missing artifact")
 	}
@@ -823,7 +824,7 @@ func TestRunToolStepWithoutPluginLoader(t *testing.T) {
 
 	// Without plugin loader, should fail
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for RUN_TOOL step without plugin loader")
 	}
@@ -863,7 +864,7 @@ func TestRunToolStepPluginNotFound(t *testing.T) {
 	// With empty plugin loader, should fail with plugin not found
 	loader := plugins.NewLoader()
 	executor := NewExecutorWithPlugins(cap, loader)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing plugin")
 	}
@@ -903,7 +904,7 @@ func TestRunToolStep(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for RUN_TOOL step (requires plugin loader)")
 	}
@@ -929,7 +930,7 @@ func TestExtractIRStep(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -950,7 +951,7 @@ func TestExtractIRStep(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -990,7 +991,7 @@ func TestExtractIRStepMissingArtifact(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing artifact in EXTRACT_IR step")
 	}
@@ -1016,7 +1017,7 @@ func TestEmitNativeStep(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1045,7 +1046,7 @@ func TestEmitNativeStep(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -1085,7 +1086,7 @@ func TestEmitNativeStepMissingIR(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing IR input in EMIT_NATIVE step")
 	}
@@ -1111,7 +1112,7 @@ func TestCompareIRStep(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1148,7 +1149,7 @@ func TestCompareIRStep(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -1188,7 +1189,7 @@ func TestCompareIRStepMissingIR(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing IR in COMPARE_IR step")
 	}
@@ -1214,7 +1215,7 @@ func TestIRStructureEqualCheck(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1253,7 +1254,7 @@ func TestIRStructureEqualCheck(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -1293,7 +1294,7 @@ func TestIRStructureEqualCheckMissing(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing IR in IR_STRUCTURE_EQUAL check")
 	}
@@ -1319,7 +1320,7 @@ func TestIRRoundtripCheck(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1341,7 +1342,7 @@ func TestIRRoundtripCheck(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -1383,7 +1384,7 @@ func TestIRFidelityCheck(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1414,7 +1415,7 @@ func TestIRFidelityCheck(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -1454,7 +1455,7 @@ func TestIRFidelityCheckMissing(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing IR in IR_FIDELITY check")
 	}
@@ -1480,7 +1481,7 @@ func TestIRFidelityCheckWithLossBudget(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1515,7 +1516,7 @@ func TestIRFidelityCheckWithLossBudget(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -1545,7 +1546,7 @@ func TestIRFidelityCheckFailsWithHighLossClass(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1587,7 +1588,7 @@ func TestIRFidelityCheckFailsWithHighLossClass(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -1625,12 +1626,12 @@ func TestIRStructureEqualCheckFail(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact1, err := cap.IngestFile(testPath1)
+	artifact1, err := cap.IngestFile(context.Background(), testPath1)
 	if err != nil {
 		t.Fatalf("failed to ingest file 1: %v", err)
 	}
 
-	artifact2, err := cap.IngestFile(testPath2)
+	artifact2, err := cap.IngestFile(context.Background(), testPath2)
 	if err != nil {
 		t.Fatalf("failed to ingest file 2: %v", err)
 	}
@@ -1669,7 +1670,7 @@ func TestIRStructureEqualCheckFail(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -1699,7 +1700,7 @@ func TestByteEqualCheckWithOutputs(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1730,7 +1731,7 @@ func TestByteEqualCheckWithOutputs(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -1760,7 +1761,7 @@ func TestExtractIRStepWithPreviousOutput(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1789,7 +1790,7 @@ func TestExtractIRStepWithPreviousOutput(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -1819,7 +1820,7 @@ func TestExportStepDerivedMode(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1840,7 +1841,7 @@ func TestExportStepDerivedMode(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for DERIVED mode (not implemented)")
 	}
@@ -1866,7 +1867,7 @@ func TestByteEqualCheckMissingFile(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1877,7 +1878,7 @@ func TestByteEqualCheckMissingFile(t *testing.T) {
 		PathB:     "/nonexistent/path/file.txt",
 	}
 
-	_, err = check.Execute(cap)
+	_, err = check.Execute(context.Background(), cap)
 	if err == nil {
 		t.Error("expected error for missing file")
 	}
@@ -1902,7 +1903,7 @@ func TestByteEqualCheckMissingArtifact(t *testing.T) {
 		PathB:     filepath.Join(tempDir, "test.txt"),
 	}
 
-	_, err = check.Execute(cap)
+	_, err = check.Execute(context.Background(), cap)
 	if err == nil {
 		t.Error("expected error for missing artifact")
 	}
@@ -1936,12 +1937,12 @@ func TestTranscriptEqualCheckWithOutputs(t *testing.T) {
 		t.Fatalf("failed to write transcript 2: %v", err)
 	}
 
-	art1, err := cap.IngestFile(t1Path)
+	art1, err := cap.IngestFile(context.Background(), t1Path)
 	if err != nil {
 		t.Fatalf("failed to ingest t1: %v", err)
 	}
 
-	art2, err := cap.IngestFile(t2Path)
+	art2, err := cap.IngestFile(context.Background(), t2Path)
 	if err != nil {
 		t.Fatalf("failed to ingest t2: %v", err)
 	}
@@ -1980,7 +1981,7 @@ func TestTranscriptEqualCheckWithOutputs(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -2021,7 +2022,7 @@ func TestTranscriptEqualCheckMixedSources(t *testing.T) {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 
-	art, err := cap.IngestFile(tPath)
+	art, err := cap.IngestFile(context.Background(), tPath)
 	if err != nil {
 		t.Fatalf("failed to ingest transcript: %v", err)
 	}
@@ -2052,7 +2053,7 @@ func TestTranscriptEqualCheckMixedSources(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -2082,7 +2083,7 @@ func TestIRFidelityCheckInvalidJSON(t *testing.T) {
 		t.Fatalf("failed to write invalid IR: %v", err)
 	}
 
-	art, err := cap.IngestFile(invalidIRPath)
+	art, err := cap.IngestFile(context.Background(), invalidIRPath)
 	if err != nil {
 		t.Fatalf("failed to ingest invalid IR: %v", err)
 	}
@@ -2113,7 +2114,7 @@ func TestIRFidelityCheckInvalidJSON(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -2154,12 +2155,12 @@ func TestByteEqualCheckBothArtifacts(t *testing.T) {
 		t.Fatalf("failed to write file2: %v", err)
 	}
 
-	art1, err := cap.IngestFile(path1)
+	art1, err := cap.IngestFile(context.Background(), path1)
 	if err != nil {
 		t.Fatalf("failed to ingest file1: %v", err)
 	}
 
-	art2, err := cap.IngestFile(path2)
+	art2, err := cap.IngestFile(context.Background(), path2)
 	if err != nil {
 		t.Fatalf("failed to ingest file2: %v", err)
 	}
@@ -2180,7 +2181,7 @@ func TestByteEqualCheckBothArtifacts(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -2210,7 +2211,7 @@ func TestIRStructureEqualCheckReadError(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -2241,7 +2242,7 @@ func TestIRStructureEqualCheckReadError(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing IR B")
 	}
@@ -2267,7 +2268,7 @@ func TestCompareIRStepReadError(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -2296,7 +2297,7 @@ func TestCompareIRStepReadError(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing IR B in compare")
 	}
@@ -2322,7 +2323,7 @@ func TestExtractIRStepWithNoPlugin(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -2343,7 +2344,7 @@ func TestExtractIRStepWithNoPlugin(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -2373,7 +2374,7 @@ func TestEmitNativeStepWithNoPlugin(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -2402,7 +2403,7 @@ func TestEmitNativeStepWithNoPlugin(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -2450,7 +2451,7 @@ func TestByteEqualCheckRetrieveError(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for artifact with bad hash")
 	}
@@ -2492,7 +2493,7 @@ func TestTranscriptEqualCheckRunWithoutOutputs(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for run without outputs")
 	}
@@ -2519,7 +2520,7 @@ func TestIRFidelityCheckWithLossClassL1(t *testing.T) {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
-	art, err := cap.IngestFile(irPath)
+	art, err := cap.IngestFile(context.Background(), irPath)
 	if err != nil {
 		t.Fatalf("failed to ingest IR: %v", err)
 	}
@@ -2550,7 +2551,7 @@ func TestIRFidelityCheckWithLossClassL1(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -2581,7 +2582,7 @@ func TestIRFidelityCheckExceedsLossClass(t *testing.T) {
 		t.Fatalf("failed to write IR file: %v", err)
 	}
 
-	art, err := cap.IngestFile(irPath)
+	art, err := cap.IngestFile(context.Background(), irPath)
 	if err != nil {
 		t.Fatalf("failed to ingest IR: %v", err)
 	}
@@ -2612,7 +2613,7 @@ func TestIRFidelityCheckExceedsLossClass(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
@@ -2642,7 +2643,7 @@ func TestByteEqualCheckBothArtifactsRetrieveError(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -2671,7 +2672,7 @@ func TestByteEqualCheckBothArtifactsRetrieveError(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for artifact B with bad hash")
 	}
@@ -2721,7 +2722,7 @@ func TestTranscriptEqualCheckReadOutputError(t *testing.T) {
 		},
 	}
 
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for unreadable transcript output")
 	}
@@ -2747,7 +2748,7 @@ func TestByteEqualCheckReadOutputError(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -2771,7 +2772,7 @@ func TestByteEqualCheckReadOutputError(t *testing.T) {
 		},
 	}
 
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for unreadable output file")
 	}
@@ -2811,7 +2812,7 @@ func TestIRStructureEqualCheckFirstReadError(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -2842,7 +2843,7 @@ func TestIRStructureEqualCheckFirstReadError(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing IR A")
 	}
@@ -2889,7 +2890,7 @@ func TestTranscriptEqualCheckMissingRunB(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing run B")
 	}
@@ -2972,7 +2973,7 @@ func TestRunToolStepNotToolPlugin(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for non-tool plugin")
 	}
@@ -3024,7 +3025,7 @@ func TestRunToolStepInputNotFound(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for missing input")
 	}
@@ -3076,7 +3077,7 @@ func TestRunToolStepSuccess(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
@@ -3116,7 +3117,7 @@ func TestRunToolStepWithArtifactInput(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test artifact data"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -3138,7 +3139,7 @@ func TestRunToolStepWithArtifactInput(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
@@ -3199,7 +3200,7 @@ func TestRunToolStepWithPreviousOutput(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
@@ -3286,7 +3287,7 @@ echo '{"status":"ok"}'
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
@@ -3367,7 +3368,7 @@ echo '{"status":"error","error":"intentional test error"}'
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for tool error response")
 	}
@@ -3443,7 +3444,7 @@ func TestRunToolStepInputDirError(t *testing.T) {
 	}
 
 	// Call executeRunToolStep directly to bypass Execute's tempDir creation
-	err = executor.executeRunToolStep(plan.Steps[0].RunTool)
+	err = executor.executeRunToolStep(context.Background(), plan.Steps[0].RunTool)
 	if err == nil {
 		t.Error("expected error for input dir creation failure")
 	}
@@ -3513,7 +3514,7 @@ func TestRunToolStepOutputDirError(t *testing.T) {
 	}
 
 	// Call executeRunToolStep directly to bypass Execute's tempDir creation
-	err = executor.executeRunToolStep(plan.Steps[0].RunTool)
+	err = executor.executeRunToolStep(context.Background(), plan.Steps[0].RunTool)
 	if err == nil {
 		t.Error("expected error for output dir creation failure")
 	}
@@ -3553,7 +3554,7 @@ func TestRunToolStepEmptyOriginalName(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test artifact data"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -3578,7 +3579,7 @@ func TestRunToolStepEmptyOriginalName(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
@@ -3638,7 +3639,7 @@ func TestRunToolStepExportFailure(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for export failure")
 	}
@@ -3713,7 +3714,7 @@ echo '{"status":"ok"}'
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for plugin execution failure")
 	}
@@ -3808,7 +3809,7 @@ func TestExtractIRStepWithPlugin(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -3829,7 +3830,7 @@ func TestExtractIRStepWithPlugin(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
@@ -3874,7 +3875,7 @@ func TestExtractIRStepExportFailure(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for export failure")
 	}
@@ -3902,7 +3903,7 @@ func TestExtractIRStepMkdirError(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -3928,7 +3929,7 @@ func TestExtractIRStepMkdirError(t *testing.T) {
 		OutputKey:        "ir_output",
 	}
 
-	err = executor.executeExtractIRStep(step)
+	err = executor.executeExtractIRStep(context.Background(), step)
 	if err == nil {
 		t.Error("expected error for IR output dir creation failure")
 	}
@@ -3956,7 +3957,7 @@ func TestExtractIRStepWriteError(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -3982,7 +3983,7 @@ func TestExtractIRStepWriteError(t *testing.T) {
 		OutputKey:        "ir_output",
 	}
 
-	err = executor.executeExtractIRStep(step)
+	err = executor.executeExtractIRStep(context.Background(), step)
 	if err == nil {
 		t.Error("expected error for IR write failure")
 	}
@@ -4048,7 +4049,7 @@ func TestExtractIRStepPluginExecutionError(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -4069,7 +4070,7 @@ func TestExtractIRStepPluginExecutionError(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for plugin execution failure")
 	}
@@ -4139,7 +4140,7 @@ echo '{"status":"error","error":"intentional test error"}'
 	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -4160,7 +4161,7 @@ echo '{"status":"error","error":"intentional test error"}'
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for parse failure")
 	}
@@ -4200,7 +4201,7 @@ func TestEmitNativeStepWithPlugin(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -4228,7 +4229,7 @@ func TestEmitNativeStepWithPlugin(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
@@ -4433,7 +4434,7 @@ func TestEmitNativeStepPluginExecutionError(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -4461,7 +4462,7 @@ func TestEmitNativeStepPluginExecutionError(t *testing.T) {
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for plugin execution failure")
 	}
@@ -4530,7 +4531,7 @@ echo '{"status":"error","error":"intentional test error"}'
 	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -4558,7 +4559,7 @@ echo '{"status":"error","error":"intentional test error"}'
 	}
 
 	executor := NewExecutorWithPlugins(cap, loader)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for parse failure")
 	}
@@ -4682,7 +4683,7 @@ func TestByteEqualCheckOutputReadError(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest artifact: %v", err)
 	}
@@ -4708,7 +4709,7 @@ func TestByteEqualCheckOutputReadError(t *testing.T) {
 		"output_key": "/nonexistent/path/to/file.txt",
 	}
 
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for output read failure")
 	}
@@ -4753,7 +4754,7 @@ func TestTranscriptEqualCheckOutputReadErrorA(t *testing.T) {
 		"run_b": "/nonexistent/path/to/transcript_b.jsonl",
 	}
 
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for transcript read failure")
 	}
@@ -4804,7 +4805,7 @@ func TestTranscriptEqualCheckOutputReadErrorB(t *testing.T) {
 		"run_b": "/nonexistent/path/to/transcript_b.jsonl",
 	}
 
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for transcript B read failure")
 	}
@@ -4848,7 +4849,7 @@ func TestIRStructureEqualCheckReadErrorA(t *testing.T) {
 		"ir_b": "/nonexistent/path/to/ir_b.json",
 	}
 
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for IR A read failure")
 	}
@@ -4898,7 +4899,7 @@ func TestIRStructureEqualCheckReadErrorB(t *testing.T) {
 		"ir_b": "/nonexistent/path/to/ir_b.json",
 	}
 
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for IR B read failure")
 	}
@@ -4941,7 +4942,7 @@ func TestIRFidelityCheckReadError(t *testing.T) {
 		"ir_key": "/nonexistent/path/to/ir.json",
 	}
 
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for IR read failure")
 	}
@@ -5029,7 +5030,7 @@ func TestByteEqualCheckValidatorSuccess(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testFile)
+	artifact, err := cap.IngestFile(context.Background(), testFile)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -5046,7 +5047,7 @@ func TestByteEqualCheckValidatorSuccess(t *testing.T) {
 		PathB:     comparisonFile,
 	}
 
-	result, err := check.Execute(cap)
+	result, err := check.Execute(context.Background(), cap)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -5074,7 +5075,7 @@ func TestByteEqualCheckValidatorArtifactNotFound(t *testing.T) {
 		PathB:     "/some/path",
 	}
 
-	_, err = check.Execute(cap)
+	_, err = check.Execute(context.Background(), cap)
 	if err == nil {
 		t.Error("expected error for missing artifact")
 	}
@@ -5103,7 +5104,7 @@ func TestByteEqualCheckValidatorReadFileError(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testFile)
+	artifact, err := cap.IngestFile(context.Background(), testFile)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -5114,7 +5115,7 @@ func TestByteEqualCheckValidatorReadFileError(t *testing.T) {
 		PathB:     "/nonexistent/path/file.txt",
 	}
 
-	_, err = check.Execute(cap)
+	_, err = check.Execute(context.Background(), cap)
 	if err == nil {
 		t.Error("expected error for file read failure")
 	}
@@ -5144,7 +5145,7 @@ func TestByteEqualCheckTwoArtifacts(t *testing.T) {
 		t.Fatalf("failed to write test file A: %v", err)
 	}
 
-	artifactA, err := cap.IngestFile(testFileA)
+	artifactA, err := cap.IngestFile(context.Background(), testFileA)
 	if err != nil {
 		t.Fatalf("failed to ingest file A: %v", err)
 	}
@@ -5156,7 +5157,7 @@ func TestByteEqualCheckTwoArtifacts(t *testing.T) {
 		t.Fatalf("failed to write test file B: %v", err)
 	}
 
-	artifactB, err := cap.IngestFile(testFileB)
+	artifactB, err := cap.IngestFile(context.Background(), testFileB)
 	if err != nil {
 		t.Fatalf("failed to ingest file B: %v", err)
 	}
@@ -5178,7 +5179,7 @@ func TestByteEqualCheckTwoArtifacts(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -5210,7 +5211,7 @@ func TestByteEqualCheckArtifactBRetrieveError(t *testing.T) {
 		t.Fatalf("failed to write test file A: %v", err)
 	}
 
-	artifactA, err := cap.IngestFile(testFileA)
+	artifactA, err := cap.IngestFile(context.Background(), testFileA)
 	if err != nil {
 		t.Fatalf("failed to ingest file A: %v", err)
 	}
@@ -5237,7 +5238,7 @@ func TestByteEqualCheckArtifactBRetrieveError(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for artifact B retrieve failure")
 	}
@@ -5266,7 +5267,7 @@ func TestByteEqualCheckArtifactBNotFound(t *testing.T) {
 		t.Fatalf("failed to write test file A: %v", err)
 	}
 
-	artifactA, err := cap.IngestFile(testFileA)
+	artifactA, err := cap.IngestFile(context.Background(), testFileA)
 	if err != nil {
 		t.Fatalf("failed to ingest file A: %v", err)
 	}
@@ -5290,7 +5291,7 @@ func TestByteEqualCheckArtifactBNotFound(t *testing.T) {
 	}
 
 	executor := NewExecutor(cap)
-	_, err = executor.Execute(plan)
+	_, err = executor.Execute(context.Background(), plan)
 	if err == nil {
 		t.Error("expected error for artifact B not found")
 	}
@@ -5323,7 +5324,7 @@ func TestByteEqualCheckValidatorRetrieveError(t *testing.T) {
 		PathB:     "/some/path",
 	}
 
-	_, err = check.Execute(cap)
+	_, err = check.Execute(context.Background(), cap)
 	if err == nil {
 		t.Error("expected error for retrieve failure")
 	}

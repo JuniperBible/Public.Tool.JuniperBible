@@ -2,6 +2,7 @@
 package runner
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -58,7 +59,7 @@ type ToolArchiveManifest struct {
 }
 
 // LoadToolArchive loads a tool archive from a capsule file.
-func LoadToolArchive(capsulePath string) (*ToolArchive, error) {
+func LoadToolArchive(ctx context.Context, capsulePath string) (*ToolArchive, error) {
 	// Create temp directory for unpacking
 	tempDir, err := toolOsMkdirTemp("", "tool-load-*")
 	if err != nil {
@@ -78,7 +79,7 @@ func LoadToolArchive(capsulePath string) (*ToolArchive, error) {
 		return nil, fmt.Errorf("tool archive missing tool-manifest artifact")
 	}
 
-	manifestData, err := cap.GetStore().Retrieve(manifestArtifact.PrimaryBlobSHA256)
+	manifestData, err := cap.GetStore().Retrieve(ctx, manifestArtifact.PrimaryBlobSHA256)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve tool manifest: %w", err)
 	}
@@ -101,7 +102,7 @@ func LoadToolArchive(capsulePath string) (*ToolArchive, error) {
 }
 
 // ExtractTo extracts all tool binaries to the specified directory.
-func (t *ToolArchive) ExtractTo(destDir string) error {
+func (t *ToolArchive) ExtractTo(ctx context.Context, destDir string) error {
 	// Create bin directory
 	binDir := filepath.Join(destDir, "bin")
 	if err := os.MkdirAll(binDir, 0700); err != nil {
@@ -118,7 +119,7 @@ func (t *ToolArchive) ExtractTo(destDir string) error {
 
 	// Extract executables
 	for name, artifactID := range t.Executables {
-		if err := t.extractArtifact(artifactID, filepath.Join(binDir, name), 0700); err != nil {
+		if err := t.extractArtifact(ctx, artifactID, filepath.Join(binDir, name), 0700); err != nil {
 			return fmt.Errorf("failed to extract executable %s: %w", name, err)
 		}
 	}
@@ -126,7 +127,7 @@ func (t *ToolArchive) ExtractTo(destDir string) error {
 	// Extract libraries
 	for name, artifactID := range t.Libraries {
 		libDir := filepath.Join(destDir, "lib")
-		if err := t.extractArtifact(artifactID, filepath.Join(libDir, name), 0600); err != nil {
+		if err := t.extractArtifact(ctx, artifactID, filepath.Join(libDir, name), 0600); err != nil {
 			return fmt.Errorf("failed to extract library %s: %w", name, err)
 		}
 	}
@@ -135,13 +136,13 @@ func (t *ToolArchive) ExtractTo(destDir string) error {
 }
 
 // extractArtifact extracts a single artifact to a file.
-func (t *ToolArchive) extractArtifact(artifactID, destPath string, mode os.FileMode) error {
+func (t *ToolArchive) extractArtifact(ctx context.Context, artifactID, destPath string, mode os.FileMode) error {
 	artifact, ok := t.capsule.Manifest.Artifacts[artifactID]
 	if !ok {
 		return fmt.Errorf("artifact not found: %s", artifactID)
 	}
 
-	data, err := t.capsule.GetStore().Retrieve(artifact.PrimaryBlobSHA256)
+	data, err := t.capsule.GetStore().Retrieve(ctx, artifact.PrimaryBlobSHA256)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve artifact: %w", err)
 	}
@@ -182,7 +183,7 @@ func NewToolRegistry(archiveDir string) *ToolRegistry {
 }
 
 // LoadTool loads a tool archive by ID.
-func (r *ToolRegistry) LoadTool(toolID string) (*ToolArchive, error) {
+func (r *ToolRegistry) LoadTool(ctx context.Context, toolID string) (*ToolArchive, error) {
 	// Check cache
 	if tool, ok := r.tools[toolID]; ok {
 		return tool, nil
@@ -215,7 +216,7 @@ func (r *ToolRegistry) LoadTool(toolID string) (*ToolArchive, error) {
 		return nil, fmt.Errorf("tool archive not found: %s", toolID)
 	}
 
-	tool, err := LoadToolArchive(archivePath)
+	tool, err := LoadToolArchive(ctx, archivePath)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +250,7 @@ func (r *ToolRegistry) ListTools() ([]string, error) {
 }
 
 // CreateToolArchive creates a new tool archive capsule from binaries.
-func CreateToolArchive(toolID, version, platform string, binaries map[string]string, destPath string) error {
+func CreateToolArchive(ctx context.Context, toolID, version, platform string, binaries map[string]string, destPath string) error {
 	tempDir, err := toolOsMkdirTemp("", "tool-archive-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
@@ -261,12 +262,12 @@ func CreateToolArchive(toolID, version, platform string, binaries map[string]str
 		return fmt.Errorf("failed to create capsule: %w", err)
 	}
 
-	executables, err := addBinariesToCapsule(cap, binaries)
+	executables, err := addBinariesToCapsule(ctx, cap, binaries)
 	if err != nil {
 		return err
 	}
 
-	if err := addToolManifest(cap, toolID, version, platform, executables); err != nil {
+	if err := addToolManifest(ctx, cap, toolID, version, platform, executables); err != nil {
 		return err
 	}
 
@@ -277,7 +278,7 @@ func CreateToolArchive(toolID, version, platform string, binaries map[string]str
 }
 
 // addBinariesToCapsule adds binaries to the capsule and returns executables map
-func addBinariesToCapsule(cap *capsule.Capsule, binaries map[string]string) (map[string]string, error) {
+func addBinariesToCapsule(ctx context.Context, cap *capsule.Capsule, binaries map[string]string) (map[string]string, error) {
 	executables := make(map[string]string)
 	for name, path := range binaries {
 		data, err := os.ReadFile(path)
@@ -288,7 +289,7 @@ func addBinariesToCapsule(cap *capsule.Capsule, binaries map[string]string) (map
 		artifactID := "exe-" + name
 		executables[name] = artifactID
 
-		if _, err := cap.GetStore().Store(data); err != nil {
+		if _, err := cap.GetStore().Store(ctx, data); err != nil {
 			return nil, fmt.Errorf("failed to store binary: %w", err)
 		}
 		cap.Manifest.Artifacts[artifactID] = &capsule.Artifact{
@@ -300,7 +301,7 @@ func addBinariesToCapsule(cap *capsule.Capsule, binaries map[string]string) (map
 }
 
 // addToolManifest creates and adds the tool manifest to the capsule
-func addToolManifest(cap *capsule.Capsule, toolID, version, platform string, executables map[string]string) error {
+func addToolManifest(ctx context.Context, cap *capsule.Capsule, toolID, version, platform string, executables map[string]string) error {
 	manifest := ToolArchiveManifest{
 		ToolID: toolID, Version: version, Platform: platform, Executables: executables,
 	}
@@ -309,7 +310,7 @@ func addToolManifest(cap *capsule.Capsule, toolID, version, platform string, exe
 		return fmt.Errorf("failed to serialize manifest: %w", err)
 	}
 	manifestHash := cas.Hash(manifestData)
-	if _, err := cap.GetStore().Store(manifestData); err != nil {
+	if _, err := cap.GetStore().Store(ctx, manifestData); err != nil {
 		return fmt.Errorf("failed to store manifest: %w", err)
 	}
 	cap.Manifest.Artifacts["tool-manifest"] = &capsule.Artifact{

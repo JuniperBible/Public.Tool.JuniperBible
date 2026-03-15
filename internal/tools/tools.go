@@ -99,7 +99,7 @@ func Archive(cfg ArchiveConfig) (*ArchiveResult, error) {
 	}
 
 	// Create the tool archive
-	if err := runner.CreateToolArchive(cfg.ToolID, cfg.Version, platform, cfg.Binaries, cfg.Output); err != nil {
+	if err := runner.CreateToolArchive(context.Background(), cfg.ToolID, cfg.Version, platform, cfg.Binaries, cfg.Output); err != nil {
 		return nil, fmt.Errorf("failed to create tool archive: %w", err)
 	}
 
@@ -201,7 +201,7 @@ func unpackAndExportArtifact(capsulePath, artifactID, tempDir string) (*capsule.
 	if err := os.MkdirAll(filepath.Dir(inputPath), 0700); err != nil {
 		return nil, "", fmt.Errorf("failed to create input dir: %w", err)
 	}
-	if err := cap.Export(artifactID, capsule.ExportModeIdentity, inputPath); err != nil {
+	if err := cap.Export(context.Background(), artifactID, capsule.ExportModeIdentity, inputPath); err != nil {
 		return nil, "", fmt.Errorf("failed to export artifact: %w", err)
 	}
 
@@ -237,8 +237,8 @@ func buildRunRecord(cfg ExecuteConfig, runIndex int) (string, *capsule.Run) {
 	return runID, run
 }
 
-func persistRunResult(cap *capsule.Capsule, run *capsule.Run, transcriptData []byte, capsulePath string) error {
-	if err := cap.AddRun(run, transcriptData); err != nil {
+func persistRunResult(ctx context.Context, cap *capsule.Capsule, run *capsule.Run, transcriptData []byte, capsulePath string) error {
+	if err := cap.AddRun(ctx, run, transcriptData); err != nil {
 		return fmt.Errorf("failed to add run: %w", err)
 	}
 	if err := cap.SaveManifest(); err != nil {
@@ -268,7 +268,7 @@ func Execute(ctx context.Context, cfg ExecuteConfig) (*ExecuteResult, error) {
 	}
 
 	runID, run := buildRunRecord(cfg, len(cap.Manifest.Runs)+1)
-	if err := persistRunResult(cap, run, result.TranscriptData, cfg.CapsulePath); err != nil {
+	if err := persistRunResult(ctx, cap, run, result.TranscriptData, cfg.CapsulePath); err != nil {
 		return nil, err
 	}
 

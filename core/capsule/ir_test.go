@@ -1,6 +1,7 @@
 package capsule
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -158,7 +159,7 @@ func TestCapsuleStoreIR(t *testing.T) {
 	}
 
 	// Store the IR
-	artifact, err := c.StoreIR(corpus, "kjv-module")
+	artifact, err := c.StoreIR(context.Background(), corpus, "kjv-module")
 	if err != nil {
 		t.Fatalf("StoreIR failed: %v", err)
 	}
@@ -214,13 +215,13 @@ func TestCapsuleLoadIR(t *testing.T) {
 	}
 
 	// Store the IR
-	artifact, err := c.StoreIR(corpus, "kjv-module")
+	artifact, err := c.StoreIR(context.Background(), corpus, "kjv-module")
 	if err != nil {
 		t.Fatalf("StoreIR failed: %v", err)
 	}
 
 	// Load the IR
-	loaded, err := c.LoadIR(artifact.ID)
+	loaded, err := c.LoadIR(context.Background(), artifact.ID)
 	if err != nil {
 		t.Fatalf("LoadIR failed: %v", err)
 	}
@@ -296,13 +297,13 @@ func TestCapsuleIRRoundTrip(t *testing.T) {
 	ir.ComputeAllHashes(corpus)
 
 	// Store the IR
-	artifact, err := c.StoreIR(corpus, "kjv-module")
+	artifact, err := c.StoreIR(context.Background(), corpus, "kjv-module")
 	if err != nil {
 		t.Fatalf("StoreIR failed: %v", err)
 	}
 
 	// Load the IR
-	loaded, err := c.LoadIR(artifact.ID)
+	loaded, err := c.LoadIR(context.Background(), artifact.ID)
 	if err != nil {
 		t.Fatalf("LoadIR failed: %v", err)
 	}
@@ -358,7 +359,7 @@ func TestCapsuleIRDeterminism(t *testing.T) {
 			t.Fatalf("Failed to create capsule: %v", err)
 		}
 
-		artifact, err := c.StoreIR(corpus, "source")
+		artifact, err := c.StoreIR(context.Background(), corpus, "source")
 		if err != nil {
 			t.Fatalf("StoreIR failed: %v", err)
 		}
@@ -387,7 +388,7 @@ func TestCapsuleLoadIRNotFound(t *testing.T) {
 	}
 
 	// Try to load non-existent IR
-	_, err = c.LoadIR("nonexistent")
+	_, err = c.LoadIR(context.Background(), "nonexistent")
 	if err == nil {
 		t.Error("LoadIR should return error for non-existent artifact")
 	}
@@ -413,7 +414,7 @@ func TestCapsulePackWithIR(t *testing.T) {
 		Version:    "1.0.0",
 		ModuleType: ir.ModuleBible,
 	}
-	_, err = c.StoreIR(corpus, "source")
+	_, err = c.StoreIR(context.Background(), corpus, "source")
 	if err != nil {
 		t.Fatalf("StoreIR failed: %v", err)
 	}

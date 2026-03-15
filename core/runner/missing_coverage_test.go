@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -105,7 +106,7 @@ func TestCreateToolArchiveStoreError(t *testing.T) {
 
 	// Mock capsuleNew to return a capsule with a failing store
 	origCapsuleNew := capsuleNew
-	capsuleNew = func(dir string) (*capsule.Capsule, error) {
+	capsuleNew = func(dir string, opts ...capsule.CapsuleOption) (*capsule.Capsule, error) {
 		cap, err := origCapsuleNew(dir)
 		if err != nil {
 			return nil, err
@@ -123,7 +124,7 @@ func TestCreateToolArchiveStoreError(t *testing.T) {
 	defer func() { capsuleNew = origCapsuleNew }()
 
 	archivePath := filepath.Join(tempDir, "test.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"test",
 		"1.0.0",
 		"x86_64-linux",
@@ -258,7 +259,7 @@ func TestCreateToolArchivePackError(t *testing.T) {
 	}
 
 	// Try to pack to an invalid location
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"test",
 		"1.0.0",
 		"x86_64-linux",

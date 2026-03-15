@@ -4,6 +4,7 @@
 package cas
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -55,7 +56,7 @@ func NewStore(root string) (*Store, error) {
 
 // Store stores the given data and returns its SHA-256 hash.
 // If the blob already exists (same hash), this is a no-op and returns the hash.
-func (s *Store) Store(data []byte) (string, error) {
+func (s *Store) Store(_ context.Context, data []byte) (string, error) {
 	// Calculate SHA-256 hash
 	h := sha256.Sum256(data)
 	hash := hex.EncodeToString(h[:])
@@ -104,7 +105,7 @@ func (s *Store) Store(data []byte) (string, error) {
 // Retrieve retrieves the blob with the given SHA-256 hash.
 // Returns ErrBlobNotFound if the blob does not exist.
 // Returns ErrInvalidHash if the hash format is invalid.
-func (s *Store) Retrieve(hash string) ([]byte, error) {
+func (s *Store) Retrieve(_ context.Context, hash string) ([]byte, error) {
 	// Validate hash format
 	if !isValidHash(hash) {
 		return nil, ErrInvalidHash
@@ -123,7 +124,7 @@ func (s *Store) Retrieve(hash string) ([]byte, error) {
 }
 
 // Exists checks if a blob with the given hash exists in the store.
-func (s *Store) Exists(hash string) bool {
+func (s *Store) Exists(_ context.Context, hash string) bool {
 	if !isValidHash(hash) {
 		return false
 	}

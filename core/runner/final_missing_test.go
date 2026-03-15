@@ -233,7 +233,7 @@ func TestCreateToolArchiveCompleteSuccess(t *testing.T) {
 	}
 
 	archivePath := filepath.Join(tempDir, "multi.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"multitest",
 		"1.0.0",
 		"x86_64-linux",
@@ -246,7 +246,7 @@ func TestCreateToolArchiveCompleteSuccess(t *testing.T) {
 	}
 
 	// Verify the archive was created and can be loaded
-	archive, err := LoadToolArchive(archivePath)
+	archive, err := LoadToolArchive(context.Background(), archivePath)
 	if err != nil {
 		t.Fatalf("LoadToolArchive failed: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestCreateToolArchiveCompleteSuccess(t *testing.T) {
 
 	// Extract and verify all binaries
 	extractDir := filepath.Join(tempDir, "extract")
-	if err := archive.ExtractTo(extractDir); err != nil {
+	if err := archive.ExtractTo(context.Background(), extractDir); err != nil {
 		t.Fatalf("ExtractTo failed: %v", err)
 	}
 

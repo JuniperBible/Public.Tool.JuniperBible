@@ -1,6 +1,7 @@
 package capsule
 
 import (
+	"context"
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
@@ -61,7 +62,7 @@ func TestIngestFile(t *testing.T) {
 	}
 
 	// Ingest the file
-	artifact, err := capsule.IngestFile(testFilePath)
+	artifact, err := capsule.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -79,7 +80,7 @@ func TestIngestFile(t *testing.T) {
 	}
 
 	// Verify the blob exists
-	if !capsule.store.Exists(artifact.Hashes.SHA256) {
+	if !capsule.store.Exists(context.Background(), artifact.Hashes.SHA256) {
 		t.Error("blob should exist in store")
 	}
 
@@ -111,7 +112,7 @@ func TestPackAndUnpack(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	artifact, err := capsule.IngestFile(testFilePath)
+	artifact, err := capsule.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -150,7 +151,7 @@ func TestPackAndUnpack(t *testing.T) {
 	}
 
 	// Verify blob can be retrieved
-	data, err := unpacked.store.Retrieve(artifact.Hashes.SHA256)
+	data, err := unpacked.store.Retrieve(context.Background(), artifact.Hashes.SHA256)
 	if err != nil {
 		t.Fatalf("failed to retrieve blob: %v", err)
 	}
@@ -192,7 +193,7 @@ func TestPackPreservesAllBlobs(t *testing.T) {
 	artifacts := make(map[string]*Artifact)
 	for name := range files {
 		path := filepath.Join(tempDir, name)
-		artifact, err := capsule.IngestFile(path)
+		artifact, err := capsule.IngestFile(context.Background(), path)
 		if err != nil {
 			t.Fatalf("failed to ingest %s: %v", name, err)
 		}
@@ -214,7 +215,7 @@ func TestPackPreservesAllBlobs(t *testing.T) {
 	// Verify all files
 	for name, content := range files {
 		artifact := artifacts[name]
-		data, err := unpacked.store.Retrieve(artifact.Hashes.SHA256)
+		data, err := unpacked.store.Retrieve(context.Background(), artifact.Hashes.SHA256)
 		if err != nil {
 			t.Errorf("failed to retrieve %s: %v", name, err)
 			continue
@@ -247,7 +248,7 @@ func TestManifestIncludedInPack(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	if _, err := capsule.IngestFile(testFilePath); err != nil {
+	if _, err := capsule.IngestFile(context.Background(), testFilePath); err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
 
@@ -289,7 +290,7 @@ func TestAddRun(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test content"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -316,7 +317,7 @@ func TestAddRun(t *testing.T) {
 	}
 
 	// Add run
-	if err := cap.AddRun(run, transcript); err != nil {
+	if err := cap.AddRun(context.Background(), run, transcript); err != nil {
 		t.Fatalf("failed to add run: %v", err)
 	}
 
@@ -335,7 +336,7 @@ func TestAddRun(t *testing.T) {
 	}
 
 	// Verify transcript can be retrieved
-	retrieved, err := cap.GetTranscript("test-run-1")
+	retrieved, err := cap.GetTranscript(context.Background(), "test-run-1")
 	if err != nil {
 		t.Fatalf("failed to get transcript: %v", err)
 	}
@@ -365,7 +366,7 @@ func TestAddRunPackUnpack(t *testing.T) {
 	if err := os.WriteFile(testFilePath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -378,7 +379,7 @@ func TestAddRunPackUnpack(t *testing.T) {
 		Inputs: []RunInput{{ArtifactID: artifact.ID}},
 		Status: "completed",
 	}
-	if err := cap.AddRun(run, transcript); err != nil {
+	if err := cap.AddRun(context.Background(), run, transcript); err != nil {
 		t.Fatalf("failed to add run: %v", err)
 	}
 
@@ -406,7 +407,7 @@ func TestAddRunPackUnpack(t *testing.T) {
 	}
 
 	// Verify transcript can be retrieved
-	retrieved, err := unpacked.GetTranscript("run-1")
+	retrieved, err := unpacked.GetTranscript(context.Background(), "run-1")
 	if err != nil {
 		t.Fatalf("failed to get transcript: %v", err)
 	}
@@ -471,7 +472,7 @@ func TestPackWithGzipCompression(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	artifact, err := capsule.IngestFile(testFilePath)
+	artifact, err := capsule.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -519,7 +520,7 @@ func TestPackWithGzipCompression(t *testing.T) {
 		t.Error("artifact hash should match")
 	}
 
-	data, err := unpacked.store.Retrieve(artifact.Hashes.SHA256)
+	data, err := unpacked.store.Retrieve(context.Background(), artifact.Hashes.SHA256)
 	if err != nil {
 		t.Fatalf("failed to retrieve blob: %v", err)
 	}
@@ -549,7 +550,7 @@ func TestDetectCompression(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	if _, err := capsule.IngestFile(testFilePath); err != nil {
+	if _, err := capsule.IngestFile(context.Background(), testFilePath); err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
 
@@ -649,7 +650,7 @@ func TestSaveManifest(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	if _, err := cap.IngestFile(testPath); err != nil {
+	if _, err := cap.IngestFile(context.Background(), testPath); err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
@@ -696,13 +697,13 @@ func TestExportToBytes(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
 
 	// Export to bytes
-	data, err := cap.ExportToBytes(artifact.ID, ExportModeIdentity)
+	data, err := cap.ExportToBytes(context.Background(), artifact.ID, ExportModeIdentity)
 	if err != nil {
 		t.Fatalf("failed to export to bytes: %v", err)
 	}
@@ -726,7 +727,7 @@ func TestExportToBytesNotFound(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	_, err = cap.ExportToBytes("nonexistent", ExportModeIdentity)
+	_, err = cap.ExportToBytes(context.Background(), "nonexistent", ExportModeIdentity)
 	if err == nil {
 		t.Error("expected error for missing artifact")
 	}
@@ -753,7 +754,7 @@ func TestGetIRRecord(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -815,7 +816,7 @@ func TestGetTranscriptNotFound(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	_, err = cap.GetTranscript("nonexistent-run")
+	_, err = cap.GetTranscript(context.Background(), "nonexistent-run")
 	if err == nil {
 		t.Error("expected error for missing run")
 	}
@@ -835,7 +836,7 @@ func TestExportMissingArtifact(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	err = cap.Export("nonexistent", ExportModeIdentity, filepath.Join(tempDir, "out"))
+	err = cap.Export(context.Background(), "nonexistent", ExportModeIdentity, filepath.Join(tempDir, "out"))
 	if err == nil {
 		t.Error("expected error for missing artifact")
 	}
@@ -855,7 +856,7 @@ func TestIngestNonexistentFile(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	_, err = cap.IngestFile("/nonexistent/path/file.txt")
+	_, err = cap.IngestFile(context.Background(), "/nonexistent/path/file.txt")
 	if err == nil {
 		t.Error("expected error for nonexistent file")
 	}
@@ -1024,7 +1025,7 @@ func TestAddRunEmptyID(t *testing.T) {
 	}
 
 	run := &Run{ID: ""}
-	err = cap.AddRun(run, []byte("transcript"))
+	err = cap.AddRun(context.Background(), run, []byte("transcript"))
 	if err == nil {
 		t.Error("expected error for empty run ID")
 	}
@@ -1049,7 +1050,7 @@ func TestGetTranscriptNoOutputs(t *testing.T) {
 		"test-run": {ID: "test-run"},
 	}
 
-	_, err = cap.GetTranscript("test-run")
+	_, err = cap.GetTranscript(context.Background(), "test-run")
 	if err == nil {
 		t.Error("expected error for run with no outputs")
 	}
@@ -1134,12 +1135,12 @@ func TestIngestFileDuplicateIDs(t *testing.T) {
 	}
 
 	// Ingest both files - should get unique IDs
-	artifact1, err := cap.IngestFile(filepath.Join(dir1, "test.txt"))
+	artifact1, err := cap.IngestFile(context.Background(), filepath.Join(dir1, "test.txt"))
 	if err != nil {
 		t.Fatalf("failed to ingest file1: %v", err)
 	}
 
-	artifact2, err := cap.IngestFile(filepath.Join(dir2, "test.txt"))
+	artifact2, err := cap.IngestFile(context.Background(), filepath.Join(dir2, "test.txt"))
 	if err != nil {
 		t.Fatalf("failed to ingest file2: %v", err)
 	}
@@ -1192,7 +1193,7 @@ func TestStoreIRMarshalError(t *testing.T) {
 	defer func() { jsonMarshalCapsule = origMarshal }()
 
 	corpus := &ir.Corpus{ID: "test"}
-	_, err = cap.StoreIR(corpus, "source")
+	_, err = cap.StoreIR(context.Background(), corpus, "source")
 	if err == nil {
 		t.Error("expected error for marshal failure")
 	}
@@ -1214,7 +1215,7 @@ func TestLoadIRUnmarshalError(t *testing.T) {
 
 	// Store a valid IR first
 	corpus := &ir.Corpus{ID: "test-corpus", Version: "1.0"}
-	artifact, err := cap.StoreIR(corpus, "source")
+	artifact, err := cap.StoreIR(context.Background(), corpus, "source")
 	if err != nil {
 		t.Fatalf("failed to store IR: %v", err)
 	}
@@ -1226,7 +1227,7 @@ func TestLoadIRUnmarshalError(t *testing.T) {
 	}
 	defer func() { jsonUnmarshalCapsule = origUnmarshal }()
 
-	_, err = cap.LoadIR(artifact.ID)
+	_, err = cap.LoadIR(context.Background(), artifact.ID)
 	if err == nil {
 		t.Error("expected error for unmarshal failure")
 	}
@@ -1246,7 +1247,7 @@ func TestLoadIRArtifactNotFound(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	_, err = cap.LoadIR("nonexistent")
+	_, err = cap.LoadIR(context.Background(), "nonexistent")
 	if err == nil {
 		t.Error("expected error for nonexistent artifact")
 	}
@@ -1271,13 +1272,13 @@ func TestLoadIRWrongArtifactKind(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
 	// Try to load it as IR
-	_, err = cap.LoadIR(artifact.ID)
+	_, err = cap.LoadIR(context.Background(), artifact.ID)
 	if err == nil {
 		t.Error("expected error for wrong artifact kind")
 	}
@@ -1303,7 +1304,7 @@ func TestStoreIRAndLoadIR(t *testing.T) {
 		Version:   "1.0",
 		LossClass: ir.LossL1,
 	}
-	artifact, err := cap.StoreIR(corpus, "source-artifact")
+	artifact, err := cap.StoreIR(context.Background(), corpus, "source-artifact")
 	if err != nil {
 		t.Fatalf("failed to store IR: %v", err)
 	}
@@ -1313,7 +1314,7 @@ func TestStoreIRAndLoadIR(t *testing.T) {
 	}
 
 	// Load and verify
-	loaded, err := cap.LoadIR(artifact.ID)
+	loaded, err := cap.LoadIR(context.Background(), artifact.ID)
 	if err != nil {
 		t.Fatalf("failed to load IR: %v", err)
 	}
@@ -1344,12 +1345,12 @@ func TestStoreIRDuplicateIDs(t *testing.T) {
 	corpus1 := &ir.Corpus{ID: "test", Version: "1.0"}
 	corpus2 := &ir.Corpus{ID: "test", Version: "2.0"}
 
-	artifact1, err := cap.StoreIR(corpus1, "source")
+	artifact1, err := cap.StoreIR(context.Background(), corpus1, "source")
 	if err != nil {
 		t.Fatalf("failed to store first IR: %v", err)
 	}
 
-	artifact2, err := cap.StoreIR(corpus2, "source")
+	artifact2, err := cap.StoreIR(context.Background(), corpus2, "source")
 	if err != nil {
 		t.Fatalf("failed to store second IR: %v", err)
 	}
@@ -1386,7 +1387,7 @@ func TestIngestFileStatError(t *testing.T) {
 	}
 	defer func() { osStatCapsule = origStat }()
 
-	_, err = cap.IngestFile(testPath)
+	_, err = cap.IngestFile(context.Background(), testPath)
 	if err == nil {
 		t.Error("expected error for stat failure")
 	}
@@ -1437,12 +1438,12 @@ func TestIngestFileStoreError(t *testing.T) {
 
 	// Inject store error
 	origStore := storeStoreWithBlake3
-	storeStoreWithBlake3 = func(s *cas.Store, data []byte) (*cas.HashResult, error) {
+	storeStoreWithBlake3 = func(_ context.Context, s cas.BlobStore, data []byte) (*cas.HashResult, error) {
 		return nil, errors.New("injected store error")
 	}
 	defer func() { storeStoreWithBlake3 = origStore }()
 
-	_, err = cap.IngestFile(testPath)
+	_, err = cap.IngestFile(context.Background(), testPath)
 	if err == nil {
 		t.Error("expected error for store failure")
 	}
@@ -1464,13 +1465,13 @@ func TestAddRunStoreError(t *testing.T) {
 
 	// Inject store error
 	origStore := storeStoreWithBlake3
-	storeStoreWithBlake3 = func(s *cas.Store, data []byte) (*cas.HashResult, error) {
+	storeStoreWithBlake3 = func(_ context.Context, s cas.BlobStore, data []byte) (*cas.HashResult, error) {
 		return nil, errors.New("injected store error")
 	}
 	defer func() { storeStoreWithBlake3 = origStore }()
 
 	run := &Run{ID: "test-run"}
-	err = cap.AddRun(run, []byte("transcript"))
+	err = cap.AddRun(context.Background(), run, []byte("transcript"))
 	if err == nil {
 		t.Error("expected error for store failure")
 	}
@@ -1494,7 +1495,7 @@ func TestAddRunNilRunsMap(t *testing.T) {
 	cap.Manifest.Runs = nil
 
 	run := &Run{ID: "test-run"}
-	err = cap.AddRun(run, []byte("transcript"))
+	err = cap.AddRun(context.Background(), run, []byte("transcript"))
 	if err != nil {
 		t.Fatalf("failed to add run: %v", err)
 	}
@@ -1521,13 +1522,13 @@ func TestStoreIRStoreError(t *testing.T) {
 
 	// Inject store error
 	origStore := storeStoreWithBlake3
-	storeStoreWithBlake3 = func(s *cas.Store, data []byte) (*cas.HashResult, error) {
+	storeStoreWithBlake3 = func(_ context.Context, s cas.BlobStore, data []byte) (*cas.HashResult, error) {
 		return nil, errors.New("injected store error")
 	}
 	defer func() { storeStoreWithBlake3 = origStore }()
 
 	corpus := &ir.Corpus{ID: "test"}
-	_, err = cap.StoreIR(corpus, "source")
+	_, err = cap.StoreIR(context.Background(), corpus, "source")
 	if err == nil {
 		t.Error("expected error for store failure")
 	}
@@ -1549,19 +1550,19 @@ func TestLoadIRRetrieveError(t *testing.T) {
 
 	// Store IR first
 	corpus := &ir.Corpus{ID: "test", Version: "1.0"}
-	artifact, err := cap.StoreIR(corpus, "source")
+	artifact, err := cap.StoreIR(context.Background(), corpus, "source")
 	if err != nil {
 		t.Fatalf("failed to store IR: %v", err)
 	}
 
 	// Inject retrieve error
 	origRetrieve := storeRetrieve
-	storeRetrieve = func(s *cas.Store, hash string) ([]byte, error) {
+	storeRetrieve = func(_ context.Context, s cas.BlobStore, hash string) ([]byte, error) {
 		return nil, errors.New("injected retrieve error")
 	}
 	defer func() { storeRetrieve = origRetrieve }()
 
-	_, err = cap.LoadIR(artifact.ID)
+	_, err = cap.LoadIR(context.Background(), artifact.ID)
 	if err == nil {
 		t.Error("expected error for retrieve failure")
 	}
@@ -1966,7 +1967,7 @@ func TestExportIdentityRetrieveError(t *testing.T) {
 	}
 
 	// Try to export - should fail on retrieve
-	_, err = cap.ExportToBytes(artifactID, ExportModeIdentity)
+	_, err = cap.ExportToBytes(context.Background(), artifactID, ExportModeIdentity)
 	if err == nil {
 		t.Error("expected error for blob not found")
 	}
@@ -1994,7 +1995,7 @@ func TestExportToFileRetrieveError(t *testing.T) {
 	}
 
 	// Try to export - should fail on retrieve
-	err = cap.Export(artifactID, ExportModeIdentity, filepath.Join(tempDir, "output.txt"))
+	err = cap.Export(context.Background(), artifactID, ExportModeIdentity, filepath.Join(tempDir, "output.txt"))
 	if err == nil {
 		t.Error("expected error for blob not found")
 	}
@@ -2197,7 +2198,7 @@ func TestPackWithOptionsWalkError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	if _, err := cap.IngestFile(testPath); err != nil {
+	if _, err := cap.IngestFile(context.Background(), testPath); err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
@@ -2234,7 +2235,7 @@ func TestPackWithOptionsRelError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	if _, err := cap.IngestFile(testPath); err != nil {
+	if _, err := cap.IngestFile(context.Background(), testPath); err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
@@ -2270,7 +2271,7 @@ func TestPackWithOptionsReadFileError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	if _, err := cap.IngestFile(testPath); err != nil {
+	if _, err := cap.IngestFile(context.Background(), testPath); err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 

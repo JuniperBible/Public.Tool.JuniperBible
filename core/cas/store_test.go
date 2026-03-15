@@ -2,6 +2,7 @@ package cas
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -27,6 +28,8 @@ func TestStoreAndRetrieve(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
+
 	// Test data
 	testData := []byte("Hello, Juniper Bible!")
 
@@ -35,7 +38,7 @@ func TestStoreAndRetrieve(t *testing.T) {
 	expectedHash := hex.EncodeToString(h[:])
 
 	// Store the blob
-	hash, err := store.Store(testData)
+	hash, err := store.Store(ctx, testData)
 	if err != nil {
 		t.Fatalf("failed to store blob: %v", err)
 	}
@@ -46,7 +49,7 @@ func TestStoreAndRetrieve(t *testing.T) {
 	}
 
 	// Retrieve the blob
-	retrieved, err := store.Retrieve(hash)
+	retrieved, err := store.Retrieve(ctx, hash)
 	if err != nil {
 		t.Fatalf("failed to retrieve blob: %v", err)
 	}
@@ -71,15 +74,16 @@ func TestStoreDuplicate(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	testData := []byte("Duplicate content test")
 
 	// Store the same content twice
-	hash1, err := store.Store(testData)
+	hash1, err := store.Store(ctx, testData)
 	if err != nil {
 		t.Fatalf("first store failed: %v", err)
 	}
 
-	hash2, err := store.Store(testData)
+	hash2, err := store.Store(ctx, testData)
 	if err != nil {
 		t.Fatalf("second store failed: %v", err)
 	}
@@ -109,9 +113,11 @@ func TestRetrieveNonExistent(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
+
 	// Try to retrieve a hash that doesn't exist
 	fakeHash := "0000000000000000000000000000000000000000000000000000000000000000"
-	_, err = store.Retrieve(fakeHash)
+	_, err = store.Retrieve(ctx, fakeHash)
 	if err == nil {
 		t.Error("expected error when retrieving non-existent blob, got nil")
 	}
@@ -142,8 +148,9 @@ func TestInvalidHash(t *testing.T) {
 		"00000000000000000000000000000000000000000000000000000000000000000", // 65 chars
 	}
 
+	ctx := context.Background()
 	for _, hash := range invalidHashes {
-		_, err := store.Retrieve(hash)
+		_, err := store.Retrieve(ctx, hash)
 		if err == nil {
 			t.Errorf("expected error for invalid hash %q, got nil", hash)
 		}
@@ -163,13 +170,14 @@ func TestStoreEmpty(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	emptyData := []byte{}
 
 	// SHA-256 of empty data
 	h := sha256.Sum256(emptyData)
 	expectedHash := hex.EncodeToString(h[:])
 
-	hash, err := store.Store(emptyData)
+	hash, err := store.Store(ctx, emptyData)
 	if err != nil {
 		t.Fatalf("failed to store empty blob: %v", err)
 	}
@@ -178,7 +186,7 @@ func TestStoreEmpty(t *testing.T) {
 		t.Errorf("empty blob hash mismatch: got %s, want %s", hash, expectedHash)
 	}
 
-	retrieved, err := store.Retrieve(hash)
+	retrieved, err := store.Retrieve(ctx, hash)
 	if err != nil {
 		t.Fatalf("failed to retrieve empty blob: %v", err)
 	}
@@ -201,18 +209,20 @@ func TestStoreLargeBlob(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
+
 	// Create a 1MB blob
 	largeData := make([]byte, 1024*1024)
 	for i := range largeData {
 		largeData[i] = byte(i % 256)
 	}
 
-	hash, err := store.Store(largeData)
+	hash, err := store.Store(ctx, largeData)
 	if err != nil {
 		t.Fatalf("failed to store large blob: %v", err)
 	}
 
-	retrieved, err := store.Retrieve(hash)
+	retrieved, err := store.Retrieve(ctx, hash)
 	if err != nil {
 		t.Fatalf("failed to retrieve large blob: %v", err)
 	}
@@ -235,9 +245,10 @@ func TestBlobPath(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	testData := []byte("Path structure test")
 
-	hash, err := store.Store(testData)
+	hash, err := store.Store(ctx, testData)
 	if err != nil {
 		t.Fatalf("failed to store blob: %v", err)
 	}
@@ -262,24 +273,25 @@ func TestExists(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	testData := []byte("Existence test")
 
 	// Before storing, hash should not exist
 	h := sha256.Sum256(testData)
 	hash := hex.EncodeToString(h[:])
 
-	if store.Exists(hash) {
+	if store.Exists(ctx, hash) {
 		t.Error("blob should not exist before storing")
 	}
 
 	// Store the blob
-	_, err = store.Store(testData)
+	_, err = store.Store(ctx, testData)
 	if err != nil {
 		t.Fatalf("failed to store blob: %v", err)
 	}
 
 	// After storing, hash should exist
-	if !store.Exists(hash) {
+	if !store.Exists(ctx, hash) {
 		t.Error("blob should exist after storing")
 	}
 }
@@ -297,8 +309,10 @@ func TestExistsInvalidHash(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
+
 	// Invalid hash should return false
-	if store.Exists("invalid") {
+	if store.Exists(ctx, "invalid") {
 		t.Error("Exists should return false for invalid hash")
 	}
 }
@@ -340,9 +354,10 @@ func TestStoreWithBlake3(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	testData := []byte("BLAKE3 store test")
 
-	result, err := store.StoreWithBlake3(testData)
+	result, err := store.StoreWithBlake3(ctx, testData)
 	if err != nil {
 		t.Fatalf("StoreWithBlake3 failed: %v", err)
 	}
@@ -362,7 +377,7 @@ func TestStoreWithBlake3(t *testing.T) {
 	}
 
 	// Verify blob can be retrieved by SHA-256
-	retrieved, err := store.Retrieve(result.SHA256)
+	retrieved, err := store.Retrieve(ctx, result.SHA256)
 	if err != nil {
 		t.Fatalf("Retrieve by SHA-256 failed: %v", err)
 	}
@@ -384,15 +399,16 @@ func TestLookupBlake3(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	testData := []byte("BLAKE3 lookup test")
 
-	result, err := store.StoreWithBlake3(testData)
+	result, err := store.StoreWithBlake3(ctx, testData)
 	if err != nil {
 		t.Fatalf("StoreWithBlake3 failed: %v", err)
 	}
 
 	// Look up SHA-256 by BLAKE3
-	sha256Hash, err := store.LookupBlake3(result.BLAKE3)
+	sha256Hash, err := store.LookupBlake3(ctx, result.BLAKE3)
 	if err != nil {
 		t.Fatalf("LookupBlake3 failed: %v", err)
 	}
@@ -415,8 +431,9 @@ func TestLookupBlake3NotFound(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	fakeHash := "0000000000000000000000000000000000000000000000000000000000000000"
-	_, err = store.LookupBlake3(fakeHash)
+	_, err = store.LookupBlake3(ctx, fakeHash)
 	if err != ErrBlobNotFound {
 		t.Errorf("expected ErrBlobNotFound, got %v", err)
 	}
@@ -435,7 +452,8 @@ func TestLookupBlake3InvalidHash(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
-	_, err = store.LookupBlake3("invalid")
+	ctx := context.Background()
+	_, err = store.LookupBlake3(ctx, "invalid")
 	if err != ErrInvalidHash {
 		t.Errorf("expected ErrInvalidHash, got %v", err)
 	}
@@ -454,15 +472,16 @@ func TestRetrieveByBlake3(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	testData := []byte("BLAKE3 retrieve test")
 
-	result, err := store.StoreWithBlake3(testData)
+	result, err := store.StoreWithBlake3(ctx, testData)
 	if err != nil {
 		t.Fatalf("StoreWithBlake3 failed: %v", err)
 	}
 
 	// Retrieve by BLAKE3
-	retrieved, err := store.RetrieveByBlake3(result.BLAKE3)
+	retrieved, err := store.RetrieveByBlake3(ctx, result.BLAKE3)
 	if err != nil {
 		t.Fatalf("RetrieveByBlake3 failed: %v", err)
 	}
@@ -485,8 +504,9 @@ func TestRetrieveByBlake3NotFound(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	fakeHash := "0000000000000000000000000000000000000000000000000000000000000000"
-	_, err = store.RetrieveByBlake3(fakeHash)
+	_, err = store.RetrieveByBlake3(ctx, fakeHash)
 	if err != ErrBlobNotFound {
 		t.Errorf("expected ErrBlobNotFound, got %v", err)
 	}
@@ -505,15 +525,16 @@ func TestStoreWithBlake3Duplicate(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	testData := []byte("BLAKE3 duplicate test")
 
 	// Store twice
-	result1, err := store.StoreWithBlake3(testData)
+	result1, err := store.StoreWithBlake3(ctx, testData)
 	if err != nil {
 		t.Fatalf("first StoreWithBlake3 failed: %v", err)
 	}
 
-	result2, err := store.StoreWithBlake3(testData)
+	result2, err := store.StoreWithBlake3(ctx, testData)
 	if err != nil {
 		t.Fatalf("second StoreWithBlake3 failed: %v", err)
 	}
@@ -572,7 +593,8 @@ func TestStoreMkdirPrefixError(t *testing.T) {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
-	_, err = store.Store(testData)
+	ctx := context.Background()
+	_, err = store.Store(ctx, testData)
 	if err == nil {
 		t.Error("expected error when prefix mkdir fails")
 	}
@@ -605,7 +627,8 @@ func TestStoreCreateTempError(t *testing.T) {
 	}
 	defer os.Chmod(prefixPath, 0700) // Restore for cleanup
 
-	_, err = store.Store(testData)
+	ctx := context.Background()
+	_, err = store.Store(ctx, testData)
 	if err == nil {
 		t.Error("expected error when temp file creation fails")
 	}
@@ -624,9 +647,11 @@ func TestRetrieveReadError(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
+
 	// Store something first
 	testData := []byte("test data")
-	hash, err := store.Store(testData)
+	hash, err := store.Store(ctx, testData)
 	if err != nil {
 		t.Fatalf("failed to store: %v", err)
 	}
@@ -640,7 +665,7 @@ func TestRetrieveReadError(t *testing.T) {
 		t.Fatalf("failed to create directory: %v", err)
 	}
 
-	_, err = store.Retrieve(hash)
+	_, err = store.Retrieve(ctx, hash)
 	if err == nil {
 		t.Error("expected error when reading directory as file")
 	}
@@ -677,7 +702,8 @@ func TestStoreWithBlake3StoreError(t *testing.T) {
 	}
 	defer os.Chmod(prefixPath, 0700)
 
-	_, err = store.StoreWithBlake3(testData)
+	ctx := context.Background()
+	_, err = store.StoreWithBlake3(ctx, testData)
 	if err == nil {
 		t.Error("expected error when store fails")
 	}
@@ -713,7 +739,8 @@ func TestCreateBlake3PointerMkdirError(t *testing.T) {
 		t.Fatalf("failed to create blocking file: %v", err)
 	}
 
-	_, err = store.StoreWithBlake3(testData)
+	ctx := context.Background()
+	_, err = store.StoreWithBlake3(ctx, testData)
 	if err == nil {
 		t.Error("expected error when blake3 pointer mkdir fails")
 	}
@@ -732,9 +759,11 @@ func TestLookupBlake3ReadError(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
+
 	// Store with BLAKE3
 	testData := []byte("test for lookup read error")
-	result, err := store.StoreWithBlake3(testData)
+	result, err := store.StoreWithBlake3(ctx, testData)
 	if err != nil {
 		t.Fatalf("failed to store: %v", err)
 	}
@@ -749,7 +778,7 @@ func TestLookupBlake3ReadError(t *testing.T) {
 		t.Fatalf("failed to create directory: %v", err)
 	}
 
-	_, err = store.LookupBlake3(result.BLAKE3)
+	_, err = store.LookupBlake3(ctx, result.BLAKE3)
 	if err == nil {
 		t.Error("expected error when reading directory as file")
 	}
@@ -768,9 +797,11 @@ func TestLookupBlake3UnmarshalError(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
+
 	// Store with BLAKE3
 	testData := []byte("test for unmarshal error")
-	result, err := store.StoreWithBlake3(testData)
+	result, err := store.StoreWithBlake3(ctx, testData)
 	if err != nil {
 		t.Fatalf("failed to store: %v", err)
 	}
@@ -781,7 +812,7 @@ func TestLookupBlake3UnmarshalError(t *testing.T) {
 		t.Fatalf("failed to write invalid json: %v", err)
 	}
 
-	_, err = store.LookupBlake3(result.BLAKE3)
+	_, err = store.LookupBlake3(ctx, result.BLAKE3)
 	if err == nil {
 		t.Error("expected error when parsing invalid json")
 	}
@@ -815,7 +846,8 @@ func TestCreateBlake3PointerCreateTempError(t *testing.T) {
 	}
 	defer os.Chmod(pointerDir, 0700)
 
-	_, err = store.StoreWithBlake3(testData)
+	ctx := context.Background()
+	_, err = store.StoreWithBlake3(ctx, testData)
 	if err == nil {
 		t.Error("expected error when CreateTemp fails")
 	}
@@ -841,8 +873,9 @@ func TestStoreWriteError(t *testing.T) {
 		return 0, errors.New("injected write error")
 	}
 
+	ctx := context.Background()
 	testData := []byte("test for write error")
-	_, err = store.Store(testData)
+	_, err = store.Store(ctx, testData)
 	if err == nil {
 		t.Error("expected error when write fails")
 	}
@@ -876,8 +909,9 @@ func TestStoreCloseError(t *testing.T) {
 		return f.Close()
 	}
 
+	ctx := context.Background()
 	testData := []byte("test for close error")
-	_, err = store.Store(testData)
+	_, err = store.Store(ctx, testData)
 	if err == nil {
 		t.Error("expected error when close fails")
 	}
@@ -906,8 +940,9 @@ func TestStoreRenameError(t *testing.T) {
 		return errors.New("injected rename error")
 	}
 
+	ctx := context.Background()
 	testData := []byte("test for rename error")
-	_, err = store.Store(testData)
+	_, err = store.Store(ctx, testData)
 	if err == nil {
 		t.Error("expected error when rename fails")
 	}
@@ -941,8 +976,9 @@ func TestCreateBlake3PointerWriteError(t *testing.T) {
 		return f.Write(data)
 	}
 
+	ctx := context.Background()
 	testData := []byte("test for pointer write error")
-	_, err = store.StoreWithBlake3(testData)
+	_, err = store.StoreWithBlake3(ctx, testData)
 	if err == nil {
 		t.Error("expected error when pointer write fails")
 	}
@@ -973,8 +1009,9 @@ func TestCreateBlake3PointerCloseError(t *testing.T) {
 		return f.Close()
 	}
 
+	ctx := context.Background()
 	testData := []byte("test for pointer close error")
-	_, err = store.StoreWithBlake3(testData)
+	_, err = store.StoreWithBlake3(ctx, testData)
 	if err == nil {
 		t.Error("expected error when pointer close fails")
 	}
@@ -1005,8 +1042,9 @@ func TestCreateBlake3PointerRenameError(t *testing.T) {
 		return os.Rename(oldpath, newpath)
 	}
 
+	ctx := context.Background()
 	testData := []byte("test for pointer rename error")
-	_, err = store.StoreWithBlake3(testData)
+	_, err = store.StoreWithBlake3(ctx, testData)
 	if err == nil {
 		t.Error("expected error when pointer rename fails")
 	}

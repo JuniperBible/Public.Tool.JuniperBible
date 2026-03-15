@@ -1,10 +1,11 @@
 module github.com/JuniperBible/Public.Tool.JuniperBible
 
-go 1.26.0
+go 1.26.1
 
 require (
-	github.com/cyanitol/Public.Lib.Anthony v0.0.0
+	github.com/FocuswithJustin/Private.Lib.Veronica v0.0.0
 	github.com/alecthomas/kong v1.13.0
+	github.com/cyanitol/Public.Lib.Anthony v0.0.0
 	github.com/ulikunitz/xz v0.5.15
 	github.com/zeebo/blake3 v0.2.4
 )
@@ -23,6 +24,9 @@ require (
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	google.golang.org/grpc v1.79.2 // indirect
+	google.golang.org/protobuf v1.36.10 // indirect
 )
 
 // Use forked repositories for custom functionality
@@ -34,4 +38,7 @@ replace github.com/alecthomas/kong => github.com/FocuswithJustin/kong v1.13.0
 replace github.com/alecthomas/participle/v2 => github.com/FocuswithJustin/participle/v2 v2.1.4
 
 // Use local Public.Lib.Anthony for pure Go SQLite
-replace github.com/cyanitol/Public.Lib.Anthony => ../../Public.Lib.Anthony
+replace github.com/cyanitol/Public.Lib.Anthony => ../Public.Lib.Anthony
+
+// Use local Private.Lib.Veronica
+replace github.com/FocuswithJustin/Private.Lib.Veronica => ../Private.Lib.Veronica

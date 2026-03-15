@@ -3,6 +3,7 @@ package capsule
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,8 +27,8 @@ var (
 	osStatCapsule        = os.Stat
 	osWriteFileCapsule   = os.WriteFile
 	// Store operation wrappers - set these on capsule instances in tests
-	storeStoreWithBlake3 func(*cas.Store, []byte) (*cas.HashResult, error)
-	storeRetrieve        func(*cas.Store, string) ([]byte, error)
+	storeStoreWithBlake3 func(context.Context, cas.BlobStore, []byte) (*cas.HashResult, error)
+	storeRetrieve        func(context.Context, cas.BlobStore, string) ([]byte, error)
 
 	// PackWithOptions injectable functions
 	gzipNewWriterLevel = gzip.NewWriterLevel
@@ -58,11 +59,11 @@ var (
 
 func init() {
 	// Default implementations call the actual store methods
-	storeStoreWithBlake3 = func(s *cas.Store, data []byte) (*cas.HashResult, error) {
-		return s.StoreWithBlake3(data)
+	storeStoreWithBlake3 = func(ctx context.Context, s cas.BlobStore, data []byte) (*cas.HashResult, error) {
+		return s.StoreWithBlake3(ctx, data)
 	}
-	storeRetrieve = func(s *cas.Store, hash string) ([]byte, error) {
-		return s.Retrieve(hash)
+	storeRetrieve = func(ctx context.Context, s cas.BlobStore, hash string) ([]byte, error) {
+		return s.Retrieve(ctx, hash)
 	}
 	manifestToJSONPack = func(m *Manifest) ([]byte, error) {
 		return m.ToJSON()
@@ -102,18 +103,48 @@ func DefaultPackOptions() *PackOptions {
 type Capsule struct {
 	root     string
 	Manifest *Manifest
-	store    *cas.Store
+	store    cas.BlobStore
+}
+
+// CapsuleOption configures capsule construction.
+type CapsuleOption func(*capsuleConfig)
+
+type capsuleConfig struct {
+	veronicaCAS cas.VeronicaCAS
+}
+
+// WithVeronicaClient configures the capsule to use a Veronica CAS backend.
+// The root directory is still used for BLAKE3 pointer files and local metadata.
+func WithVeronicaClient(client cas.VeronicaCAS) CapsuleOption {
+	return func(cfg *capsuleConfig) {
+		cfg.veronicaCAS = client
+	}
 }
 
 // New creates a new empty capsule at the given root directory.
-func New(root string) (*Capsule, error) {
+func New(root string, opts ...CapsuleOption) (*Capsule, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, errors.NewIO("create directory", root, err)
 	}
 
-	store, err := casNewStore(root)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create blob store")
+	var cfg capsuleConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	var store cas.BlobStore
+	if cfg.veronicaCAS != nil {
+		var err error
+		store, err = cas.NewVeronicaStore(cfg.veronicaCAS, root)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create Veronica store")
+		}
+	} else {
+		var err error
+		store, err = casNewStore(root)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create blob store")
+		}
 	}
 
 	return &Capsule{
@@ -124,13 +155,13 @@ func New(root string) (*Capsule, error) {
 }
 
 // Create is an alias for New for convenience.
-func Create(root string) (*Capsule, error) {
-	return New(root)
+func Create(root string, opts ...CapsuleOption) (*Capsule, error) {
+	return New(root, opts...)
 }
 
 // IngestFile ingests a file into the capsule, storing it in the CAS
 // and recording it as an artifact in the manifest.
-func (c *Capsule) IngestFile(path string) (*Artifact, error) {
+func (c *Capsule) IngestFile(ctx context.Context, path string) (*Artifact, error) {
 	// Read the file
 	data, err := osReadFileCapsule(path)
 	if err != nil {
@@ -138,7 +169,7 @@ func (c *Capsule) IngestFile(path string) (*Artifact, error) {
 	}
 
 	// Store with both SHA-256 and BLAKE3
-	result, err := storeStoreWithBlake3(c.store, data)
+	result, err := storeStoreWithBlake3(ctx, c.store, data)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to store blob")
 	}
@@ -335,7 +366,7 @@ func DetectCompression(archivePath string) (CompressionType, error) {
 
 // Unpack unpacks a capsule archive to the given directory.
 // Auto-detects compression format (XZ or gzip).
-func Unpack(archivePath, destDir string) (*Capsule, error) {
+func Unpack(archivePath, destDir string, opts ...CapsuleOption) (*Capsule, error) {
 	if err := osMkdirAllUnpack(destDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create destination directory: %w", err)
 	}
@@ -365,9 +396,24 @@ func Unpack(archivePath, destDir string) (*Capsule, error) {
 		return nil, fmt.Errorf("archive does not contain manifest.json")
 	}
 
-	store, err := casNewStoreUnpack(destDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create store: %w", err)
+	var cfg capsuleConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	var store cas.BlobStore
+	if cfg.veronicaCAS != nil {
+		var err error
+		store, err = cas.NewVeronicaStore(cfg.veronicaCAS, destDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Veronica store: %w", err)
+		}
+	} else {
+		var err error
+		store, err = casNewStoreUnpack(destDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create store: %w", err)
+		}
 	}
 
 	return &Capsule{root: destDir, Manifest: manifest, store: store}, nil
@@ -519,18 +565,18 @@ func generateArtifactID(name string) string {
 }
 
 // GetStore returns the underlying CAS store.
-func (c *Capsule) GetStore() *cas.Store {
+func (c *Capsule) GetStore() cas.BlobStore {
 	return c.store
 }
 
 // AddRun adds a tool run to the capsule, storing the transcript in the CAS.
-func (c *Capsule) AddRun(run *Run, transcriptData []byte) error {
+func (c *Capsule) AddRun(ctx context.Context, run *Run, transcriptData []byte) error {
 	if run.ID == "" {
 		return fmt.Errorf("run ID is required")
 	}
 
 	// Store transcript in CAS
-	result, err := storeStoreWithBlake3(c.store, transcriptData)
+	result, err := storeStoreWithBlake3(ctx, c.store, transcriptData)
 	if err != nil {
 		return fmt.Errorf("failed to store transcript: %w", err)
 	}
@@ -562,7 +608,7 @@ func (c *Capsule) AddRun(run *Run, transcriptData []byte) error {
 }
 
 // GetTranscript retrieves the transcript data for a run.
-func (c *Capsule) GetTranscript(runID string) ([]byte, error) {
+func (c *Capsule) GetTranscript(ctx context.Context, runID string) ([]byte, error) {
 	run, ok := c.Manifest.Runs[runID]
 	if !ok {
 		return nil, errors.NewNotFound("run", runID)
@@ -572,7 +618,7 @@ func (c *Capsule) GetTranscript(runID string) ([]byte, error) {
 		return nil, errors.NewValidation("transcript", fmt.Sprintf("run %s has no transcript", runID))
 	}
 
-	return c.store.Retrieve(run.Outputs.TranscriptBlobSHA256)
+	return c.store.Retrieve(ctx, run.Outputs.TranscriptBlobSHA256)
 }
 
 // GetRoot returns the root directory of the capsule.
@@ -597,7 +643,7 @@ func (c *Capsule) SaveManifest() error {
 
 // StoreIR serializes an IR Corpus and stores it in the capsule.
 // It creates both an artifact and an IR extraction record.
-func (c *Capsule) StoreIR(corpus *ir.Corpus, sourceArtifactID string) (*Artifact, error) {
+func (c *Capsule) StoreIR(ctx context.Context, corpus *ir.Corpus, sourceArtifactID string) (*Artifact, error) {
 	// Serialize corpus to JSON
 	data, err := jsonMarshalCapsule(corpus)
 	if err != nil {
@@ -605,7 +651,7 @@ func (c *Capsule) StoreIR(corpus *ir.Corpus, sourceArtifactID string) (*Artifact
 	}
 
 	// Store in CAS
-	result, err := storeStoreWithBlake3(c.store, data)
+	result, err := storeStoreWithBlake3(ctx, c.store, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store IR blob: %w", err)
 	}
@@ -672,7 +718,7 @@ func (c *Capsule) StoreIR(corpus *ir.Corpus, sourceArtifactID string) (*Artifact
 }
 
 // LoadIR retrieves and deserializes an IR Corpus from the capsule.
-func (c *Capsule) LoadIR(artifactID string) (*ir.Corpus, error) {
+func (c *Capsule) LoadIR(ctx context.Context, artifactID string) (*ir.Corpus, error) {
 	// Find the artifact
 	artifact, ok := c.Manifest.Artifacts[artifactID]
 	if !ok {
@@ -685,7 +731,7 @@ func (c *Capsule) LoadIR(artifactID string) (*ir.Corpus, error) {
 	}
 
 	// Retrieve the blob
-	data, err := storeRetrieve(c.store, artifact.PrimaryBlobSHA256)
+	data, err := storeRetrieve(ctx, c.store, artifact.PrimaryBlobSHA256)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to retrieve IR blob")
 	}

@@ -1,6 +1,7 @@
 package capsule
 
 import (
+	"context"
 	"bytes"
 	"errors"
 	"os"
@@ -34,14 +35,14 @@ func TestExportIdentity(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	artifact, err := capsule.IngestFile(testFilePath)
+	artifact, err := capsule.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
 
 	// Export in IDENTITY mode
 	exportPath := filepath.Join(tempDir, "exported.txt")
-	if err := capsule.Export(artifact.ID, ExportModeIdentity, exportPath); err != nil {
+	if err := capsule.Export(context.Background(), artifact.ID, ExportModeIdentity, exportPath); err != nil {
 		t.Fatalf("failed to export: %v", err)
 	}
 
@@ -88,7 +89,7 @@ func TestExportIdentityAfterPackUnpack(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	artifact, err := capsule.IngestFile(testFilePath)
+	artifact, err := capsule.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -110,7 +111,7 @@ func TestExportIdentityAfterPackUnpack(t *testing.T) {
 
 	// Export from unpacked capsule
 	exportPath := filepath.Join(tempDir, "exported.txt")
-	if err := unpacked.Export(artifactID, ExportModeIdentity, exportPath); err != nil {
+	if err := unpacked.Export(context.Background(), artifactID, ExportModeIdentity, exportPath); err != nil {
 		t.Fatalf("failed to export from unpacked: %v", err)
 	}
 
@@ -146,7 +147,7 @@ func TestExportNonExistentArtifact(t *testing.T) {
 	}
 
 	exportPath := filepath.Join(tempDir, "exported.txt")
-	err = capsule.Export("non-existent-artifact", ExportModeIdentity, exportPath)
+	err = capsule.Export(context.Background(), "non-existent-artifact", ExportModeIdentity, exportPath)
 	if err == nil {
 		t.Error("expected error when exporting non-existent artifact")
 	}
@@ -182,7 +183,7 @@ func TestExportMultipleFiles(t *testing.T) {
 			t.Fatalf("failed to write %s: %v", name, err)
 		}
 
-		artifact, err := capsule.IngestFile(path)
+		artifact, err := capsule.IngestFile(context.Background(), path)
 		if err != nil {
 			t.Fatalf("failed to ingest %s: %v", name, err)
 		}
@@ -211,7 +212,7 @@ func TestExportMultipleFiles(t *testing.T) {
 		artifactID := artifacts[name]
 		exportPath := filepath.Join(exportDir, name)
 
-		if err := unpacked.Export(artifactID, ExportModeIdentity, exportPath); err != nil {
+		if err := unpacked.Export(context.Background(), artifactID, ExportModeIdentity, exportPath); err != nil {
 			t.Errorf("failed to export %s: %v", name, err)
 			continue
 		}
@@ -247,13 +248,13 @@ func TestExportDerivedMode(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := capsule.IngestFile(testPath)
+	artifact, err := capsule.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
 	// Export in DERIVED mode should fail (not implemented)
-	err = capsule.Export(artifact.ID, ExportModeDerived, filepath.Join(tempDir, "out.txt"))
+	err = capsule.Export(context.Background(), artifact.ID, ExportModeDerived, filepath.Join(tempDir, "out.txt"))
 	if err == nil {
 		t.Error("expected error for DERIVED mode")
 	}
@@ -278,13 +279,13 @@ func TestExportUnknownMode(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := capsule.IngestFile(testPath)
+	artifact, err := capsule.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
 	// Export with unknown mode
-	err = capsule.Export(artifact.ID, "UNKNOWN", filepath.Join(tempDir, "out.txt"))
+	err = capsule.Export(context.Background(), artifact.ID, "UNKNOWN", filepath.Join(tempDir, "out.txt"))
 	if err == nil {
 		t.Error("expected error for unknown mode")
 	}
@@ -308,12 +309,12 @@ func TestExportToBytesUnknownMode(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := capsule.IngestFile(testPath)
+	artifact, err := capsule.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
-	_, err = capsule.ExportToBytes(artifact.ID, "UNKNOWN")
+	_, err = capsule.ExportToBytes(context.Background(), artifact.ID, "UNKNOWN")
 	if err == nil {
 		t.Error("expected error for unknown mode")
 	}
@@ -337,12 +338,12 @@ func TestExportToBytesDerivedMode(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := capsule.IngestFile(testPath)
+	artifact, err := capsule.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
-	_, err = capsule.ExportToBytes(artifact.ID, ExportModeDerived)
+	_, err = capsule.ExportToBytes(context.Background(), artifact.ID, ExportModeDerived)
 	if err == nil {
 		t.Error("expected error for DERIVED mode")
 	}
@@ -370,12 +371,12 @@ func TestExportIdentityInvalidPath(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := capsule.IngestFile(testPath)
+	artifact, err := capsule.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
-	err = capsule.Export(artifact.ID, ExportModeIdentity, "/proc/invalid/path")
+	err = capsule.Export(context.Background(), artifact.ID, ExportModeIdentity, "/proc/invalid/path")
 	if err == nil {
 		t.Error("expected error for invalid path")
 	}
@@ -399,7 +400,7 @@ func TestExportIdentityMkdirError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -411,7 +412,7 @@ func TestExportIdentityMkdirError(t *testing.T) {
 	}
 	defer func() { osMkdirAllExport = origMkdir }()
 
-	err = cap.Export(artifact.ID, ExportModeIdentity, filepath.Join(tempDir, "out/file.txt"))
+	err = cap.Export(context.Background(), artifact.ID, ExportModeIdentity, filepath.Join(tempDir, "out/file.txt"))
 	if err == nil {
 		t.Error("expected error for mkdir failure")
 	}
@@ -435,7 +436,7 @@ func TestExportIdentityWriteError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -447,7 +448,7 @@ func TestExportIdentityWriteError(t *testing.T) {
 	}
 	defer func() { osWriteFileIdentity = origWrite }()
 
-	err = cap.Export(artifact.ID, ExportModeIdentity, filepath.Join(tempDir, "out.txt"))
+	err = cap.Export(context.Background(), artifact.ID, ExportModeIdentity, filepath.Join(tempDir, "out.txt"))
 	if err == nil {
 		t.Error("expected error for write failure")
 	}
@@ -542,12 +543,12 @@ func TestExportDerivedNoPluginLoader(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
-	_, err = cap.ExportDerived(artifact.ID, DerivedExportOptions{
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, DerivedExportOptions{
 		TargetFormat: "osis",
 	}, filepath.Join(tempDir, "out.txt"))
 	if err == nil {
@@ -573,12 +574,12 @@ func TestExportDerivedNoTargetFormat(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
 
-	_, err = cap.ExportDerived(artifact.ID, DerivedExportOptions{}, filepath.Join(tempDir, "out.txt"))
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, DerivedExportOptions{}, filepath.Join(tempDir, "out.txt"))
 	if err == nil {
 		t.Error("expected error for missing target format")
 	}
@@ -598,7 +599,7 @@ func TestExportDerivedArtifactNotFound(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	_, err = cap.ExportDerived("nonexistent", DerivedExportOptions{
+	_, err = cap.ExportDerived(context.Background(), "nonexistent", DerivedExportOptions{
 		TargetFormat: "osis",
 		SourcePlugin: &plugins.Plugin{},
 		TargetPlugin: &plugins.Plugin{},
@@ -626,7 +627,7 @@ func TestExportDerivedTempDirError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -638,7 +639,7 @@ func TestExportDerivedTempDirError(t *testing.T) {
 	}
 	defer func() { osMkdirTemp = origMkdirTemp }()
 
-	_, err = cap.ExportDerived(artifact.ID, DerivedExportOptions{
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, DerivedExportOptions{
 		TargetFormat: "osis",
 		SourcePlugin: &plugins.Plugin{},
 		TargetPlugin: &plugins.Plugin{},
@@ -666,7 +667,7 @@ func TestExportDerivedToBytesTempDirError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -678,7 +679,7 @@ func TestExportDerivedToBytesTempDirError(t *testing.T) {
 	}
 	defer func() { osMkdirTemp = origMkdirTemp }()
 
-	_, _, err = cap.ExportDerivedToBytes(artifact.ID, DerivedExportOptions{
+	_, _, err = cap.ExportDerivedToBytes(context.Background(), artifact.ID, DerivedExportOptions{
 		TargetFormat: "osis",
 		SourcePlugin: &plugins.Plugin{},
 		TargetPlugin: &plugins.Plugin{},
@@ -931,7 +932,7 @@ func TestExportDerivedWriteSourceFileError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -955,7 +956,7 @@ func TestExportDerivedWriteSourceFileError(t *testing.T) {
 		osWriteFileExport = origWriteFile
 	}()
 
-	_, err = cap.ExportDerived(artifact.ID, DerivedExportOptions{
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, DerivedExportOptions{
 		TargetFormat: "osis",
 		SourcePlugin: &plugins.Plugin{},
 		TargetPlugin: &plugins.Plugin{},
@@ -983,7 +984,7 @@ func TestExportDerivedExtractIRError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -995,7 +996,7 @@ func TestExportDerivedExtractIRError(t *testing.T) {
 	}
 	defer func() { pluginsExecutePlugin = origExecute }()
 
-	_, err = cap.ExportDerived(artifact.ID, DerivedExportOptions{
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, DerivedExportOptions{
 		TargetFormat: "osis",
 		SourcePlugin: &plugins.Plugin{},
 		TargetPlugin: &plugins.Plugin{},
@@ -1023,7 +1024,7 @@ func TestExportDerivedEmitNativeError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -1048,7 +1049,7 @@ func TestExportDerivedEmitNativeError(t *testing.T) {
 		pluginsParseExtractIRResult = origParseExtract
 	}()
 
-	_, err = cap.ExportDerived(artifact.ID, DerivedExportOptions{
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, DerivedExportOptions{
 		TargetFormat: "osis",
 		SourcePlugin: &plugins.Plugin{},
 		TargetPlugin: &plugins.Plugin{},
@@ -1077,7 +1078,7 @@ func TestExportDerivedFullSuccess(t *testing.T) {
 	if err := os.WriteFile(testPath, testContent, 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -1130,7 +1131,7 @@ func TestExportDerivedFullSuccess(t *testing.T) {
 	}()
 
 	destPath := filepath.Join(tempDir, "dest.txt")
-	result, err := cap.ExportDerived(artifact.ID, DerivedExportOptions{
+	result, err := cap.ExportDerived(context.Background(), artifact.ID, DerivedExportOptions{
 		TargetFormat: "osis",
 		SourcePlugin: &plugins.Plugin{},
 		TargetPlugin: &plugins.Plugin{},
@@ -1167,7 +1168,7 @@ func TestExportDerivedReadOutputError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -1197,7 +1198,7 @@ func TestExportDerivedReadOutputError(t *testing.T) {
 		osReadFileExport = origReadFile
 	}()
 
-	_, err = cap.ExportDerived(artifact.ID, DerivedExportOptions{
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, DerivedExportOptions{
 		TargetFormat: "osis",
 		SourcePlugin: &plugins.Plugin{},
 		TargetPlugin: &plugins.Plugin{},
@@ -1225,7 +1226,7 @@ func TestExportDerivedWriteDestError(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -1265,7 +1266,7 @@ func TestExportDerivedWriteDestError(t *testing.T) {
 		osWriteFileExport = origWriteFile
 	}()
 
-	_, err = cap.ExportDerived(artifact.ID, DerivedExportOptions{
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, DerivedExportOptions{
 		TargetFormat: "osis",
 		SourcePlugin: &plugins.Plugin{},
 		TargetPlugin: &plugins.Plugin{},
@@ -1293,7 +1294,7 @@ func TestExportDerivedToBytesSuccess(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte("test"), 0600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
-	artifact, err := cap.IngestFile(testPath)
+	artifact, err := cap.IngestFile(context.Background(), testPath)
 	if err != nil {
 		t.Fatalf("failed to ingest: %v", err)
 	}
@@ -1328,7 +1329,7 @@ func TestExportDerivedToBytesSuccess(t *testing.T) {
 		osWriteFileExport = origWriteFile
 	}()
 
-	data, result, err := cap.ExportDerivedToBytes(artifact.ID, DerivedExportOptions{
+	data, result, err := cap.ExportDerivedToBytes(context.Background(), artifact.ID, DerivedExportOptions{
 		TargetFormat: "osis",
 		SourcePlugin: &plugins.Plugin{},
 		TargetPlugin: &plugins.Plugin{},
@@ -1369,7 +1370,7 @@ func TestExportBinaryPreservation(t *testing.T) {
 		t.Fatalf("failed to create capsule: %v", err)
 	}
 
-	artifact, err := capsule.IngestFile(testFilePath)
+	artifact, err := capsule.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1387,7 +1388,7 @@ func TestExportBinaryPreservation(t *testing.T) {
 	}
 
 	exportPath := filepath.Join(tempDir, "exported.bin")
-	if err := unpacked.Export(artifact.ID, ExportModeIdentity, exportPath); err != nil {
+	if err := unpacked.Export(context.Background(), artifact.ID, ExportModeIdentity, exportPath); err != nil {
 		t.Fatalf("failed to export: %v", err)
 	}
 

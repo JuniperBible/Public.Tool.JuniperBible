@@ -900,7 +900,7 @@ func TestExecuteWithRealNix(t *testing.T) {
 
 	// Add a test artifact
 	testData := []byte("test artifact content for tool execution")
-	hash, err := cap.GetStore().Store(testData)
+	hash, err := cap.GetStore().Store(context.Background(), testData)
 	if err != nil {
 		t.Fatal(err)
 	}

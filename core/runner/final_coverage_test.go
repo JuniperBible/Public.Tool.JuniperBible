@@ -258,7 +258,7 @@ func TestExtractExecutableError(t *testing.T) {
 	}
 
 	archivePath := filepath.Join(tempDir, "test.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"test",
 		"1.0.0",
 		"x86_64-linux",
@@ -269,7 +269,7 @@ func TestExtractExecutableError(t *testing.T) {
 		t.Fatalf("CreateToolArchive failed: %v", err)
 	}
 
-	archive, err := LoadToolArchive(archivePath)
+	archive, err := LoadToolArchive(context.Background(), archivePath)
 	if err != nil {
 		t.Fatalf("LoadToolArchive failed: %v", err)
 	}
@@ -287,7 +287,7 @@ func TestExtractExecutableError(t *testing.T) {
 	defer os.Chmod(binExtractDir, 0700)
 
 	// This should fail when trying to write to read-only bin directory
-	err = archive.ExtractTo(extractDir)
+	err = archive.ExtractTo(context.Background(), extractDir)
 	if err == nil {
 		t.Error("expected error when extracting to read-only bin directory")
 	}
@@ -317,7 +317,7 @@ func TestExtractLibraryError(t *testing.T) {
 	}
 
 	archivePath := filepath.Join(tempDir, "test.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"test",
 		"1.0.0",
 		"x86_64-linux",
@@ -328,7 +328,7 @@ func TestExtractLibraryError(t *testing.T) {
 		t.Fatalf("CreateToolArchive failed: %v", err)
 	}
 
-	archive, err := LoadToolArchive(archivePath)
+	archive, err := LoadToolArchive(context.Background(), archivePath)
 	if err != nil {
 		t.Fatalf("LoadToolArchive failed: %v", err)
 	}
@@ -338,7 +338,7 @@ func TestExtractLibraryError(t *testing.T) {
 
 	// Try to extract - should fail because library artifact doesn't exist
 	extractDir := filepath.Join(tempDir, "extract")
-	err = archive.ExtractTo(extractDir)
+	err = archive.ExtractTo(context.Background(), extractDir)
 	if err == nil {
 		t.Error("expected error when extracting non-existent library artifact")
 	} else {

@@ -1,6 +1,7 @@
 package capsule
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -37,7 +38,7 @@ const (
 
 // Export exports an artifact to the given path.
 // In IDENTITY mode, it writes the original bytes verbatim, ensuring byte-for-byte preservation.
-func (c *Capsule) Export(artifactID string, mode ExportMode, destPath string) error {
+func (c *Capsule) Export(ctx context.Context, artifactID string, mode ExportMode, destPath string) error {
 	// Find the artifact
 	artifact, ok := c.Manifest.Artifacts[artifactID]
 	if !ok {
@@ -46,7 +47,7 @@ func (c *Capsule) Export(artifactID string, mode ExportMode, destPath string) er
 
 	switch mode {
 	case ExportModeIdentity:
-		return c.exportIdentity(artifact, destPath)
+		return c.exportIdentity(ctx, artifact, destPath)
 	case ExportModeDerived:
 		return errors.NewUnsupported("export mode", "DERIVED export mode not yet implemented")
 	default:
@@ -55,9 +56,9 @@ func (c *Capsule) Export(artifactID string, mode ExportMode, destPath string) er
 }
 
 // exportIdentity exports an artifact's original bytes verbatim.
-func (c *Capsule) exportIdentity(artifact *Artifact, destPath string) error {
+func (c *Capsule) exportIdentity(ctx context.Context, artifact *Artifact, destPath string) error {
 	// Retrieve the blob using the primary SHA-256 hash
-	data, err := c.store.Retrieve(artifact.PrimaryBlobSHA256)
+	data, err := c.store.Retrieve(ctx, artifact.PrimaryBlobSHA256)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve blob: %w", err)
 	}
@@ -77,7 +78,7 @@ func (c *Capsule) exportIdentity(artifact *Artifact, destPath string) error {
 
 // ExportToBytes exports an artifact and returns its bytes instead of writing to a file.
 // Useful for in-memory operations and testing.
-func (c *Capsule) ExportToBytes(artifactID string, mode ExportMode) ([]byte, error) {
+func (c *Capsule) ExportToBytes(ctx context.Context, artifactID string, mode ExportMode) ([]byte, error) {
 	artifact, ok := c.Manifest.Artifacts[artifactID]
 	if !ok {
 		return nil, errors.NewNotFound("artifact", artifactID)
@@ -85,7 +86,7 @@ func (c *Capsule) ExportToBytes(artifactID string, mode ExportMode) ([]byte, err
 
 	switch mode {
 	case ExportModeIdentity:
-		return c.store.Retrieve(artifact.PrimaryBlobSHA256)
+		return c.store.Retrieve(ctx, artifact.PrimaryBlobSHA256)
 	case ExportModeDerived:
 		return nil, errors.NewUnsupported("export mode", "DERIVED export mode not yet implemented")
 	default:
@@ -125,7 +126,7 @@ type DerivedExportResult struct {
 
 // ExportDerived exports an artifact to a different format via the IR.
 // The conversion flow is: Source Format -> extract-ir -> IR -> emit-native -> Target Format.
-func (c *Capsule) ExportDerived(artifactID string, opts DerivedExportOptions, destPath string) (*DerivedExportResult, error) {
+func (c *Capsule) ExportDerived(ctx context.Context, artifactID string, opts DerivedExportOptions, destPath string) (*DerivedExportResult, error) {
 	if err := validateDerivedExportOpts(opts); err != nil {
 		return nil, err
 	}
@@ -135,19 +136,19 @@ func (c *Capsule) ExportDerived(artifactID string, opts DerivedExportOptions, de
 		return nil, errors.NewNotFound("artifact", artifactID)
 	}
 
-	return c.runDerivedConversion(artifact, opts, destPath)
+	return c.runDerivedConversion(ctx, artifact, opts, destPath)
 }
 
 // runDerivedConversion orchestrates temp-dir setup, plugin execution, and output
 // copy for a single derived-export operation.
-func (c *Capsule) runDerivedConversion(artifact *Artifact, opts DerivedExportOptions, destPath string) (*DerivedExportResult, error) {
+func (c *Capsule) runDerivedConversion(ctx context.Context, artifact *Artifact, opts DerivedExportOptions, destPath string) (*DerivedExportResult, error) {
 	tempDir, err := osMkdirTemp("", "capsule-derived-*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer osRemoveAll(tempDir)
 
-	sourcePath, sourceFormat, err := c.writeSourceToTemp(artifact, tempDir)
+	sourcePath, sourceFormat, err := c.writeSourceToTemp(ctx, artifact, tempDir)
 	if err != nil {
 		return nil, err
 	}
@@ -202,14 +203,14 @@ func validateDerivedExportOpts(opts DerivedExportOptions) error {
 
 // writeSourceToTemp retrieves the artifact blob and writes it to a temp file.
 // Returns the temp file path and the detected source format.
-func (c *Capsule) writeSourceToTemp(artifact *Artifact, tempDir string) (sourcePath, sourceFormat string, err error) {
+func (c *Capsule) writeSourceToTemp(ctx context.Context, artifact *Artifact, tempDir string) (sourcePath, sourceFormat string, err error) {
 	sourceFormat = ""
 	if artifact.Detected != nil {
 		sourceFormat = artifact.Detected.FormatID
 	}
 
 	sourcePath = filepath.Join(tempDir, "source")
-	data, err := c.store.Retrieve(artifact.PrimaryBlobSHA256)
+	data, err := c.store.Retrieve(ctx, artifact.PrimaryBlobSHA256)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to retrieve source blob: %w", err)
 	}
@@ -411,7 +412,7 @@ func levelToLossClass(level int) ir.LossClass {
 }
 
 // ExportDerivedToBytes exports an artifact to a different format and returns the bytes.
-func (c *Capsule) ExportDerivedToBytes(artifactID string, opts DerivedExportOptions) ([]byte, *DerivedExportResult, error) {
+func (c *Capsule) ExportDerivedToBytes(ctx context.Context, artifactID string, opts DerivedExportOptions) ([]byte, *DerivedExportResult, error) {
 	tempDir, err := osMkdirTemp("", "capsule-derived-bytes-*")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create temp dir: %w", err)
@@ -419,7 +420,7 @@ func (c *Capsule) ExportDerivedToBytes(artifactID string, opts DerivedExportOpti
 	defer osRemoveAll(tempDir)
 
 	destPath := filepath.Join(tempDir, "output")
-	result, err := c.ExportDerived(artifactID, opts, destPath)
+	result, err := c.ExportDerived(ctx, artifactID, opts, destPath)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -1,6 +1,7 @@
 package cas
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -24,9 +25,9 @@ type blake3Pointer struct {
 
 // StoreWithBlake3 stores the given data and returns both SHA-256 and BLAKE3 hashes.
 // It creates a pointer file that maps the BLAKE3 hash to the SHA-256 hash.
-func (s *Store) StoreWithBlake3(data []byte) (*HashResult, error) {
+func (s *Store) StoreWithBlake3(ctx context.Context, data []byte) (*HashResult, error) {
 	// First, store using SHA-256 (the primary hash)
-	sha256Hash, err := s.Store(data)
+	sha256Hash, err := s.Store(ctx, data)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (s *Store) createBlake3Pointer(blake3Hash, sha256Hash string) error {
 
 // LookupBlake3 looks up a SHA-256 hash by its corresponding BLAKE3 hash.
 // Returns ErrBlobNotFound if no pointer file exists for the BLAKE3 hash.
-func (s *Store) LookupBlake3(blake3Hash string) (string, error) {
+func (s *Store) LookupBlake3(_ context.Context, blake3Hash string) (string, error) {
 	if !isValidHash(blake3Hash) {
 		return "", ErrInvalidHash
 	}
@@ -123,13 +124,13 @@ func (s *Store) LookupBlake3(blake3Hash string) (string, error) {
 
 // RetrieveByBlake3 retrieves a blob by its BLAKE3 hash.
 // It first looks up the SHA-256 hash, then retrieves the blob.
-func (s *Store) RetrieveByBlake3(blake3Hash string) ([]byte, error) {
-	sha256Hash, err := s.LookupBlake3(blake3Hash)
+func (s *Store) RetrieveByBlake3(ctx context.Context, blake3Hash string) ([]byte, error) {
+	sha256Hash, err := s.LookupBlake3(ctx, blake3Hash)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.Retrieve(sha256Hash)
+	return s.Retrieve(ctx, sha256Hash)
 }
 
 // Blake3Hash computes the BLAKE3 hash of the given data without storing it.

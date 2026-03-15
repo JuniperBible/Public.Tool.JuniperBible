@@ -1,6 +1,7 @@
 package capsule
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -35,7 +36,7 @@ func BenchmarkPack(b *testing.B) {
 			b.Fatalf("failed to write test file: %v", err)
 		}
 
-		_, err = capsule.IngestFile(testFilePath)
+		_, err = capsule.IngestFile(context.Background(), testFilePath)
 		if err != nil {
 			b.Fatalf("failed to ingest file: %v", err)
 		}
@@ -93,7 +94,7 @@ func BenchmarkUnpack(b *testing.B) {
 			b.Fatalf("failed to write test file: %v", err)
 		}
 
-		_, err = capsule.IngestFile(testFilePath)
+		_, err = capsule.IngestFile(context.Background(), testFilePath)
 		if err != nil {
 			b.Fatalf("failed to ingest file: %v", err)
 		}
@@ -172,7 +173,7 @@ func BenchmarkIngestFile(b *testing.B) {
 
 			// Run the benchmark
 			for i := 0; i < b.N; i++ {
-				_, err := capsule.IngestFile(testFilePath)
+				_, err := capsule.IngestFile(context.Background(), testFilePath)
 				if err != nil {
 					b.Fatalf("failed to ingest file: %v", err)
 				}
@@ -243,7 +244,7 @@ func BenchmarkStoreIR(b *testing.B) {
 
 	// Run the benchmark
 	for i := 0; i < b.N; i++ {
-		_, err := capsule.StoreIR(corpus, "source-artifact")
+		_, err := capsule.StoreIR(context.Background(), corpus, "source-artifact")
 		if err != nil {
 			b.Fatalf("failed to store IR: %v", err)
 		}
@@ -304,7 +305,7 @@ func BenchmarkLoadIR(b *testing.B) {
 		},
 	}
 
-	artifact, err := capsule.StoreIR(corpus, "source-artifact")
+	artifact, err := capsule.StoreIR(context.Background(), corpus, "source-artifact")
 	if err != nil {
 		b.Fatalf("failed to store IR: %v", err)
 	}
@@ -314,7 +315,7 @@ func BenchmarkLoadIR(b *testing.B) {
 
 	// Run the benchmark
 	for i := 0; i < b.N; i++ {
-		_, err := capsule.LoadIR(artifact.ID)
+		_, err := capsule.LoadIR(context.Background(), artifact.ID)
 		if err != nil {
 			b.Fatalf("failed to load IR: %v", err)
 		}

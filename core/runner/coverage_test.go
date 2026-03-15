@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,7 +30,7 @@ func TestLoadToolArchiveMissingManifest(t *testing.T) {
 		t.Fatalf("failed to pack capsule: %v", err)
 	}
 
-	_, err = LoadToolArchive(archivePath)
+	_, err = LoadToolArchive(context.Background(), archivePath)
 	if err == nil {
 		t.Error("expected error for archive missing tool-manifest")
 	}
@@ -56,7 +57,7 @@ func TestLoadToolArchiveInvalidManifestData(t *testing.T) {
 	// Add corrupt manifest data
 	corruptData := []byte("not valid json")
 	store := cap.GetStore()
-	hash, err := store.Store(corruptData)
+	hash, err := store.Store(context.Background(), corruptData)
 	if err != nil {
 		t.Fatalf("failed to store corrupt data: %v", err)
 	}
@@ -73,7 +74,7 @@ func TestLoadToolArchiveInvalidManifestData(t *testing.T) {
 		t.Fatalf("failed to pack capsule: %v", err)
 	}
 
-	_, err = LoadToolArchive(archivePath)
+	_, err = LoadToolArchive(context.Background(), archivePath)
 	if err == nil {
 		t.Error("expected error for corrupt tool manifest")
 	}
@@ -99,7 +100,7 @@ func TestExtractArtifactMissing(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "output")
-	err = archive.extractArtifact("missing-id", destPath, 0700)
+	err = archive.extractArtifact(context.Background(), "missing-id", destPath, 0700)
 	if err == nil {
 		t.Error("expected error for missing artifact")
 	}
@@ -117,7 +118,7 @@ func TestExtractToMkdirError(t *testing.T) {
 	}
 
 	// Try to create directory in /proc which should fail
-	err := archive.ExtractTo("/proc/nonexistent")
+	err := archive.ExtractTo(context.Background(), "/proc/nonexistent")
 	if err == nil {
 		t.Error("expected error when creating bin directory in invalid location")
 	}
@@ -301,7 +302,7 @@ func TestCreateToolArchiveMarshalError(t *testing.T) {
 
 	// Create archive
 	archivePath := filepath.Join(tempDir, "test.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"test",
 		"1.0.0",
 		"x86_64-linux",
@@ -371,7 +372,7 @@ func TestLoadToolAlternativeLocation(t *testing.T) {
 
 	// Create with .capsule extension
 	archivePath := filepath.Join(tempDir, "testtool.capsule")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"testtool",
 		"1.0.0",
 		"x86_64-linux",
@@ -383,7 +384,7 @@ func TestLoadToolAlternativeLocation(t *testing.T) {
 	}
 
 	registry := NewToolRegistry(tempDir)
-	tool, err := registry.LoadTool("testtool")
+	tool, err := registry.LoadTool(context.Background(), "testtool")
 	if err != nil {
 		t.Fatalf("LoadTool failed: %v", err)
 	}
@@ -417,7 +418,7 @@ func TestExtractToLibDirError(t *testing.T) {
 	}
 
 	archivePath := filepath.Join(tempDir, "test.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"test",
 		"1.0.0",
 		"x86_64-linux",
@@ -428,7 +429,7 @@ func TestExtractToLibDirError(t *testing.T) {
 		t.Fatalf("CreateToolArchive failed: %v", err)
 	}
 
-	archive, err := LoadToolArchive(archivePath)
+	archive, err := LoadToolArchive(context.Background(), archivePath)
 	if err != nil {
 		t.Fatalf("LoadToolArchive failed: %v", err)
 	}
@@ -447,7 +448,7 @@ func TestExtractToLibDirError(t *testing.T) {
 		t.Fatalf("failed to create lib file: %v", err)
 	}
 
-	err = archive.ExtractTo(extractDir)
+	err = archive.ExtractTo(context.Background(), extractDir)
 	if err == nil {
 		t.Error("expected error when creating lib directory fails")
 	}
@@ -612,7 +613,7 @@ func TestExtractArtifactRetrieveError(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "output")
-	err = archive.extractArtifact("test", destPath, 0700)
+	err = archive.extractArtifact(context.Background(), "test", destPath, 0700)
 	if err == nil {
 		t.Error("expected error when retrieving non-existent blob")
 	}
@@ -637,7 +638,7 @@ func TestExtractArtifactWriteError(t *testing.T) {
 
 	// Store a blob
 	data := []byte("test data")
-	hash, err := cap.GetStore().Store(data)
+	hash, err := cap.GetStore().Store(context.Background(), data)
 	if err != nil {
 		t.Fatalf("failed to store data: %v", err)
 	}
@@ -656,7 +657,7 @@ func TestExtractArtifactWriteError(t *testing.T) {
 	}
 
 	// Try to write to /proc which should fail
-	err = archive.extractArtifact("test", "/proc/invalid/output", 0700)
+	err = archive.extractArtifact(context.Background(), "test", "/proc/invalid/output", 0700)
 	if err == nil {
 		t.Error("expected error when writing to invalid location")
 	}
@@ -723,7 +724,7 @@ func TestLoadToolArchiveRetrieveError(t *testing.T) {
 		t.Fatalf("failed to pack capsule: %v", err)
 	}
 
-	_, err = LoadToolArchive(archivePath)
+	_, err = LoadToolArchive(context.Background(), archivePath)
 	if err == nil {
 		t.Error("expected error for non-existent manifest blob")
 	}

@@ -3,6 +3,7 @@
 package selfcheck
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -209,7 +210,7 @@ func NewExecutorWithPlugins(cap *capsule.Capsule, loader *plugins.Loader) *Execu
 }
 
 // Execute runs a self-check plan and returns a report.
-func (e *Executor) Execute(plan *Plan) (*Report, error) {
+func (e *Executor) Execute(ctx context.Context, plan *Plan) (*Report, error) {
 	// Create temp directory for intermediate outputs
 	tempDir, err := os.MkdirTemp("", "selfcheck-*")
 	if err != nil {
@@ -220,7 +221,7 @@ func (e *Executor) Execute(plan *Plan) (*Report, error) {
 
 	// Execute steps
 	for _, step := range plan.Steps {
-		if err := e.executeStep(&step); err != nil {
+		if err := e.executeStep(ctx, &step); err != nil {
 			return nil, fmt.Errorf("step failed: %w", err)
 		}
 	}
@@ -230,7 +231,7 @@ func (e *Executor) Execute(plan *Plan) (*Report, error) {
 	allPass := true
 
 	for _, check := range plan.Checks {
-		result, err := e.executeCheck(&check)
+		result, err := e.executeCheck(ctx, &check)
 		if err != nil {
 			return nil, fmt.Errorf("check failed: %w", err)
 		}
@@ -255,14 +256,14 @@ func (e *Executor) Execute(plan *Plan) (*Report, error) {
 }
 
 // executeStep executes a single plan step.
-func (e *Executor) executeStep(step *PlanStep) error {
+func (e *Executor) executeStep(ctx context.Context, step *PlanStep) error {
 	switch step.Type {
 	case StepExport:
-		return e.executeExportStep(step.Export)
+		return e.executeExportStep(ctx, step.Export)
 	case StepRunTool:
-		return e.executeRunToolStep(step.RunTool)
+		return e.executeRunToolStep(ctx, step.RunTool)
 	case StepExtractIR:
-		return e.executeExtractIRStep(step.ExtractIR)
+		return e.executeExtractIRStep(ctx, step.ExtractIR)
 	case StepEmitNative:
 		return e.executeEmitNativeStep(step.EmitNative)
 	case StepCompareIR:
@@ -273,7 +274,7 @@ func (e *Executor) executeStep(step *PlanStep) error {
 }
 
 // executeExportStep executes an export step.
-func (e *Executor) executeExportStep(step *ExportStep) error {
+func (e *Executor) executeExportStep(ctx context.Context, step *ExportStep) error {
 	outputPath := filepath.Join(e.tempDir, step.OutputKey)
 
 	mode := capsule.ExportModeIdentity
@@ -281,7 +282,7 @@ func (e *Executor) executeExportStep(step *ExportStep) error {
 		mode = capsule.ExportModeDerived
 	}
 
-	if err := e.capsule.Export(step.ArtifactID, mode, outputPath); err != nil {
+	if err := e.capsule.Export(ctx, step.ArtifactID, mode, outputPath); err != nil {
 		return fmt.Errorf("export failed: %w", err)
 	}
 
@@ -306,7 +307,7 @@ func (e *Executor) validateToolPlugin(toolPluginID string) (*plugins.Plugin, err
 
 // resolveInputPath returns the filesystem path for a single tool input key.
 // It checks prior step outputs first, then falls back to capsule artifacts.
-func (e *Executor) resolveInputPath(inputKey, inputDir string) (string, error) {
+func (e *Executor) resolveInputPath(ctx context.Context, inputKey, inputDir string) (string, error) {
 	if prevPath, ok := e.outputs[inputKey]; ok {
 		return prevPath, nil
 	}
@@ -318,7 +319,7 @@ func (e *Executor) resolveInputPath(inputKey, inputDir string) (string, error) {
 	if inputPath == filepath.Join(inputDir, "") {
 		inputPath = filepath.Join(inputDir, inputKey)
 	}
-	if err := e.capsule.Export(inputKey, capsule.ExportModeIdentity, inputPath); err != nil {
+	if err := e.capsule.Export(ctx, inputKey, capsule.ExportModeIdentity, inputPath); err != nil {
 		return "", fmt.Errorf("failed to export input %q: %w", inputKey, err)
 	}
 	return inputPath, nil
@@ -326,10 +327,10 @@ func (e *Executor) resolveInputPath(inputKey, inputDir string) (string, error) {
 
 // collectInputPaths resolves all input keys to filesystem paths, exporting
 // artifacts into inputDir as needed.
-func (e *Executor) collectInputPaths(inputs []string, inputDir string) ([]string, error) {
+func (e *Executor) collectInputPaths(ctx context.Context, inputs []string, inputDir string) ([]string, error) {
 	paths := make([]string, 0, len(inputs))
 	for _, inputKey := range inputs {
-		p, err := e.resolveInputPath(inputKey, inputDir)
+		p, err := e.resolveInputPath(ctx, inputKey, inputDir)
 		if err != nil {
 			return nil, err
 		}
@@ -351,7 +352,7 @@ func (e *Executor) storeToolOutputs(outputKey, outputDir string) {
 // executeRunToolStep executes a run tool step.
 // This runs a tool plugin with the specified profile and inputs,
 // storing the output for use in subsequent steps or checks.
-func (e *Executor) executeRunToolStep(step *RunToolStep) error {
+func (e *Executor) executeRunToolStep(ctx context.Context, step *RunToolStep) error {
 	plugin, err := e.validateToolPlugin(step.ToolPluginID)
 	if err != nil {
 		return err
@@ -362,7 +363,7 @@ func (e *Executor) executeRunToolStep(step *RunToolStep) error {
 		return fmt.Errorf("failed to create input dir: %w", err)
 	}
 
-	inputPaths, err := e.collectInputPaths(step.Inputs, inputDir)
+	inputPaths, err := e.collectInputPaths(ctx, step.Inputs, inputDir)
 	if err != nil {
 		return err
 	}
@@ -396,10 +397,10 @@ func (e *Executor) executeRunToolStep(step *RunToolStep) error {
 // resolveSourcePath returns the filesystem path for the source artifact used in
 // an IR extraction step. If the artifact exists in the capsule it is exported
 // first; otherwise a prior step output is used.
-func (e *Executor) resolveSourcePath(sourceArtifactID string) (string, error) {
+func (e *Executor) resolveSourcePath(ctx context.Context, sourceArtifactID string) (string, error) {
 	if _, ok := e.capsule.Manifest.Artifacts[sourceArtifactID]; ok {
 		dest := filepath.Join(e.tempDir, sourceArtifactID)
-		if err := e.capsule.Export(sourceArtifactID, capsule.ExportModeIdentity, dest); err != nil {
+		if err := e.capsule.Export(ctx, sourceArtifactID, capsule.ExportModeIdentity, dest); err != nil {
 			return "", fmt.Errorf("failed to export artifact: %w", err)
 		}
 		return dest, nil
@@ -449,8 +450,8 @@ func (e *Executor) writePlaceholderIR(outputKey, pluginID, sourceArtifactID stri
 }
 
 // executeExtractIRStep executes an IR extraction step.
-func (e *Executor) executeExtractIRStep(step *ExtractIRStep) error {
-	sourcePath, err := e.resolveSourcePath(step.SourceArtifactID)
+func (e *Executor) executeExtractIRStep(ctx context.Context, step *ExtractIRStep) error {
+	sourcePath, err := e.resolveSourcePath(ctx, step.SourceArtifactID)
 	if err != nil {
 		return err
 	}
@@ -579,10 +580,10 @@ func (e *Executor) executeCompareIRStep(step *CompareIRStep) error {
 }
 
 // executeCheck executes a single check.
-func (e *Executor) executeCheck(check *PlanCheck) (*CheckResult, error) {
+func (e *Executor) executeCheck(ctx context.Context, check *PlanCheck) (*CheckResult, error) {
 	switch check.Type {
 	case CheckByteEqual:
-		return e.executeByteEqualCheck(check)
+		return e.executeByteEqualCheck(ctx, check)
 	case CheckTranscriptEqual:
 		return e.executeTranscriptEqualCheck(check)
 	case CheckIRStructureEqual:
@@ -597,7 +598,7 @@ func (e *Executor) executeCheck(check *PlanCheck) (*CheckResult, error) {
 }
 
 // executeByteEqualCheck executes a byte equality check.
-func (e *Executor) executeByteEqualCheck(check *PlanCheck) (*CheckResult, error) {
+func (e *Executor) executeByteEqualCheck(ctx context.Context, check *PlanCheck) (*CheckResult, error) {
 	def := check.ByteEqual
 
 	// Get artifact A data
@@ -605,7 +606,7 @@ func (e *Executor) executeByteEqualCheck(check *PlanCheck) (*CheckResult, error)
 	if !ok {
 		return nil, fmt.Errorf("artifact not found: %s", def.ArtifactA)
 	}
-	dataA, err := e.capsule.GetStore().Retrieve(artifactA.PrimaryBlobSHA256)
+	dataA, err := e.capsule.GetStore().Retrieve(ctx, artifactA.PrimaryBlobSHA256)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve artifact A: %w", err)
 	}
@@ -622,7 +623,7 @@ func (e *Executor) executeByteEqualCheck(check *PlanCheck) (*CheckResult, error)
 		hashB = cas.Hash(dataB)
 	} else if artifactB, ok := e.capsule.Manifest.Artifacts[def.ArtifactB]; ok {
 		// It's another artifact
-		dataB, err := e.capsule.GetStore().Retrieve(artifactB.PrimaryBlobSHA256)
+		dataB, err := e.capsule.GetStore().Retrieve(ctx, artifactB.PrimaryBlobSHA256)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve artifact B: %w", err)
 		}
@@ -820,13 +821,13 @@ type ByteEqualCheck struct {
 }
 
 // Execute runs the byte equality check.
-func (c *ByteEqualCheck) Execute(cap *capsule.Capsule) (*CheckResult, error) {
+func (c *ByteEqualCheck) Execute(ctx context.Context, cap *capsule.Capsule) (*CheckResult, error) {
 	artifact, ok := cap.Manifest.Artifacts[c.ArtifactA]
 	if !ok {
 		return nil, fmt.Errorf("artifact not found: %s", c.ArtifactA)
 	}
 
-	dataA, err := cap.GetStore().Retrieve(artifact.PrimaryBlobSHA256)
+	dataA, err := cap.GetStore().Retrieve(ctx, artifact.PrimaryBlobSHA256)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve artifact: %w", err)
 	}

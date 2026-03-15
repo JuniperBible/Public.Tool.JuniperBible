@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -98,7 +99,7 @@ func TestCreateAndLoadToolArchive(t *testing.T) {
 
 	// Create archive
 	archivePath := filepath.Join(tempDir, "testtool.capsule.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"testtool",
 		"1.0.0",
 		"x86_64-linux",
@@ -115,7 +116,7 @@ func TestCreateAndLoadToolArchive(t *testing.T) {
 	}
 
 	// Load archive
-	archive, err := LoadToolArchive(archivePath)
+	archive, err := LoadToolArchive(context.Background(), archivePath)
 	if err != nil {
 		t.Fatalf("LoadToolArchive failed: %v", err)
 	}
@@ -137,7 +138,7 @@ func TestCreateAndLoadToolArchive(t *testing.T) {
 
 	// Test extraction
 	extractDir := filepath.Join(tempDir, "extracted")
-	if err := archive.ExtractTo(extractDir); err != nil {
+	if err := archive.ExtractTo(context.Background(), extractDir); err != nil {
 		t.Fatalf("ExtractTo failed: %v", err)
 	}
 
@@ -165,7 +166,7 @@ func TestCreateAndLoadToolArchive(t *testing.T) {
 // TestLoadToolArchiveErrors tests error handling in LoadToolArchive.
 func TestLoadToolArchiveErrors(t *testing.T) {
 	// Test with non-existent file
-	_, err := LoadToolArchive("/nonexistent/archive.tar.xz")
+	_, err := LoadToolArchive(context.Background(), "/nonexistent/archive.tar.xz")
 	if err == nil {
 		t.Error("expected error for non-existent archive")
 	}
@@ -182,7 +183,7 @@ func TestLoadToolArchiveErrors(t *testing.T) {
 		t.Fatalf("failed to write invalid archive: %v", err)
 	}
 
-	_, err = LoadToolArchive(invalidArchive)
+	_, err = LoadToolArchive(context.Background(), invalidArchive)
 	if err == nil {
 		t.Error("expected error for invalid archive")
 	}
@@ -222,7 +223,7 @@ func TestExtractToWithLibraries(t *testing.T) {
 
 	// For this test we need to manually create a capsule with libraries
 	// We'll create a simpler version that still tests the library extraction path
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"testtool",
 		"1.0.0",
 		"x86_64-linux",
@@ -233,7 +234,7 @@ func TestExtractToWithLibraries(t *testing.T) {
 		t.Fatalf("CreateToolArchive failed: %v", err)
 	}
 
-	archive, err := LoadToolArchive(archivePath)
+	archive, err := LoadToolArchive(context.Background(), archivePath)
 	if err != nil {
 		t.Fatalf("LoadToolArchive failed: %v", err)
 	}
@@ -244,7 +245,7 @@ func TestExtractToWithLibraries(t *testing.T) {
 	extractDir := filepath.Join(tempDir, "extracted")
 
 	// This will fail because the artifact doesn't exist, but it tests the library code path
-	err = archive.ExtractTo(extractDir)
+	err = archive.ExtractTo(context.Background(), extractDir)
 	if err == nil {
 		// If it succeeds, verify lib directory was created
 		libExtractDir := filepath.Join(extractDir, "lib")
@@ -280,7 +281,7 @@ func TestToolRegistryLoadTool(t *testing.T) {
 	}
 
 	archivePath := filepath.Join(toolCapsuleDir, "testtool.capsule.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"testtool",
 		"1.0.0",
 		"x86_64-linux",
@@ -294,7 +295,7 @@ func TestToolRegistryLoadTool(t *testing.T) {
 	// Create registry and load tool
 	registry := NewToolRegistry(tempDir)
 
-	tool, err := registry.LoadTool("testtool")
+	tool, err := registry.LoadTool(context.Background(), "testtool")
 	if err != nil {
 		t.Fatalf("LoadTool failed: %v", err)
 	}
@@ -304,7 +305,7 @@ func TestToolRegistryLoadTool(t *testing.T) {
 	}
 
 	// Test cache - loading again should return the same instance
-	tool2, err := registry.LoadTool("testtool")
+	tool2, err := registry.LoadTool(context.Background(), "testtool")
 	if err != nil {
 		t.Fatalf("LoadTool (cached) failed: %v", err)
 	}
@@ -324,7 +325,7 @@ func TestToolRegistryLoadToolNotFound(t *testing.T) {
 
 	registry := NewToolRegistry(tempDir)
 
-	_, err = registry.LoadTool("nonexistent")
+	_, err = registry.LoadTool(context.Background(), "nonexistent")
 	if err == nil {
 		t.Error("expected error for non-existent tool")
 	}
@@ -351,7 +352,7 @@ func TestToolRegistryLoadToolAlternativeNames(t *testing.T) {
 
 	// Put archive directly in registry dir with alternative name
 	archivePath := filepath.Join(tempDir, "testtool.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"testtool",
 		"1.0.0",
 		"x86_64-linux",
@@ -364,7 +365,7 @@ func TestToolRegistryLoadToolAlternativeNames(t *testing.T) {
 
 	registry := NewToolRegistry(tempDir)
 
-	tool, err := registry.LoadTool("testtool")
+	tool, err := registry.LoadTool(context.Background(), "testtool")
 	if err != nil {
 		t.Fatalf("LoadTool failed: %v", err)
 	}
@@ -384,7 +385,7 @@ func TestExtractToErrors(t *testing.T) {
 		}
 
 		// Try to extract to /proc which should fail
-		err := archive.ExtractTo("/proc/invalid")
+		err := archive.ExtractTo(context.Background(), "/proc/invalid")
 		if err == nil {
 			t.Error("expected error when extracting to invalid directory")
 		}
@@ -401,7 +402,7 @@ func TestCreateToolArchiveErrors(t *testing.T) {
 
 	// Test with non-existent binary
 	archivePath := filepath.Join(tempDir, "test.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"test",
 		"1.0.0",
 		"x86_64-linux",
@@ -424,7 +425,7 @@ func TestCreateToolArchiveErrors(t *testing.T) {
 			t.Fatalf("failed to write test binary: %v", err)
 		}
 
-		err = CreateToolArchive(
+		err = CreateToolArchive(context.Background(),
 			"test",
 			"1.0.0",
 			"x86_64-linux",
@@ -446,7 +447,7 @@ func TestLoadToolArchiveMkdirTempError(t *testing.T) {
 	}
 	defer func() { toolOsMkdirTemp = orig }()
 
-	_, err := LoadToolArchive("/some/archive.tar.xz")
+	_, err := LoadToolArchive(context.Background(), "/some/archive.tar.xz")
 	if err == nil {
 		t.Error("expected error for MkdirTemp failure")
 	}
@@ -464,7 +465,7 @@ func TestCreateToolArchiveMkdirTempError(t *testing.T) {
 	}
 	defer func() { toolOsMkdirTemp = orig }()
 
-	err := CreateToolArchive("test", "1.0.0", "x86_64-linux", map[string]string{}, "/some/path.tar.xz")
+	err := CreateToolArchive(context.Background(), "test", "1.0.0", "x86_64-linux", map[string]string{}, "/some/path.tar.xz")
 	if err == nil {
 		t.Error("expected error for MkdirTemp failure")
 	}
@@ -477,12 +478,12 @@ func TestCreateToolArchiveMkdirTempError(t *testing.T) {
 func TestCreateToolArchiveCapsuleNewError(t *testing.T) {
 	// Inject error
 	orig := capsuleNew
-	capsuleNew = func(dir string) (*capsule.Capsule, error) {
+	capsuleNew = func(dir string, opts ...capsule.CapsuleOption) (*capsule.Capsule, error) {
 		return nil, fmt.Errorf("injected capsule error")
 	}
 	defer func() { capsuleNew = orig }()
 
-	err := CreateToolArchive("test", "1.0.0", "x86_64-linux", map[string]string{}, "/some/path.tar.xz")
+	err := CreateToolArchive(context.Background(), "test", "1.0.0", "x86_64-linux", map[string]string{}, "/some/path.tar.xz")
 	if err == nil {
 		t.Error("expected error for capsule.New failure")
 	}
@@ -512,7 +513,7 @@ func TestToolRegistryLoadToolArchiveError(t *testing.T) {
 
 	registry := NewToolRegistry(tempDir)
 
-	_, err = registry.LoadTool("badtool")
+	_, err = registry.LoadTool(context.Background(), "badtool")
 	if err == nil {
 		t.Error("expected error for corrupted archive")
 	}
@@ -541,7 +542,7 @@ func TestExtractToLibMkdirError(t *testing.T) {
 	}
 
 	// Try to extract to /proc/invalid which should fail for lib dir creation
-	err := archive.ExtractTo("/proc/invalid")
+	err := archive.ExtractTo(context.Background(), "/proc/invalid")
 	if err == nil {
 		t.Error("expected error when creating lib directory fails")
 	}

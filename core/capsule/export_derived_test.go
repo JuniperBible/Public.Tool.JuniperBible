@@ -1,6 +1,7 @@
 package capsule
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -450,7 +451,7 @@ func TestExportDerivedValidation(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -507,7 +508,7 @@ func TestExportDerivedValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			destPath := filepath.Join(tempDir, "output.txt")
-			_, err := cap.ExportDerived(tt.artifactID, tt.opts, destPath)
+			_, err := cap.ExportDerived(context.Background(), tt.artifactID, tt.opts, destPath)
 
 			if tt.wantErr {
 				if err == nil {
@@ -545,13 +546,13 @@ func TestExportDerivedToBytes(t *testing.T) {
 		PluginLoader: loader,
 	}
 
-	_, _, err = cap.ExportDerivedToBytes("nonexistent", opts)
+	_, _, err = cap.ExportDerivedToBytes(context.Background(), "nonexistent", opts)
 	if err == nil {
 		t.Error("ExportDerivedToBytes() expected error for nonexistent artifact, got nil")
 	}
 
 	// Test with invalid options
-	_, _, err = cap.ExportDerivedToBytes("test-id", DerivedExportOptions{})
+	_, _, err = cap.ExportDerivedToBytes(context.Background(), "test-id", DerivedExportOptions{})
 	if err == nil {
 		t.Error("ExportDerivedToBytes() expected error for invalid options, got nil")
 	}
@@ -652,7 +653,7 @@ func TestExportDerivedPluginNotFound(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -670,7 +671,7 @@ func TestExportDerivedPluginNotFound(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "output.txt")
-	_, err = cap.ExportDerived(artifact.ID, opts, destPath)
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, opts, destPath)
 	if err == nil {
 		t.Error("ExportDerived() expected error when source plugin not found, got nil")
 	}
@@ -698,7 +699,7 @@ func TestExportDerivedTargetPluginNotFound(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -718,7 +719,7 @@ func TestExportDerivedTargetPluginNotFound(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "output.txt")
-	_, err = cap.ExportDerived(artifact.ID, opts, destPath)
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, opts, destPath)
 	if err == nil {
 		t.Error("ExportDerived() expected error when target plugin not found, got nil")
 	}
@@ -756,7 +757,7 @@ func TestExportDerivedRetrieveError(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "output.txt")
-	_, err = cap.ExportDerived(artifact.ID, opts, destPath)
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, opts, destPath)
 	if err == nil {
 		t.Error("ExportDerived() expected error when blob retrieval fails, got nil")
 	}
@@ -838,7 +839,7 @@ func TestExportDerivedNoDetectedFormat(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -851,7 +852,7 @@ func TestExportDerivedNoDetectedFormat(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "output.txt")
-	_, err = cap.ExportDerived(artifact.ID, opts, destPath)
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, opts, destPath)
 	if err == nil {
 		t.Error("ExportDerived() expected error when format detection is nil, got nil")
 	}
@@ -938,7 +939,7 @@ func TestExportDerivedMkdirIRDirError(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -965,7 +966,7 @@ func TestExportDerivedMkdirIRDirError(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "output.txt")
-	_, err = cap.ExportDerived(artifact.ID, opts, destPath)
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, opts, destPath)
 	if err == nil {
 		t.Error("expected error for mkdir IR dir failure")
 	}
@@ -993,7 +994,7 @@ func TestExportDerivedMkdirOutputDirError(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1044,7 +1045,7 @@ func TestExportDerivedMkdirOutputDirError(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "output.txt")
-	_, err = cap.ExportDerived(artifact.ID, opts, destPath)
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, opts, destPath)
 	if err == nil {
 		t.Error("expected error for mkdir output dir failure")
 	}
@@ -1072,7 +1073,7 @@ func TestExportDerivedMkdirDestDirError(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1123,7 +1124,7 @@ func TestExportDerivedMkdirDestDirError(t *testing.T) {
 	}
 
 	destPath := filepath.Join(tempDir, "nested/subdir/output.txt")
-	_, err = cap.ExportDerived(artifact.ID, opts, destPath)
+	_, err = cap.ExportDerived(context.Background(), artifact.ID, opts, destPath)
 	if err == nil {
 		t.Error("expected error for mkdir destination dir failure")
 	}
@@ -1151,7 +1152,7 @@ func TestExportDerivedToBytesReadFileError(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	artifact, err := cap.IngestFile(testFilePath)
+	artifact, err := cap.IngestFile(context.Background(), testFilePath)
 	if err != nil {
 		t.Fatalf("failed to ingest file: %v", err)
 	}
@@ -1206,7 +1207,7 @@ func TestExportDerivedToBytesReadFileError(t *testing.T) {
 		PluginLoader: loader,
 	}
 
-	_, _, err = cap.ExportDerivedToBytes(artifact.ID, opts)
+	_, _, err = cap.ExportDerivedToBytes(context.Background(), artifact.ID, opts)
 	if err == nil {
 		t.Error("expected error for read file failure")
 	}

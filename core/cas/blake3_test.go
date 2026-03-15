@@ -1,6 +1,7 @@
 package cas
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,10 +22,11 @@ func TestBlake3Store(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	testData := []byte("BLAKE3 test data")
 
 	// Store with BLAKE3 enabled
-	result, err := store.StoreWithBlake3(testData)
+	result, err := store.StoreWithBlake3(ctx, testData)
 	if err != nil {
 		t.Fatalf("failed to store with BLAKE3: %v", err)
 	}
@@ -62,15 +64,16 @@ func TestBlake3Lookup(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	testData := []byte("BLAKE3 lookup test")
 
-	result, err := store.StoreWithBlake3(testData)
+	result, err := store.StoreWithBlake3(ctx, testData)
 	if err != nil {
 		t.Fatalf("failed to store with BLAKE3: %v", err)
 	}
 
 	// Look up by BLAKE3 hash
-	sha256Hash, err := store.LookupBlake3(result.BLAKE3)
+	sha256Hash, err := store.LookupBlake3(ctx, result.BLAKE3)
 	if err != nil {
 		t.Fatalf("failed to lookup by BLAKE3: %v", err)
 	}
@@ -80,7 +83,7 @@ func TestBlake3Lookup(t *testing.T) {
 	}
 
 	// Retrieve by the looked-up SHA-256
-	retrieved, err := store.Retrieve(sha256Hash)
+	retrieved, err := store.Retrieve(ctx, sha256Hash)
 	if err != nil {
 		t.Fatalf("failed to retrieve: %v", err)
 	}
@@ -103,8 +106,9 @@ func TestBlake3LookupNonExistent(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	fakeHash := "0000000000000000000000000000000000000000000000000000000000000000"
-	_, err = store.LookupBlake3(fakeHash)
+	_, err = store.LookupBlake3(ctx, fakeHash)
 	if err == nil {
 		t.Error("expected error when looking up non-existent BLAKE3 hash")
 	}
@@ -123,15 +127,16 @@ func TestBlake3RetrieveByBlake3(t *testing.T) {
 		t.Fatalf("failed to create store: %v", err)
 	}
 
+	ctx := context.Background()
 	testData := []byte("Direct BLAKE3 retrieval test")
 
-	result, err := store.StoreWithBlake3(testData)
+	result, err := store.StoreWithBlake3(ctx, testData)
 	if err != nil {
 		t.Fatalf("failed to store with BLAKE3: %v", err)
 	}
 
 	// Retrieve directly by BLAKE3 hash
-	retrieved, err := store.RetrieveByBlake3(result.BLAKE3)
+	retrieved, err := store.RetrieveByBlake3(ctx, result.BLAKE3)
 	if err != nil {
 		t.Fatalf("failed to retrieve by BLAKE3: %v", err)
 	}

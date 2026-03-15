@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -96,7 +97,7 @@ func TestCreateToolArchiveSuccessAllPaths(t *testing.T) {
 	}
 
 	archivePath := filepath.Join(tempDir, "test.tar.xz")
-	err = CreateToolArchive(
+	err = CreateToolArchive(context.Background(),
 		"multitest",
 		"2.0.0",
 		"x86_64-linux",
@@ -111,7 +112,7 @@ func TestCreateToolArchiveSuccessAllPaths(t *testing.T) {
 	}
 
 	// Verify archive can be loaded
-	archive, err := LoadToolArchive(archivePath)
+	archive, err := LoadToolArchive(context.Background(), archivePath)
 	if err != nil {
 		t.Fatalf("LoadToolArchive failed: %v", err)
 	}
@@ -153,7 +154,7 @@ func TestLoadToolArchiveSuccessAllFields(t *testing.T) {
 	}
 
 	store := cap.GetStore()
-	manifestHash, err := store.Store(manifestData)
+	manifestHash, err := store.Store(context.Background(), manifestData)
 	if err != nil {
 		t.Fatalf("failed to store manifest: %v", err)
 	}
@@ -167,7 +168,7 @@ func TestLoadToolArchiveSuccessAllFields(t *testing.T) {
 
 	// Store dummy exe blob
 	exeData := []byte("dummy exe")
-	exeHash, err := store.Store(exeData)
+	exeHash, err := store.Store(context.Background(), exeData)
 	if err != nil {
 		t.Fatalf("failed to store exe: %v", err)
 	}
@@ -181,7 +182,7 @@ func TestLoadToolArchiveSuccessAllFields(t *testing.T) {
 
 	// Store dummy lib blob
 	libData := []byte("dummy lib")
-	libHash, err := store.Store(libData)
+	libHash, err := store.Store(context.Background(), libData)
 	if err != nil {
 		t.Fatalf("failed to store lib: %v", err)
 	}
@@ -199,7 +200,7 @@ func TestLoadToolArchiveSuccessAllFields(t *testing.T) {
 	}
 
 	// Load and verify all fields
-	archive, err := LoadToolArchive(archivePath)
+	archive, err := LoadToolArchive(context.Background(), archivePath)
 	if err != nil {
 		t.Fatalf("LoadToolArchive failed: %v", err)
 	}
@@ -219,7 +220,7 @@ func TestLoadToolArchiveSuccessAllFields(t *testing.T) {
 
 	// Test extraction with both exe and lib
 	extractDir := filepath.Join(tempDir, "extract")
-	if err := archive.ExtractTo(extractDir); err != nil {
+	if err := archive.ExtractTo(context.Background(), extractDir); err != nil {
 		t.Fatalf("ExtractTo failed: %v", err)
 	}
 
@@ -274,7 +275,7 @@ func TestLoadToolMultiplePaths(t *testing.T) {
 		}
 
 		archivePath := filepath.Join(testDir, pattern)
-		err := CreateToolArchive(
+		err := CreateToolArchive(context.Background(),
 			"testtool",
 			"1.0.0",
 			"x86_64-linux",
@@ -286,7 +287,7 @@ func TestLoadToolMultiplePaths(t *testing.T) {
 		}
 
 		registry := NewToolRegistry(testDir)
-		tool, err := registry.LoadTool("testtool")
+		tool, err := registry.LoadTool(context.Background(), "testtool")
 		if err != nil {
 			t.Fatalf("LoadTool failed for %s: %v", pattern, err)
 		}

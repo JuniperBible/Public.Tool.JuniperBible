@@ -20,6 +20,7 @@ import (
 
 	"github.com/alecthomas/kong"
 
+	"github.com/FocuswithJustin/Private.Lib.Veronica/pkg/veronica"
 	"github.com/JuniperBible/Public.Tool.JuniperBible/core/capsule"
 	"github.com/JuniperBible/Public.Tool.JuniperBible/core/cas"
 	"github.com/JuniperBible/Public.Tool.JuniperBible/core/docgen"
@@ -40,6 +41,36 @@ import (
 )
 
 const version = "0.3.0"
+
+// veronicaClient holds the optional Veronica client for CAS operations.
+// Initialized at startup; may be nil if Veronica is unavailable.
+var veronicaClient *veronica.Client
+
+// capsuleOpts returns CapsuleOption slice for capsule construction.
+// If Veronica is available, includes WithVeronicaClient.
+func capsuleOpts() []capsule.CapsuleOption {
+	if veronicaClient != nil {
+		return []capsule.CapsuleOption{capsule.WithVeronicaClient(veronicaClient.CAS())}
+	}
+	return nil
+}
+
+// initVeronica attempts to create a Veronica client with fallback mode.
+// Returns nil on failure (Veronica is optional).
+func initVeronica() *veronica.Client {
+	socketPath := os.Getenv("VERONICA_SOCKET")
+	if socketPath == "" {
+		socketPath = "/var/run/veronica/veronica.sock"
+	}
+	client, err := veronica.New(
+		veronica.WithSocket(socketPath),
+		veronica.WithFallback(true),
+	)
+	if err != nil {
+		return nil
+	}
+	return client
+}
 
 // CLI defines the command-line interface for capsule.
 var CLI struct {
@@ -142,13 +173,14 @@ func (c *IngestCmd) Run() error {
 	defer os.RemoveAll(tempDir)
 
 	// Create capsule
-	cap, err := capsule.New(tempDir)
+	cap, err := capsule.New(tempDir, capsuleOpts()...)
 	if err != nil {
 		return fmt.Errorf("failed to create capsule: %w", err)
 	}
 
 	// Ingest the file
-	artifact, err := cap.IngestFile(inputPath)
+	ctx := context.Background()
+	artifact, err := cap.IngestFile(ctx, inputPath)
 	if err != nil {
 		return fmt.Errorf("failed to ingest file: %w", err)
 	}
@@ -190,13 +222,14 @@ func (c *ExportCmd) Run() error {
 	defer os.RemoveAll(tempDir)
 
 	// Unpack the capsule
-	cap, err := capsule.Unpack(capsulePath, tempDir)
+	cap, err := capsule.Unpack(capsulePath, tempDir, capsuleOpts()...)
 	if err != nil {
 		return fmt.Errorf("failed to unpack capsule: %w", err)
 	}
 
 	// Export the artifact
-	if err := cap.Export(artifactID, capsule.ExportModeIdentity, outputPath); err != nil {
+	ctx := context.Background()
+	if err := cap.Export(ctx, artifactID, capsule.ExportModeIdentity, outputPath); err != nil {
 		return fmt.Errorf("failed to export artifact: %w", err)
 	}
 
@@ -234,7 +267,7 @@ func (c *VerifyCmd) Run() error {
 	defer os.RemoveAll(tempDir)
 
 	// Unpack the capsule
-	cap, err := capsule.Unpack(capsulePath, tempDir)
+	cap, err := capsule.Unpack(capsulePath, tempDir, capsuleOpts()...)
 	if err != nil {
 		return fmt.Errorf("failed to unpack capsule: %w", err)
 	}
@@ -245,9 +278,10 @@ func (c *VerifyCmd) Run() error {
 	fmt.Printf("  Artifacts: %d\n", len(cap.Manifest.Artifacts))
 
 	// Verify each artifact
+	ctx := context.Background()
 	errors := 0
 	for id, artifact := range cap.Manifest.Artifacts {
-		data, err := cap.GetStore().Retrieve(artifact.PrimaryBlobSHA256)
+		data, err := cap.GetStore().Retrieve(ctx, artifact.PrimaryBlobSHA256)
 		if err != nil {
 			fmt.Printf("  [FAIL] %s: blob not found\n", id)
 			errors++
@@ -286,7 +320,7 @@ func (c *SelfcheckCmd) Run() error {
 	}
 	defer os.RemoveAll(tempDir)
 
-	cap, err := capsule.Unpack(c.Capsule, tempDir)
+	cap, err := capsule.Unpack(c.Capsule, tempDir, capsuleOpts()...)
 	if err != nil {
 		return fmt.Errorf("failed to unpack capsule: %w", err)
 	}
@@ -297,7 +331,7 @@ func (c *SelfcheckCmd) Run() error {
 	}
 
 	executor := selfcheck.NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		return fmt.Errorf("selfcheck execution failed: %w", err)
 	}
@@ -814,7 +848,7 @@ type ToolRunCmd struct {
 	Profile  string `arg:"" help:"Profile to run"`
 }
 
-func toolRunExportArtifact(cap *capsule.Capsule, tempDir, artifactID string) (string, error) {
+func toolRunExportArtifact(ctx context.Context, cap *capsule.Capsule, tempDir, artifactID string) (string, error) {
 	artifact, ok := cap.Manifest.Artifacts[artifactID]
 	if !ok {
 		return "", fmt.Errorf("artifact not found: %s", artifactID)
@@ -823,7 +857,7 @@ func toolRunExportArtifact(cap *capsule.Capsule, tempDir, artifactID string) (st
 	if err := os.MkdirAll(filepath.Dir(inputPath), 0700); err != nil {
 		return "", fmt.Errorf("failed to create input dir: %w", err)
 	}
-	if err := cap.Export(artifactID, capsule.ExportModeIdentity, inputPath); err != nil {
+	if err := cap.Export(ctx, artifactID, capsule.ExportModeIdentity, inputPath); err != nil {
 		return "", fmt.Errorf("failed to export artifact: %w", err)
 	}
 	return inputPath, nil
@@ -847,7 +881,7 @@ func toolRunExecute(toolID, profile, flakePath, inputPath string) (*runner.Execu
 	return result, nil
 }
 
-func toolRunStoreResult(cap *capsule.Capsule, capsulePath, toolID, profile, artifactID string, result *runner.ExecutionResult) (string, error) {
+func toolRunStoreResult(ctx context.Context, cap *capsule.Capsule, capsulePath, toolID, profile, artifactID string, result *runner.ExecutionResult) (string, error) {
 	runID := fmt.Sprintf("run-%s-%s-%d", toolID, profile, len(cap.Manifest.Runs)+1)
 	run := &capsule.Run{
 		ID:     runID,
@@ -856,7 +890,7 @@ func toolRunStoreResult(cap *capsule.Capsule, capsulePath, toolID, profile, arti
 		Command: &capsule.Command{Profile: profile},
 		Status: "completed",
 	}
-	if err := cap.AddRun(run, result.TranscriptData); err != nil {
+	if err := cap.AddRun(ctx, run, result.TranscriptData); err != nil {
 		return "", fmt.Errorf("failed to add run: %w", err)
 	}
 	if err := cap.SaveManifest(); err != nil {
@@ -881,13 +915,14 @@ func toolRunPrintTranscript(transcriptData []byte) {
 }
 
 func (c *ToolRunCmd) Run() error {
+	ctx := context.Background()
 	tempDir, err := os.MkdirTemp("", "capsule-tool-run-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	cap, err := capsule.Unpack(c.Capsule, tempDir)
+	cap, err := capsule.Unpack(c.Capsule, tempDir, capsuleOpts()...)
 	if err != nil {
 		return fmt.Errorf("failed to unpack capsule: %w", err)
 	}
@@ -899,7 +934,7 @@ func (c *ToolRunCmd) Run() error {
 	fmt.Printf("  Profile: %s\n", c.Profile)
 	fmt.Println()
 
-	inputPath, err := toolRunExportArtifact(cap, tempDir, c.Artifact)
+	inputPath, err := toolRunExportArtifact(ctx, cap, tempDir, c.Artifact)
 	if err != nil {
 		return err
 	}
@@ -914,7 +949,7 @@ func (c *ToolRunCmd) Run() error {
 		return err
 	}
 
-	runID, err := toolRunStoreResult(cap, c.Capsule, c.Tool, c.Profile, c.Artifact, result)
+	runID, err := toolRunStoreResult(ctx, cap, c.Capsule, c.Tool, c.Profile, c.Artifact, result)
 	if err != nil {
 		return err
 	}
@@ -935,6 +970,7 @@ type CompareCmd struct {
 }
 
 func (c *CompareCmd) Run() error {
+	ctx := context.Background()
 	cap, cleanup, err := compareUnpackAndLookup(c.Capsule, c.Run1, c.Run2)
 	if err != nil {
 		return err
@@ -962,7 +998,7 @@ func (c *CompareCmd) Run() error {
 	fmt.Println("  Transcripts differ. Showing diff:")
 	fmt.Println()
 
-	return compareDiff(cap, c.Run1, c.Run2)
+	return compareDiff(ctx, cap, c.Run1, c.Run2)
 }
 
 func compareUnpackAndLookup(capsulePath, run1ID, run2ID string) (*capsule.Capsule, func(), error) {
@@ -972,7 +1008,7 @@ func compareUnpackAndLookup(capsulePath, run1ID, run2ID string) (*capsule.Capsul
 	}
 	cleanup := func() { os.RemoveAll(tempDir) }
 
-	cap, err := capsule.Unpack(capsulePath, tempDir)
+	cap, err := capsule.Unpack(capsulePath, tempDir, capsuleOpts()...)
 	if err != nil {
 		cleanup()
 		return nil, nil, fmt.Errorf("failed to unpack capsule: %w", err)
@@ -1008,12 +1044,12 @@ func compareComputeHashes(cap *capsule.Capsule, run1ID, run2ID string) (string, 
 	return hash1, hash2, nil
 }
 
-func compareDiff(cap *capsule.Capsule, run1ID, run2ID string) error {
-	transcript1, err := cap.GetTranscript(run1ID)
+func compareDiff(ctx context.Context, cap *capsule.Capsule, run1ID, run2ID string) error {
+	transcript1, err := cap.GetTranscript(ctx, run1ID)
 	if err != nil {
 		return fmt.Errorf("failed to get transcript 1: %w", err)
 	}
-	transcript2, err := cap.GetTranscript(run2ID)
+	transcript2, err := cap.GetTranscript(ctx, run2ID)
 	if err != nil {
 		return fmt.Errorf("failed to get transcript 2: %w", err)
 	}
@@ -1122,7 +1158,7 @@ func (c *RunsListCmd) Run() error {
 	}
 	defer os.RemoveAll(tempDir)
 
-	cap, err := capsule.Unpack(c.Capsule, tempDir)
+	cap, err := capsule.Unpack(c.Capsule, tempDir, capsuleOpts()...)
 	if err != nil {
 		return fmt.Errorf("failed to unpack capsule: %w", err)
 	}
@@ -1162,7 +1198,7 @@ func (c *GoldenSaveCmd) Run() error {
 	defer os.RemoveAll(tempDir)
 
 	// Unpack the capsule
-	cap, err := capsule.Unpack(capsulePath, tempDir)
+	cap, err := capsule.Unpack(capsulePath, tempDir, capsuleOpts()...)
 	if err != nil {
 		return fmt.Errorf("failed to unpack capsule: %w", err)
 	}
@@ -1210,7 +1246,7 @@ func (c *GoldenCheckCmd) Run() error {
 	defer os.RemoveAll(tempDir)
 
 	// Unpack the capsule
-	cap, err := capsule.Unpack(capsulePath, tempDir)
+	cap, err := capsule.Unpack(capsulePath, tempDir, capsuleOpts()...)
 	if err != nil {
 		return fmt.Errorf("failed to unpack capsule: %w", err)
 	}
@@ -1619,7 +1655,7 @@ func (c *ToolArchiveCmd) Run() error {
 		fmt.Printf("    %s: %s\n", name, path)
 	}
 
-	if err := runner.CreateToolArchive(toolID, ver, "x86_64-linux", binaries, outputPath); err != nil {
+	if err := runner.CreateToolArchive(context.Background(), toolID, ver, "x86_64-linux", binaries, outputPath); err != nil {
 		return fmt.Errorf("failed to create tool archive: %w", err)
 	}
 
@@ -2312,7 +2348,7 @@ func (c *JuniperCASToSwordCmd) Run() error {
 	}
 	defer os.RemoveAll(tempDir)
 
-	cap, err := capsule.Unpack(capsulePath, tempDir)
+	cap, err := capsule.Unpack(capsulePath, tempDir, capsuleOpts()...)
 	if err != nil {
 		return fmt.Errorf("failed to unpack capsule: %w", err)
 	}
@@ -2321,9 +2357,10 @@ func (c *JuniperCASToSwordCmd) Run() error {
 		return fmt.Errorf("capsule has no IR - run 'capsule format ir generate' first")
 	}
 
+	ctx := context.Background()
 	irRecord := firstIRRecord(cap.Manifest.IRExtractions)
 
-	irBlobData, err := cap.GetStore().Retrieve(irRecord.IRBlobSHA256)
+	irBlobData, err := cap.GetStore().Retrieve(ctx, irRecord.IRBlobSHA256)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve IR blob: %w", err)
 	}
@@ -3313,7 +3350,7 @@ func runCapsuleTest(capsulePath, goldenDir, name string) (bool, error) {
 	defer os.RemoveAll(tempDir)
 
 	// Unpack capsule
-	cap, err := capsule.Unpack(capsulePath, tempDir)
+	cap, err := capsule.Unpack(capsulePath, tempDir, capsuleOpts()...)
 	if err != nil {
 		return false, fmt.Errorf("unpack failed: %w", err)
 	}
@@ -3330,7 +3367,7 @@ func runCapsuleTest(capsulePath, goldenDir, name string) (bool, error) {
 
 	plan := selfcheck.IdentityBytesPlan(artifactID)
 	executor := selfcheck.NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		return false, fmt.Errorf("selfcheck failed: %w", err)
 	}
@@ -3369,13 +3406,14 @@ func runIngestTest(inputPath, goldenDir, name string) (bool, error) {
 
 	// Create capsule
 	capsuleDir := filepath.Join(tempDir, "capsule")
-	cap, err := capsule.New(capsuleDir)
+	cap, err := capsule.New(capsuleDir, capsuleOpts()...)
 	if err != nil {
 		return false, fmt.Errorf("failed to create capsule: %w", err)
 	}
 
 	// Ingest file
-	artifact, err := cap.IngestFile(inputPath)
+	ctx := context.Background()
+	artifact, err := cap.IngestFile(ctx, inputPath)
 	if err != nil {
 		return false, fmt.Errorf("ingest failed: %w", err)
 	}
@@ -3383,7 +3421,7 @@ func runIngestTest(inputPath, goldenDir, name string) (bool, error) {
 	// Run identity-bytes plan
 	plan := selfcheck.IdentityBytesPlan(artifact.ID)
 	executor := selfcheck.NewExecutor(cap)
-	report, err := executor.Execute(plan)
+	report, err := executor.Execute(context.Background(), plan)
 	if err != nil {
 		return false, fmt.Errorf("selfcheck failed: %w", err)
 	}
@@ -3564,6 +3602,12 @@ func printIRInfo(info *IRInfo) {
 }
 
 func main() {
+	// Initialize optional Veronica CAS backend
+	veronicaClient = initVeronica()
+	if veronicaClient != nil {
+		defer veronicaClient.Close()
+	}
+
 	ctx := kong.Parse(&CLI,
 		kong.Name("capsule"),
 		kong.Description("Juniper Bible - Byte-for-byte preservation framework"),

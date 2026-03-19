@@ -92,11 +92,38 @@ func ConfigureForBulkWrite(db *sql.DB) error {
 		"PRAGMA journal_mode=WAL",
 		"PRAGMA synchronous=NORMAL",
 		"PRAGMA cache_size=-64000",
+		"PRAGMA temp_store=MEMORY",
 	}
 	for _, pragma := range pragmas {
 		if _, err := db.Exec(pragma); err != nil {
 			return fmt.Errorf("exec %s: %w", pragma, err)
 		}
+	}
+	return nil
+}
+
+// Optimize runs PRAGMA optimize to update query planner statistics.
+// Call after bulk writes to ensure the query planner has up-to-date info.
+// Returns nil if the driver does not support this pragma.
+func Optimize(db *sql.DB) error {
+	_, err := db.Exec("PRAGMA optimize")
+	if err != nil {
+		// Some drivers block PRAGMA optimize for security reasons.
+		// This is a best-effort optimization, not a correctness requirement.
+		return nil
+	}
+	return nil
+}
+
+// ValidateIntegrity runs PRAGMA integrity_check and returns an error
+// if the database is corrupted.
+func ValidateIntegrity(db *sql.DB) error {
+	var result string
+	if err := db.QueryRow("PRAGMA integrity_check").Scan(&result); err != nil {
+		return fmt.Errorf("integrity check failed: %w", err)
+	}
+	if result != "ok" {
+		return fmt.Errorf("integrity check failed: %s", result)
 	}
 	return nil
 }

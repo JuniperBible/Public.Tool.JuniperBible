@@ -842,3 +842,192 @@ func TestIntegrationDataTypes(t *testing.T) {
 		t.Errorf("blob_val: unexpected value %v", blobVal)
 	}
 }
+
+func TestIntegrationWindowFunction(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	_, err := db.Exec(`CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, category TEXT)`)
+	if err != nil {
+		t.Skipf("CREATE TABLE not yet implemented: %v", err)
+	}
+
+	items := []struct {
+		name     string
+		category string
+	}{
+		{"Apple", "fruit"},
+		{"Banana", "fruit"},
+		{"Carrot", "vegetable"},
+		{"Daikon", "vegetable"},
+		{"Eggplant", "vegetable"},
+	}
+	for _, item := range items {
+		if _, err := db.Exec(`INSERT INTO items (name, category) VALUES (?, ?)`, item.name, item.category); err != nil {
+			t.Fatalf("failed to insert %s: %v", item.name, err)
+		}
+	}
+
+	rows, err := db.Query(`SELECT name, ROW_NUMBER() OVER (PARTITION BY category ORDER BY name) AS rn FROM items ORDER BY category, name`)
+	if err != nil {
+		t.Skipf("Window functions not yet implemented: %v", err)
+	}
+	defer rows.Close()
+
+	expected := []struct {
+		name string
+		rn   int
+	}{
+		{"Apple", 1},
+		{"Banana", 2},
+		{"Carrot", 1},
+		{"Daikon", 2},
+		{"Eggplant", 3},
+	}
+
+	idx := 0
+	for rows.Next() {
+		var name string
+		var rn int
+		if err := rows.Scan(&name, &rn); err != nil {
+			t.Fatalf("failed to scan row %d: %v", idx, err)
+		}
+		if idx >= len(expected) {
+			t.Fatalf("too many rows returned")
+		}
+		if name != expected[idx].name || rn != expected[idx].rn {
+			t.Errorf("row %d: expected (%s, %d), got (%s, %d)", idx, expected[idx].name, expected[idx].rn, name, rn)
+		}
+		idx++
+	}
+	if idx != len(expected) {
+		t.Errorf("expected %d rows, got %d", len(expected), idx)
+	}
+}
+
+func TestIntegrationNullsFirstLast(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	_, err := db.Exec(`CREATE TABLE nullable_sort (id INTEGER PRIMARY KEY, val INTEGER)`)
+	if err != nil {
+		t.Skipf("CREATE TABLE not yet implemented: %v", err)
+	}
+
+	// Insert values including NULLs
+	db.Exec(`INSERT INTO nullable_sort (val) VALUES (3)`)
+	db.Exec(`INSERT INTO nullable_sort (val) VALUES (NULL)`)
+	db.Exec(`INSERT INTO nullable_sort (val) VALUES (1)`)
+	db.Exec(`INSERT INTO nullable_sort (val) VALUES (NULL)`)
+	db.Exec(`INSERT INTO nullable_sort (val) VALUES (2)`)
+
+	// Test NULLS FIRST
+	rows, err := db.Query(`SELECT val FROM nullable_sort ORDER BY val NULLS FIRST`)
+	if err != nil {
+		t.Skipf("NULLS FIRST not yet implemented: %v", err)
+	}
+	defer rows.Close()
+
+	var values []sql.NullInt64
+	for rows.Next() {
+		var v sql.NullInt64
+		if err := rows.Scan(&v); err != nil {
+			t.Fatalf("failed to scan: %v", err)
+		}
+		values = append(values, v)
+	}
+
+	if len(values) != 5 {
+		t.Fatalf("expected 5 rows, got %d", len(values))
+	}
+	// First two should be NULL
+	if values[0].Valid || values[1].Valid {
+		t.Errorf("expected first two values to be NULL, got %v and %v", values[0], values[1])
+	}
+	// Last three should be 1, 2, 3
+	if !values[2].Valid || values[2].Int64 != 1 {
+		t.Errorf("expected third value to be 1, got %v", values[2])
+	}
+
+	// Test NULLS LAST
+	rows2, err := db.Query(`SELECT val FROM nullable_sort ORDER BY val NULLS LAST`)
+	if err != nil {
+		t.Skipf("NULLS LAST not yet implemented: %v", err)
+	}
+	defer rows2.Close()
+
+	values = nil
+	for rows2.Next() {
+		var v sql.NullInt64
+		if err := rows2.Scan(&v); err != nil {
+			t.Fatalf("failed to scan: %v", err)
+		}
+		values = append(values, v)
+	}
+
+	if len(values) != 5 {
+		t.Fatalf("expected 5 rows, got %d", len(values))
+	}
+	// First three should be 1, 2, 3
+	if !values[0].Valid || values[0].Int64 != 1 {
+		t.Errorf("expected first value to be 1, got %v", values[0])
+	}
+	// Last two should be NULL
+	if values[3].Valid || values[4].Valid {
+		t.Errorf("expected last two values to be NULL, got %v and %v", values[3], values[4])
+	}
+}
+
+func TestIntegrationPragmaIntegrityCheck(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Test raw PRAGMA integrity_check
+	var result string
+	err := db.QueryRow("PRAGMA integrity_check").Scan(&result)
+	if err != nil {
+		t.Skipf("PRAGMA integrity_check not yet implemented: %v", err)
+	}
+	if result != "ok" {
+		t.Errorf("expected integrity_check = 'ok', got %q", result)
+	}
+
+	// Test the ValidateIntegrity helper
+	if err := sqlite.ValidateIntegrity(db); err != nil {
+		t.Errorf("ValidateIntegrity failed on a valid database: %v", err)
+	}
+}
+
+func TestIntegrationPragmaUserVersion(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Set user_version
+	_, err := db.Exec("PRAGMA user_version = 42")
+	if err != nil {
+		t.Skipf("PRAGMA user_version SET not yet implemented: %v", err)
+	}
+
+	// Get user_version
+	var version int
+	err = db.QueryRow("PRAGMA user_version").Scan(&version)
+	if err != nil {
+		t.Fatalf("PRAGMA user_version GET failed: %v", err)
+	}
+	if version != 42 {
+		t.Errorf("expected user_version = 42, got %d", version)
+	}
+
+	// Update to a different value
+	if _, err := db.Exec("PRAGMA user_version = 100"); err != nil {
+		t.Fatalf("failed to update user_version: %v", err)
+	}
+
+	err = db.QueryRow("PRAGMA user_version").Scan(&version)
+	if err != nil {
+		t.Fatalf("PRAGMA user_version GET after update failed: %v", err)
+	}
+	if version != 100 {
+		t.Errorf("expected user_version = 100, got %d", version)
+	}
+}

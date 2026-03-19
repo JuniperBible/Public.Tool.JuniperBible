@@ -271,6 +271,11 @@ func parse(path string) (*ir.Corpus, error) {
 	}
 	defer db.Close()
 
+	if err := sqlite.ValidateIntegrity(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("database integrity check failed: %w", err)
+	}
+
 	corpus := ir.NewCorpus(artifactID, "BIBLE", "")
 	corpus.SourceFormat = "MyBible"
 	corpus.LossClass = "L1"

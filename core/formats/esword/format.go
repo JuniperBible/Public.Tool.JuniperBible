@@ -161,6 +161,11 @@ func parse(path string) (*ir.Corpus, error) {
 	}
 	defer db.Close()
 
+	if err := sqlite.ValidateIntegrity(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("database integrity check failed: %w", err)
+	}
+
 	corpus := ir.NewCorpus(artifactID, "BIBLE", "")
 	corpus.SourceFormat = "e-Sword"
 	corpus.LossClass = "L1"
@@ -470,6 +475,10 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 		return "", err
 	}
 
+	if err := sqlite.Optimize(db); err != nil {
+		return "", err
+	}
+
 	return outputPath, nil
 }
 
@@ -514,16 +523,28 @@ func emitCorpusContent(db *sql.DB, corpus *ir.Corpus) error {
 func createSchemaForType(db *sql.DB, moduleType string) error {
 	switch moduleType {
 	case "BIBLE":
-		_, err := db.Exec("CREATE TABLE IF NOT EXISTS Bible (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)")
+		if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Bible (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)"); err != nil {
+			return err
+		}
+		_, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_bible_bcv ON Bible (Book, Chapter, Verse)")
 		return err
 	case "COMMENTARY":
-		_, err := db.Exec("CREATE TABLE IF NOT EXISTS Commentary (Book INTEGER, ChapterBegin INTEGER, ChapterEnd INTEGER, VerseBegin INTEGER, VerseEnd INTEGER, Comments TEXT)")
+		if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Commentary (Book INTEGER, ChapterBegin INTEGER, ChapterEnd INTEGER, VerseBegin INTEGER, VerseEnd INTEGER, Comments TEXT)"); err != nil {
+			return err
+		}
+		_, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_commentary_bcv ON Commentary (Book, ChapterBegin, VerseBegin)")
 		return err
 	case "DICTIONARY":
-		_, err := db.Exec("CREATE TABLE IF NOT EXISTS Dictionary (Topic TEXT, Definition TEXT)")
+		if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Dictionary (Topic TEXT, Definition TEXT)"); err != nil {
+			return err
+		}
+		_, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_dictionary_topic ON Dictionary (Topic)")
 		return err
 	default:
-		_, err := db.Exec("CREATE TABLE IF NOT EXISTS Bible (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)")
+		if _, err := db.Exec("CREATE TABLE IF NOT EXISTS Bible (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)"); err != nil {
+			return err
+		}
+		_, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_bible_bcv ON Bible (Book, Chapter, Verse)")
 		return err
 	}
 }

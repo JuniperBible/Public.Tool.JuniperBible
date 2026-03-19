@@ -18,9 +18,7 @@ func emitCreateSchema(db *sql.DB) error {
 	)`); err != nil {
 		return fmt.Errorf("failed to create verses table: %w", err)
 	}
-	db.Exec("CREATE INDEX book_number_index ON verses (book_number)")
-	db.Exec("CREATE INDEX chapter_index ON verses (chapter)")
-	db.Exec("CREATE INDEX verse_index ON verses (verse)")
+	db.Exec("CREATE INDEX idx_verses_bcv ON verses (book_number, chapter, verse)")
 
 	if _, err := db.Exec("CREATE TABLE info (name TEXT NOT NULL, value TEXT NOT NULL)"); err != nil {
 		return fmt.Errorf("failed to create info table: %w", err)
@@ -28,26 +26,37 @@ func emitCreateSchema(db *sql.DB) error {
 	return nil
 }
 
-func emitInsertMetadata(db *sql.DB, corpus *ir.Corpus) {
+func emitInsertMetadataTx(tx *sql.Tx, corpus *ir.Corpus) error {
 	title := corpus.Title
 	if title == "" {
 		title = corpus.ID
 	}
-	db.Exec("INSERT INTO info (name, value) VALUES ('description', ?)", title)
+	if _, err := tx.Exec("INSERT INTO info (name, value) VALUES ('description', ?)", title); err != nil {
+		return fmt.Errorf("insert metadata description: %w", err)
+	}
 	if corpus.Description != "" {
-		db.Exec("INSERT INTO info (name, value) VALUES ('detailed_info', ?)", corpus.Description)
+		if _, err := tx.Exec("INSERT INTO info (name, value) VALUES ('detailed_info', ?)", corpus.Description); err != nil {
+			return fmt.Errorf("insert metadata detailed_info: %w", err)
+		}
 	}
 	if corpus.Language != "" {
-		db.Exec("INSERT INTO info (name, value) VALUES ('language', ?)", corpus.Language)
+		if _, err := tx.Exec("INSERT INTO info (name, value) VALUES ('language', ?)", corpus.Language); err != nil {
+			return fmt.Errorf("insert metadata language: %w", err)
+		}
 	}
 	if v, ok := corpus.Attributes["version"]; ok {
-		db.Exec("INSERT INTO info (name, value) VALUES ('version', ?)", v)
+		if _, err := tx.Exec("INSERT INTO info (name, value) VALUES ('version', ?)", v); err != nil {
+			return fmt.Errorf("insert metadata version: %w", err)
+		}
 	}
 	for k, v := range corpus.Attributes {
 		if k != "version" {
-			db.Exec("INSERT INTO info (name, value) VALUES (?, ?)", k, v)
+			if _, err := tx.Exec("INSERT INTO info (name, value) VALUES (?, ?)", k, v); err != nil {
+				return fmt.Errorf("insert metadata %s: %w", k, err)
+			}
 		}
 	}
+	return nil
 }
 
 func emit(corpus *ir.Corpus, outputDir string) (string, error) {
@@ -68,12 +77,17 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 	}
 
 	if err := sqlite.WithTransaction(db, func(tx *sql.Tx) error {
-		return emitBibleNativeTx(tx, corpus)
+		if err := emitBibleNativeTx(tx, corpus); err != nil {
+			return err
+		}
+		return emitInsertMetadataTx(tx, corpus)
 	}); err != nil {
 		return "", fmt.Errorf("failed to emit content: %w", err)
 	}
 
-	emitInsertMetadata(db, corpus)
+	if err := sqlite.Optimize(db); err != nil {
+		return "", err
+	}
 
 	return outputPath, nil
 }

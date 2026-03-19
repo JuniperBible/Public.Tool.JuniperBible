@@ -88,6 +88,11 @@ func parse(path string) (*ir.Corpus, error) {
 	}
 	defer db.Close()
 
+	if err := sqlite.ValidateIntegrity(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("database integrity check failed: %w", err)
+	}
+
 	artifactID := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 
 	corpus := &ir.Corpus{

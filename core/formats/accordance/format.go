@@ -91,6 +91,10 @@ func parseAccordance(path string) (*ir.Corpus, error) {
 	db, err := sqlite.OpenReadOnly(path)
 	if err == nil {
 		defer db.Close()
+		if intErr := sqlite.ValidateIntegrity(db); intErr != nil {
+			db.Close()
+			return nil, fmt.Errorf("database integrity check failed: %w", intErr)
+		}
 		corpus.Documents = extractAccordanceContent(db, artifactID)
 	}
 
@@ -201,6 +205,7 @@ func createAccordanceTables(db *sql.DB) error {
 			verse INTEGER,
 			text TEXT
 		);
+		CREATE INDEX idx_accverses_bcv ON AccVerses (book, chapter, verse);
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to create tables: %w", err)
@@ -261,12 +266,19 @@ func emitAccordance(corpus *ir.Corpus, outputDir string) (string, error) {
 		return "", err
 	}
 
-	db.Exec("INSERT INTO AccMetadata VALUES ('title', ?)", corpus.Title)
-	db.Exec("INSERT INTO AccMetadata VALUES ('language', ?)", corpus.Language)
-
 	if err := sqlite.WithTransaction(db, func(tx *sql.Tx) error {
+		if _, err := tx.Exec("INSERT INTO AccMetadata VALUES ('title', ?)", corpus.Title); err != nil {
+			return fmt.Errorf("insert metadata title: %w", err)
+		}
+		if _, err := tx.Exec("INSERT INTO AccMetadata VALUES ('language', ?)", corpus.Language); err != nil {
+			return fmt.Errorf("insert metadata language: %w", err)
+		}
 		return insertContentBlocksTx(tx, corpus.Documents)
 	}); err != nil {
+		return "", err
+	}
+
+	if err := sqlite.Optimize(db); err != nil {
 		return "", err
 	}
 

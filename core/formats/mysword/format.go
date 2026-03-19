@@ -281,6 +281,11 @@ func parse(path string) (*ir.Corpus, error) {
 	}
 	defer db.Close()
 
+	if err := sqlite.ValidateIntegrity(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("database integrity check failed: %w", err)
+	}
+
 	corpus := ir.NewCorpus(artifactID, "BIBLE", "")
 	corpus.SourceFormat = "MySword"
 	corpus.LossClass = "L1"
@@ -544,20 +549,43 @@ var moduleEmittersTx = map[string]func(*sql.Tx, *ir.Corpus) error{
 }
 
 func createSchemaForModuleType(db *sql.DB, moduleType string) error {
+	var err error
 	switch moduleType {
 	case "BIBLE":
-		_, err := db.Exec("CREATE TABLE IF NOT EXISTS Books (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)")
-		return err
+		if _, err = db.Exec("CREATE TABLE IF NOT EXISTS Books (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)"); err != nil {
+			return err
+		}
+		if _, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_books_bcv ON Books (Book, Chapter, Verse)"); err != nil {
+			return err
+		}
 	case "COMMENTARY":
-		_, err := db.Exec("CREATE TABLE IF NOT EXISTS commentaries (book_number INTEGER, chapter_number_from INTEGER, chapter_number_to INTEGER, verse_number_from INTEGER, verse_number_to INTEGER, text TEXT)")
-		return err
+		if _, err = db.Exec("CREATE TABLE IF NOT EXISTS commentaries (book_number INTEGER, chapter_number_from INTEGER, chapter_number_to INTEGER, verse_number_from INTEGER, verse_number_to INTEGER, text TEXT)"); err != nil {
+			return err
+		}
+		if _, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_commentaries_bcv ON commentaries (book_number, chapter_number_from, verse_number_from)"); err != nil {
+			return err
+		}
 	case "DICTIONARY":
-		_, err := db.Exec("CREATE TABLE IF NOT EXISTS dictionary (topic TEXT, definition TEXT)")
-		return err
+		if _, err = db.Exec("CREATE TABLE IF NOT EXISTS dictionary (topic TEXT, definition TEXT)"); err != nil {
+			return err
+		}
+		if _, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_dictionary_topic ON dictionary (topic)"); err != nil {
+			return err
+		}
 	default:
-		_, err := db.Exec("CREATE TABLE IF NOT EXISTS Books (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)")
-		return err
+		if _, err = db.Exec("CREATE TABLE IF NOT EXISTS Books (Book INTEGER, Chapter INTEGER, Verse INTEGER, Scripture TEXT)"); err != nil {
+			return err
+		}
+		if _, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_books_bcv ON Books (Book, Chapter, Verse)"); err != nil {
+			return err
+		}
 	}
+
+	// Create info table for metadata (shared across all module types)
+	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS info (name TEXT, value TEXT)"); err != nil {
+		return fmt.Errorf("failed to create info table: %w", err)
+	}
+	return nil
 }
 
 func corpusTitle(corpus *ir.Corpus) string {
@@ -567,18 +595,23 @@ func corpusTitle(corpus *ir.Corpus) string {
 	return corpus.ID
 }
 
-func insertMetadata(db *sql.DB, corpus *ir.Corpus) error {
-	if _, err := db.Exec("CREATE TABLE IF NOT EXISTS info (name TEXT, value TEXT)"); err != nil {
-		return fmt.Errorf("failed to create info table: %w", err)
+func insertMetadataTx(tx *sql.Tx, corpus *ir.Corpus) error {
+	if _, err := tx.Exec("INSERT INTO info (name, value) VALUES ('description', ?)", corpusTitle(corpus)); err != nil {
+		return fmt.Errorf("insert metadata description: %w", err)
 	}
-	db.Exec("INSERT INTO info (name, value) VALUES ('description', ?)", corpusTitle(corpus))
 	if corpus.Description != "" {
-		db.Exec("INSERT INTO info (name, value) VALUES ('detailed_info', ?)", corpus.Description)
+		if _, err := tx.Exec("INSERT INTO info (name, value) VALUES ('detailed_info', ?)", corpus.Description); err != nil {
+			return fmt.Errorf("insert metadata detailed_info: %w", err)
+		}
 	}
 	if v, ok := corpus.Attributes["version"]; ok {
-		db.Exec("INSERT INTO info (name, value) VALUES ('version', ?)", v)
+		if _, err := tx.Exec("INSERT INTO info (name, value) VALUES ('version', ?)", v); err != nil {
+			return fmt.Errorf("insert metadata version: %w", err)
+		}
 	}
-	db.Exec("INSERT INTO info (name, value) VALUES ('language', ?)", corpus.Language)
+	if _, err := tx.Exec("INSERT INTO info (name, value) VALUES ('language', ?)", corpus.Language); err != nil {
+		return fmt.Errorf("insert metadata language: %w", err)
+	}
 	return nil
 }
 
@@ -605,18 +638,21 @@ func emit(corpus *ir.Corpus, outputDir string) (string, error) {
 		return "", fmt.Errorf("failed to create schema: %w", err)
 	}
 
-	// Insert data with transaction
+	// Insert data and metadata in a single transaction
 	emitterTx := moduleEmittersTx[corpus.ModuleType]
 	if emitterTx == nil {
 		emitterTx = emitBibleNativeTx
 	}
 	if err := sqlite.WithTransaction(db, func(tx *sql.Tx) error {
-		return emitterTx(tx, corpus)
+		if err := emitterTx(tx, corpus); err != nil {
+			return err
+		}
+		return insertMetadataTx(tx, corpus)
 	}); err != nil {
 		return "", fmt.Errorf("failed to emit content: %w", err)
 	}
 
-	if err := insertMetadata(db, corpus); err != nil {
+	if err := sqlite.Optimize(db); err != nil {
 		return "", err
 	}
 
